@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="es-CL">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Choapa Explore — Descubre el Choapa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+/* ============================================================
+   CHOAPA EXPLORE — DESIGN TOKENS
+   Proyecto nuevo, arquitectura propia. No reutiliza ChoapaGo.
+   ============================================================ */
+:root{
+  --bg-primary:#07131F;
+  --bg-night:#0B1726;
+  --surface:#102438;
+  --surface-elevated:#142B3D;
+  --surface-elevated-2:#1A3448;
+  --turquoise:#16B8C4;
+  --turquoise-bright:#5FE1E8;
+  --text-primary:#F4F7FA;
+  --text-secondary:#91A4B8;
+  --text-tertiary:#5D7185;
+  --border-subtle: rgba(145,164,184,0.14);
+
+  --cat-todos:#5FE1E8;
+  --cat-naturaleza:#2DD4A7;
+  --cat-comida:#F0A85B;
+  --cat-alojamiento:#5B9CF0;
+  --cat-patrimonio:#D4AF5B;
+  --cat-cielos:#8B7CF0;
+  --cat-vinos:#B06CE0;
+  --cat-actividades:#5BD98A;
+
+  --font-display:'Sora', system-ui, sans-serif;
+  --font-body:'Inter', system-ui, sans-serif;
+  --font-mono:'JetBrains Mono', monospace;
+
+  --radius-s:10px;
+  --radius-m:16px;
+  --radius-l:22px;
+  --radius-pill:999px;
+
+  --sheet-compact: 200px;
+  --sheet-expanded: 86vh;
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{height:100%; margin:0; overscroll-behavior:none;}
+body{
+  font-family:var(--font-body);
+  background:var(--bg-primary);
+  color:var(--text-primary);
+  overflow:hidden;
+}
+button{font-family:inherit; border:none; background:none; color:inherit; cursor:pointer;}
+input{font-family:inherit;}
+img{-webkit-user-drag:none; user-select:none;}
+
+#app{position:relative; width:100vw; height:100vh; height:100dvh;}
+
+/* ---------------- MAP ---------------- */
+#map{position:absolute; inset:0; background:var(--bg-primary);}
+.maplibregl-ctrl-attrib{display:none !important;}
+.maplibregl-ctrl-logo{display:none !important;}
+
+/* subtle vignette so UI floats over the map, not competes with it */
+.map-vignette{
+  position:absolute; inset:0; pointer-events:none; z-index:1;
+  background:
+    linear-gradient(to bottom, rgba(7,19,31,0.82) 0%, rgba(7,19,31,0.0) 18%, rgba(7,19,31,0.0) 68%, rgba(7,19,31,0.7) 100%);
+}
+
+/* ---------------- HEADER ---------------- */
+.top-ui{
+  position:absolute; top:0; left:0; right:0; z-index:10;
+  padding: calc(14px + var(--safe-top)) 16px 10px;
+  display:flex; flex-direction:column; gap:12px;
+}
+.header-row{display:flex; align-items:center; justify-content:space-between; gap:12px;}
+.brand{display:flex; flex-direction:column; line-height:1; font-family:var(--font-display);}
+.brand-choapa{font-size:19px; font-weight:800; letter-spacing:0.5px; color:var(--text-primary);}
+.brand-explore{font-size:11px; font-weight:700; letter-spacing:4px; color:var(--turquoise-bright); margin-top:2px;}
+
+.profile-btn{
+  width:40px; height:40px; border-radius:50%;
+  background:rgba(16,36,56,0.72); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  border:1px solid var(--border-subtle);
+  display:flex; align-items:center; justify-content:center;
+  color:var(--turquoise-bright); flex-shrink:0;
+}
+.profile-btn:active{transform:scale(0.94);}
+
+.searchbar{
+  display:flex; align-items:center; gap:10px;
+  background:rgba(16,36,56,0.78); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+  border:1px solid var(--border-subtle);
+  border-radius:var(--radius-pill);
+  padding:13px 18px;
+}
+.searchbar svg{flex-shrink:0; color:var(--text-secondary);}
+.searchbar input{
+  background:none; border:none; outline:none; width:100%;
+  color:var(--text-primary); font-size:15px; font-weight:500;
+}
+.searchbar input::placeholder{color:var(--text-secondary);}
+
+.chips-row{
+  display:flex; gap:9px; overflow-x:auto; scrollbar-width:none;
+  padding-bottom:2px; margin:0 -16px; padding-left:16px; padding-right:16px;
+}
+.chips-row::-webkit-scrollbar{display:none;}
+.chip{
+  flex-shrink:0; display:flex; align-items:center; gap:6px;
+  padding:9px 15px; border-radius:var(--radius-pill);
+  background:rgba(16,36,56,0.72); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  border:1px solid var(--border-subtle);
+  font-size:13.5px; font-weight:600; color:var(--text-secondary);
+  transition:background .18s ease, color .18s ease, border-color .18s ease;
+  white-space:nowrap;
+}
+.chip .dot{width:6px; height:6px; border-radius:50%; background:currentColor; opacity:.85;}
+.chip.active{
+  color:#04222A; background:var(--turquoise-bright);
+  border-color:var(--turquoise-bright);
+}
+.chip:active{transform:scale(0.96);}
+
+/* ---------------- MAP CONTROLS ---------------- */
+.map-controls{
+  position:absolute; right:16px; z-index:9;
+  display:flex; flex-direction:column; gap:1px;
+  background:rgba(16,36,56,0.78); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  border:1px solid var(--border-subtle); border-radius:var(--radius-m);
+  overflow:hidden;
+}
+.map-controls button{
+  width:44px; height:44px; display:flex; align-items:center; justify-content:center;
+  color:var(--text-primary);
+}
+.map-controls button:active{background:rgba(95,225,232,0.12);}
+.map-controls .divider{height:1px; background:var(--border-subtle); margin:0 8px;}
+
+.weather-pill{
+  position:absolute; left:16px; z-index:9;
+  display:flex; align-items:center; gap:9px;
+  background:rgba(16,36,56,0.78); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  border:1px solid var(--border-subtle); border-radius:var(--radius-pill);
+  padding:9px 15px 9px 11px;
+}
+.weather-pill .wtemp{font-size:14px; font-weight:700;}
+.weather-pill .wdesc{font-size:11px; color:var(--text-secondary); margin-top:-2px;}
+
+.locate-btn{
+  position:absolute; z-index:9; right:16px;
+  display:flex; align-items:center; gap:8px;
+  background:rgba(22,184,196,0.16); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  border:1px solid rgba(95,225,232,0.35); border-radius:var(--radius-pill);
+  padding:11px 16px; color:var(--turquoise-bright); font-size:13.5px; font-weight:700;
+}
+.locate-btn:active{transform:scale(0.96);}
+
+/* ---------------- POI MARKERS ---------------- */
+.poi-marker{
+  width:26px; height:32px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transform-origin:center bottom;
+  transition:transform .22s cubic-bezier(.34,1.56,.64,1);
+  filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+}
+.poi-marker.selected{transform:scale(1.28) translateY(-2px);}
+.poi-marker svg{width:100%; height:100%; overflow:visible;}
+.poi-marker .halo{opacity:0; transition:opacity .22s ease;}
+.poi-marker.selected .halo{opacity:1;}
+.poi-marker .glyph{font-size:11px;}
+
+.user-dot{width:22px; height:22px;}
+.user-dot .ring{animation:pulse-ring 2.4s ease-out infinite;}
+@keyframes pulse-ring{
+  0%{r:5; opacity:.55;}
+  100%{r:16; opacity:0;}
+}
+
+/* ---------------- CLUSTERS ---------------- */
+.cluster-marker{
+  display:flex; align-items:center; justify-content:center;
+  width:42px; height:42px; border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, var(--surface-elevated-2), var(--bg-night));
+  border:2px solid var(--turquoise);
+  color:var(--turquoise-bright); font-family:var(--font-display); font-weight:700; font-size:14px;
+  box-shadow:0 0 0 6px rgba(22,184,196,0.12), 0 4px 10px rgba(0,0,0,0.4);
+}
+
+/* ---------------- BOTTOM SHEET ---------------- */
+.sheet{
+  position:absolute; left:0; right:0; bottom:0; z-index:20;
+  height:var(--sheet-compact);
+  background:linear-gradient(180deg, var(--bg-night) 0%, var(--bg-primary) 100%);
+  border-top:1px solid var(--border-subtle);
+  border-radius:24px 24px 0 0;
+  box-shadow:0 -12px 40px rgba(0,0,0,0.45);
+  transition:height .38s cubic-bezier(.32,.9,.34,1);
+  display:flex; flex-direction:column;
+  touch-action:none;
+}
+.sheet.expanded{height:var(--sheet-expanded);}
+.sheet.dragging{transition:none;}
+
+.sheet-handle-area{padding:10px 0 4px; display:flex; justify-content:center; flex-shrink:0; cursor:grab;}
+.sheet-handle{width:38px; height:4px; border-radius:var(--radius-pill); background:var(--border-subtle);}
+
+.sheet-body{
+  flex:1; overflow-y:auto; overscroll-behavior:contain;
+  padding:4px 0 calc(96px + var(--safe-bottom));
+  -webkit-overflow-scrolling:touch;
+}
+
+.sheet-section{padding:14px 18px 6px;}
+.sheet-section-head{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:12px;}
+.sheet-section-title{font-family:var(--font-display); font-size:18px; font-weight:700;}
+.sheet-section-title .accent{color:var(--turquoise-bright);}
+.sheet-see-all{font-size:12.5px; font-weight:600; color:var(--turquoise-bright); display:flex; align-items:center; gap:3px; flex-shrink:0;}
+
+.demo-badge{
+  display:inline-flex; align-items:center; gap:5px;
+  font-family:var(--font-mono); font-size:9.5px; font-weight:500; letter-spacing:0.4px;
+  color:#F0C25B; background:rgba(240,194,91,0.12); border:1px solid rgba(240,194,91,0.3);
+  padding:3px 8px; border-radius:6px; margin-left:8px;
+}
+
+.rail{display:flex; gap:11px; overflow-x:auto; scrollbar-width:none; padding:0 18px 4px; margin:0 -18px;}
+.rail::-webkit-scrollbar{display:none;}
+
+.exp-card{
+  flex-shrink:0; width:150px; padding:14px;
+  background:var(--surface); border:1px solid var(--border-subtle); border-radius:var(--radius-m);
+  display:flex; flex-direction:column; gap:9px;
+}
+.exp-card .emoji{font-size:20px;}
+.exp-card .label{font-size:13px; font-weight:600; line-height:1.25; color:var(--text-primary);}
+.exp-card .label b{display:block; color:var(--turquoise-bright); font-weight:700;}
+
+.place-card{
+  flex-shrink:0; width:168px; border-radius:var(--radius-m); overflow:hidden;
+  background:var(--surface); border:1px solid var(--border-subtle);
+}
+.place-card .photo{
+  position:relative; height:112px; width:100%;
+  background:var(--surface-elevated) center/cover no-repeat;
+  display:flex; align-items:flex-start; justify-content:flex-end; padding:8px;
+}
+.place-card .fav-btn{
+  width:28px; height:28px; border-radius:50%;
+  background:rgba(7,19,31,0.55); backdrop-filter:blur(6px);
+  display:flex; align-items:center; justify-content:center; color:#fff;
+}
+.place-card .info{padding:10px 12px 12px;}
+.place-card .pname{font-size:13.5px; font-weight:700; line-height:1.25; margin-bottom:2px;}
+.place-card .ploc{font-size:11.5px; color:var(--text-secondary); margin-bottom:8px;}
+.place-card .ptag{
+  display:inline-flex; align-items:center; gap:5px;
+  font-size:10.5px; font-weight:600; padding:4px 9px; border-radius:var(--radius-pill);
+}
+.place-card .ptag .dot{width:5px; height:5px; border-radius:50%; background:currentColor;}
+
+.rail-empty{padding:18px; font-size:12.5px; color:var(--text-tertiary); text-align:center; border:1px dashed var(--border-subtle); border-radius:var(--radius-m);}
+
+/* ---------------- POI DETAIL CARD (on select) ---------------- */
+.poi-detail{
+  position:absolute; left:16px; right:16px; z-index:22;
+  bottom:calc(var(--sheet-compact) + 14px);
+  background:var(--surface-elevated); border:1px solid var(--border-subtle);
+  border-radius:var(--radius-l); padding:14px;
+  display:flex; gap:12px; align-items:center;
+  box-shadow:0 10px 30px rgba(0,0,0,0.45);
+  transform:translateY(16px); opacity:0; pointer-events:none;
+  transition:transform .28s cubic-bezier(.32,.9,.34,1), opacity .22s ease;
+}
+.poi-detail.visible{transform:translateY(0); opacity:1; pointer-events:auto;}
+.poi-detail .thumb{width:64px; height:64px; border-radius:var(--radius-s); background:var(--surface) center/cover no-repeat; flex-shrink:0;}
+.poi-detail .meta{flex:1; min-width:0;}
+.poi-detail .pname{font-size:14.5px; font-weight:700; margin-bottom:2px;}
+.poi-detail .ploc{font-size:12px; color:var(--text-secondary); margin-bottom:6px;}
+.poi-detail .pdesc{font-size:11.5px; color:var(--text-secondary); line-height:1.4; margin-top:7px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+.poi-detail .close{
+  width:30px; height:30px; border-radius:50%; background:rgba(255,255,255,0.06);
+  display:flex; align-items:center; justify-content:center; flex-shrink:0; color:var(--text-secondary);
+}
+
+/* ---------------- BOTTOM NAV ---------------- */
+.bottom-nav{
+  position:absolute; left:0; right:0; bottom:0; z-index:25;
+  display:flex; justify-content:space-around; align-items:center;
+  padding:9px 6px calc(9px + var(--safe-bottom));
+  background:rgba(7,19,31,0.88); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  border-top:1px solid var(--border-subtle);
+  height:64px;
+}
+.nav-item{
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+  color:var(--text-tertiary); font-size:10.5px; font-weight:600; flex:1; padding:4px;
+}
+.nav-item svg{width:21px; height:21px;}
+.nav-item.active{color:var(--turquoise-bright);}
+.nav-item.main{position:relative; top:-16px;}
+.nav-item.main .icon-wrap{
+  width:48px; height:48px; border-radius:50%;
+  background:var(--turquoise); display:flex; align-items:center; justify-content:center;
+  color:#052024; box-shadow:0 6px 16px rgba(22,184,196,0.4);
+  border:4px solid var(--bg-primary);
+}
+.nav-item.main.active .icon-wrap{background:var(--turquoise-bright);}
+.nav-item:active{transform:scale(0.94);}
+
+/* Loading state */
+.map-loading{
+  position:absolute; inset:0; z-index:5; background:var(--bg-primary);
+  display:flex; align-items:center; justify-content:center; flex-direction:column; gap:10px;
+  transition:opacity .4s ease;
+}
+.map-loading .spinner{
+  width:26px; height:26px; border-radius:50%;
+  border:2.5px solid rgba(95,225,232,0.2); border-top-color:var(--turquoise-bright);
+  animation:spin 0.8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+.map-loading span{font-size:12.5px; color:var(--text-secondary); font-weight:500;}
+
+@media (min-width:640px){
+  .top-ui{max-width:640px; left:50%; transform:translateX(-50%); right:auto; width:calc(100% - 32px);}
+  .sheet, .bottom-nav{max-width:640px; left:50%; transform:translateX(-50%);}
+  .poi-detail{max-width:640px; left:50%; transform:translateX(-50%);}
+  .poi-detail.visible{transform:translateX(-50%);}
+  .map-controls{right:calc(50% - 320px + 16px);}
+  .locate-btn{right:calc(50% - 320px + 16px);}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="map"></div>
+  <div class="map-vignette"></div>
+
+  <div class="map-loading" id="mapLoading">
+    <div class="spinner"></div>
+    <span>Cargando el Choapa…</span>
+  </div>
+
+  <!-- HEADER -->
+  <div class="top-ui">
+    <div class="header-row">
+      <div class="brand">
+        <span class="brand-choapa">CHOAPA</span>
+        <span class="brand-explore">EXPLORE</span>
+      </div>
+      <button class="profile-btn" aria-label="Perfil">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9Z" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c1.4-3.8 4.6-6 8-6s6.6 2.2 8 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+
+    <div class="searchbar">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="m21 21-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input type="text" placeholder="¿Qué quieres descubrir?" id="searchInput">
+    </div>
+
+    <div class="chips-row" id="chipsRow"></div>
+  </div>
+
+  <!-- MAP UI -->
+  <div class="weather-pill" style="top:184px;" id="weatherPill">
+    <span style="font-size:18px;">🌙</span>
+    <div><div class="wtemp">18°</div><div class="wdesc">Despejado</div></div>
+  </div>
+
+  <div class="map-controls" style="top:184px;">
+    <button id="btnLocate" aria-label="Mi ubicación"><svg width="19" height="19" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+    <div class="divider"></div>
+    <button id="btnZoomIn" aria-label="Acercar"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+    <div class="divider"></div>
+    <button id="btnZoomOut" aria-label="Alejar"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+  </div>
+
+  <button class="locate-btn" id="btnCenterMe" style="bottom:calc(var(--sheet-compact) + 16px);">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="m3 11 18-8-8 18-2-8-8-2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+    Centrar en mí
+  </button>
+
+  <!-- POI DETAIL -->
+  <div class="poi-detail" id="poiDetail">
+    <div class="thumb" id="poiDetailThumb"></div>
+    <div class="meta">
+      <div class="pname" id="poiDetailName">—</div>
+      <div class="ploc" id="poiDetailLoc">—</div>
+      <span class="ptag" id="poiDetailTag"><span class="dot"></span>Categoría</span>
+      <div class="pdesc" id="poiDetailDesc"></div>
+    </div>
+    <button class="close" id="poiDetailClose" aria-label="Cerrar">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+
+  <!-- BOTTOM SHEET -->
+  <div class="sheet" id="sheet">
+    <div class="sheet-handle-area" id="sheetHandle"><div class="sheet-handle"></div></div>
+    <div class="sheet-body" id="sheetBody">
+      <div class="sheet-section">
+        <div class="sheet-section-head">
+          <div class="sheet-section-title">¿Qué hacer <span class="accent">hoy</span> en el Choapa?</div>
+          <span class="sheet-see-all">Ver todo ›</span>
+        </div>
+        <div class="rail" id="experiencesRail"></div>
+      </div>
+      <div class="sheet-section">
+        <div class="sheet-section-head">
+          <div class="sheet-section-title" id="placesSectionTitle">Recomendados para ti <span class="demo-badge">● DEMO</span></div>
+          <span class="sheet-see-all">Ver todo ›</span>
+        </div>
+        <div class="rail" id="placesRail"></div>
+        <div class="rail-empty" id="placesEmpty" style="display:none;">Aún no hay lugares de esta categoría cargados.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav">
+    <button class="nav-item active">
+      <svg viewBox="0 0 24 24" fill="none"><path d="m3 11 18-8-8 18-2-8-8-2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      Explorar
+    </button>
+    <button class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 20s-7-4.4-9.5-9C.8 7.4 3 4 6.5 4 9 4 11 6 12 7.5 13 6 15 4 17.5 4 21 4 23.2 7.4 21.5 11 19 15.6 12 20 12 20Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+      Guardados
+    </button>
+    <button class="nav-item main active">
+      <span class="icon-wrap"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M9 3 3 5.5v15L9 18l6 2.5 6-2.5v-15L15 5.5 9 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 3v15M15 5.5v15" stroke="currentColor" stroke-width="1.8"/></svg></span>
+    </button>
+    <button class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="9" r="2.4" stroke="currentColor" stroke-width="1.7"/></svg>
+      Cerca de mí
+    </button>
+    <button class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.6" stroke="currentColor" stroke-width="1.7"/><path d="M4.5 20c1.6-4 4.6-6 7.5-6s5.9 2 7.5 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      Mi perfil
+    </button>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   CHOAPA EXPLORE — FASE 1
+   Modelo de datos, mapa, POIs, bottom sheet, filtros.
+   ============================================================ */
+
+/* ---------- 1. CATEGORÍAS ---------- */
+const CATEGORIES = [
+  { id:'todos',        label:'Todos',        icon:'●●', color:'var(--cat-todos)' },
+  { id:'naturaleza',   label:'Naturaleza',   icon:'🏞️', color:'var(--cat-naturaleza)' },
+  { id:'comida',       label:'Comida',       icon:'🍽️', color:'var(--cat-comida)' },
+  { id:'alojamiento',  label:'Alojamientos', icon:'🏨', color:'var(--cat-alojamiento)' },
+  { id:'patrimonio',   label:'Patrimonio',   icon:'🏛️', color:'var(--cat-patrimonio)' },
+  { id:'cielos',       label:'Cielos',       icon:'🌌', color:'var(--cat-cielos)' },
+  { id:'vinos',        label:'Vinos',        icon:'🍷', color:'var(--cat-vinos)' },
+  { id:'actividades',  label:'Actividades',  icon:'🎯', color:'var(--cat-actividades)' },
+];
+const catById = id => CATEGORIES.find(c => c.id === id);
+
+/* ---------- 2. MODELO Place ---------- */
+// Estructura escalable: 20 -> 100 -> 500 lugares sin rediseñar.
+// isDemo:true = dato de marcador de posición, NO un negocio/lugar real.
+// Fase 2 reemplazará esto por una base verificada (nombre, coords, fotos reales).
+function makePlace({ id, name, category, locality, lat, lng, image, description='', isDemo=true }) {
+  return {
+    id, name, category, locality, lat, lng, image, isDemo,
+    description, address:'', openingHours:'', priceRange:'',
+    phone:'', website:'', instagram:'', tags:[]
+  };
+}
+
+const DEMO_PLACES = [
+  makePlace({ id:'p1', name:'Mirador de ejemplo', category:'naturaleza', locality:'Salamanca', lat:-31.640, lng:-70.870,
+    image:'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&q=60',
+    description:'Marcador de posición — vista panorámica del valle. Datos reales pendientes de verificación.' }),
+  makePlace({ id:'p2', name:'Restaurante de ejemplo', category:'comida', locality:'Illapel', lat:-31.6308, lng:-71.1642,
+    image:'https://images.unsplash.com/photo-1600891964092-4316c288032e?w=400&q=60',
+    description:'Marcador de posición — cocina local. Datos reales pendientes de verificación.' }),
+  makePlace({ id:'p3', name:'Observatorio de ejemplo', category:'cielos', locality:'Canela', lat:-31.390, lng:-71.457,
+    image:'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=400&q=60',
+    description:'Marcador de posición — cielos despejados del Norte Chico. Datos reales pendientes de verificación.' }),
+  makePlace({ id:'p4', name:'Viña de ejemplo', category:'vinos', locality:'Salamanca', lat:-31.83, lng:-71.02,
+    image:'https://images.unsplash.com/photo-1560493676-04071c5f467b?w=400&q=60',
+    description:'Marcador de posición — viñas del valle del Choapa. Datos reales pendientes de verificación.' }),
+  makePlace({ id:'p5', name:'Iglesia de ejemplo', category:'patrimonio', locality:'Salamanca', lat:-31.7792, lng:-70.9639,
+    image:'https://images.unsplash.com/photo-1548625149-fc4a29cf7092?w=400&q=60',
+    description:'Marcador de posición — patrimonio religioso local. Datos reales pendientes de verificación.' }),
+  makePlace({ id:'p6', name:'Alojamiento de ejemplo', category:'alojamiento', locality:'Los Vilos', lat:-31.909, lng:-71.513,
+    image:'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&q=60',
+    description:'Marcador de posición — hospedaje costero. Datos reales pendientes de verificación.' }),
+  makePlace({ id:'p7', name:'Restaurante de ejemplo', category:'comida', locality:'Los Vilos', lat:-31.905, lng:-71.510,
+    image:'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=60',
+    description:'Marcador de posición — sabores de mar. Datos reales pendientes de verificación.' }),
+  makePlace({ id:'p8', name:'Sendero de ejemplo', category:'naturaleza', locality:'Canela Baja', lat:-31.365, lng:-71.29,
+    image:'https://images.unsplash.com/photo-1454391304352-2bf4678b1a7a?w=400&q=60',
+    description:'Marcador de posición — ruta de senderismo. Datos reales pendientes de verificación.' }),
+  makePlace({ id:'p9', name:'Punto patrimonial de ejemplo', category:'patrimonio', locality:'Salamanca', lat:-31.700, lng:-71.02,
+    image:'https://images.unsplash.com/photo-1477587458883-47145ed94245?w=400&q=60',
+    description:'Marcador de posición — historia local. Datos reales pendientes de verificación.' }),
+  makePlace({ id:'p10', name:'Mirador de ejemplo', category:'naturaleza', locality:'Chalinga', lat:-31.85, lng:-70.95,
+    image:'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&q=60',
+    description:'Marcador de posición — cerros y quebradas. Datos reales pendientes de verificación.' }),
+];
+
+const EXPERIENCES = [
+  { emoji:'🌅', title:'Atardecer en', bold:'Los Vilos', category:'naturaleza' },
+  { emoji:'⭐', title:'Cielos del', bold:'Choapa', category:'cielos' },
+  { emoji:'🍇', title:'Ruta del', bold:'Vino', category:'vinos' },
+  { emoji:'🥾', title:'Aventura en', bold:'Naturaleza', category:'actividades' },
+];
+
+/* ---------- 3. TERRITORIO — Bounding box real del Choapa ---------- */
+// Provincia del Choapa: Salamanca, Illapel, Los Vilos, Canela.
+// SW / NE calculados a partir de las localidades reales de la provincia.
+const CHOAPA_BOUNDS = [
+  [-71.75, -32.15], // suroeste
+  [-70.45, -31.05], // noreste
+];
+
+let state = { activeCategory:'todos', selectedPlace:null, sheetExpanded:false };
+let markers = [];
+
+/* ---------- 4. MAP INIT ---------- */
+const map = new maplibregl.Map({
+  container:'map',
+  style:'https://tiles.openfreemap.org/styles/dark',
+  bounds: CHOAPA_BOUNDS,
+  fitBoundsOptions:{ padding:{ top:220, bottom:280, left:40, right:40 } },
+  attributionControl:false,
+  dragRotate:false,
+  pitchWithRotate:false,
+});
+map.touchZoomRotate.disableRotation();
+
+map.on('load', () => {
+  document.getElementById('mapLoading').style.opacity = '0';
+  setTimeout(() => document.getElementById('mapLoading').style.display='none', 400);
+  tintMapLayers();
+  renderPOIs();
+});
+
+// Ajusta sutilmente la paleta del mapa hacia azul-noche/turquesa
+function tintMapLayers(){
+  const layers = map.getStyle().layers || [];
+  layers.forEach(l => {
+    try{
+      if (l.type === 'background') map.setPaintProperty(l.id, 'background-color', '#0B1726');
+      if (l.type === 'fill' && /water/i.test(l.id)) map.setPaintProperty(l.id, 'fill-color', '#0A2530');
+      if (l.type === 'line' && /(road|street|highway)/i.test(l.id)) {
+        const cur = map.getPaintProperty(l.id, 'line-color');
+        if (cur) map.setPaintProperty(l.id, 'line-color', '#1E3B52');
+      }
+    }catch(e){ /* layer paint prop not applicable — skip */ }
+  });
+}
+
+/* ---------- 5. POI MARKERS ---------- */
+function poiSVG(color, glyph){
+  return `
+  <svg viewBox="0 0 26 32">
+    <circle class="halo" cx="13" cy="13" r="12" fill="${color}" opacity="0.25"/>
+    <path d="M13 30c5.6-7.6 9.5-13.3 9.5-19A9.5 9.5 0 1 0 3.5 11c0 5.7 3.9 11.4 9.5 19Z" fill="${color}"/>
+    <circle cx="13" cy="11.5" r="6.6" fill="#0B1726"/>
+    <text class="glyph" x="13" y="15.2" text-anchor="middle" font-size="9">${glyph}</text>
+  </svg>`;
+}
+
+function renderPOIs(){
+  markers.forEach(m => m.remove());
+  markers = [];
+
+  const visible = DEMO_PLACES.filter(p => state.activeCategory === 'todos' || p.category === state.activeCategory);
+
+  visible.forEach(place => {
+    const cat = catById(place.category);
+    const colorVar = getComputedStyle(document.documentElement).getPropertyValue(cat.color.replace('var(','').replace(')','')).trim() || '#16B8C4';
+    const el = document.createElement('div');
+    el.className = 'poi-marker';
+    el.innerHTML = poiSVG(colorVar, cat.icon);
+    el.addEventListener('click', (e) => { e.stopPropagation(); selectPlace(place, el); });
+
+    const marker = new maplibregl.Marker({ element: el, anchor:'bottom' })
+      .setLngLat([place.lng, place.lat])
+      .addTo(map);
+    marker._place = place;
+    marker._el = el;
+    markers.push(marker);
+  });
+}
+
+function selectPlace(place, el){
+  markers.forEach(m => m._el.classList.remove('selected'));
+  el.classList.add('selected');
+  state.selectedPlace = place;
+
+  const cat = catById(place.category);
+  document.getElementById('poiDetailThumb').style.backgroundImage = `url(${place.image})`;
+  document.getElementById('poiDetailName').textContent = place.name;
+  document.getElementById('poiDetailLoc').textContent = place.locality;
+  const tag = document.getElementById('poiDetailTag');
+  tag.innerHTML = `<span class="dot"></span>${cat.icon} ${cat.label}`;
+  tag.style.color = getComputedStyle(document.documentElement).getPropertyValue(cat.color.replace('var(','').replace(')','')).trim();
+  tag.style.background = 'rgba(255,255,255,0.06)';
+  document.getElementById('poiDetailDesc').textContent = place.description || '';
+  document.getElementById('poiDetail').classList.add('visible');
+
+  map.easeTo({ center:[place.lng, place.lat], zoom: Math.max(map.getZoom(), 10.5), duration:500, offset:[0, -80] });
+}
+
+document.getElementById('poiDetailClose').addEventListener('click', () => {
+  document.getElementById('poiDetail').classList.remove('visible');
+  markers.forEach(m => m._el.classList.remove('selected'));
+  state.selectedPlace = null;
+});
+
+/* ---------- 6. USER LOCATION DOT ---------- */
+function userDotSVG(){
+  return `<svg class="user-dot" viewBox="0 0 22 22">
+    <circle class="ring" cx="11" cy="11" r="5" fill="none" stroke="#5FE1E8" stroke-width="2"/>
+    <circle cx="11" cy="11" r="5" fill="#5FE1E8" stroke="#07131F" stroke-width="2"/>
+  </svg>`;
+}
+let userMarker = null;
+function centerOnUser(){
+  if (!navigator.geolocation){ return; }
+  navigator.geolocation.getCurrentPosition(pos => {
+    const { latitude, longitude } = pos.coords;
+    if (!userMarker){
+      const el = document.createElement('div');
+      el.innerHTML = userDotSVG();
+      userMarker = new maplibregl.Marker({ element: el.firstChild, anchor:'center' })
+        .setLngLat([longitude, latitude]).addTo(map);
+    } else {
+      userMarker.setLngLat([longitude, latitude]);
+    }
+    map.easeTo({ center:[longitude, latitude], zoom:13, duration:600 });
+  }, () => { /* permiso denegado — no bloqueamos la UI */ });
+}
+document.getElementById('btnLocate').addEventListener('click', centerOnUser);
+document.getElementById('btnCenterMe').addEventListener('click', centerOnUser);
+document.getElementById('btnZoomIn').addEventListener('click', () => map.zoomIn());
+document.getElementById('btnZoomOut').addEventListener('click', () => map.zoomOut());
+
+/* ---------- 7. CHIPS ---------- */
+const chipsRow = document.getElementById('chipsRow');
+CATEGORIES.forEach(cat => {
+  const chip = document.createElement('button');
+  chip.className = 'chip' + (cat.id === 'todos' ? ' active' : '');
+  chip.dataset.cat = cat.id;
+  chip.innerHTML = `<span>${cat.icon}</span><span>${cat.label}</span>`;
+  chip.addEventListener('click', () => setActiveCategory(cat.id));
+  chipsRow.appendChild(chip);
+});
+function setActiveCategory(id){
+  state.activeCategory = id;
+  document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.cat === id));
+  renderPOIs();
+  renderPlacesRail();
+  // si el lugar seleccionado ya no pertenece al filtro, cerramos su panel
+  if (state.selectedPlace && id !== 'todos' && state.selectedPlace.category !== id){
+    document.getElementById('poiDetail').classList.remove('visible');
+    state.selectedPlace = null;
+  }
+}
+
+/* ---------- 8. SHEET RAILS (dinámico — reacciona a la categoría activa) ---------- */
+const experiencesRail = document.getElementById('experiencesRail');
+EXPERIENCES.forEach(exp => {
+  const card = document.createElement('div');
+  card.className = 'exp-card';
+  card.innerHTML = `<div class="emoji">${exp.emoji}</div><div class="label">${exp.title}<b>${exp.bold}</b></div>`;
+  card.addEventListener('click', () => setActiveCategory(exp.category));
+  experiencesRail.appendChild(card);
+});
+
+const placesRail = document.getElementById('placesRail');
+const placesEmpty = document.getElementById('placesEmpty');
+const placesSectionTitle = document.getElementById('placesSectionTitle');
+
+function renderPlacesRail(){
+  placesRail.innerHTML = '';
+  const filtered = DEMO_PLACES.filter(p => state.activeCategory === 'todos' || p.category === state.activeCategory);
+
+  const cat = catById(state.activeCategory);
+  placesSectionTitle.innerHTML = state.activeCategory === 'todos'
+    ? `Recomendados para ti <span class="demo-badge">● DEMO</span>`
+    : `${cat.icon} ${cat.label} en el Choapa <span class="demo-badge">● DEMO</span>`;
+
+  placesEmpty.style.display = filtered.length ? 'none' : 'block';
+
+  filtered.forEach(place => {
+    const pcat = catById(place.category);
+    const color = getComputedStyle(document.documentElement).getPropertyValue(pcat.color.replace('var(','').replace(')','')).trim();
+    const card = document.createElement('div');
+    card.className = 'place-card';
+    card.innerHTML = `
+      <div class="photo" style="background-image:url(${place.image})">
+        <button class="fav-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.4-9.5-9C.8 7.4 3 4 6.5 4 9 4 11 6 12 7.5 13 6 15 4 17.5 4 21 4 23.2 7.4 21.5 11 19 15.6 12 20 12 20Z" stroke="currentColor" stroke-width="1.7"/></svg></button>
+      </div>
+      <div class="info">
+        <div class="pname">${place.name}</div>
+        <div class="ploc">${place.locality}</div>
+        <span class="ptag" style="color:${color}; background:rgba(255,255,255,0.06)"><span class="dot"></span>${pcat.label}</span>
+      </div>`;
+    card.addEventListener('click', () => selectPlaceById(place.id));
+    placesRail.appendChild(card);
+  });
+}
+renderPlacesRail();
+
+function selectPlaceById(id){
+  const marker = markers.find(m => m._place.id === id);
+  if (marker) { selectPlace(marker._place, marker._el); }
+  else {
+    // el POI no está en el filtro activo — lo mostramos igual y ajustamos el filtro
+    const place = DEMO_PLACES.find(p => p.id === id);
+    if (place){ setActiveCategory(place.category); requestAnimationFrame(() => selectPlaceById(id)); }
+  }
+}
+
+/* ---------- 9. BOTTOM SHEET DRAG ---------- */
+const sheet = document.getElementById('sheet');
+const sheetHandle = document.getElementById('sheetHandle');
+let dragStartY = 0, dragStartHeight = 0, dragging = false;
+
+function sheetPx(expanded){
+  return expanded ? window.innerHeight * 0.86 : 232;
+}
+
+function onDragStart(y){
+  dragging = true;
+  dragStartY = y;
+  dragStartHeight = sheet.getBoundingClientRect().height;
+  sheet.classList.add('dragging');
+}
+function onDragMove(y){
+  if (!dragging) return;
+  const delta = dragStartY - y;
+  let newHeight = dragStartHeight + delta;
+  newHeight = Math.max(140, Math.min(window.innerHeight * 0.9, newHeight));
+  sheet.style.height = newHeight + 'px';
+}
+function onDragEnd(){
+  if (!dragging) return;
+  dragging = false;
+  sheet.classList.remove('dragging');
+  const h = sheet.getBoundingClientRect().height;
+  const expand = h > window.innerHeight * 0.45;
+  state.sheetExpanded = expand;
+  sheet.style.height = '';
+  sheet.classList.toggle('expanded', expand);
+}
+
+sheetHandle.addEventListener('touchstart', e => onDragStart(e.touches[0].clientY), { passive:true });
+sheetHandle.addEventListener('touchmove', e => onDragMove(e.touches[0].clientY), { passive:true });
+sheetHandle.addEventListener('touchend', onDragEnd);
+sheetHandle.addEventListener('mousedown', e => {
+  onDragStart(e.clientY);
+  const move = ev => onDragMove(ev.clientY);
+  const up = () => { onDragEnd(); window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+  window.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', up);
+});
+sheetHandle.addEventListener('click', () => {
+  state.sheetExpanded = !state.sheetExpanded;
+  sheet.classList.toggle('expanded', state.sheetExpanded);
+});
+</script>
+</body>
+</html>
