@@ -1269,7 +1269,7 @@ function renderTerritoryFade(){
   const boundsAt = t => [ lerp(inner[0], outer[0], t), lerp(inner[1], outer[1], t) ];
   const ring = (sw, ne) => [[sw[0],sw[1]], [ne[0],sw[1]], [ne[0],ne[1]], [sw[0],ne[1]], [sw[0],sw[1]]];
 
-  const RINGS = 28;              // más anillos = transición más suave, sin bandas visibles
+ const RINGS = 28;              // más anillos = transición más suave, sin bandas visibles
   const MAX_OPACITY = 0.97;
   const ease = t => t * t;       // ease-in: casi invisible cerca, se acelera hacia el borde
 
@@ -1285,6 +1285,18 @@ function renderTerritoryFade(){
       geometry:{ type:'Polygon', coordinates:[ ring(b1[0], b1[1]), ring(b0[0], b0[1]) ] }
     });
   }
+
+  // Sello final: más allá de CHOAPA_MAX_BOUNDS aún hay mapa visible en pantallas
+  // verticales (celular) donde el viewport alcanza a mostrar de sobra el límite de
+  // navegación. Sin esta capa, esa zona se ve "cruda" otra vez — como si el
+  // difuminado se cortara y el mapa "reapareciera" claro detrás. La cubrimos
+  // entera con una última capa casi opaca hasta los bordes del mundo.
+  const worldEdge = [[-179.9, -85], [179.9, 85]];
+  features.push({
+    type:'Feature',
+    properties:{ opacity: 0.99 },
+    geometry:{ type:'Polygon', coordinates:[ ring(worldEdge[0], worldEdge[1]), ring(boundsAt(1)[0], boundsAt(1)[1]) ] }
+  });
 
   map.addSource('territory-fade', { type:'geojson', data:{ type:'FeatureCollection', features } });
   map.addLayer({
