@@ -1256,8 +1256,11 @@ function tintMapLayers(){
 
 // Difumina el mapa hacia el azul-noche de marca a medida que el usuario se acerca
 // al límite real de la provincia — usa el margen ya existente entre CHOAPA_BOUNDS
-// (borde real) y CHOAPA_MAX_BOUNDS (límite de navegación) como zona de desvanecimiento
-// gradual, en vez de dejar que el usuario choque en seco contra el borde del mapa.
+// (borde real) y CHOAPA_MAX_BOUNDS (límite de navegación) como zona de desvanecimiento.
+// En vez de 3 bandas visibles (se notaba el "escalón" entre capas), se generan muchos
+// anillos angostos con una curva de suavizado (ease-in) — el ojo lo lee como un
+// degradado continuo: transparente cerca del territorio real, oscureciéndose
+// progresivamente hacia el horizonte, sin cortes duros entre capas.
 function renderTerritoryFade(){
   const inner = CHOAPA_BOUNDS;
   const outer = CHOAPA_MAX_BOUNDS;
@@ -1266,16 +1269,19 @@ function renderTerritoryFade(){
   const boundsAt = t => [ lerp(inner[0], outer[0], t), lerp(inner[1], outer[1], t) ];
   const ring = (sw, ne) => [[sw[0],sw[1]], [ne[0],sw[1]], [ne[0],ne[1]], [sw[0],ne[1]], [sw[0],sw[1]]];
 
-  const steps = [0, 0.3, 0.6, 1];
-  const opacities = [0, 0.35, 0.7, 0.96];
+  const RINGS = 28;              // más anillos = transición más suave, sin bandas visibles
+  const MAX_OPACITY = 0.97;
+  const ease = t => t * t;       // ease-in: casi invisible cerca, se acelera hacia el borde
 
   const features = [];
-  for (let i = 0; i < steps.length - 1; i++){
-    const b0 = boundsAt(steps[i]);
-    const b1 = boundsAt(steps[i + 1]);
+  for (let i = 0; i < RINGS; i++){
+    const t0 = i / RINGS;
+    const t1 = (i + 1) / RINGS;
+    const b0 = boundsAt(t0);
+    const b1 = boundsAt(t1);
     features.push({
       type:'Feature',
-      properties:{ opacity: opacities[i + 1] },
+      properties:{ opacity: ease(t1) * MAX_OPACITY },
       geometry:{ type:'Polygon', coordinates:[ ring(b1[0], b1[1]), ring(b0[0], b0[1]) ] }
     });
   }
