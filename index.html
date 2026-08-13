@@ -1217,6 +1217,7 @@ map.on('load', () => {
   document.getElementById('mapLoading').style.opacity = '0';
   setTimeout(() => document.getElementById('mapLoading').style.display='none', 400);
   tintMapLayers();
+  renderTerritoryFade();
   renderLocalityMarkers();
   updateExplorationLevel();
 });
@@ -1250,6 +1251,39 @@ function tintMapLayers(){
         if (cur) map.setPaintProperty(l.id, 'line-color', '#1E3B52');
       }
     }catch(e){ /* layer paint prop not applicable — skip */ }
+  });
+}
+
+// Difumina el mapa hacia el azul-noche de marca a medida que el usuario se acerca
+// al límite real de la provincia — usa el margen ya existente entre CHOAPA_BOUNDS
+// (borde real) y CHOAPA_MAX_BOUNDS (límite de navegación) como zona de desvanecimiento
+// gradual, en vez de dejar que el usuario choque en seco contra el borde del mapa.
+function renderTerritoryFade(){
+  const inner = CHOAPA_BOUNDS;
+  const outer = CHOAPA_MAX_BOUNDS;
+
+  const lerp = (a, b, t) => [ a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t ];
+  const boundsAt = t => [ lerp(inner[0], outer[0], t), lerp(inner[1], outer[1], t) ];
+  const ring = (sw, ne) => [[sw[0],sw[1]], [ne[0],sw[1]], [ne[0],ne[1]], [sw[0],ne[1]], [sw[0],sw[1]]];
+
+  const steps = [0, 0.3, 0.6, 1];
+  const opacities = [0, 0.35, 0.7, 0.96];
+
+  const features = [];
+  for (let i = 0; i < steps.length - 1; i++){
+    const b0 = boundsAt(steps[i]);
+    const b1 = boundsAt(steps[i + 1]);
+    features.push({
+      type:'Feature',
+      properties:{ opacity: opacities[i + 1] },
+      geometry:{ type:'Polygon', coordinates:[ ring(b1[0], b1[1]), ring(b0[0], b0[1]) ] }
+    });
+  }
+
+  map.addSource('territory-fade', { type:'geojson', data:{ type:'FeatureCollection', features } });
+  map.addLayer({
+    id:'territory-fade-layer', type:'fill', source:'territory-fade',
+    paint:{ 'fill-color':'#0B1726', 'fill-opacity':['get','opacity'] }
   });
 }
 
