@@ -479,6 +479,14 @@ img{-webkit-user-drag:none; user-select:none;}
 .rail-empty .re-icon{color:var(--turquoise-bright); opacity:0.6; display:flex;}
 .rail-empty .re-title{color:var(--text-secondary); font-weight:600; font-size:13px;}
 
+.rail-prompt{
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  padding:26px 20px; font-size:12.5px; color:var(--text-secondary); text-align:center;
+  border:1px dashed var(--border-glass); border-radius:var(--radius-m);
+}
+.rail-prompt .rp-icon{display:flex; margin-bottom:2px;}
+.rail-prompt .rp-title{font-weight:700; font-size:13.5px;}
+
 /* ---------------- POI DISCOVERY CARD (on select) ---------------- */
 .poi-card{
   position:absolute; left:16px; right:16px; z-index:22;
@@ -890,19 +898,24 @@ img{-webkit-user-drag:none; user-select:none;}
         </div>
         <div class="rail" id="experiencesRail"></div>
       </div>
-      <div class="sheet-section">
+     <div class="sheet-section">
         <div class="sheet-section-head">
           <div>
             <div class="sheet-section-title" id="placesSectionTitle">Recomendados para ti <span class="demo-badge">● DEMO</span></div>
             <div class="sheet-section-subtitle" id="placesSubtitle" style="display:none;"></div>
           </div>
-          <span class="sheet-see-all">Ver todo ›</span>
+          <span class="sheet-see-all" id="placesSeeAll">Ver todo ›</span>
         </div>
         <div class="rail" id="placesRail"></div>
         <div class="rail-empty" id="placesEmpty" style="display:none;">
           <span class="re-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m14.6 9.4-2 4.6-4.6 2 2-4.6Z"/></svg></span>
           <span class="re-title">Estamos explorando esta zona…</span>
           <span>Pronto encontrarás nuevos lugares aquí.</span>
+        </div>
+        <div class="rail-prompt" id="placesPrompt" style="display:none;">
+          <span class="rp-icon" id="placesPromptIcon"></span>
+          <span class="rp-title" id="placesPromptTitle">Experiencia en el Choapa</span>
+          <span>Explora una zona para descubrir experiencias.</span>
         </div>
       </div>
     </div>
@@ -1076,6 +1089,18 @@ const EXPERIENCE_TAGS = [
   { id:'noche',        label:'Noche',        icon:icon('noche',14),       iconKey:'noche',       color:'var(--exp-noche)' },
 ];
 const expById = id => EXPERIENCE_TAGS.find(e => e.id === id);
+
+// Título + bajada del panel inferior cuando hay una experiencia filtrada activa.
+const EXPERIENCE_PANEL_COPY = {
+  cita:        { title:'Experiencias para una cita', tagline:'Momentos especiales para descubrir juntos.' },
+  aventura:    { title:'Aventura en el Choapa',        tagline:'Explora, camina y descubre.' },
+  naturaleza:  { title:'Naturaleza del Choapa',         tagline:'Conecta con los paisajes del Choapa.' },
+  tranquilo:   { title:'Planes tranquilos',             tagline:'Planes para bajar el ritmo.' },
+  familia:     { title:'Planes en familia',             tagline:'Momentos para compartir en familia.' },
+  adrenalina:  { title:'Adrenalina en el Choapa',       tagline:'Sube el ritmo, vive la intensidad.' },
+  gastronomia: { title:'Gastronomía del Choapa',        tagline:'Sabores que valen el viaje.' },
+  noche:       { title:'Noches del Choapa',             tagline:'Cielos despejados, planes nocturnos.' },
+};
 
 /* ---------- 2. MODELO Place ---------- */
 // Estructura escalable: 20 -> 100 -> 500 lugares sin rediseñar.
@@ -1413,14 +1438,22 @@ function renderPOIs(){
   if (map.getZoom() < ZOOM_DETAIL) return;
 
   const aliases = activeLocalityAliases();
+  const filtering = state.activeExperience !== 'todos';
   const visible = DEMO_PLACES.filter(p =>
-    (state.activeExperience === 'todos' || p.experiences.includes(state.activeExperience)) &&
+    (!filtering || p.experiences.includes(state.activeExperience)) &&
     (!aliases || aliases.includes(p.locality))
   );
 
+  // Con un filtro de experiencia activo, los POIs visibles adoptan el color propio
+  // de esa experiencia (en vez del color de su tipo de lugar) — refuerza qué
+  // categoría se está explorando. Con "Todos" vuelven a su color de tipo normal.
+  const activeExpColor = filtering
+    ? getComputedStyle(document.documentElement).getPropertyValue(expById(state.activeExperience).color.replace('var(','').replace(')','')).trim()
+    : null;
+
   visible.forEach((place, i) => {
     const cat = catById(place.category);
-    const colorVar = getComputedStyle(document.documentElement).getPropertyValue(cat.color.replace('var(','').replace(')','')).trim() || '#16B8C4';
+    const colorVar = activeExpColor || getComputedStyle(document.documentElement).getPropertyValue(cat.color.replace('var(','').replace(')','')).trim() || '#16B8C4';
     const el = document.createElement('div');
     el.className = 'poi-marker';
     el.style.setProperty('--enter-delay', Math.min(i * 22, 260) + 'ms');
@@ -1435,7 +1468,6 @@ function renderPOIs(){
     markers.push(marker);
   });
 }
-
 /* ---------- LOCALIDADES — Nivel 1 y 2 del sistema de exploración ---------- */
 function localitySVG(color){
   return `
@@ -1969,31 +2001,63 @@ FEATURED_EXPERIENCES.forEach(exp => {
 
 const placesRail = document.getElementById('placesRail');
 const placesEmpty = document.getElementById('placesEmpty');
+const placesPrompt = document.getElementById('placesPrompt');
+const placesPromptIcon = document.getElementById('placesPromptIcon');
+const placesPromptTitle = document.getElementById('placesPromptTitle');
 const placesSectionTitle = document.getElementById('placesSectionTitle');
 const placesSubtitle = document.getElementById('placesSubtitle');
+const placesSeeAll = document.getElementById('placesSeeAll');
+placesSeeAll.addEventListener('click', expandSheet);
 
 function renderPlacesRail(){
   placesRail.innerHTML = '';
   const aliases = activeLocalityAliases();
+  const exp = expById(state.activeExperience);
+  const deepest = state.currentSublocality || state.currentLocality;
+  const filtering = state.activeExperience !== 'todos';
+
   const filtered = DEMO_PLACES.filter(p =>
-    (state.activeExperience === 'todos' || p.experiences.includes(state.activeExperience)) &&
+    (!filtering || p.experiences.includes(state.activeExperience)) &&
     (!aliases || aliases.includes(p.locality))
   );
 
-  const exp = expById(state.activeExperience);
-  const deepest = state.currentSublocality || state.currentLocality;
   if (deepest){
     const total = placesInLocality(deepest).length;
     placesSectionTitle.innerHTML = `${icon('pin', 15)} Explorando ${deepest.name} <span class="demo-badge">● DEMO</span>`;
-    placesSubtitle.textContent = `${total} lugar${total === 1 ? '' : 'es'} por descubrir` + (state.activeExperience !== 'todos' ? ` · ${exp.label.toLowerCase()}` : '');
+    placesSubtitle.textContent = `${total} lugar${total === 1 ? '' : 'es'} por descubrir` + (filtering ? ` · ${exp.label.toLowerCase()}` : '');
+    placesSubtitle.style.display = 'block';
+  } else if (filtering){
+    const copy = EXPERIENCE_PANEL_COPY[state.activeExperience];
+    placesSectionTitle.innerHTML = `${exp.icon} ${copy ? copy.title : exp.label} <span class="demo-badge">● DEMO</span>`;
+    placesSubtitle.textContent = copy ? copy.tagline : '';
     placesSubtitle.style.display = 'block';
   } else {
-    placesSectionTitle.innerHTML = state.activeExperience === 'todos'
-      ? `Recomendados para ti <span class="demo-badge">● DEMO</span>`
-      : `${exp.icon} ${exp.label} en el Choapa <span class="demo-badge">● DEMO</span>`;
+    placesSectionTitle.innerHTML = `Recomendados para ti <span class="demo-badge">● DEMO</span>`;
     placesSubtitle.style.display = 'none';
   }
 
+  // Sin localidad elegida + filtro activo: el mapa está limpio (solo comunas
+  // visibles), así que en vez de listar lugares de toda la provincia mezclados
+  // sin contexto geográfico, se invita a explorar una zona.
+  const showZonePrompt = filtering && !deepest;
+  placesSeeAll.style.display = showZonePrompt ? 'none' : 'flex';
+
+  if (showZonePrompt){
+    placesRail.style.display = 'none';
+    placesEmpty.style.display = 'none';
+    placesPrompt.style.display = 'flex';
+    const color = getComputedStyle(document.documentElement).getPropertyValue(exp.color.replace('var(','').replace(')','')).trim();
+    placesPrompt.style.borderColor = `${color}55`;
+    placesPrompt.style.background = `${color}0F`;
+    placesPromptIcon.style.color = color;
+    placesPromptIcon.innerHTML = exp.icon;
+    placesPromptTitle.style.color = color;
+    placesPromptTitle.textContent = `${exp.label} en el Choapa`;
+    return;
+  }
+
+  placesPrompt.style.display = 'none';
+  placesRail.style.display = 'flex';
   placesEmpty.style.display = filtered.length ? 'none' : 'flex';
 
   filtered.forEach(place => {
