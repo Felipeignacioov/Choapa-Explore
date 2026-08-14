@@ -1229,7 +1229,7 @@ const CHOAPA_BOUNDS = [
   [-70.45, -31.05], // noreste
 ];
 const CHOAPA_MAX_BOUNDS = [
-  [-72.20, -32.55], // suroeste + margen — hacia aquí se hace el "rebote elástico" al soltar
+  [-72.20, -32.55], // suroeste + margen — tope real de navegación
   [-70.05, -30.65], // noreste + margen
 ];
 
@@ -1272,16 +1272,19 @@ map.on('load', () => {
 map.on('zoom', updateExplorationLevel);
 map.on('zoomend', updateExplorationLevel);
 
-// Rebote elástico: si al soltar el dedo (o al terminar la inercia) el mapa quedó
-// centrado fuera de CHOAPA_MAX_BOUNDS, lo trae de vuelta con una animación suave
-// en vez de simplemente bloquear el arrastre a mitad de camino.
-map.on('moveend', () => {
+// Límite de navegación sin usar "maxBounds" nativo (ese choca con la inclinación/
+// rotación de cámara y puede congelar el mapa a mitad de un gesto). En su lugar,
+// se corrige la posición al instante, de forma sincrónica y no animada, en cada
+// frame de movimiento — así nunca compite con el gesto que el usuario tiene en
+// curso: dentro de CHOAPA_MAX_BOUNDS se navega libre, y justo al tocar ese borde
+// el desplazamiento simplemente se detiene ahí, sin bloquear zoom ni rotación.
+map.on('move', () => {
   const center = map.getCenter();
   const [[minLng, minLat], [maxLng, maxLat]] = CHOAPA_MAX_BOUNDS;
   const clampedLng = Math.min(Math.max(center.lng, minLng), maxLng);
   const clampedLat = Math.min(Math.max(center.lat, minLat), maxLat);
   if (clampedLng !== center.lng || clampedLat !== center.lat){
-    map.easeTo({ center:[clampedLng, clampedLat], duration:700, easing:t => 1 - Math.pow(1 - t, 3) });
+    map.setCenter([clampedLng, clampedLat]);
   }
 });
 
