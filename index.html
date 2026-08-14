@@ -182,9 +182,9 @@ img{-webkit-user-drag:none; user-select:none;}
 .chip{
   flex-shrink:0; display:flex; align-items:center; gap:6px;
   padding:8.5px 14px; border-radius:var(--radius-pill);
-  background:var(--chip-idle-bg, rgba(16,36,56,0.68)); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
-  border:1px solid var(--chip-idle-border, var(--border-glass)); box-shadow:var(--shadow-float);
-  font-size:13px; font-weight:600; color:var(--chip-idle-color, var(--text-secondary));
+  background:rgba(16,36,56,0.68); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  border:1px solid var(--border-glass); box-shadow:var(--shadow-float);
+  font-size:13px; font-weight:600; color:var(--text-secondary);
   transition:background .16s cubic-bezier(.4,0,.2,1), color .16s ease, border-color .16s ease, transform .16s cubic-bezier(.34,1.56,.64,1), box-shadow .16s ease;
   white-space:nowrap;
 }
@@ -1907,9 +1907,6 @@ EXPERIENCE_TAGS.forEach(exp => {
   chip.innerHTML = `<span>${exp.icon}</span><span>${exp.label}</span>`;
   if (exp.id !== 'todos'){
     const color = getComputedStyle(document.documentElement).getPropertyValue(exp.color.replace('var(','').replace(')','')).trim();
-    chip.style.setProperty('--chip-idle-bg', `${color}1F`);
-    chip.style.setProperty('--chip-idle-border', `${color}45`);
-    chip.style.setProperty('--chip-idle-color', color);
     chip.style.setProperty('--chip-active-bg', color);
     chip.style.setProperty('--chip-active-shadow', `${color}52`);
   }
