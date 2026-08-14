@@ -643,7 +643,35 @@ img{-webkit-user-drag:none; user-select:none;}
 .album-stat .as-value{font-family:var(--font-display); font-size:19px; font-weight:800; color:var(--turquoise-bright);}
 .album-stat .as-label{font-size:9.5px; color:var(--text-secondary); font-weight:600; line-height:1.3; margin-top:4px; text-transform:uppercase; letter-spacing:0.3px;}
 
-.album-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+/* Vista índice / vista detalle dentro de la misma pantalla de álbum */
+.album-view{display:none;}
+.album-view.active{display:block;}
+
+/* Portadas de capítulo — Salamanca, Illapel, Los Vilos, Canela, Caimanes, Recuerdos del Choapa */
+.album-chapters{display:flex; flex-direction:column; gap:14px;}
+.chapter-cover{
+  position:relative; min-height:132px; border-radius:var(--radius-l); overflow:hidden;
+  background:var(--surface) center/cover no-repeat; border:1px solid var(--border-glass);
+  box-shadow:var(--shadow-card); display:flex; align-items:flex-end; padding:16px;
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1);
+}
+.chapter-cover:active{transform:scale(0.98);}
+.chapter-cover::after{
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(180deg, rgba(7,19,31,0.02) 35%, rgba(7,19,31,0.9) 100%);
+}
+.chapter-cover.personal{background-image:linear-gradient(135deg, var(--surface-elevated), var(--surface-elevated-2));}
+.chapter-cover.personal::after{background:none;}
+.chapter-cover .cc-row{position:relative; z-index:1; width:100%; display:flex; align-items:flex-end; justify-content:space-between; gap:12px;}
+.chapter-cover .cc-name{font-family:var(--font-display); font-size:17px; font-weight:800; color:#fff;}
+.chapter-cover .cc-count{font-size:11.5px; color:var(--turquoise-bright); font-weight:600; margin-top:3px;}
+.chapter-cover .cc-arrow{color:rgba(255,255,255,0.8); display:flex; flex-shrink:0; transition:transform .16s ease;}
+.chapter-cover:active .cc-arrow{transform:translateX(3px);}
+.chapter-cover.personal .cc-name{color:var(--text-primary);}
+.chapter-cover.personal .cc-arrow{color:var(--turquoise-bright);}
+
+/* Vista detalle de un capítulo — grilla de recuerdos */
+.album-detail-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
 .album-card{
   border-radius:var(--radius-m); overflow:hidden; position:relative; aspect-ratio:1/1.05;
   background:var(--surface); border:1px solid var(--border-glass); box-shadow:var(--shadow-card);
@@ -661,6 +689,18 @@ img{-webkit-user-drag:none; user-select:none;}
 
 .album-card.locked{
   display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+  border-style:dashed; border-color:var(--border-glass);
+}
+.album-card.locked .lock-icon{color:var(--text-tertiary); opacity:0.55; display:flex;}
+.album-card.locked .lock-type{opacity:0.3; display:flex; color:var(--text-tertiary);}
+.album-card.locked .lock-label{font-size:10px; color:var(--text-tertiary); font-weight:600; text-align:center; padding:0 8px;}
+
+.album-card.add-tile{
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+  border-style:dashed; border-color:var(--turquoise); color:var(--turquoise-bright);
+  background:rgba(95,225,232,0.06);
+}
+.album-card.add-tile span{font-size:11px; font-weight:600; text-align:center; padding:0 10px;}
   border-style:dashed; border-color:var(--border-glass);
 }
 .album-card.locked .lock-icon{color:var(--text-tertiary); opacity:0.55; display:flex;}
@@ -899,20 +939,26 @@ img{-webkit-user-drag:none; user-select:none;}
       </button>
       <div class="album-title">
         <span class="album-emoji"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 5.5A1.5 1.5 0 0 1 7 4h5v16H7a1.5 1.5 0 0 1-1.5-1.5v-13Z"/><path d="M12 4h6.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H12"/><path d="M8.4 8.5h2M8.4 12h2"/></svg></span>
-        <span>Mi Álbum del Choapa</span>
+       <span id="albumTitleText">Mi Álbum del Choapa</span>
       </div>
     </div>
 
     <div class="album-body">
-      <div class="album-tagline">Aquí no coleccionas likes. Coleccionas momentos.</div>
+      <div class="album-view active" id="albumIndexView">
+        <div class="album-tagline">Aquí no coleccionas likes. Coleccionas momentos.</div>
 
-      <div class="album-stats">
-        <div class="album-stat"><div class="as-value" id="statExperiences">0/0</div><div class="as-label">experiencias<br>descubiertas</div></div>
-        <div class="album-stat"><div class="as-value" id="statLocalities">0</div><div class="as-label">localidades<br>exploradas</div></div>
-        <div class="album-stat"><div class="as-value" id="statMemories">0</div><div class="as-label">recuerdos<br>guardados</div></div>
+        <div class="album-stats">
+          <div class="album-stat"><div class="as-value" id="statExperiences">0/0</div><div class="as-label">experiencias<br>descubiertas</div></div>
+          <div class="album-stat"><div class="as-value" id="statLocalities">0</div><div class="as-label">localidades<br>exploradas</div></div>
+          <div class="album-stat"><div class="as-value" id="statMemories">0</div><div class="as-label">recuerdos<br>guardados</div></div>
+        </div>
+
+        <div class="album-chapters" id="albumChapters"></div>
       </div>
 
-      <div class="album-grid" id="albumGrid"></div>
+      <div class="album-view" id="albumDetailView">
+        <div class="album-detail-grid" id="albumDetailGrid"></div>
+      </div>
     </div>
   </div>
 
@@ -1626,10 +1672,53 @@ const MemoryStore = {
     this._write(data);
     return data[placeId];
   },
-  remove(placeId){
+ remove(placeId){
     const data = this._read();
     delete data[placeId];
     this._write(data);
+  },
+};
+
+// Recuerdo libre asociado solo a una localidad (sin experiencia/POI específico).
+// Misma lógica de Fase 1 (localStorage) / Fase 2 (Supabase) que MemoryStore, pero
+// permite varios recuerdos por localidad en vez de uno solo por lugar.
+const LOCALITY_MEMORY_KEY = 'choapa_explore_locality_memories_v1';
+const LocalityMemoryStore = {
+  _read(){ try { return JSON.parse(localStorage.getItem(LOCALITY_MEMORY_KEY) || '{}'); } catch(e){ return {}; } },
+  _write(data){ try { localStorage.setItem(LOCALITY_MEMORY_KEY, JSON.stringify(data)); } catch(e){ console.error('No se pudo guardar el recuerdo (almacenamiento lleno).', e); } },
+  getAll(localityId){ return (this._read()[localityId] || []).slice().sort((a,b) => b.createdAt.localeCompare(a.createdAt)); },
+  count(localityId){ return (this._read()[localityId] || []).length; },
+  async add(localityId, photoDataUrl){
+    const data = this._read();
+    if (!data[localityId]) data[localityId] = [];
+    const entry = { id:`lm_${Date.now()}_${Math.random().toString(36).slice(2,7)}`, photoUrl:photoDataUrl, caption:'', createdAt:new Date().toISOString() };
+    data[localityId].push(entry);
+    this._write(data);
+    return entry;
+  },
+  remove(localityId, memoryId){
+    const data = this._read();
+    data[localityId] = (data[localityId] || []).filter(m => m.id !== memoryId);
+    this._write(data);
+  },
+};
+
+// "Recuerdos del Choapa" — álbum personal libre, sin asociación a lugar ni experiencia.
+const PERSONAL_MEMORY_KEY = 'choapa_explore_personal_memories_v1';
+const PersonalMemoryStore = {
+  _read(){ try { return JSON.parse(localStorage.getItem(PERSONAL_MEMORY_KEY) || '[]'); } catch(e){ return []; } },
+  _write(data){ try { localStorage.setItem(PERSONAL_MEMORY_KEY, JSON.stringify(data)); } catch(e){ console.error('No se pudo guardar el recuerdo (almacenamiento lleno).', e); } },
+  getAll(){ return this._read().slice().sort((a,b) => b.createdAt.localeCompare(a.createdAt)); },
+  count(){ return this._read().length; },
+  async add(photoDataUrl){
+    const data = this._read();
+    const entry = { id:`pm_${Date.now()}_${Math.random().toString(36).slice(2,7)}`, photoUrl:photoDataUrl, caption:'', createdAt:new Date().toISOString() };
+    data.push(entry);
+    this._write(data);
+    return entry;
+  },
+  remove(memoryId){
+    this._write(this._read().filter(m => m.id !== memoryId));
   },
 };
 
@@ -1717,42 +1806,59 @@ const memoryFileInput = document.getElementById('memoryFileInput');
 const memoryToast = document.getElementById('memoryToast');
 let toastTimer = null;
 
-function showMemoryToast(place){
-  document.getElementById('memoryToastSub').textContent = `${place.name} · ${place.locality}`;
+function showMemoryToast(title, subtitle){
+  document.getElementById('memoryToastSub').textContent = subtitle ? `${title} · ${subtitle}` : title;
   memoryToast.classList.add('visible');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => memoryToast.classList.remove('visible'), 2600);
 }
-
 document.getElementById('poiDetailMemoryBtn').addEventListener('click', (e) => {
   e.stopPropagation();
   const place = state.selectedPlace;
   if (!place) return;
   const existing = MemoryStore.get(place.id);
   if (existing){
-    openMemoryDetail(place); // ya tiene recuerdo → lo abre (permite reemplazar/eliminar)
+    openPlaceMemoryDetail(place); // ya tiene recuerdo → lo abre (permite reemplazar/eliminar)
   } else {
+    memoryFileInput.dataset.contextType = 'place';
     memoryFileInput.dataset.placeId = place.id;
     memoryFileInput.click();
   }
 });
 
+// Un solo input de archivo sirve a los 3 tipos de recuerdo (lugar, localidad libre,
+// personal) — `dataset.contextType` dice a MemoryStore/LocalityMemoryStore/PersonalMemoryStore
+// cuál usar antes de abrir el selector de fotos.
 memoryFileInput.addEventListener('change', async (e) => {
   const file = e.target.files[0];
-  const placeId = memoryFileInput.dataset.placeId;
+  const { contextType, placeId, localityId } = memoryFileInput.dataset;
   memoryFileInput.value = '';
-  if (!file || !placeId) return;
-  const place = DEMO_PLACES.find(p => p.id === placeId);
-  if (!place) return;
+  if (!file) return;
 
   try{
     const photoDataUrl = await compressImage(file);
-    await MemoryStore.save(placeId, photoDataUrl);
-    if (state.selectedPlace && state.selectedPlace.id === placeId){
-      document.getElementById('poiDetailMemoryBtn').classList.add('saved');
+
+    if (contextType === 'place'){
+      const place = DEMO_PLACES.find(p => p.id === placeId);
+      if (!place) return;
+      await MemoryStore.save(placeId, photoDataUrl);
+      if (state.selectedPlace && state.selectedPlace.id === placeId){
+        document.getElementById('poiDetailMemoryBtn').classList.add('saved');
+      }
+      showMemoryToast(place.name, place.locality);
+    } else if (contextType === 'locality'){
+      const locality = LOCALITIES.find(l => l.id === localityId);
+      if (!locality) return;
+      await LocalityMemoryStore.add(localityId, photoDataUrl);
+      showMemoryToast(locality.name, 'Recuerdo libre');
+      if (currentAlbumLocalityId === localityId) renderLocalityAlbum(localityId);
+    } else if (contextType === 'personal'){
+      await PersonalMemoryStore.add(photoDataUrl);
+      showMemoryToast('Recuerdos del Choapa', 'Nuevo recuerdo');
+      if (currentAlbumIsPersonal) renderPersonalAlbum();
     }
-    showMemoryToast(place);
-    if (document.getElementById('albumScreen').classList.contains('visible')) renderAlbum();
+
+    if (albumIndexView.classList.contains('active')) renderAlbumIndex();
   } catch(err){
     console.error('No se pudo guardar el recuerdo', err);
   }
@@ -2090,10 +2196,18 @@ document.addEventListener('click', e => {
 
 /* ---------- 11. MI ÁLBUM DEL CHOAPA ---------- */
 const albumScreen = document.getElementById('albumScreen');
-const albumGrid = document.getElementById('albumGrid');
+const albumIndexView = document.getElementById('albumIndexView');
+const albumDetailView = document.getElementById('albumDetailView');
+const albumChapters = document.getElementById('albumChapters');
+const albumDetailGrid = document.getElementById('albumDetailGrid');
+const albumTitleText = document.getElementById('albumTitleText');
+const CHEVRON_RIGHT = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>`;
+
+let currentAlbumLocalityId = null;
+let currentAlbumIsPersonal = false;
 
 function openAlbum(){
-  renderAlbum();
+  showAlbumIndex();
   albumScreen.classList.add('visible');
   document.querySelectorAll('.bottom-nav .nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('navAlbum').classList.add('active');
@@ -2104,34 +2218,125 @@ function closeAlbum(){
   document.querySelector('.bottom-nav .nav-item').classList.add('active'); // vuelve a "Explorar"
 }
 document.getElementById('navAlbum').addEventListener('click', openAlbum);
-document.getElementById('albumBack').addEventListener('click', closeAlbum);
+document.getElementById('albumBack').addEventListener('click', () => {
+  if (albumDetailView.classList.contains('active')) showAlbumIndex();
+  else closeAlbum();
+});
 
-function renderAlbum(){
+function showAlbumIndex(){
+  currentAlbumLocalityId = null;
+  currentAlbumIsPersonal = false;
+  albumTitleText.textContent = 'Mi Álbum del Choapa';
+  albumDetailView.classList.remove('active');
+  albumIndexView.classList.add('active');
+  renderAlbumIndex();
+}
+
+// Portada de cada capítulo: el recuerdo libre más reciente de esa localidad si existe,
+// si no la foto del primer lugar cargado ahí.
+function chapterCoverImage(locality){
+  const freeform = LocalityMemoryStore.getAll(locality.id)[0];
+  if (freeform) return freeform.photoUrl;
+  const place = placesInLocality(locality)[0];
+  return place ? place.image : '';
+}
+
+function renderAlbumIndex(){
   const memories = MemoryStore.getAll();
-  const memoryCount = Object.keys(memories).length;
-  const exploredLocalities = new Set(
-    Object.keys(memories)
-      .map(id => DEMO_PLACES.find(p => p.id === id))
-      .filter(Boolean)
-      .map(p => (LOCALITIES.find(l => l.aliases.includes(p.locality)) || {}).id)
-      .filter(Boolean)
-  );
+  const memoryPlaces = Object.keys(memories).map(id => DEMO_PLACES.find(p => p.id === id)).filter(Boolean);
+  const freeformTotal = LOCALITIES.reduce((sum, l) => sum + LocalityMemoryStore.count(l.id), 0);
+  const personalTotal = PersonalMemoryStore.count();
 
-  document.getElementById('statExperiences').textContent = `${memoryCount}/${DEMO_PLACES.length}`;
+  const exploredLocalities = new Set([
+    ...memoryPlaces.map(p => (LOCALITIES.find(l => l.aliases.includes(p.locality)) || {}).id).filter(Boolean),
+    ...LOCALITIES.filter(l => LocalityMemoryStore.count(l.id) > 0).map(l => l.id),
+  ]);
+
+  document.getElementById('statExperiences').textContent = `${memoryPlaces.length}/${DEMO_PLACES.length}`;
   document.getElementById('statLocalities').textContent = exploredLocalities.size;
-  document.getElementById('statMemories').textContent = memoryCount;
+  document.getElementById('statMemories').textContent = memoryPlaces.length + freeformTotal + personalTotal;
 
-  albumGrid.innerHTML = '';
-  DEMO_PLACES.forEach(place => {
+  albumChapters.innerHTML = '';
+
+  LOCALITIES.forEach(locality => {
+    const count = placesInLocality(locality).filter(p => memories[p.id]).length + LocalityMemoryStore.count(locality.id);
+    const cover = chapterCoverImage(locality);
+    const chapter = document.createElement('div');
+    chapter.className = 'chapter-cover';
+    if (cover) chapter.style.backgroundImage = `url(${cover})`;
+    chapter.innerHTML = `
+      <div class="cc-row">
+        <div>
+          <div class="cc-name">${locality.name}</div>
+          <div class="cc-count">${count} recuerdo${count === 1 ? '' : 's'}</div>
+        </div>
+        <span class="cc-arrow">${CHEVRON_RIGHT}</span>
+      </div>`;
+    chapter.addEventListener('click', () => openLocalityAlbum(locality.id));
+    albumChapters.appendChild(chapter);
+  });
+
+  // Último capítulo — álbum personal libre, sin lugares ni experiencias asociadas
+  const personalCover = PersonalMemoryStore.getAll()[0];
+  const personalChapter = document.createElement('div');
+  personalChapter.className = 'chapter-cover personal';
+  if (personalCover) personalChapter.style.backgroundImage = `url(${personalCover.photoUrl})`;
+  personalChapter.innerHTML = `
+    <div class="cc-row">
+      <div>
+        <div class="cc-name">Recuerdos del Choapa</div>
+        <div class="cc-count">${personalTotal} recuerdo${personalTotal === 1 ? '' : 's'}</div>
+      </div>
+      <span class="cc-arrow">${CHEVRON_RIGHT}</span>
+    </div>`;
+  personalChapter.addEventListener('click', openPersonalAlbum);
+  albumChapters.appendChild(personalChapter);
+}
+
+function openLocalityAlbum(localityId){
+  currentAlbumLocalityId = localityId;
+  currentAlbumIsPersonal = false;
+  const locality = LOCALITIES.find(l => l.id === localityId);
+  albumTitleText.textContent = locality ? locality.name : 'Localidad';
+  albumIndexView.classList.remove('active');
+  albumDetailView.classList.add('active');
+  renderLocalityAlbum(localityId);
+}
+
+function renderLocalityAlbum(localityId){
+  const locality = LOCALITIES.find(l => l.id === localityId);
+  if (!locality) return;
+  const memories = MemoryStore.getAll();
+  albumDetailGrid.innerHTML = '';
+
+  const addTile = document.createElement('div');
+  addTile.className = 'album-card add-tile';
+  addTile.innerHTML = `${icon('sparkle',20)}<span>Agregar recuerdo libre</span>`;
+  addTile.addEventListener('click', () => {
+    memoryFileInput.dataset.contextType = 'locality';
+    memoryFileInput.dataset.localityId = localityId;
+    memoryFileInput.click();
+  });
+  albumDetailGrid.appendChild(addTile);
+
+  LocalityMemoryStore.getAll(localityId).forEach(memory => {
+    const card = document.createElement('div');
+    card.className = 'album-card unlocked';
+    card.style.backgroundImage = `url(${memory.photoUrl})`;
+    card.innerHTML = `<div class="ac-info"><div class="ac-name">${locality.name}</div></div>`;
+    card.addEventListener('click', () => openLocalityMemoryDetail(locality, memory));
+    albumDetailGrid.appendChild(card);
+  });
+
+  placesInLocality(locality).forEach(place => {
     const memory = memories[place.id];
     const cat = catById(place.category);
     const card = document.createElement('div');
-
     if (memory){
       card.className = 'album-card unlocked';
       card.style.backgroundImage = `url(${memory.photoUrl})`;
-      card.innerHTML = `<div class="ac-info"><div class="ac-name">${place.name}</div><div class="ac-loc">${place.locality}</div></div>`;
-      card.addEventListener('click', () => openMemoryDetail(place));
+      card.innerHTML = `<div class="ac-info"><div class="ac-name">${place.name}</div></div>`;
+      card.addEventListener('click', () => openPlaceMemoryDetail(place));
     } else {
       card.className = 'album-card locked';
       card.innerHTML = `
@@ -2140,46 +2345,106 @@ function renderAlbum(){
         <span class="lock-label">Aún por descubrir</span>`;
       card.addEventListener('click', () => { closeAlbum(); selectPlaceById(place.id); });
     }
-    albumGrid.appendChild(card);
+    albumDetailGrid.appendChild(card);
   });
 }
 
-/* Detalle de un recuerdo guardado */
-const memoryDetail = document.getElementById('memoryDetail');
-let memoryDetailPlaceId = null;
+function openPersonalAlbum(){
+  currentAlbumIsPersonal = true;
+  currentAlbumLocalityId = null;
+  albumTitleText.textContent = 'Recuerdos del Choapa';
+  albumIndexView.classList.remove('active');
+  albumDetailView.classList.add('active');
+  renderPersonalAlbum();
+}
 
-function openMemoryDetail(place){
-  const memory = MemoryStore.get(place.id);
-  if (!memory) return;
-  memoryDetailPlaceId = place.id;
-  document.getElementById('mdPhoto').style.backgroundImage = `url(${memory.photoUrl})`;
-  document.getElementById('mdName').textContent = place.name;
-  document.getElementById('mdLoc').textContent = place.locality;
-  document.getElementById('mdCaption').textContent = `"${memory.caption}"`;
-  document.getElementById('mdDate').textContent = new Date(memory.createdAt).toLocaleDateString('es-CL', { day:'numeric', month:'long', year:'numeric' });
+function renderPersonalAlbum(){
+  albumDetailGrid.innerHTML = '';
+
+  const addTile = document.createElement('div');
+  addTile.className = 'album-card add-tile';
+  addTile.innerHTML = `${icon('sparkle',20)}<span>Agregar recuerdo</span>`;
+  addTile.addEventListener('click', () => {
+    memoryFileInput.dataset.contextType = 'personal';
+    memoryFileInput.click();
+  });
+  albumDetailGrid.appendChild(addTile);
+
+  PersonalMemoryStore.getAll().forEach(memory => {
+    const card = document.createElement('div');
+    card.className = 'album-card unlocked';
+    card.style.backgroundImage = `url(${memory.photoUrl})`;
+    card.addEventListener('click', () => openPersonalMemoryDetail(memory));
+    albumDetailGrid.appendChild(card);
+  });
+}
+
+/* Detalle de un recuerdo guardado — mismo modal para los 3 tipos (lugar/localidad/personal) */
+const memoryDetail = document.getElementById('memoryDetail');
+let memoryDetailContext = null;
+
+function populateMemoryDetail({ photoUrl, name, loc, caption, createdAt }){
+  document.getElementById('mdPhoto').style.backgroundImage = `url(${photoUrl})`;
+  document.getElementById('mdName').textContent = name;
+  document.getElementById('mdLoc').textContent = loc || '';
+  document.getElementById('mdCaption').textContent = caption ? `"${caption}"` : '';
+  document.getElementById('mdDate').textContent = new Date(createdAt).toLocaleDateString('es-CL', { day:'numeric', month:'long', year:'numeric' });
   memoryDetail.classList.add('visible');
 }
+
+function openPlaceMemoryDetail(place){
+  const memory = MemoryStore.get(place.id);
+  if (!memory) return;
+  memoryDetailContext = { type:'place', placeId:place.id };
+  populateMemoryDetail({ photoUrl:memory.photoUrl, name:place.name, loc:place.locality, caption:memory.caption, createdAt:memory.createdAt });
+}
+function openLocalityMemoryDetail(locality, memory){
+  memoryDetailContext = { type:'locality', localityId:locality.id, memoryId:memory.id };
+  populateMemoryDetail({ photoUrl:memory.photoUrl, name:locality.name, loc:'Recuerdo libre', caption:memory.caption, createdAt:memory.createdAt });
+}
+function openPersonalMemoryDetail(memory){
+  memoryDetailContext = { type:'personal', memoryId:memory.id };
+  populateMemoryDetail({ photoUrl:memory.photoUrl, name:'Recuerdos del Choapa', loc:'', caption:memory.caption, createdAt:memory.createdAt });
+}
+
 function closeMemoryDetail(){
   memoryDetail.classList.remove('visible');
-  memoryDetailPlaceId = null;
+  memoryDetailContext = null;
 }
 document.getElementById('memoryDetailClose').addEventListener('click', closeMemoryDetail);
 memoryDetail.addEventListener('click', (e) => { if (e.target === memoryDetail) closeMemoryDetail(); });
 
 document.getElementById('mdReplace').addEventListener('click', () => {
-  if (!memoryDetailPlaceId) return;
-  memoryFileInput.dataset.placeId = memoryDetailPlaceId;
+  if (!memoryDetailContext) return;
+  const { type, placeId, localityId, memoryId } = memoryDetailContext;
+  if (type === 'locality') LocalityMemoryStore.remove(localityId, memoryId);
+  if (type === 'personal') PersonalMemoryStore.remove(memoryId);
+
+  memoryFileInput.dataset.contextType = type;
+  delete memoryFileInput.dataset.placeId;
+  delete memoryFileInput.dataset.localityId;
+  if (type === 'place') memoryFileInput.dataset.placeId = placeId;
+  if (type === 'locality') memoryFileInput.dataset.localityId = localityId;
   closeMemoryDetail();
   memoryFileInput.click();
 });
 document.getElementById('mdDelete').addEventListener('click', () => {
-  if (!memoryDetailPlaceId) return;
-  MemoryStore.remove(memoryDetailPlaceId);
-  if (state.selectedPlace && state.selectedPlace.id === memoryDetailPlaceId){
-    document.getElementById('poiDetailMemoryBtn').classList.remove('saved');
+  if (!memoryDetailContext) return;
+  const { type, placeId, localityId, memoryId } = memoryDetailContext;
+  if (type === 'place'){
+    MemoryStore.remove(placeId);
+    if (state.selectedPlace && state.selectedPlace.id === placeId){
+      document.getElementById('poiDetailMemoryBtn').classList.remove('saved');
+    }
+  } else if (type === 'locality'){
+    LocalityMemoryStore.remove(localityId, memoryId);
+  } else if (type === 'personal'){
+    PersonalMemoryStore.remove(memoryId);
   }
   closeMemoryDetail();
-  renderAlbum();
+  if (currentAlbumLocalityId) renderLocalityAlbum(currentAlbumLocalityId);
+  else if (currentAlbumIsPersonal) renderPersonalAlbum();
+  else renderAlbumIndex();
 });
 </script>
 </body>
