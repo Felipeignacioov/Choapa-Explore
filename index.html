@@ -36,14 +36,15 @@
   --cat-vinos:#B06CE0;
   --cat-actividades:#5BD98A;
 
-  /* Experiencias — "qué puedo hacer/sentir allí", distinto del tipo de lugar */
+ /* Experiencias — "qué puedo hacer/sentir allí", distinto del tipo de lugar */
   --exp-todos:#5FE1E8;
   --exp-cita:#E8748C;
-  --exp-aventura:#5BD98A;
-  --exp-tranquilo:#5FC9C0;
-  --exp-familia:#5B9CF0;
+  --exp-aventura:#E8C24D;
+  --exp-naturaleza:#2DD4A7;
+  --exp-tranquilo:#93AD85;
+  --exp-familia:#6FC1E8;
   --exp-adrenalina:#F0754D;
-  --exp-gastronomia:#B06CE0;
+  --exp-gastronomia:#C99A52;
   --exp-noche:#8B7CF0;
 
   /* Nivel 2 del mapa — localidades dentro de una comuna. Deliberadamente distinto
@@ -181,22 +182,21 @@ img{-webkit-user-drag:none; user-select:none;}
 .chip{
   flex-shrink:0; display:flex; align-items:center; gap:6px;
   padding:8.5px 14px; border-radius:var(--radius-pill);
-  background:rgba(16,36,56,0.68); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
-  border:1px solid var(--border-glass); box-shadow:var(--shadow-float);
-  font-size:13px; font-weight:600; color:var(--text-secondary);
+  background:var(--chip-idle-bg, rgba(16,36,56,0.68)); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  border:1px solid var(--chip-idle-border, var(--border-glass)); box-shadow:var(--shadow-float);
+  font-size:13px; font-weight:600; color:var(--chip-idle-color, var(--text-secondary));
   transition:background .16s cubic-bezier(.4,0,.2,1), color .16s ease, border-color .16s ease, transform .16s cubic-bezier(.34,1.56,.64,1), box-shadow .16s ease;
   white-space:nowrap;
 }
 .chip .dot{width:6px; height:6px; border-radius:50%; background:currentColor; opacity:.85;}
 .chip svg{display:block; flex-shrink:0;}
 .chip.active{
-  color:#04222A; background:var(--turquoise-bright);
-  border-color:var(--turquoise-bright);
-  box-shadow:0 4px 14px rgba(95,225,232,0.32);
+  color:var(--chip-active-color, #04222A); background:var(--chip-active-bg, var(--turquoise-bright));
+  border-color:var(--chip-active-bg, var(--turquoise-bright));
+  box-shadow:0 4px 14px var(--chip-active-shadow, rgba(95,225,232,0.32));
   transform:translateY(-1px);
 }
 .chip:active{transform:scale(0.95);}
-
 /* ---------------- MAP CONTROLS ---------------- */
 .map-controls{
   position:absolute; right:16px; z-index:9;
@@ -1068,7 +1068,7 @@ const EXPERIENCE_TAGS = [
   { id:'todos',        label:'Todos',        icon:icon('todos',14),       iconKey:'todos',       color:'var(--exp-todos)' },
   { id:'cita',         label:'Cita',         icon:icon('cita',14),        iconKey:'cita',        color:'var(--exp-cita)' },
   { id:'aventura',     label:'Aventura',     icon:icon('aventura',14),    iconKey:'aventura',    color:'var(--exp-aventura)' },
-  { id:'naturaleza',   label:'Naturaleza',   icon:icon('naturaleza',14),  iconKey:'naturaleza',  color:'var(--cat-naturaleza)' },
+ { id:'naturaleza',   label:'Naturaleza',   icon:icon('naturaleza',14),  iconKey:'naturaleza',  color:'var(--exp-naturaleza)' },
   { id:'tranquilo',    label:'Tranquilo',    icon:icon('tranquilo',14),   iconKey:'tranquilo',   color:'var(--exp-tranquilo)' },
 ];
 const expById = id => EXPERIENCE_TAGS.find(e => e.id === id);
@@ -1901,6 +1901,14 @@ EXPERIENCE_TAGS.forEach(exp => {
   chip.className = 'chip' + (exp.id === 'todos' ? ' active' : '');
   chip.dataset.exp = exp.id;
   chip.innerHTML = `<span>${exp.icon}</span><span>${exp.label}</span>`;
+  if (exp.id !== 'todos'){
+    const color = getComputedStyle(document.documentElement).getPropertyValue(exp.color.replace('var(','').replace(')','')).trim();
+    chip.style.setProperty('--chip-idle-bg', `${color}1F`);
+    chip.style.setProperty('--chip-idle-border', `${color}45`);
+    chip.style.setProperty('--chip-idle-color', color);
+    chip.style.setProperty('--chip-active-bg', color);
+    chip.style.setProperty('--chip-active-shadow', `${color}52`);
+  }
   chip.addEventListener('click', () => setActiveExperience(exp.id));
   chipsRow.appendChild(chip);
 });
