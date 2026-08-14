@@ -1220,8 +1220,10 @@ const SUBLOCALITIES = {
 /* ---------- 3. TERRITORIO — límites reales del Choapa ---------- */
 // Provincia del Choapa: Salamanca, Illapel, Los Vilos, Canela, Caimanes.
 // CHOAPA_BOUNDS: encuadre inicial (fitBounds) — ajustado a la extensión real del territorio.
-// CHOAPA_MAX_BOUNDS: límite de navegación (maxBounds) — un margen de respiro alrededor
-// del territorio para no cortar el mapa en seco, pero sin permitir salir a otras regiones/países.
+// CHOAPA_MAX_BOUNDS: no se usa como maxBounds duro (eso choca con la inclinación/pitch
+// de la cámara y puede congelar el mapa). Se usa como referencia para el difuminado de
+// bordes y para el rebote elástico: al soltar el dedo fuera de esta zona, el mapa vuelve
+// suavemente adentro (ver el listener 'moveend' más abajo).
 const CHOAPA_BOUNDS = [
   [-71.75, -32.15], // suroeste
   [-70.45, -31.05], // noreste
@@ -1229,13 +1231,6 @@ const CHOAPA_BOUNDS = [
 const CHOAPA_MAX_BOUNDS = [
   [-72.20, -32.55], // suroeste + margen — hacia aquí se hace el "rebote elástico" al soltar
   [-70.05, -30.65], // noreste + margen
-];
-// Límite duro real de navegación — mucho más amplio que CHOAPA_MAX_BOUNDS para que
-// arrastrar el mapa se sienta libre (sin choque de pared). El rebote elástico hacia
-// CHOAPA_MAX_BOUNDS ocurre después, cuando el usuario suelta el dedo.
-const CHOAPA_SAFETY_BOUNDS = [
-  [-73.00, -33.30],
-  [-69.20, -29.70],
 ];
 
 // Umbrales que dividen el sistema de exploración continuo en 3 niveles:
@@ -1255,7 +1250,6 @@ const map = new maplibregl.Map({
   style:'https://tiles.openfreemap.org/styles/dark',
  bounds: CHOAPA_BOUNDS,
   fitBoundsOptions:{ padding:{ top:220, bottom:280, left:40, right:40 } },
-  maxBounds: CHOAPA_SAFETY_BOUNDS,
   minZoom:7.6,
   maxZoom:17,
   maxPitch:55,
