@@ -1250,7 +1250,7 @@ const map = new maplibregl.Map({
   style:'https://tiles.openfreemap.org/styles/dark',
  bounds: CHOAPA_BOUNDS,
   fitBoundsOptions:{ padding:{ top:220, bottom:280, left:40, right:40 } },
-  minZoom:8.6,
+  minZoom:7.6,
   maxZoom:17,
   maxPitch:55,
   attributionControl:false,
@@ -1275,13 +1275,26 @@ map.on('zoomend', updateExplorationLevel);
 // Rebote elástico: si al soltar el dedo (o al terminar la inercia) el mapa quedó
 // centrado fuera de CHOAPA_MAX_BOUNDS, lo trae de vuelta con una animación suave
 // en vez de simplemente bloquear el arrastre a mitad de camino.
+//
+// También se corrige acá la combinación zoom muy alejado + cámara inclinada:
+// ahí MapLibre puede congelarse (el horizonte que tiene que calcular se vuelve
+// excesivo). Si el usuario queda en esa combinación, la inclinación se endereza
+// sola — sin tocar el zoom ni el encuadre con el que abre la app.
 map.on('moveend', () => {
   const center = map.getCenter();
   const [[minLng, minLat], [maxLng, maxLat]] = CHOAPA_MAX_BOUNDS;
   const clampedLng = Math.min(Math.max(center.lng, minLng), maxLng);
   const clampedLat = Math.min(Math.max(center.lat, minLat), maxLat);
-  if (clampedLng !== center.lng || clampedLat !== center.lat){
-    map.easeTo({ center:[clampedLng, clampedLat], duration:700, easing:t => 1 - Math.pow(1 - t, 3) });
+  const needsRecenter = clampedLng !== center.lng || clampedLat !== center.lat;
+  const needsLevelOut = map.getZoom() < 8.6 && map.getPitch() > 0;
+
+  if (needsRecenter || needsLevelOut){
+    map.easeTo({
+      center: needsRecenter ? [clampedLng, clampedLat] : center,
+      pitch: needsLevelOut ? 0 : map.getPitch(),
+      duration:700,
+      easing:t => 1 - Math.pow(1 - t, 3)
+    });
   }
 });
 
