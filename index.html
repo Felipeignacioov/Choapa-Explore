@@ -1399,16 +1399,23 @@ function renderTerritoryFade(){
     });
   }
 
-  // Sello final: más allá de CHOAPA_MAX_BOUNDS aún hay mapa visible en pantallas
+// Sello final: más allá de CHOAPA_MAX_BOUNDS aún hay mapa visible en pantallas
   // verticales (celular) donde el viewport alcanza a mostrar de sobra el límite de
-  // navegación. Sin esta capa, esa zona se ve "cruda" otra vez — como si el
-  // difuminado se cortara y el mapa "reapareciera" claro detrás. La cubrimos
-  // entera con una última capa casi opaca hasta los bordes del mundo.
-  const worldEdge = [[-179.9, -85], [179.9, 85]];
+  // navegación. Antes este polígono cubría casi todo el planeta, lo que forzaba a
+  // MapLibre a renderizarlo en cada fotograma de cualquier animación de cámara —
+  // carísimo en celular, y la causa real de los congelamientos al volar hacia una
+  // zona. Ahora se acota a un margen generoso pero finito alrededor de
+  // CHOAPA_MAX_BOUNDS, de sobra para cubrir cualquier borde visible al zoom mínimo
+  // permitido, sin el costo de dibujar un polígono del tamaño del mundo.
+  const sealMargin = 3; // grados — sobra para el viewport más ancho posible (minZoom)
+  const sealEdge = [
+    [outer[0][0] - sealMargin, outer[0][1] - sealMargin],
+    [outer[1][0] + sealMargin, outer[1][1] + sealMargin],
+  ];
   features.push({
     type:'Feature',
     properties:{ opacity: 0.99 },
-    geometry:{ type:'Polygon', coordinates:[ ring(worldEdge[0], worldEdge[1]), ring(boundsAt(1)[0], boundsAt(1)[1]) ] }
+    geometry:{ type:'Polygon', coordinates:[ ring(sealEdge[0], sealEdge[1]), ring(boundsAt(1)[0], boundsAt(1)[1]) ] }
   });
 
   map.addSource('territory-fade', { type:'geojson', data:{ type:'FeatureCollection', features } });
