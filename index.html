@@ -2040,13 +2040,8 @@ FEATURED_EXPERIENCES.forEach(exp => {
 
 const placesRail = document.getElementById('placesRail');
 const placesEmpty = document.getElementById('placesEmpty');
-const placesPrompt = document.getElementById('placesPrompt');
-const placesPromptIcon = document.getElementById('placesPromptIcon');
-const placesPromptTitle = document.getElementById('placesPromptTitle');
 const placesSectionTitle = document.getElementById('placesSectionTitle');
 const placesSubtitle = document.getElementById('placesSubtitle');
-const placesSeeAll = document.getElementById('placesSeeAll');
-placesSeeAll.addEventListener('click', expandSheet);
 
 function renderPlacesRail(){
   placesRail.innerHTML = '';
@@ -2075,28 +2070,6 @@ function renderPlacesRail(){
     placesSubtitle.style.display = 'none';
   }
 
-  // Sin localidad elegida + filtro activo: el mapa está limpio (solo comunas
-  // visibles), así que en vez de listar lugares de toda la provincia mezclados
-  // sin contexto geográfico, se invita a explorar una zona.
-  const showZonePrompt = filtering && !deepest;
-  placesSeeAll.style.display = showZonePrompt ? 'none' : 'flex';
-
-  if (showZonePrompt){
-    placesRail.style.display = 'none';
-    placesEmpty.style.display = 'none';
-    placesPrompt.style.display = 'flex';
-    const color = getComputedStyle(document.documentElement).getPropertyValue(exp.color.replace('var(','').replace(')','')).trim();
-    placesPrompt.style.borderColor = `${color}55`;
-    placesPrompt.style.background = `${color}0F`;
-    placesPromptIcon.style.color = color;
-    placesPromptIcon.innerHTML = exp.icon;
-    placesPromptTitle.style.color = color;
-    placesPromptTitle.textContent = `${exp.label} en el Choapa`;
-    return;
-  }
-
-  placesPrompt.style.display = 'none';
-  placesRail.style.display = 'flex';
   placesEmpty.style.display = filtered.length ? 'none' : 'flex';
 
   filtered.forEach(place => {
@@ -2118,7 +2091,6 @@ function renderPlacesRail(){
   });
 }
 renderPlacesRail();
-
 function selectPlaceById(id){
   const place = DEMO_PLACES.find(p => p.id === id);
   if (!place) return;
