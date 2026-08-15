@@ -1293,13 +1293,13 @@ const map = new maplibregl.Map({
   style:'https://tiles.openfreemap.org/styles/dark',
  bounds: CHOAPA_BOUNDS,
   fitBoundsOptions:{ padding:{ top:220, bottom:280, left:40, right:40 } },
-  minZoom:7.6,
+ minZoom:7.6,
   maxZoom:17,
-  maxPitch:55,
+  maxPitch:0,
   attributionControl:false,
   dragRotate:true,
-  pitchWithRotate:true,
-  touchPitch:true,
+  pitchWithRotate:false,
+  touchPitch:false,
 });
 // 1 dedo = pan · 2 dedos = pellizcar zoom + rotar, con inclinación natural
 map.touchZoomRotate.enable({ around:'center' });
@@ -1331,18 +1331,11 @@ map.on('move', () => {
   }
 });
 
-// A zoom muy alejado + cámara inclinada, MapLibre puede congelarse (el horizonte
-// que tiene que calcular se vuelve excesivo). Se corrige en tiempo real, en cada
-// tick del gesto (no solo al soltar), para nunca llegar a formarse esa combinación
-// — sin tocar el zoom ni el encuadre con el que abre la app.
-const PITCH_SAFE_MIN_ZOOM = 8.6;
-function enforcePitchSafety(){
-  if (map.getZoom() < PITCH_SAFE_MIN_ZOOM && map.getPitch() > 0){
-    map.setPitch(0);
-  }
-}
-map.on('zoom', enforcePitchSafety);
-map.on('pitch', enforcePitchSafety);
+// La inclinación de cámara (pitch) está desactivada a nivel de configuración
+// del mapa (maxPitch:0, pitchWithRotate:false, touchPitch:false) — era la causa
+// raíz de que el mapa se congelara al combinarse con ciertos rangos de zoom.
+// Sin pitch posible, ese bug queda eliminado de raíz. La rotación (bearing) se
+// mantiene intacta y funciona con normalidad.
 
 /* ---------- BRÚJULA — aparece al rotar, vuelve suave al norte ---------- */
 const compassBtn = document.getElementById('btnCompass');
