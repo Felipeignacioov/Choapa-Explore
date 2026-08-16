@@ -344,18 +344,22 @@ img{-webkit-user-drag:none; user-select:none;}
 
 .zone-prompt{
   position:absolute; left:16px; right:16px; z-index:9;
-  display:none; align-items:center; gap:10px;
+  display:flex; align-items:center; gap:10px;
   padding:11px 14px;
   background:rgba(16,36,56,0.82); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
   border:1px solid var(--border-glass); box-shadow:var(--shadow-float);
   border-radius:var(--radius-m);
+  opacity:0; transform:translateY(-6px) scale(0.98); pointer-events:none;
+  transition:opacity .28s ease, transform .28s cubic-bezier(.2,.9,.28,1.1), border-color .2s ease;
 }
-.zone-prompt.visible{display:flex;}
+.zone-prompt.visible{opacity:1; transform:translateY(0) scale(1); pointer-events:auto;}
 .zone-prompt .zp-icon{flex-shrink:0; display:flex;}
 .zone-prompt .zp-text{display:flex; flex-direction:column; gap:1px; min-width:0;}
 .zone-prompt .zp-title{font-family:var(--font-display); font-size:13px; font-weight:700; color:var(--text-primary);}
 .zone-prompt .zp-sub{font-size:11px; color:var(--text-secondary);}
-@media (min-width:640px){ .zone-prompt{max-width:608px; left:50%; transform:translateX(-50%);} }
+.zone-prompt .zp-icon, .zone-prompt .zp-text{transition:opacity .14s ease;}
+.zone-prompt.content-swap .zp-icon, .zone-prompt.content-swap .zp-text{opacity:0;}
+@media (min-width:640px){ .zone-prompt{max-width:608px; left:50%; transform:translateX(-50%) translateY(-6px) scale(0.98);} .zone-prompt.visible{transform:translateX(-50%) translateY(0) scale(1);} }
 
 /* ---------------- CLUSTERS ---------------- */
 .cluster-marker{
@@ -839,7 +843,7 @@ img{-webkit-user-drag:none; user-select:none;}
     <span class="zp-icon" id="zonePromptIcon"></span>
     <div class="zp-text">
       <div class="zp-title" id="zonePromptTitle">Experiencia en el Choapa</div>
-      <div class="zp-sub">Explora una zona para descubrir experiencias.</div>
+    <div class="zp-sub" id="zonePromptSub">Explora una zona para descubrir experiencias.</div>
     </div>
   </div>
 
@@ -1313,6 +1317,7 @@ map.on('load', () => {
   updateExplorationLevel();
 });
 map.on('zoom', updateExplorationLevel);
+map.on('zoom', updateZonePrompt);
 map.on('zoomend', updateExplorationLevel);
 
 // Límite de navegación sin usar "maxBounds" nativo (ese choca con la inclinación/
@@ -1715,16 +1720,71 @@ document.getElementById('breadcrumbPill').addEventListener('click', () => {
 const zonePrompt = document.getElementById('zonePrompt');
 const zonePromptIcon = document.getElementById('zonePromptIcon');
 const zonePromptTitle = document.getElementById('zonePromptTitle');
-function updateZonePrompt(){
-  const show = state.activeExperience !== 'todos' && !state.currentLocality;
-  zonePrompt.classList.toggle('visible', show);
-  if (!show) return;
+const zonePromptSub = document.getElementById('zonePromptSub');
+
+// Forma plural/natural de cada experiencia para el texto "en <localidad>" del Nivel 2
+// (ej. "Citas en Salamanca"). Si una experiencia no está aquí, se usa su label tal cual.
+const ZONE_PROMPT_PLURAL = {
+  cita:        'Citas',
+  aventura:    'Aventuras',
+  familia:     'Planes familiares',
+  tranquilo:   'Planes tranquilos',
+  noche:       'Noches',
+};
+
+function updateZonePromptContent(){
   const exp = expById(state.activeExperience);
   const color = getComputedStyle(document.documentElement).getPropertyValue(exp.color.replace('var(','').replace(')','')).trim();
   zonePrompt.style.borderColor = `${color}55`;
   zonePromptIcon.style.color = color;
   zonePromptIcon.innerHTML = exp.icon;
-  zonePromptTitle.textContent = `${exp.label} en el Choapa`;
+  if (state.currentLocality){
+    zonePromptTitle.textContent = `${ZONE_PROMPT_PLURAL[state.activeExperience] || exp.label} en ${state.currentLocality.name}`;
+    zonePromptSub.textContent = 'Explora una localidad para descubrir experiencias.';
+  } else {
+    zonePromptTitle.textContent = `${exp.label} en el Choapa`;
+    zonePromptSub.textContent = 'Explora una zona para descubrir experiencias.';
+  }
+}
+
+// Banner contextual de 3 niveles:
+// Nivel 1 (Choapa completo)   → "Cita en el Choapa"
+// Nivel 2 (dentro de comuna)  → "Citas en Salamanca" — el banner NO desaparece, solo cambia
+// Nivel 3 (experiencias reales visibles, zoom >= ZOOM_DETAIL) → el banner desaparece
+let zonePromptWasVisible = false;
+let zonePromptContentKey = '';
+function updateZonePrompt(){
+  const filtering = state.activeExperience !== 'todos';
+  const atDetail = map.getZoom() >= ZOOM_DETAIL;
+  const show = filtering && !atDetail;
+
+  if (!show){
+    zonePrompt.classList.remove('visible');
+    zonePromptWasVisible = false;
+    zonePromptContentKey = '';
+    return;
+  }
+
+  const key = `${state.activeExperience}|${state.currentLocality ? state.currentLocality.id : ''}`;
+  if (key === zonePromptContentKey){
+    zonePrompt.classList.add('visible');
+    return; // mismo contenido, nada que animar
+  }
+  zonePromptContentKey = key;
+
+  if (!zonePromptWasVisible){
+    // Primera aparición: contenido correcto desde ya, solo se anima el panel completo.
+    updateZonePromptContent();
+    zonePrompt.classList.add('visible');
+    zonePromptWasVisible = true;
+  } else {
+    // Ya estaba visible (ej. Choapa → comuna, o cambio de categoría): cross-fade breve del contenido.
+    zonePrompt.classList.add('content-swap');
+    setTimeout(() => {
+      updateZonePromptContent();
+      zonePrompt.classList.remove('content-swap');
+    }, 140);
+  }
 }
 
 const SAVED_KEY = 'choapa_explore_saved_places';
