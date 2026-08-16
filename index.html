@@ -1960,17 +1960,22 @@ function selectPlace(place, el){
   state.selectedPlace = place;
 
   const cat = catById(place.category);
-  const color = getComputedStyle(document.documentElement).getPropertyValue(cat.color.replace('var(','').replace(')','')).trim();
+  // La etiqueta de la ficha muestra la categoría PRINCIPAL de la experiencia
+  // (categoryPrimary) cuando el lugar la tiene — no el tipo de lugar. Los lugares
+  // que todavía no tienen categoryPrimary (los originales) siguen mostrando su
+  // tipo de lugar, exactamente igual que antes.
+  const primaryExp = place.categoryPrimary ? expById(place.categoryPrimary) : null;
+  const tagInfo = primaryExp || cat;
+  const color = getComputedStyle(document.documentElement).getPropertyValue(tagInfo.color.replace('var(','').replace(')','')).trim();
 
   document.getElementById('poiDetailThumb').style.backgroundImage = `url(${place.image})`;
   document.getElementById('poiDetailName').textContent = place.name;
   document.querySelector('#poiDetailLoc span').textContent = place.locality;
 
   const tag = document.getElementById('poiDetailTag');
-  tag.innerHTML = `<span class="dot"></span>${cat.icon} ${cat.label}`;
+  tag.innerHTML = `<span class="dot"></span>${tagInfo.icon} ${tagInfo.label}`;
   tag.style.color = color;
   tag.style.background = 'rgba(10,23,38,0.55)';
-
   document.getElementById('poiDetailDesc').textContent = place.description || 'Todavía no hay una descripción disponible para este lugar.';
 
   // Horario / precio — solo si el dato existe (no rellenamos con datos falsos)
