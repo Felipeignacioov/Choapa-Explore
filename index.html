@@ -1129,9 +1129,9 @@ const EXPERIENCE_PANEL_COPY = {
 // isDemo:true = dato de marcador de posición, NO un negocio/lugar real.
 // Fase 2 reemplazará esto por una base verificada (nombre, coords, fotos reales).
 // `category` = tipo de lugar (fijo, 1 valor) · `experiences` = planes que ofrece (0..N valores)
-function makePlace({ id, name, category, locality, lat, lng, image, description='', experiences=[], isDemo=true }) {
+function makePlace({ id, name, category, locality, lat, lng, image, description='', experiences=[], categoryPrimary=null, isDemo=true, isTestData=false }) {
   return {
-    id, name, category, locality, lat, lng, image, isDemo, experiences,
+    id, name, category, locality, lat, lng, image, isDemo, experiences, categoryPrimary, isTestData,
     description, address:'', openingHours:'', priceRange:'',
     phone:'', website:'', instagram:'', tags:[]
   };
@@ -1197,11 +1197,52 @@ const DEMO_PLACES = [
     image:'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=400&q=60',
     description:'Marcador de posición — cielos despejados, ideal para observación nocturna. Datos reales pendientes de verificación.',
     experiences:['noche','cita'] }),
-  makePlace({ id:'p15', name:'Rincón de ejemplo', category:'naturaleza', locality:'El Tambo', lat:-31.7902, lng:-71.0188,
+ makePlace({ id:'p15', name:'Rincón de ejemplo', category:'naturaleza', locality:'El Tambo', lat:-31.7902, lng:-71.0188,
     image:'https://images.unsplash.com/photo-1477587458883-47145ed94245?w=400&q=60',
     description:'Marcador de posición — paseo tranquilo junto al agua. Datos reales pendientes de verificación.',
     experiences:['tranquilo'] }),
 ];
+
+/* ---------- 2B. DATOS DE PRUEBA — categoría principal + categorías compatibles ----------
+   Bloque temporal, aislado a propósito de DEMO_PLACES para poder eliminarlo entero más
+   adelante sin tocar los datos de arriba. Sirve para probar el sistema de color por
+   categoría: cada experiencia tiene una `categoryPrimary` (identidad visual estable —
+   se usa siempre que el filtro esté en "Todos") y un arreglo `experiences` más amplio
+   (categorías compatibles: determina en qué filtros aparece y de qué color se pinta
+   cuando alguno de esos filtros está activo). Todas viven en Salamanca → Salamanca centro.
+   NINGUNO de estos lugares es real — bórrese este bloque completo (y la línea
+   DEMO_PLACES.push de abajo) cuando se reemplace por datos verificados. */
+const TEST_CATEGORY_PLACES = [
+  makePlace({ id:'test1', name:'Atardecer para Dos', category:'naturaleza', locality:'Salamanca', lat:-31.7745, lng:-70.9625,
+    image:'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&q=60',
+    description:'Dato de prueba — no es un lugar real. Sirve para validar el sistema de colores por categoría.',
+    categoryPrimary:'cita', experiences:['cita','tranquilo'], isTestData:true }),
+  makePlace({ id:'test2', name:'Caminata Cerro Chico', category:'naturaleza', locality:'Salamanca', lat:-31.7775, lng:-70.9665,
+    image:'https://images.unsplash.com/photo-1454391304352-2bf4678b1a7a?w=400&q=60',
+    description:'Dato de prueba — no es un lugar real. Sirve para validar el sistema de colores por categoría.',
+    categoryPrimary:'aventura', experiences:['aventura','naturaleza','tranquilo'], isTestData:true }),
+  makePlace({ id:'test3', name:'Mirador del Valle', category:'naturaleza', locality:'Salamanca', lat:-31.7738, lng:-70.9605,
+    image:'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&q=60',
+    description:'Dato de prueba — no es un lugar real. Sirve para validar el sistema de colores por categoría.',
+    categoryPrimary:'tranquilo', experiences:['tranquilo','naturaleza'], isTestData:true }),
+  makePlace({ id:'test4', name:'Tarde en Familia', category:'actividades', locality:'Salamanca', lat:-31.7768, lng:-70.9648,
+    image:'https://images.unsplash.com/photo-1477587458883-47145ed94245?w=400&q=60',
+    description:'Dato de prueba — no es un lugar real. Sirve para validar el sistema de colores por categoría.',
+    categoryPrimary:'familia', experiences:['familia','tranquilo'], isTestData:true }),
+  makePlace({ id:'test5', name:'Descenso Extremo', category:'actividades', locality:'Salamanca', lat:-31.7788, lng:-70.9598,
+    image:'https://images.unsplash.com/photo-1548625149-fc4a29cf7092?w=400&q=60',
+    description:'Dato de prueba — no es un lugar real. Sirve para validar el sistema de colores por categoría.',
+    categoryPrimary:'adrenalina', experiences:['adrenalina','aventura'], isTestData:true }),
+  makePlace({ id:'test6', name:'Mesa del Valle', category:'comida', locality:'Salamanca', lat:-31.7752, lng:-70.9672,
+    image:'https://images.unsplash.com/photo-1600891964092-4316c288032e?w=400&q=60',
+    description:'Dato de prueba — no es un lugar real. Sirve para validar el sistema de colores por categoría.',
+    categoryPrimary:'gastronomia', experiences:['gastronomia','cita'], isTestData:true }),
+  makePlace({ id:'test7', name:'Cielo Estrellado', category:'cielos', locality:'Salamanca', lat:-31.7722, lng:-70.9638,
+    image:'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=400&q=60',
+    description:'Dato de prueba — no es un lugar real. Sirve para validar el sistema de colores por categoría.',
+    categoryPrimary:'noche', experiences:['noche','tranquilo'], isTestData:true }),
+];
+DEMO_PLACES.push(...TEST_CATEGORY_PLACES);
 
 const FEATURED_EXPERIENCES = [
   { iconKey:'sunset',  title:'Atardecer en', bold:'Los Vilos', experience:'tranquilo' },
@@ -1468,15 +1509,22 @@ function renderPOIs(){
   );
 
   // Con un filtro de experiencia activo, los POIs visibles adoptan el color propio
-  // de esa experiencia (en vez del color de su tipo de lugar) — refuerza qué
-  // categoría se está explorando. Con "Todos" vuelven a su color de tipo normal.
+  // de esa experiencia. Con "Todos": si el lugar tiene `categoryPrimary` (identidad
+  // visual estable, ej. "Mirador del Valle" = Tranquilo aunque también sea Naturaleza),
+  // se usa ese color; si no lo tiene (todos los lugares originales), se usa el color
+  // de su tipo de lugar — comportamiento exactamente igual al de siempre.
   const activeExpColor = filtering
     ? getComputedStyle(document.documentElement).getPropertyValue(expById(state.activeExperience).color.replace('var(','').replace(')','')).trim()
     : null;
 
   visible.forEach((place, i) => {
     const cat = catById(place.category);
-    const colorVar = activeExpColor || getComputedStyle(document.documentElement).getPropertyValue(cat.color.replace('var(','').replace(')','')).trim() || '#16B8C4';
+    let colorVar = activeExpColor;
+    if (!colorVar && place.categoryPrimary){
+      const primaryExp = expById(place.categoryPrimary);
+      if (primaryExp) colorVar = getComputedStyle(document.documentElement).getPropertyValue(primaryExp.color.replace('var(','').replace(')','')).trim();
+    }
+    colorVar = colorVar || getComputedStyle(document.documentElement).getPropertyValue(cat.color.replace('var(','').replace(')','')).trim() || '#16B8C4';
     const el = document.createElement('div');
     el.className = 'poi-marker';
     el.style.setProperty('--enter-delay', Math.min(i * 22, 260) + 'ms');
