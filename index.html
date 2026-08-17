@@ -1404,10 +1404,56 @@ function tintMapLayers(){
   layers.forEach(l => {
     try{
       if (l.type === 'background') map.setPaintProperty(l.id, 'background-color', '#0B1726');
-      if (l.type === 'fill' && /water/i.test(l.id)) map.setPaintProperty(l.id, 'fill-color', '#0A2530');
-      if (l.type === 'line' && /(road|street|highway)/i.test(l.id)) {
-        const cur = map.getPaintProperty(l.id, 'line-color');
-        if (cur) map.setPaintProperty(l.id, 'line-color', '#1E3B52');
+
+      // Agua + costa: mismo tono ya afinado, más un borde sutil que insinúa la línea de costa
+      if (l.type === 'fill' && l.id === 'water'){
+        map.setPaintProperty(l.id, 'fill-color', '#0A2530');
+        map.setPaintProperty(l.id, 'fill-outline-color', 'rgba(95,225,232,0.10)');
+      }
+      // Cauces (ríos/esteros) — coherentes con el agua, no gris genérico
+      if (l.type === 'line' && l.id === 'waterway'){
+        map.setPaintProperty(l.id, 'line-color', '#123246');
+        map.setPaintProperty(l.id, 'line-opacity', 0.6);
+      }
+
+      // Vegetación — verde-noche muy contenido, solo para dar profundidad al territorio
+      if (l.type === 'fill' && (l.id === 'landcover_wood' || l.id === 'landuse_park')){
+        map.setPaintProperty(l.id, 'fill-color', '#12241D');
+      }
+      // Zonas residenciales (solo visibles a zoom muy alejado) — tinte navy en vez de gris
+      if (l.type === 'fill' && l.id === 'landuse_residential'){
+        map.setPaintProperty(l.id, 'fill-color', '#16283A');
+      }
+
+      // Edificios — el cambio principal: nada de negro sólido/gótico. Azul-noche
+      // claro (mismo tono que --surface-elevated-2 en la UI), opacidad baja,
+      // borde apenas insinuado en vez de uno agresivo.
+      if (l.type === 'fill' && l.id === 'building'){
+        map.setPaintProperty(l.id, 'fill-color', '#1C3450');
+        map.setPaintProperty(l.id, 'fill-opacity', 0.42);
+        map.setPaintProperty(l.id, 'fill-outline-color', 'rgba(180,200,220,0.12)');
+      }
+
+      // Calles — jerarquía clara entre principales y secundarias, para que nunca
+      // formen una rejilla dominante: las principales quedan apenas visibles
+      // (sirven para orientarse), las secundarias casi se disuelven en el fondo.
+      if (l.type === 'line' && /highway_major|highway_motorway/.test(l.id)){
+        map.setPaintProperty(l.id, 'line-color', '#2A4A63');
+        map.setPaintProperty(l.id, 'line-opacity', 0.55);
+      }
+      if (l.type === 'line' && /highway_minor|highway_path|road_pier|road_area_pier/.test(l.id)){
+        map.setPaintProperty(l.id, 'line-color', '#16283A');
+        map.setPaintProperty(l.id, 'line-opacity', 0.35);
+      }
+
+      // Nombres de calles — más discretos y solo desde un zoom cercano, para que
+      // nunca compitan con los POIs (que recién aparecen a ese mismo nivel).
+      if (l.type === 'symbol' && l.id.indexOf('highway_name') === 0){
+        map.setPaintProperty(l.id, 'text-opacity', 0.5);
+        map.setPaintProperty(l.id, 'text-halo-color', 'rgba(11,23,38,0.8)');
+        map.setPaintProperty(l.id, 'text-halo-width', 0.8);
+        map.setLayoutProperty(l.id, 'text-size', 9);
+        map.setLayerZoomRange(l.id, 13, 24);
       }
     }catch(e){ /* layer paint prop not applicable — skip */ }
   });
