@@ -1405,9 +1405,11 @@ function tintMapLayers(){
     try{
       if (l.type === 'background') map.setPaintProperty(l.id, 'background-color', '#0B1726');
 
-      // Agua + costa: mismo tono ya afinado, más un borde sutil que insinúa la línea de costa
+     // Agua + costa: azul petróleo profundo con un toque verdoso — se distingue
+      // claramente del azul noche del fondo, transmite costa/naturaleza sin ser
+      // un color brillante ni saturado.
       if (l.type === 'fill' && l.id === 'water'){
-        map.setPaintProperty(l.id, 'fill-color', '#0A2530');
+        map.setPaintProperty(l.id, 'fill-color', '#0B303B');
         map.setPaintProperty(l.id, 'fill-outline-color', 'rgba(95,225,232,0.10)');
       }
       // Cauces (ríos/esteros) — coherentes con el agua, no gris genérico
