@@ -173,6 +173,9 @@ img{-webkit-user-drag:none; user-select:none;}
 .search-result .sr-label{font-size:13px; font-weight:600; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .search-result .sr-sub{font-size:10.5px; color:var(--text-tertiary); margin-top:1px;}
 .search-empty{padding:16px; font-size:12.5px; color:var(--text-tertiary); text-align:center;}
+.search-results-header{padding:12px 14px 6px;}
+.search-results-header .srh-title{font-size:12.5px; font-weight:700; color:var(--text-primary); letter-spacing:-0.005em;}
+.search-results-header .srh-section{margin-top:9px; font-size:9.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-tertiary);}
 
 .chips-row{
   display:flex; gap:8px; overflow-x:auto; scrollbar-width:none;
@@ -2225,6 +2228,7 @@ function setActiveExperience(id){
   state.activeExperience = id;
   updateZonePrompt();
   document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.exp === id));
+  searchInput.placeholder = SEARCH_PLACEHOLDERS[id] || SEARCH_PLACEHOLDERS.todos;
   renderPOIs();
   renderPlacesRail();
   // si el lugar seleccionado ya no pertenece a esta experiencia, cerramos su panel
@@ -2428,6 +2432,21 @@ const EXPERIENCE_SYNONYMS = {
   noche:       'noche estrellas cielo cielos astronomia astronomía observatorio despejado',
 };
 
+// Placeholder del buscador según la experiencia activa — misma pregunta corta
+// que ya define el brief de producto para cada categoría. "todos" conserva el
+// texto genérico que ya existe hoy.
+const SEARCH_PLACEHOLDERS = {
+  todos:       '¿Qué te gustaría hacer?',
+  cita:        '¿Dónde te gustaría tener tu cita?',
+  aventura:    '¿Dónde quieres vivir tu aventura?',
+  naturaleza:  '¿Dónde quieres conectar con la naturaleza?',
+  tranquilo:   '¿Dónde quieres desconectar?',
+  familia:     '¿Dónde quieres disfrutar en familia?',
+  adrenalina:  '¿Dónde buscas adrenalina?',
+  gastronomia: '¿Dónde quieres comer?',
+  noche:       '¿Dónde quieres salir esta noche?',
+};
+
 // Palabras de relleno que se ignoran al interpretar frases de intención
 // ("¿qué hacer con niños?", "dónde comer", "ver el atardecer"...)
 const SEARCH_STOPWORDS = new Set([
@@ -2470,31 +2489,38 @@ const SEARCH_INDEX = buildSearchIndex();
 const searchInput = document.getElementById('searchInput');
 const searchResults = document.getElementById('searchResults');
 
-function renderSearchResults(query){
-  const q = query.trim().toLowerCase();
-  if (!q){ searchResults.classList.remove('visible'); searchResults.innerHTML = ''; return; }
+// Índice de búsqueda acotado a la experiencia activa: reutiliza exactamente los
+// mismos datos territoriales (LOCALITIES) y de lugares (DEMO_PLACES) que ya usa
+// el mapa — nada de listas independientes por categoría. Las localidades se
+// etiquetan como "<Experiencia> en <Comuna>" (mismo plural que ya usa el banner
+// de zona) y los lugares se filtran a los que realmente ofrecen esa experiencia.
+function buildExperienceSearchIndex(expId){
+  const exp = expById(expId);
+  const plural = ZONE_PROMPT_PLURAL[expId] || exp.label;
+  const idx = [];
+  LOCALITIES.forEach(loc => idx.push({
+    icon:exp.icon, label:`${plural} en ${loc.name}`, sub:'Comuna',
+    keywords:loc.name.toLowerCase(),
+    action:() => enterLocality(loc, { fly:true }),
+  }));
+  DEMO_PLACES.filter(p => p.experiences.includes(expId)).forEach(p => {
+    idx.push({
+      icon:catById(p.category).icon, label:p.name, sub:p.locality,
+      keywords:(p.name + ' ' + p.locality + ' ' + catById(p.category).label).toLowerCase(),
+      action:() => selectPlaceById(p.id),
+    });
+  });
+  return idx;
+}
 
-  // Coincidencia por intención: probamos la frase completa primero (ej. "los vilos"),
-  // y si no hay resultados, por palabras clave sueltas ignorando conectores
-  // (ej. "¿qué hacer con niños?" → "niños").
-  let matches = SEARCH_INDEX.filter(item => item.keywords.includes(q));
-  if (!matches.length){
-    const tokens = searchTokens(q);
-    const scored = SEARCH_INDEX
-      .map(item => ({ item, score: tokens.filter(t => item.keywords.includes(t)).length }))
-      .filter(x => x.score > 0)
-      .sort((a, b) => b.score - a.score);
-    matches = scored.map(x => x.item);
-  }
-  matches = matches.slice(0, 7);
-
+function renderSearchMatches(matches, emptyLabel){
   searchResults.innerHTML = matches.length
     ? matches.map((item, i) => `
         <button class="search-result" data-idx="${i}">
           <span class="sr-icon">${item.icon}</span>
           <span class="sr-text"><span class="sr-label">${item.label}</span><span class="sr-sub">${item.sub}</span></span>
         </button>`).join('')
-    : `<div class="search-empty">Sin resultados para "${query}"</div>`;
+    : `<div class="search-empty">${emptyLabel}</div>`;
 
   searchResults.classList.add('visible');
 
@@ -2507,8 +2533,45 @@ function renderSearchResults(query){
     });
   });
 }
+
+function renderSearchResults(query){
+  const q = query.trim().toLowerCase();
+  const filtering = state.activeExperience !== 'todos';
+  const index = filtering ? buildExperienceSearchIndex(state.activeExperience) : SEARCH_INDEX;
+
+ if (!q){
+    if (!filtering){ searchResults.classList.remove('visible'); searchResults.innerHTML = ''; return; }
+    // Campo vacío + categoría activa: panel rápido "¿Dónde quieres explorar?" con
+    // una entrada por comuna — la misma navegación que ya dispara tocar la comuna
+    // directamente en el mapa (enterLocality).
+    const quick = index.filter(item => item.sub === 'Comuna');
+    renderSearchMatches(quick, '');
+    searchResults.insertAdjacentHTML('afterbegin', `
+      <div class="search-results-header">
+        <div class="srh-title">¿Dónde quieres explorar?</div>
+        <div class="srh-section">Explorar el Choapa</div>
+      </div>`);
+    return;
+  }
+
+  // Coincidencia por intención: probamos la frase completa primero (ej. "salamanca"),
+  // y si no hay resultados, por palabras clave sueltas ignorando conectores
+  // (ej. "¿qué hacer con niños?" → "niños"). Con una categoría activa, el índice ya
+  // viene acotado a esa experiencia (comunas + lugares que la ofrecen).
+  let matches = index.filter(item => item.keywords.includes(q));
+  if (!matches.length){
+    const tokens = searchTokens(q);
+    const scored = index
+      .map(item => ({ item, score: tokens.filter(t => item.keywords.includes(t)).length }))
+      .filter(x => x.score > 0)
+      .sort((a, b) => b.score - a.score);
+    matches = scored.map(x => x.item);
+  }
+  matches = matches.slice(0, 7);
+  renderSearchMatches(matches, `Sin resultados para "${query}"`);
+}
 searchInput.addEventListener('input', e => renderSearchResults(e.target.value));
-searchInput.addEventListener('focus', e => { if (e.target.value) renderSearchResults(e.target.value); });
+searchInput.addEventListener('focus', e => { if (e.target.value || state.activeExperience !== 'todos') renderSearchResults(e.target.value); });
 document.addEventListener('click', e => {
   if (!e.target.closest('.search-wrap')) searchResults.classList.remove('visible');
 });
