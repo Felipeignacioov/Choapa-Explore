@@ -296,41 +296,51 @@ img{-webkit-user-drag:none; user-select:none;}
   display:flex; flex-direction:column; align-items:center;
   transition:opacity .3s ease, transform .3s cubic-bezier(.32,.9,.34,1);
 }
-.locality-marker svg{filter:drop-shadow(0 3px 6px rgba(2,8,15,0.5)); overflow:visible;}
+.locality-marker svg{filter:drop-shadow(0 2px 5px rgba(2,8,15,0.38)); overflow:visible;}
 .locality-marker.hidden-level .loc-visual{opacity:0; transform:scale(0.5);}
 .locality-marker:active .loc-visual{transform:scale(0.94);}
 .locality-marker svg{width:26px; height:26px;}
-.locality-marker .loc-halo{animation:loc-breathe 2.6s ease-in-out infinite;}
+.locality-marker .loc-halo{animation:loc-breathe 3.2s ease-in-out infinite;}
 @keyframes loc-breathe{
-  0%,100%{opacity:0.16; r:11;}
-  50%{opacity:0.3; r:13;}
+  0%,100%{opacity:0.08;}
+  50%{opacity:0.18;}
 }
 .locality-marker .loc-label{
-  margin-bottom:4px; padding:4px 10px; border-radius:var(--radius-pill);
-  background:rgba(8,19,31,0.92);
-  border:1px solid var(--border-glass);
+  margin-bottom:5px; padding:5px 12px; border-radius:var(--radius-pill);
+  background:rgba(9,20,32,0.86);
+  border:1px solid rgba(180,200,220,0.10);
+  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  box-shadow:0 1px 0 rgba(255,255,255,0.04) inset, 0 6px 16px rgba(2,8,15,0.28);
   display:flex; flex-direction:column; align-items:center; white-space:nowrap;
+  opacity:1; transform:scale(1);
+  transition:opacity .22s ease, transform .22s ease;
 }
-.locality-marker .loc-name{font-family:var(--font-display); font-size:11.5px; font-weight:700; color:var(--text-primary); line-height:1.3;}
+.locality-marker .loc-name{font-family:var(--font-display); font-size:11px; font-weight:700; letter-spacing:0.15px; color:var(--text-primary); line-height:1.3;}
 .locality-marker .loc-count{
-  font-size:9px; font-weight:600; color:var(--turquoise-bright);
+  font-size:8.5px; font-weight:600; letter-spacing:0.4px; text-transform:uppercase; color:var(--turquoise-bright);
   max-height:0; opacity:0; overflow:hidden; transition:max-height .25s ease, opacity .2s ease;
 }
 .locality-marker.show-count .loc-count{max-height:14px; opacity:1;}
+.locality-marker.label-collapsed .loc-label{opacity:0; transform:scale(0.92); pointer-events:none;}
 
 /* Nivel 2 — sub-localidades dentro de una comuna: más chicas y discretas que las
    comunas (Nivel 1), color propio (violeta eléctrico) para no confundirse con ellas.
-   Glow suave en vez de anillo de contraste — evita la sensación de "mira/target". */
+   Núcleo pequeño y preciso + anillo fino sin relleno — lenguaje de marcador
+   cartográfico/técnico, no de "target" ni de brillo de videojuego. */
 .locality-marker.sublocality svg{
-  width:16px; height:16px;
-  filter:drop-shadow(0 0 5px rgba(139,124,255,0.5)) drop-shadow(0 2px 4px rgba(2,8,15,0.5));
+  width:15px; height:15px;
+  filter:drop-shadow(0 0 3px rgba(139,124,255,0.26)) drop-shadow(0 1.5px 3px rgba(2,8,15,0.42));
 }
 .locality-marker.sublocality:active svg{
-  filter:drop-shadow(0 0 9px rgba(139,124,255,0.8)) drop-shadow(0 2px 4px rgba(2,8,15,0.5));
+  filter:drop-shadow(0 0 5px rgba(139,124,255,0.42)) drop-shadow(0 1.5px 3px rgba(2,8,15,0.42));
 }
-.locality-marker.sublocality:active .loc-visual{transform:scale(0.86);}
-.locality-marker.sublocality .loc-label{padding:3px 8px; margin-bottom:3px; background:rgba(8,19,31,0.88);}
-.locality-marker.sublocality .loc-name{font-size:10px; font-weight:600; color:var(--text-secondary); letter-spacing:0.1px;}
+.locality-marker.sublocality:active .loc-visual{transform:scale(0.9);}
+.locality-marker.sublocality .loc-label{
+  padding:3px 9px; margin-bottom:4px; background:rgba(10,20,34,0.74);
+  border-color:rgba(139,124,255,0.16);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+}
+.locality-marker.sublocality .loc-name{font-size:9.5px; font-weight:600; color:var(--text-secondary); letter-spacing:0.3px;}
 .locality-marker.sublocality .loc-count{color:var(--sub-locality);}
 
 /* Breadcrumb — sustituye al pill de clima mientras se explora una localidad */
@@ -1498,7 +1508,7 @@ function tintMapLayers(){
         map.setPaintProperty(l.id, 'line-opacity', 0.35);
       }
 
-      // Nombres de calles — más discretos y solo desde un zoom cercano, para que
+     // Nombres de calles — más discretos y solo desde un zoom cercano, para que
       // nunca compitan con los POIs (que recién aparecen a ese mismo nivel).
       if (l.type === 'symbol' && l.id.indexOf('highway_name') === 0){
         map.setPaintProperty(l.id, 'text-opacity', 0.5);
@@ -1506,6 +1516,26 @@ function tintMapLayers(){
         map.setPaintProperty(l.id, 'text-halo-width', 0.8);
         map.setLayoutProperty(l.id, 'text-size', 9);
         map.setLayerZoomRange(l.id, 13, 24);
+      }
+
+      // Nombres de ciudades/pueblos del estilo base — duplicarían lo que ya
+      // muestran nuestros propios pines de comuna/localidad, así que se ocultan
+      // por completo para no competir con la jerarquía propia de la app.
+      if (l.type === 'symbol' && /^place_/.test(l.id)){
+        map.setPaintProperty(l.id, 'text-opacity', 0);
+      }
+      // Íconos/etiquetas de POI genéricos de OpenStreetMap (comercios, servicios
+      // sin curar) — el mapa debe sentirse como el escenario de las experiencias
+      // curadas de Choapa Explore, no como un mapa técnico lleno de ruido.
+      if (l.type === 'symbol' && /^poi_/.test(l.id)){
+        map.setPaintProperty(l.id, 'text-opacity', 0);
+        map.setPaintProperty(l.id, 'icon-opacity', 0);
+      }
+      // Fronteras administrativas — se dejan como referencia de orientación muy
+      // discreta, nunca como un elemento que compita visualmente con el territorio.
+      if (l.type === 'line' && /boundary/.test(l.id)){
+        map.setPaintProperty(l.id, 'line-color', '#1B324A');
+        map.setPaintProperty(l.id, 'line-opacity', 0.4);
       }
     }catch(e){ /* layer paint prop not applicable — skip */ }
   });
@@ -1641,20 +1671,22 @@ function renderPOIs(){
 function localitySVG(color){
   return `
   <svg viewBox="0 0 26 26">
-    <circle class="loc-halo" cx="13" cy="13" r="11" fill="${color}" opacity="0.16"/>
-    <circle cx="13" cy="13" r="7" fill="#0E2436" stroke="${color}" stroke-width="1.8"/>
-    <circle cx="13" cy="13" r="2.6" fill="${color}"/>
+    <circle class="loc-halo" cx="13" cy="13" r="10.5" fill="${color}" opacity="0.10"/>
+    <circle cx="13" cy="13" r="6.4" fill="#0E2436" stroke="${color}" stroke-width="1.3" stroke-opacity="0.85"/>
+    <circle cx="13" cy="13" r="2.1" fill="${color}"/>
+    <circle cx="11.7" cy="11.4" r="0.9" fill="rgba(255,255,255,0.4)"/>
   </svg>`;
 }
 
-// Nivel 2: un punto refinado, no un "target" — sin anillo de contraste, solo un
-// núcleo sólido con un brillo interior sutil y un halo violeta muy suave alrededor.
+// Nivel 2: núcleo pequeño y preciso + anillo fino sin relleno (lectura de marcador
+// cartográfico) + halo exterior muy controlado. Nada de disco grande y saturado.
 function sublocalityDotSVG(color){
   return `
   <svg viewBox="0 0 18 18">
-    <circle class="loc-halo" cx="9" cy="9" r="7.5" fill="${color}" opacity="0.15"/>
-    <circle cx="9" cy="9" r="3.4" fill="${color}"/>
-    <circle cx="8.1" cy="8.1" r="1" fill="rgba(255,255,255,0.55)"/>
+    <circle class="loc-halo" cx="9" cy="9" r="6.5" fill="${color}" opacity="0.08"/>
+    <circle cx="9" cy="9" r="4" fill="none" stroke="${color}" stroke-width="1" stroke-opacity="0.55"/>
+    <circle cx="9" cy="9" r="1.7" fill="${color}"/>
+    <circle cx="8.55" cy="8.55" r="0.55" fill="rgba(255,255,255,0.5)"/>
   </svg>`;
 }
 
@@ -1679,10 +1711,11 @@ function renderLocalityMarkers(){
     const marker = new maplibregl.Marker({ element: el, anchor:'bottom' })
       .setLngLat([loc.lng, loc.lat])
       .addTo(map);
-    marker._locality = loc;
+   marker._locality = loc;
     marker._el = el;
     localityMarkers.push(marker);
   });
+  scheduleCollisionCheck();
 }
 
 // Nivel 2 — localidades dentro de la comuna activa. Mismo patrón de marcador
@@ -1707,11 +1740,49 @@ function renderSublocalityMarkers(subs){
     marker._el = el;
     sublocalityMarkers.push(marker);
   });
+  scheduleCollisionCheck();
 }
 function clearSublocalityMarkers(){
   sublocalityMarkers.forEach(m => m.remove());
   sublocalityMarkers = [];
+  scheduleCollisionCheck();
 }
+
+// Evita que las etiquetas de comunas y localidades se superpongan cuando varias
+// quedan visibles a la vez. Prioridad: comuna (Nivel 1) siempre gana sobre
+// localidad (Nivel 2); dentro del mismo nivel, gana la más cercana al centro del
+// mapa. Solo se oculta el texto de la etiqueta — el punto sigue siendo tocable —
+// así que no toca la lógica de navegación ni de niveles, solo la lectura visual.
+function resolveLabelCollisions(){
+  const visible = [...localityMarkers, ...sublocalityMarkers]
+    .filter(m => m._el && !m._el.classList.contains('hidden-level'));
+  if (!visible.length) return;
+
+  const center = map.getCenter();
+  const ranked = visible.map(m => {
+    const loc = m._locality || m._sub;
+    return { m, isComuna: !!m._locality, dist: Math.hypot(loc.lat - center.lat, loc.lng - center.lng) };
+  }).sort((a, b) => (a.isComuna === b.isComuna) ? a.dist - b.dist : (a.isComuna ? -1 : 1));
+
+  const placed = [];
+  ranked.forEach(({ m }) => {
+    const label = m._el.querySelector('.loc-label');
+    if (!label) return;
+    const rect = label.getBoundingClientRect();
+    const collides = placed.some(r =>
+      rect.left < r.right && rect.right > r.left && rect.top < r.bottom && rect.bottom > r.top
+    );
+    m._el.classList.toggle('label-collapsed', collides);
+    if (!collides) placed.push(rect);
+  });
+}
+let collisionRaf = null;
+function scheduleCollisionCheck(){
+  if (collisionRaf) return;
+  collisionRaf = requestAnimationFrame(() => { collisionRaf = null; resolveLabelCollisions(); });
+}
+map.on('move', scheduleCollisionCheck);
+map.on('zoom', scheduleCollisionCheck);
 
 /* ---------- CONTROLADOR DE NIVEL — 3 niveles, reacciona al zoom en ambas direcciones ---------- */
 let lastTier = null;
