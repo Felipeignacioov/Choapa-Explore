@@ -1426,18 +1426,22 @@ map.on('zoomend', updateExplorationLevel);
 // rotación de cámara y puede congelar el mapa a mitad de un gesto). En su lugar,
 // se corrige la posición al instante, de forma sincrónica y no animada, en cada
 // frame de movimiento — así nunca compite con el gesto que el usuario tiene en
-// curso: dentro de CHOAPA_MAX_BOUNDS se navega libre, y justo al tocar ese borde
-// el desplazamiento simplemente se detiene ahí, sin bloquear zoom ni rotación.
+// curso. IMPORTANTE: se recorta el BORDE visible del mapa (map.getBounds()), no
+// solo su centro — recortar solo el centro deja un margen extra de hasta medio
+// viewport en pantalla, que es lo que hacía imperceptible ajustar CHOAPA_MAX_BOUNDS.
 map.on('move', () => {
+  const b = map.getBounds();
   const center = map.getCenter();
   const [[minLng, minLat], [maxLng, maxLat]] = CHOAPA_MAX_BOUNDS;
-  const clampedLng = Math.min(Math.max(center.lng, minLng), maxLng);
-  const clampedLat = Math.min(Math.max(center.lat, minLat), maxLat);
-  if (clampedLng !== center.lng || clampedLat !== center.lat){
-    map.setCenter([clampedLng, clampedLat]);
+  let dLng = 0, dLat = 0;
+  if (b.getWest() < minLng) dLng = minLng - b.getWest();
+  else if (b.getEast() > maxLng) dLng = maxLng - b.getEast();
+  if (b.getSouth() < minLat) dLat = minLat - b.getSouth();
+  else if (b.getNorth() > maxLat) dLat = maxLat - b.getNorth();
+  if (dLng !== 0 || dLat !== 0){
+    map.setCenter([center.lng + dLng, center.lat + dLat]);
   }
 });
-
 // La inclinación de cámara (pitch) está desactivada a nivel de configuración
 // del mapa (maxPitch:0, pitchWithRotate:false, touchPitch:false) — era la causa
 // raíz de que el mapa se congelara al combinarse con ciertos rangos de zoom.
@@ -1559,7 +1563,7 @@ function initWaveAnimation(){
   if (!waterLayer || map.getLayer('water-waves')) return;
 
   const WAVE_FRAMES = 6;
-  const SIZE = 48;
+  const SIZE = 96;
   const waveColor = getComputedStyle(document.documentElement).getPropertyValue('--turquoise-bright').trim() || '#5FE1E8';
   const rgb = hexToRgb(waveColor);
 
@@ -1568,16 +1572,28 @@ function initWaveAnimation(){
     canvas.width = SIZE; canvas.height = SIZE;
     const ctx = canvas.getContext('2d');
     const phase = (f / WAVE_FRAMES) * Math.PI * 2;
-    ctx.strokeStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},0.2)`;
-    ctx.lineWidth = 1.3;
-    [14, 34].forEach((baseY, li) => {
-      ctx.beginPath();
-      for (let x = 0; x <= SIZE; x++){
-        const y = baseY + Math.sin((x / SIZE) * Math.PI * 2 + phase + li) * 3;
-        if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-    });
+    ctx.lineCap = 'round';
+    // línea principal: glow suave, período largo — lectura de oleaje, no de raya
+    ctx.shadowColor = `rgba(${rgb.r},${rgb.g},${rgb.b},0.45)`;
+    ctx.shadowBlur = 3;
+    ctx.strokeStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},0.16)`;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    for (let x = 0; x <= SIZE; x++){
+      const y = 30 + Math.sin((x / SIZE) * Math.PI * 2 + phase) * 5;
+      if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    // segunda línea, más abajo y más tenue todavía — da profundidad sin ensuciar
+    ctx.shadowBlur = 2;
+    ctx.strokeStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},0.09)`;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    for (let x = 0; x <= SIZE; x++){
+      const y = 66 + Math.sin((x / SIZE) * Math.PI * 2 + phase + 1.6) * 4;
+      if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
     if (!map.hasImage(`wave-frame-${f}`)) map.addImage(`wave-frame-${f}`, ctx.getImageData(0, 0, SIZE, SIZE), { pixelRatio:2 });
   }
 
@@ -1585,19 +1601,30 @@ function initWaveAnimation(){
   const waterIndex = layers.findIndex(l => l.id === 'water');
   const beforeId = layers[waterIndex + 1] ? layers[waterIndex + 1].id : undefined;
 
+  // Máscara geográfica de la franja costera (Los Vilos / Pichidangui / costa de
+  // Canela) — así las olas solo aparecen donde de verdad hay costa, y nunca sobre
+  // ríos o esteros del interior (Salamanca, Illapel). Es un filtro puramente
+  // geométrico, no depende de cómo el estilo base clasifique sus polígonos de agua.
+  const coastalMask = {
+    type:'Polygon',
+    coordinates:[[
+      [-72.50, -32.60], [-71.30, -32.60], [-71.30, -30.50], [-72.50, -30.50], [-72.50, -32.60]
+    ]],
+  };
+
   const newLayer = {
     id:'water-waves', type:'fill',
     source: waterLayer.source, 'source-layer': waterLayer['source-layer'],
-    paint:{ 'fill-pattern':'wave-frame-0', 'fill-opacity':0.4 },
+    filter:['within', coastalMask],
+    paint:{ 'fill-pattern':'wave-frame-0', 'fill-opacity':0.6 },
   };
-  if (waterLayer.filter) newLayer.filter = waterLayer.filter;
   map.addLayer(newLayer, beforeId);
 
   let frame = 0;
   setInterval(() => {
     frame = (frame + 1) % WAVE_FRAMES;
     if (map.getLayer('water-waves')) map.setPaintProperty('water-waves', 'fill-pattern', `wave-frame-${frame}`);
-  }, 150);
+  }, 160);
 }
 
 // Difumina el mapa hacia el azul-noche de marca a medida que el usuario se acerca
