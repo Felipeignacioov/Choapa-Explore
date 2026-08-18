@@ -1261,7 +1261,7 @@ function makeLocality({ id, name, lat, lng, aliases }){
   return { id, name, lat, lng, aliases };
 }
 const LOCALITIES = [
-  makeLocality({ id:'salamanca', name:'Salamanca', lat:-31.776, lng:-70.964, aliases:['Salamanca','Chalinga','Tahuinco','El Tambo','El Tebal','San Agustín','Higuerilla','Panguesillo','Quelén','Coirón','Chillepín','Tranquilla','Cuncumén','La Posada'] }),
+  makeLocality({ id:'salamanca', name:'Salamanca', lat:-31.776, lng:-70.964, aliases:['Salamanca','Chalinga','Tahuinco','El Tambo','El Tebal','San Agustín','Higuerilla','Panguesillo','Quelén','Coirón','Chillepín','Tranquilla','Cuncumén'] }),
   makeLocality({ id:'illapel',   name:'Illapel',    lat:-31.6308, lng:-71.1642, aliases:['Illapel','Cuz Cuz','Huintil','Asiento Viejo','Limahuida','Peralillo','Canelillo','Tunga','Choapa','Pintacura','Las Cañas','Socavón'] }),
   makeLocality({ id:'losvilos',  name:'Los Vilos',  lat:-31.9089, lng:-71.5133, aliases:['Los Vilos','Pichidangui','Quilimarí','Caimanes','Guangualí','Tilama','Pangalillo'] }),
   makeLocality({ id:'canela',    name:'Canela',     lat:-31.390, lng:-71.457, aliases:['Canela','Canela Baja','Canela Alta','Huentelauquén','Mincha','Puerto Oscuro','El Chical','Agua Fría','Los Pozos','Atelcura'] }),
@@ -1299,7 +1299,6 @@ const SUBLOCALITIES = {
     makeSublocality({ id:'chillepin',   name:'Chillepín',   lat:-31.881576165376654, lng:-70.72959839386769,  aliases:['Chillepín'] }),
     makeSublocality({ id:'tranquilla',  name:'Tranquilla',  lat:-31.89868267815262,  lng:-70.6788615530538,   aliases:['Tranquilla'] }),
     makeSublocality({ id:'cuncumen',    name:'Cuncumén',    lat:-31.896909570661066, lng:-70.62788856081204,  aliases:['Cuncumén'] }),
-    makeSublocality({ id:'la-posada',   name:'La Posada',   lat:-31.738726094594647, lng:-71.12023198289697,  aliases:['La Posada'] }),
   ],
  // Los Vilos — coordenadas obtenidas por geocodificación (Google Places / fuentes
   // públicas como Wikipedia y GORE Coquimbo) el 17/08/2026. Pichidangui, Quilimarí,
@@ -1326,7 +1325,7 @@ const SUBLOCALITIES = {
     makeSublocality({ id:'canela-alta',     name:'Canela Alta',   lat:-31.390009, lng:-71.384799, aliases:['Canela Alta'] }),
     makeSublocality({ id:'huentelauquen',   name:'Huentelauquén', lat:-31.578181, lng:-71.535603, aliases:['Huentelauquén'] }),
     makeSublocality({ id:'mincha',          name:'Mincha',        lat:-31.587389, lng:-71.447773, aliases:['Mincha'] }),
-    makeSublocality({ id:'puerto-oscuro',   name:'Puerto Oscuro', lat:-31.413906, lng:-71.573489, aliases:['Puerto Oscuro'] }),
+   makeSublocality({ id:'puerto-oscuro',   name:'Puerto Oscuro', lat:-31.422815977346584, lng:-71.59317196791481, aliases:['Puerto Oscuro'] }),
     makeSublocality({ id:'el-chical',       name:'El Chical',     lat:-31.404,    lng:-71.457,    aliases:['El Chical'] }),
     makeSublocality({ id:'agua-fria',       name:'Agua Fría',     lat:-31.537435, lng:-71.378245, aliases:['Agua Fría'] }),
     makeSublocality({ id:'los-pozos',       name:'Los Pozos',     lat:-31.348363, lng:-71.504277, aliases:['Los Pozos'] }),
