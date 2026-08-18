@@ -1377,8 +1377,8 @@ const CHOAPA_BOUNDS = [
   [-70.45, -31.05], // noreste
 ];
 const CHOAPA_MAX_BOUNDS = [
-  [-72.07, -32.43], // suroeste + margen — ~30% menos margen que antes
-  [-70.17, -30.77], // noreste + margen — ~30% menos margen que antes
+  [-72.11, -32.47], // suroeste + margen — ~20% menos margen que antes
+  [-70.13, -30.73], // noreste + margen — ~20% menos margen que antes
 ];
 
 // Umbrales que dividen el sistema de exploración continuo en 3 niveles:
@@ -1426,20 +1426,37 @@ map.on('zoomend', updateExplorationLevel);
 // rotación de cámara y puede congelar el mapa a mitad de un gesto). En su lugar,
 // se corrige la posición al instante, de forma sincrónica y no animada, en cada
 // frame de movimiento — así nunca compite con el gesto que el usuario tiene en
-// curso. IMPORTANTE: se recorta el BORDE visible del mapa (map.getBounds()), no
-// solo su centro — recortar solo el centro deja un margen extra de hasta medio
-// viewport en pantalla, que es lo que hacía imperceptible ajustar CHOAPA_MAX_BOUNDS.
+// curso. Se recorta el BORDE visible (map.getBounds()) cuando la caja de
+// navegación es más ancha/alta que la pantalla — eso es lo que hace notorio el
+// margen. Pero si a zoom bajo el viewport es MÁS grande que la propia caja,
+// recortar el borde es imposible de satisfacer en ambos lados a la vez y el mapa
+// queda peleando consigo mismo en cada frame (el bug de "no se puede mover"): en
+// ese caso se vuelve al recorte por centro, que siempre es estable.
 map.on('move', () => {
   const b = map.getBounds();
   const center = map.getCenter();
   const [[minLng, minLat], [maxLng, maxLat]] = CHOAPA_MAX_BOUNDS;
-  let dLng = 0, dLat = 0;
-  if (b.getWest() < minLng) dLng = minLng - b.getWest();
-  else if (b.getEast() > maxLng) dLng = maxLng - b.getEast();
-  if (b.getSouth() < minLat) dLat = minLat - b.getSouth();
-  else if (b.getNorth() > maxLat) dLat = maxLat - b.getNorth();
-  if (dLng !== 0 || dLat !== 0){
-    map.setCenter([center.lng + dLng, center.lat + dLat]);
+  const viewLng = b.getEast() - b.getWest();
+  const viewLat = b.getNorth() - b.getSouth();
+  let newLng = center.lng;
+  let newLat = center.lat;
+
+  if (viewLng <= (maxLng - minLng)){
+    if (b.getWest() < minLng) newLng = center.lng + (minLng - b.getWest());
+    else if (b.getEast() > maxLng) newLng = center.lng + (maxLng - b.getEast());
+  } else {
+    newLng = Math.min(Math.max(center.lng, minLng), maxLng);
+  }
+
+  if (viewLat <= (maxLat - minLat)){
+    if (b.getSouth() < minLat) newLat = center.lat + (minLat - b.getSouth());
+    else if (b.getNorth() > maxLat) newLat = center.lat + (maxLat - b.getNorth());
+  } else {
+    newLat = Math.min(Math.max(center.lat, minLat), maxLat);
+  }
+
+  if (newLng !== center.lng || newLat !== center.lat){
+    map.setCenter([newLng, newLat]);
   }
 });
 // La inclinación de cámara (pitch) está desactivada a nivel de configuración
