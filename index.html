@@ -640,6 +640,92 @@ img{-webkit-user-drag:none; user-select:none;}
 .nav-item.main:active .icon-wrap{transform:scale(0.92);}
 .nav-item:active{transform:scale(0.92);}
 
+/* ================= GUARDADOS ================= */
+.guardados-screen{
+  position:absolute; inset:0; z-index:23;
+  background:linear-gradient(180deg, var(--bg-night) 0%, var(--bg-primary) 55%);
+  display:flex; flex-direction:column;
+  transform:translateY(100%); opacity:0; pointer-events:none;
+  transition:transform .42s cubic-bezier(.2,.9,.28,1.05), opacity .3s ease;
+}
+.guardados-screen.visible{transform:translateY(0); opacity:1; pointer-events:auto;}
+
+.guardados-header{
+  display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-shrink:0;
+  padding:calc(14px + var(--safe-top)) 18px 16px;
+  border-bottom:1px solid var(--border-glass);
+}
+.guardados-title{
+  font-family:var(--font-display); font-size:21px; font-weight:800;
+  display:flex; align-items:center; gap:8px; color:var(--text-primary);
+}
+.guardados-title svg{color:var(--turquoise-bright); width:18px; height:18px;}
+.guardados-subtitle{font-size:12.5px; color:var(--text-secondary); margin-top:4px;}
+.guardados-filter-btn{
+  width:38px; height:38px; border-radius:50%; flex-shrink:0;
+  background:rgba(16,36,56,0.7); border:1px solid var(--border-glass);
+  display:flex; align-items:center; justify-content:center; color:var(--turquoise-bright);
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1);
+}
+.guardados-filter-btn:active{transform:scale(0.9);}
+
+.guardados-filters{
+  display:flex; gap:8px; overflow-x:auto; -webkit-overflow-scrolling:touch;
+  padding:14px 18px; flex-shrink:0; scrollbar-width:none;
+}
+.guardados-filters::-webkit-scrollbar{display:none;}
+.gd-chip{flex-direction:column; gap:1px; padding:8px 15px;}
+.gd-chip .gd-chip-top{display:flex; align-items:center; gap:6px;}
+.gd-chip .gd-chip-count{font-size:10px; font-weight:700; opacity:0.75;}
+
+.guardados-body{flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:4px 18px calc(74px + var(--safe-bottom));}
+.guardados-grid{display:flex; flex-direction:column; gap:14px;}
+
+.gd-card{
+  display:flex; flex-direction:column;
+  background:var(--surface); border:1px solid var(--border-glass); border-radius:var(--radius-l);
+  box-shadow:var(--shadow-card), inset 0 1px 0 rgba(255,255,255,0.05);
+  overflow:hidden;
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1), opacity .2s ease;
+}
+.gd-card:active{transform:scale(0.98);}
+.gd-card .gd-photo{position:relative; height:132px; background-size:cover; background-position:center;}
+.gd-card .gd-photo::after{
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(180deg, rgba(6,15,25,0) 55%, rgba(6,15,25,0.55) 100%);
+}
+.gd-card .gd-save-btn{
+  position:absolute; top:10px; right:10px; z-index:2;
+  width:30px; height:30px; border-radius:50%;
+  background:rgba(8,19,31,0.72); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  display:flex; align-items:center; justify-content:center; color:var(--turquoise-bright);
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1);
+}
+.gd-card .gd-save-btn svg{fill:currentColor;}
+.gd-card .gd-save-btn:active{transform:scale(0.8);}
+.gd-card .gd-info{padding:13px 14px 14px;}
+.gd-card .gd-tag{display:inline-flex; align-items:center; gap:5px; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:5px;}
+.gd-card .gd-name{font-family:var(--font-display); font-size:15.5px; font-weight:700; color:var(--text-primary); margin-bottom:6px; letter-spacing:-0.1px;}
+.gd-card .gd-loc{display:flex; align-items:center; gap:5px; font-size:12px; color:var(--text-secondary); margin-bottom:3px;}
+.gd-card .gd-loc svg{flex-shrink:0; color:var(--text-tertiary);}
+.gd-card .gd-comuna{display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-tertiary); margin-bottom:9px;}
+.gd-card .gd-meta-row{display:flex; gap:6px; flex-wrap:wrap;}
+.gd-card .gd-meta-item{
+  display:flex; align-items:center; gap:4px; font-size:10.5px; font-weight:600; color:var(--text-secondary);
+  background:rgba(255,255,255,0.05); border-radius:var(--radius-pill); padding:3.5px 9px;
+}
+
+.guardados-empty{display:flex; flex-direction:column; align-items:center; text-align:center; padding:56px 24px 24px; color:var(--text-secondary);}
+.guardados-empty .ge-icon{color:var(--turquoise-bright); opacity:0.85; margin-bottom:14px;}
+.guardados-empty .ge-title{font-family:var(--font-display); font-size:15.5px; font-weight:700; color:var(--text-primary); margin-bottom:6px;}
+.guardados-empty .ge-sub{font-size:12.5px; line-height:1.5; max-width:280px; margin-bottom:20px;}
+.guardados-empty .ge-btn{
+  padding:11px 22px; border-radius:var(--radius-pill);
+  background:var(--turquoise-bright); color:#04222A; font-size:13.5px; font-weight:700;
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1);
+}
+.guardados-empty .ge-btn:active{transform:scale(0.95);}
+
 /* ================= ÁLBUM DEL CHOAPA ================= */
 .album-screen{
   position:absolute; inset:0; z-index:60;
@@ -962,7 +1048,7 @@ img{-webkit-user-drag:none; user-select:none;}
       <svg viewBox="0 0 24 24" fill="none"><path d="m3 11 18-8-8 18-2-8-8-2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
       Explorar
     </button>
-    <button class="nav-item">
+   <button class="nav-item" id="navGuardados">
       <svg viewBox="0 0 24 24" fill="none"><path d="M12 20s-7-4.4-9.5-9C.8 7.4 3 4 6.5 4 9 4 11 6 12 7.5 13 6 15 4 17.5 4 21 4 23.2 7.4 21.5 11 19 15.6 12 20 12 20Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
       Guardados
     </button>
@@ -977,6 +1063,29 @@ img{-webkit-user-drag:none; user-select:none;}
       <svg viewBox="0 0 24 24" fill="none"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H12v16H5.5A1.5 1.5 0 0 1 4 18.5v-13Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 4h6.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H12" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M8 8.5h2M8 12h2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
       Mi Álbum
     </button>
+  </div>
+
+ <!-- ================= GUARDADOS ================= -->
+  <div class="guardados-screen" id="guardadosScreen">
+    <div class="guardados-header">
+      <div>
+        <div class="guardados-title">Mis guardados <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4Z"/></svg></div>
+        <div class="guardados-subtitle">Experiencias que quieres vivir.</div>
+      </div>
+      <button class="guardados-filter-btn" id="guardadosFilterBtn" aria-label="Filtrar guardados">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M7 12h10M10.5 18h3"/></svg>
+      </button>
+    </div>
+    <div class="guardados-filters" id="guardadosFilters"></div>
+    <div class="guardados-body">
+      <div class="guardados-grid" id="guardadosGrid"></div>
+      <div class="guardados-empty" id="guardadosEmpty" style="display:none;">
+        <span class="ge-icon" id="guardadosEmptyIcon"></span>
+        <div class="ge-title" id="guardadosEmptyTitle">Todavía no tienes experiencias guardadas</div>
+        <div class="ge-sub" id="guardadosEmptySub">Explora el Choapa y guarda aquello que quieras vivir después.</div>
+        <button class="ge-btn" id="guardadosEmptyBtn">Explorar experiencias</button>
+      </div>
+    </div>
   </div>
 
   <!-- ================= MI ÁLBUM DEL CHOAPA ================= -->
@@ -1076,7 +1185,10 @@ const ICON_PATHS = {
   grapes:       `<circle cx="9" cy="8.3" r="1.9" fill="currentColor" stroke="none"/><circle cx="13.3" cy="8.3" r="1.9" fill="currentColor" stroke="none"/><circle cx="6.9" cy="12" r="1.9" fill="currentColor" stroke="none"/><circle cx="11.1" cy="12" r="1.9" fill="currentColor" stroke="none"/><circle cx="15.3" cy="12" r="1.9" fill="currentColor" stroke="none"/><circle cx="9" cy="15.7" r="1.9" fill="currentColor" stroke="none"/><circle cx="13.3" cy="15.7" r="1.9" fill="currentColor" stroke="none"/><path d="M11.1 4v3.2" stroke="currentColor"/>`,
   clock:        `<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>`,
   coin:         `<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9M9.3 9.3h3.9a1.9 1.9 0 0 1 0 3.8H10.8a1.9 1.9 0 0 0 0 3.8h4"/>`,
-  compassRose:  `<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><path d="m12 5 1.4 5.6L12 12l-1.4-1.4Z" fill="currentColor" stroke="none"/>`,
+compassRose:  `<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><path d="m12 5 1.4 5.6L12 12l-1.4-1.4Z" fill="currentColor" stroke="none"/>`,
+  bookmark:     `<path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4Z"/>`,
+  filter:       `<path d="M4 6h16M7 12h10M10.5 18h3"/>`,
+  mountain:     `<path d="M3 19 9.5 8l3.2 5 2-2.6L20 19Z"/>`,
 };
 
 // Ícono independiente para HTML normal (chips, badges, tarjetas...)
@@ -2207,6 +2319,136 @@ document.getElementById('poiDetailDirections').addEventListener('click', (e) => 
   const place = state.selectedPlace;
   if (!place) return;
   window.open(`https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`, '_blank');
+});
+
+/* ---------- 7b. GUARDADOS — vista sobre savedPlaceIds, sin datos nuevos ---------- */
+// No hay una fuente de verdad paralela: esta pantalla solo lee/escribe el mismo
+// savedPlaceIds + SAVED_KEY que ya usa el corazón de la ficha del POI. Al abrir
+// la pantalla siempre se re-renderiza desde cero, así que "POI → Guardados" y
+// "Guardados → eliminado" quedan resueltos sin lógica de sincronización extra.
+const guardadosScreen = document.getElementById('guardadosScreen');
+const guardadosFilters = document.getElementById('guardadosFilters');
+const guardadosGrid = document.getElementById('guardadosGrid');
+const guardadosEmpty = document.getElementById('guardadosEmpty');
+let guardadosActiveFilter = 'todos';
+
+function savedPlaces(){
+  return DEMO_PLACES.filter(p => savedPlaceIds.has(p.id));
+}
+
+function renderGuardadosFilters(){
+  const all = savedPlaces();
+  guardadosFilters.innerHTML = '';
+  EXPERIENCE_TAGS.forEach(exp => {
+    const count = exp.id === 'todos' ? all.length : all.filter(p => p.experiences.includes(exp.id)).length;
+    if (exp.id !== 'todos' && count === 0) return; // solo mostramos categorías con algo guardado
+    const chip = document.createElement('button');
+    chip.className = 'chip gd-chip' + (exp.id === guardadosActiveFilter ? ' active' : '');
+    chip.innerHTML = `<span class="gd-chip-top">${exp.icon}<span>${exp.label}</span></span><span class="gd-chip-count">${count}</span>`;
+    if (exp.id !== 'todos'){
+      const color = getComputedStyle(document.documentElement).getPropertyValue(exp.color.replace('var(','').replace(')','')).trim();
+      chip.style.setProperty('--chip-active-bg', color);
+      chip.style.setProperty('--chip-active-shadow', `${color}52`);
+    }
+    chip.addEventListener('click', () => { guardadosActiveFilter = exp.id; renderGuardados(); });
+    guardadosFilters.appendChild(chip);
+  });
+}
+
+function renderGuardadosGrid(){
+  const all = savedPlaces();
+  const filtered = guardadosActiveFilter === 'todos' ? all : all.filter(p => p.experiences.includes(guardadosActiveFilter));
+
+  guardadosGrid.innerHTML = '';
+  guardadosGrid.style.display = filtered.length ? 'flex' : 'none';
+  guardadosEmpty.style.display = filtered.length ? 'none' : 'flex';
+
+  if (!filtered.length){
+    const emptyTitle = document.getElementById('guardadosEmptyTitle');
+    const emptySub = document.getElementById('guardadosEmptySub');
+    if (!all.length){
+      emptyTitle.textContent = 'Todavía no tienes experiencias guardadas';
+      emptySub.textContent = 'Explora el Choapa y guarda aquello que quieras vivir después.';
+    } else {
+      const exp = expById(guardadosActiveFilter);
+      emptyTitle.textContent = `No tienes experiencias guardadas en ${exp.label.toLowerCase()}`;
+      emptySub.textContent = 'Prueba con otra categoría o descubre algo nuevo en el mapa.';
+    }
+    return;
+  }
+
+  filtered.forEach(place => {
+    const cat = catById(place.category);
+    const primaryExp = place.categoryPrimary ? expById(place.categoryPrimary) : null;
+    const tagInfo = primaryExp || cat;
+    const color = getComputedStyle(document.documentElement).getPropertyValue(tagInfo.color.replace('var(','').replace(')','')).trim();
+    const comuna = LOCALITIES.find(l => l.aliases.includes(place.locality));
+
+    const card = document.createElement('div');
+    card.className = 'gd-card';
+    card.innerHTML = `
+      <div class="gd-photo" style="background-image:url(${place.image})">
+        <button class="gd-save-btn saved" aria-label="Quitar de guardados">${icon('bookmark', 15)}</button>
+      </div>
+      <div class="gd-info">
+        <span class="gd-tag" style="color:${color}">${tagInfo.icon}${tagInfo.label}</span>
+        <div class="gd-name">${place.name}</div>
+        <div class="gd-loc">${icon('pin', 12)}<span>${place.locality}${comuna && comuna.name !== place.locality ? ', ' + comuna.name : ''}</span></div>
+        ${comuna ? `<div class="gd-comuna">${icon('mountain', 11)}<span>${comuna.name}</span></div>` : ''}
+        <div class="gd-meta-row">
+          ${place.openingHours ? `<span class="gd-meta-item">${icon('clock', 11)}${place.openingHours}</span>` : ''}
+          ${place.priceRange ? `<span class="gd-meta-item">${icon('coin', 11)}${place.priceRange}</span>` : ''}
+        </div>
+      </div>`;
+    card.addEventListener('click', () => { closeGuardados(); selectPlaceById(place.id); });
+    card.querySelector('.gd-save-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      savedPlaceIds.delete(place.id);
+      localStorage.setItem(SAVED_KEY, JSON.stringify([...savedPlaceIds]));
+      if (state.selectedPlace && state.selectedPlace.id === place.id){
+        document.getElementById('poiDetailSave').classList.remove('saved');
+      }
+      card.style.opacity = '0';
+      card.style.transform = 'scale(0.96)';
+      setTimeout(renderGuardados, 180);
+    });
+    guardadosGrid.appendChild(card);
+  });
+}
+
+function renderGuardados(){
+  // si el filtro activo se quedó sin resultados (ej. quitaste el último guardado
+  // de esa categoría), volvemos a "Todos" para no dejar una vista vacía confusa
+  const all = savedPlaces();
+  if (guardadosActiveFilter !== 'todos' && !all.some(p => p.experiences.includes(guardadosActiveFilter))){
+    guardadosActiveFilter = 'todos';
+  }
+  renderGuardadosFilters();
+  renderGuardadosGrid();
+}
+
+function openGuardados(){
+  guardadosActiveFilter = 'todos';
+  document.getElementById('guardadosEmptyIcon').innerHTML = icon('bookmark', 34);
+  renderGuardados();
+  guardadosScreen.classList.add('visible');
+  document.querySelectorAll('.bottom-nav .nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('navGuardados').classList.add('active');
+}
+function closeGuardados(){
+  guardadosScreen.classList.remove('visible');
+  document.querySelectorAll('.bottom-nav .nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelector('.bottom-nav .nav-item').classList.add('active'); // vuelve a "Explorar"
+}
+document.getElementById('navGuardados').addEventListener('click', openGuardados);
+document.getElementById('guardadosEmptyBtn').addEventListener('click', closeGuardados);
+document.getElementById('guardadosFilterBtn').addEventListener('click', () => {
+  guardadosFilters.scrollIntoView({ behavior:'smooth', block:'nearest' });
+});
+document.querySelectorAll('.bottom-nav .nav-item').forEach(item => {
+  if (item.id !== 'navGuardados' && item.id !== 'navAlbum'){
+    item.addEventListener('click', () => { if (guardadosScreen.classList.contains('visible')) closeGuardados(); });
+  }
 });
 
 /* ---------- MI ÁLBUM — guardar recuerdo desde la ficha del POI ---------- */
