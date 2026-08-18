@@ -1517,11 +1517,37 @@ function tintMapLayers(){
         map.setLayerZoomRange(l.id, 13, 24);
       }
 
-      // Nombres de ciudades/pueblos del estilo base — duplicarían lo que ya
-      // muestran nuestros propios pines de comuna/localidad, así que se ocultan
-      // por completo para no competir con la jerarquía propia de la app.
-      if (l.type === 'symbol' && /^place_/.test(l.id)){
-        map.setPaintProperty(l.id, 'text-opacity', 0);
+     // Nombres geográficos del estilo base (ciudades, pueblos, aldeas...): no se
+      // ocultan por completo, se recuperan como contexto cartográfico — pero con
+      // densidad controlada y SIN aspecto de POI (nada de halo pesado, tamaño
+      // grande ni color de marca). Dos niveles:
+      //
+      // 1) Ciudades/pueblos/capitales — visibles desde bien alejado (ej. Combarbalá),
+      //    siempre discretos, apenas un poco más nítidos al acercarse.
+      if (l.type === 'symbol' && /^place_(city|town|state|country)/.test(l.id)){
+        map.setPaintProperty(l.id, 'text-opacity', [
+          'interpolate', ['linear'], ['zoom'],
+          7, 0.30,
+          11, 0.5,
+        ]);
+        map.setPaintProperty(l.id, 'text-color', '#6C8AA3');
+        map.setPaintProperty(l.id, 'text-halo-color', 'rgba(11,23,38,0.65)');
+        map.setPaintProperty(l.id, 'text-halo-width', 1);
+        map.setLayoutProperty(l.id, 'text-size', 10);
+      }
+      // 2) Aldeas/caseríos/barrios — no aportan nada en la vista general (saturarían
+      //    el mapa), así que empiezan invisibles y solo aparecen, muy tenues, al
+      //    acercarse más allá de donde ya se ven las localidades propias.
+      if (l.type === 'symbol' && /^place_(village|hamlet|suburb|neighbourhood|locality|isolated_dwelling)/.test(l.id)){
+        map.setPaintProperty(l.id, 'text-opacity', [
+          'interpolate', ['linear'], ['zoom'],
+          10.5, 0,
+          13, 0.4,
+        ]);
+        map.setPaintProperty(l.id, 'text-color', '#597389');
+        map.setPaintProperty(l.id, 'text-halo-color', 'rgba(11,23,38,0.6)');
+        map.setPaintProperty(l.id, 'text-halo-width', 0.9);
+        map.setLayoutProperty(l.id, 'text-size', 9);
       }
       // Íconos/etiquetas de POI genéricos de OpenStreetMap (comercios, servicios
       // sin curar) — el mapa debe sentirse como el escenario de las experiencias
