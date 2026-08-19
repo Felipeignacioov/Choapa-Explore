@@ -577,7 +577,10 @@ img{-webkit-user-drag:none; user-select:none;}
   max-height:min(82vh, 640px);
   display:flex; flex-direction:column;
 }
-.poi-card.visible{transform:translateY(0) scale(1); opacity:1; pointer-events:auto;}
+.poi-card.visible{
+  transform:translateY(0) scale(1); opacity:1; pointer-events:auto;
+  bottom:calc(var(--nav-footprint) + 14px);
+}
 
 .poi-card .photo{
   position:relative; height:192px; flex-shrink:0; cursor:pointer;
@@ -687,7 +690,7 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 .gallery-track::-webkit-scrollbar{display:none;}
 .gallery-slide{
-  flex:0 0 100%; height:100%; scroll-snap-align:center;
+  flex:0 0 100%; height:100%; scroll-snap-align:center; scroll-snap-stop:always;
   background-size:contain; background-position:center; background-repeat:no-repeat;
 }
 .gallery-close{
@@ -2492,6 +2495,9 @@ function selectPlace(place, el){
 
   document.getElementById('poiDetailDemoNote').textContent = place.isDemo ? '● Lugar de ejemplo — datos reales próximamente' : '';
 
+  // Con la ficha abierta no hace falta la píldora de "¿Qué hacer hoy?" — se oculta
+  // mientras se está mirando esta experiencia (se restaura al cerrar la ficha).
+  sheetPill.classList.add('hidden');
   document.getElementById('poiDetail').classList.add('visible');
 
   map.easeTo({ center:[place.lng, place.lat], zoom: Math.max(map.getZoom(), 10.5), duration:550, offset:[0, -130] });
@@ -2711,6 +2717,7 @@ document.getElementById('poiDetailClose').addEventListener('click', (e) => {
   document.getElementById('poiDetail').classList.remove('visible');
   markers.forEach(m => m._el.classList.remove('selected'));
   state.selectedPlace = null;
+  syncSheetPillVisibility();
 });
 
 /* ---------- Galería de la experiencia — deslizable, a pantalla completa ---------- */
@@ -2989,7 +2996,13 @@ function updateChromeOffset(){
     : sheet.getBoundingClientRect().height;
   document.documentElement.style.setProperty('--sheet-offset', px + 'px');
 }
-
+// La píldora solo debe verse cuando el sheet está en su estado "colapsado" — se
+// usa al cerrar la ficha del POI para devolverla a como estaba, sin pisar la
+// lógica propia del sheet (openSheet/expandSheet/collapseSheet ya la manejan
+// en sus propios casos, esto solo cubre el caso "vengo de cerrar un POI").
+function syncSheetPillVisibility(){
+  sheetPill.classList.toggle('hidden', !sheet.classList.contains('collapsed'));
+}
 function openSheet(){
   sheet.classList.remove('collapsed', 'expanded');
   sheet.style.height = '';
