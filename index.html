@@ -837,6 +837,16 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 .guardados-empty .ge-btn:active{transform:scale(0.95);}
 
+/* Badge de distancia real sobre la tarjeta de "Cerca de mí" — reutiliza .gd-card
+   tal cual (mismo componente que Guardados), solo agrega este elemento encima. */
+.gd-card .gd-distance{
+  position:absolute; top:10px; left:10px; z-index:2;
+  display:flex; align-items:center; gap:4px;
+  font-size:10.5px; font-weight:700; color:#fff;
+  background:rgba(8,19,31,0.68); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  padding:4px 9px; border-radius:var(--radius-pill);
+}
+
 /* ================= ÁLBUM DEL CHOAPA ================= */
 .album-screen{
   position:absolute; inset:0; z-index:60;
@@ -1191,7 +1201,7 @@ img{-webkit-user-drag:none; user-select:none;}
     <button class="nav-item main active">
       <span class="icon-wrap"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M9 3 3 5.5v15L9 18l6 2.5 6-2.5v-15L15 5.5 9 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 3v15M15 5.5v15" stroke="currentColor" stroke-width="1.8"/></svg></span>
     </button>
-    <button class="nav-item">
+   <button class="nav-item" id="navNearby">
       <svg viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="9" r="2.4" stroke="currentColor" stroke-width="1.7"/></svg>
       Cerca de mí
     </button>
@@ -1220,6 +1230,26 @@ img{-webkit-user-drag:none; user-select:none;}
         <div class="ge-title" id="guardadosEmptyTitle">Todavía no tienes experiencias guardadas</div>
         <div class="ge-sub" id="guardadosEmptySub">Explora el Choapa y guarda aquello que quieras vivir después.</div>
         <button class="ge-btn" id="guardadosEmptyBtn">Explorar experiencias</button>
+      </div>
+    </div>
+  </div>
+
+ <!-- ================= CERCA DE MÍ ================= -->
+  <div class="guardados-screen" id="nearbyScreen">
+    <div class="guardados-header">
+      <div>
+        <div class="guardados-title" id="nearbyTitle">Cerca de ti</div>
+        <div class="guardados-subtitle" id="nearbySubtitle">A pocos minutos de donde estás.</div>
+      </div>
+    </div>
+    <div class="guardados-filters" id="nearbyFilters"></div>
+    <div class="guardados-body">
+      <div class="guardados-grid" id="nearbyGrid"></div>
+      <div class="guardados-empty" id="nearbyEmpty" style="display:none;">
+        <span class="ge-icon" id="nearbyEmptyIcon"></span>
+        <div class="ge-title" id="nearbyEmptyTitle"></div>
+        <div class="ge-sub" id="nearbyEmptySub"></div>
+        <button class="ge-btn" id="nearbyEmptyBtn"></button>
       </div>
     </div>
   </div>
@@ -2627,6 +2657,8 @@ function renderGuardados(){
 
 function openGuardados(){
   guardadosActiveFilter = 'todos';
+  nearbyScreen.classList.remove('visible');
+  document.getElementById('albumScreen').classList.remove('visible');
   document.getElementById('guardadosEmptyIcon').innerHTML = icon('bookmark', 34);
   renderGuardados();
   guardadosScreen.classList.add('visible');
@@ -2646,6 +2678,173 @@ document.getElementById('guardadosFilterBtn').addEventListener('click', () => {
 document.querySelectorAll('.bottom-nav .nav-item').forEach(item => {
   if (item.id !== 'navGuardados' && item.id !== 'navAlbum'){
     item.addEventListener('click', () => { if (guardadosScreen.classList.contains('visible')) closeGuardados(); });
+  }
+});
+
+/* ---------- CERCA DE MÍ — distancia real, reutilizando datos y pantallas ya hechas ---------- */
+const nearbyScreen = document.getElementById('nearbyScreen');
+const nearbyFilters = document.getElementById('nearbyFilters');
+const nearbyGrid = document.getElementById('nearbyGrid');
+const nearbyEmpty = document.getElementById('nearbyEmpty');
+let nearbyActiveFilter = 'todos';
+let nearbyCoords = null; // se reutiliza mientras dure la sesión, no se vuelve a pedir cada vez
+
+// Distancia real en km (fórmula de Haversine) — nada de aproximaciones por
+// grados; el badge de la tarjeta muestra un dato de verdad.
+function distanceKm(lat1, lng1, lat2, lng2){
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+function formatDistance(km){
+  return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
+}
+// Mismo CHOAPA_MAX_BOUNDS que ya limita la navegación del mapa — si el usuario
+// cae fuera de esa caja, un ranking por distancia real no significa nada para él.
+function isInsideChoapa(lat, lng){
+  const [[minLng, minLat], [maxLng, maxLat]] = CHOAPA_MAX_BOUNDS;
+  return lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;
+}
+
+function renderNearbyFilters(){
+  nearbyFilters.innerHTML = '';
+  EXPERIENCE_TAGS.forEach(exp => {
+    const chip = document.createElement('button');
+    chip.className = 'chip gd-chip' + (exp.id === nearbyActiveFilter ? ' active' : '');
+    chip.innerHTML = `<span class="gd-chip-top">${exp.icon}<span>${exp.label}</span></span>`;
+    if (exp.id !== 'todos'){
+      const color = getComputedStyle(document.documentElement).getPropertyValue(exp.color.replace('var(','').replace(')','')).trim();
+      chip.style.setProperty('--chip-active-bg', color);
+      chip.style.setProperty('--chip-active-shadow', `${color}52`);
+    }
+    chip.addEventListener('click', () => { nearbyActiveFilter = exp.id; renderNearbyFilters(); renderNearbyContent(); });
+    nearbyFilters.appendChild(chip);
+  });
+}
+
+// Misma tarjeta visual que Guardados (.gd-card) — solo cambia qué badge lleva
+// encima: distancia real en vez del botón de guardar.
+function buildNearbyCard(place, distanceLabel){
+  const cat = catById(place.category);
+  const primaryExp = place.categoryPrimary ? expById(place.categoryPrimary) : null;
+  const tagInfo = primaryExp || cat;
+  const color = getComputedStyle(document.documentElement).getPropertyValue(tagInfo.color.replace('var(','').replace(')','')).trim();
+  const comuna = LOCALITIES.find(l => l.aliases.includes(place.locality));
+
+  const card = document.createElement('div');
+  card.className = 'gd-card';
+  card.innerHTML = `
+    <div class="gd-photo" style="background-image:url(${place.image})">
+      ${distanceLabel ? `<span class="gd-distance">${icon('pin', 12)}${distanceLabel}</span>` : ''}
+    </div>
+    <div class="gd-info">
+      <span class="gd-tag" style="color:${color}">${tagInfo.icon}${tagInfo.label}</span>
+      <div class="gd-name">${place.name}</div>
+      <div class="gd-loc">${icon('pin', 12)}<span>${place.locality}${comuna && comuna.name !== place.locality ? ', ' + comuna.name : ''}</span></div>
+    </div>`;
+  card.addEventListener('click', () => { closeNearby(); selectPlaceById(place.id); });
+  return card;
+}
+
+function showNearbyEmpty(iconKey, title, sub, btnLabel, btnAction){
+  nearbyGrid.style.display = 'none';
+  nearbyEmpty.style.display = 'flex';
+  document.getElementById('nearbyEmptyIcon').innerHTML = icon(iconKey, 34);
+  document.getElementById('nearbyEmptyTitle').textContent = title;
+  document.getElementById('nearbyEmptySub').textContent = sub;
+  const btn = document.getElementById('nearbyEmptyBtn');
+  btn.textContent = btnLabel;
+  btn.onclick = btnAction;
+}
+
+function renderNearbyContent(){
+  if (!nearbyCoords){
+    showNearbyEmpty('compassRose', 'Activa tu ubicación',
+      'Así podemos mostrarte qué experiencias tienes cerca ahora mismo.',
+      'Activar ubicación', requestNearbyLocation);
+    return;
+  }
+
+  const inside = isInsideChoapa(nearbyCoords.lat, nearbyCoords.lng);
+
+  if (!inside){
+    // Fuera del Choapa: un ranking en km no le sirve a nadie, así que reutilizamos
+    // EXACTAMENTE la misma curaduría de "¿Qué hacer hoy?" en vez de inventar otra.
+    document.getElementById('nearbySubtitle').textContent = 'No pareces estar en el Choapa ahora mismo.';
+    const picks = curateTodayExperiences();
+    const filtered = nearbyActiveFilter === 'todos' ? picks : picks.filter(p => p.experiences.includes(nearbyActiveFilter));
+    if (!filtered.length){
+      showNearbyEmpty('sparkle', 'No pareces estar en el Choapa ahora mismo',
+        'Te mostramos lo más destacado para cuando llegues.',
+        'Explorar el mapa', closeNearby);
+      return;
+    }
+    nearbyGrid.style.display = 'flex';
+    nearbyEmpty.style.display = 'none';
+    nearbyGrid.innerHTML = '';
+    filtered.forEach(place => nearbyGrid.appendChild(buildNearbyCard(place, null)));
+    return;
+  }
+
+  document.getElementById('nearbySubtitle').textContent = 'A pocos minutos de donde estás.';
+
+  const withDistance = DEMO_PLACES
+    .map(p => ({ place:p, km:distanceKm(nearbyCoords.lat, nearbyCoords.lng, p.lat, p.lng) }))
+    .filter(x => nearbyActiveFilter === 'todos' || x.place.experiences.includes(nearbyActiveFilter))
+    .sort((a, b) => a.km - b.km)
+    .slice(0, 20);
+
+  if (!withDistance.length){
+    showNearbyEmpty('sparkle', `No hay experiencias de ${expById(nearbyActiveFilter).label.toLowerCase()} cerca de ti`,
+      'Prueba con otra categoría.', 'Ver todas',
+      () => { nearbyActiveFilter = 'todos'; renderNearbyFilters(); renderNearbyContent(); });
+    return;
+  }
+
+  nearbyGrid.style.display = 'flex';
+  nearbyEmpty.style.display = 'none';
+  nearbyGrid.innerHTML = '';
+  withDistance.forEach(({ place, km }) => nearbyGrid.appendChild(buildNearbyCard(place, formatDistance(km))));
+}
+
+function requestNearbyLocation(){
+  if (!navigator.geolocation){
+    showNearbyEmpty('compassRose', 'Tu navegador no permite ubicación',
+      'Prueba explorando el mapa directamente.', 'Explorar el mapa', closeNearby);
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(pos => {
+    nearbyCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    renderNearbyContent();
+  }, () => {
+    showNearbyEmpty('compassRose', 'No pudimos acceder a tu ubicación',
+      'Revisa los permisos de ubicación del navegador e inténtalo de nuevo.',
+      'Reintentar', requestNearbyLocation);
+  });
+}
+
+function openNearby(){
+  nearbyActiveFilter = 'todos';
+  guardadosScreen.classList.remove('visible');
+  document.getElementById('albumScreen').classList.remove('visible');
+  renderNearbyFilters();
+  renderNearbyContent();
+  nearbyScreen.classList.add('visible');
+  document.querySelectorAll('.bottom-nav .nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('navNearby').classList.add('active');
+  if (!nearbyCoords) requestNearbyLocation();
+}
+function closeNearby(){
+  nearbyScreen.classList.remove('visible');
+  document.querySelectorAll('.bottom-nav .nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelector('.bottom-nav .nav-item').classList.add('active');
+}
+document.getElementById('navNearby').addEventListener('click', openNearby);
+document.querySelectorAll('.bottom-nav .nav-item').forEach(item => {
+  if (item.id !== 'navNearby'){
+    item.addEventListener('click', () => { if (nearbyScreen.classList.contains('visible')) closeNearby(); });
   }
 });
 
