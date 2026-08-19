@@ -2839,7 +2839,7 @@ function collapseSheet(){
   updateChromeOffset();
 }
 
-sheetPill.addEventListener('click', openSheet);
+sheetPill.addEventListener('click', expandSheet);
 sheetHandle.addEventListener('click', () => {
   // expandido → abierto (compacto) → píldora
   if (sheet.classList.contains('expanded')) openSheet();
