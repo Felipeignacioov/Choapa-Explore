@@ -2817,6 +2817,7 @@ function requestNearbyLocation(){
   }
   navigator.geolocation.getCurrentPosition(pos => {
     nearbyCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    placeUserMarker(nearbyCoords.lat, nearbyCoords.lng); // el punto queda listo en el mapa para cuando cierres esta pantalla
     renderNearbyContent();
   }, () => {
     showNearbyEmpty('compassRose', 'No pudimos acceder a tu ubicación',
@@ -2958,18 +2959,25 @@ function userDotSVG(){
   </svg>`;
 }
 let userMarker = null;
+// Separado en dos partes: poner el punto azul en el mapa (se reutiliza desde
+// "Cerca de mí" también) y mover la cámara hacia él (eso solo lo hace el botón
+// de centrar del mapa — mientras la pantalla de Cerca de mí está abierta el mapa
+// ni se ve, así que mover la cámara ahí no tendría sentido).
+function placeUserMarker(lat, lng){
+  if (!userMarker){
+    const el = document.createElement('div');
+    el.innerHTML = userDotSVG();
+    userMarker = new maplibregl.Marker({ element: el.firstChild, anchor:'center' })
+      .setLngLat([lng, lat]).addTo(map);
+  } else {
+    userMarker.setLngLat([lng, lat]);
+  }
+}
 function centerOnUser(){
   if (!navigator.geolocation){ return; }
   navigator.geolocation.getCurrentPosition(pos => {
     const { latitude, longitude } = pos.coords;
-    if (!userMarker){
-      const el = document.createElement('div');
-      el.innerHTML = userDotSVG();
-      userMarker = new maplibregl.Marker({ element: el.firstChild, anchor:'center' })
-        .setLngLat([longitude, latitude]).addTo(map);
-    } else {
-      userMarker.setLngLat([longitude, latitude]);
-    }
+    placeUserMarker(latitude, longitude);
     map.easeTo({ center:[longitude, latitude], zoom:13, duration:600 });
   }, () => { /* permiso denegado — no bloqueamos la UI */ });
 }
