@@ -469,6 +469,51 @@ img{-webkit-user-drag:none; user-select:none;}
 .exp-card .label{font-size:12.5px; font-weight:600; line-height:1.3; color:var(--text-primary);}
 .exp-card .label b{display:block; color:var(--turquoise-bright); font-weight:700; font-size:13.5px; margin-top:1px;}
 
+/* Chips de franja horaria — arquitectura preparada para filtrar la curaduría por
+   momento del día más adelante; hoy solo cambian de estado visualmente. */
+.time-filters{display:flex; gap:8px; overflow-x:auto; -webkit-overflow-scrolling:touch; padding:0 18px 12px; margin:0 -18px; scrollbar-width:none;}
+.time-filters::-webkit-scrollbar{display:none;}
+.tf-chip{flex-direction:column; align-items:flex-start; gap:1px; padding:9px 14px;}
+.tf-chip .tf-top{display:flex; align-items:center; gap:6px;}
+.tf-chip .tf-sub{font-size:9.5px; font-weight:600; opacity:0.75;}
+
+/* Tarjeta editorial de la curaduría "¿Qué hacer hoy?" — más grande y con
+   descripción, a diferencia de las tarjetas compactas de placesRail. */
+.today-card{
+  flex-shrink:0; width:222px; border-radius:var(--radius-l); overflow:hidden;
+  background:var(--surface); border:1px solid var(--border-glass);
+  box-shadow:var(--shadow-card), inset 0 1px 0 rgba(255,255,255,0.05);
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1);
+}
+.today-card:active{transform:scale(0.97);}
+.today-card .photo{position:relative; height:118px; width:100%; background:var(--surface-elevated) center/cover no-repeat;}
+.today-card .photo::after{
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(to bottom, rgba(7,19,31,0) 45%, rgba(7,19,31,0.62) 100%);
+  pointer-events:none;
+}
+.today-card .today-badge{
+  position:absolute; top:9px; right:9px; z-index:1;
+  display:flex; align-items:center; gap:4px;
+  font-size:10px; font-weight:700; color:#04222A;
+  background:var(--turquoise-bright); padding:4px 9px 4px 7px; border-radius:var(--radius-pill);
+}
+.today-card .tc-tag{
+  position:absolute; left:10px; bottom:9px; z-index:1;
+  display:flex; align-items:center; gap:5px;
+  font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.3px;
+  background:rgba(8,19,31,0.6); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  padding:4px 9px; border-radius:var(--radius-pill);
+}
+.today-card .tc-info{padding:11px 13px 13px;}
+.today-card .tc-name{font-size:13.5px; font-weight:700; line-height:1.28; margin-bottom:4px; letter-spacing:-0.1px;}
+.today-card .tc-loc{display:flex; align-items:center; gap:4px; font-size:10.5px; color:var(--text-secondary); margin-bottom:6px;}
+.today-card .tc-loc svg{flex-shrink:0; color:var(--text-tertiary);}
+.today-card .tc-desc{
+  font-size:11px; line-height:1.45; color:var(--text-secondary);
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+
 .place-card{
   flex-shrink:0; width:164px; border-radius:var(--radius-m); overflow:hidden;
   background:var(--surface); border:1px solid var(--border-glass);
@@ -1017,11 +1062,14 @@ img{-webkit-user-drag:none; user-select:none;}
   <div class="sheet collapsed" id="sheet">
     <div class="sheet-handle-area" id="sheetHandle"><div class="sheet-handle"></div></div>
     <div class="sheet-body" id="sheetBody">
-      <div class="sheet-section">
+     <div class="sheet-section">
         <div class="sheet-section-head">
-          <div class="sheet-section-title">¿Qué hacer <span class="accent">hoy</span> en el Choapa?</div>
-          <span class="sheet-see-all">Ver todo ›</span>
+          <div>
+            <div class="sheet-section-title">¿Qué hacer <span class="accent">hoy</span> en el Choapa?</div>
+            <div class="sheet-section-subtitle">Experiencias que puedes disfrutar hoy.</div>
+          </div>
         </div>
+        <div class="time-filters" id="timeFilters"></div>
         <div class="rail" id="experiencesRail"></div>
       </div>
      <div class="sheet-section">
@@ -2576,17 +2624,95 @@ function setActiveExperience(id){
   }
 }
 
-/* ---------- 8. SHEET RAILS (dinámico — reacciona a la experiencia activa) ---------- */
+/* ---------- 8. SHEET RAILS ---------- */
+// "¿Qué hacer hoy?" — curaduría editorial, no un catálogo ni un atajo de categorías
+// (eso ya lo resuelven los chips de arriba). Reutiliza EXACTAMENTE los mismos
+// DEMO_PLACES/EXPERIENCE_TAGS de siempre; nada de datos ni sistema paralelo.
 const experiencesRail = document.getElementById('experiencesRail');
-FEATURED_EXPERIENCES.forEach(exp => {
-  const tag = expById(exp.experience);
-  const color = getComputedStyle(document.documentElement).getPropertyValue(tag.color.replace('var(','').replace(')','')).trim();
-  const card = document.createElement('div');
-  card.className = 'exp-card';
-  card.innerHTML = `<div class="icon-badge" style="background:${color}22; color:${color};">${icon(exp.iconKey, 17)}</div><div class="label">${exp.title}<b>${exp.bold}</b></div>`;
-  card.addEventListener('click', () => setActiveExperience(exp.experience));
-  experiencesRail.appendChild(card);
-});
+const timeFilters = document.getElementById('timeFilters');
+
+// Franjas horarias — arquitectura lista para filtrar de verdad más adelante
+// (día/hora/ubicación/eventos). Hoy en día un lugar puede declarar en qué
+// franjas tiene sentido (place.availableTimes = ['tarde','noche']); si no lo
+// declara, se considera válido para cualquier franja — así no hay que tocar
+// ningún dato existente para que esto funcione desde ya.
+const TODAY_TIME_FILTERS = [
+  { id:'ahora', label:'Ahora',         sub:'Recomendado',    iconKey:'sparkle' },
+  { id:'tarde', label:'Esta tarde',    sub:'12:00 – 18:00',  iconKey:'sunset' },
+  { id:'noche', label:'Esta noche',    sub:'18:00 – 23:59',  iconKey:'noche' },
+  { id:'finde', label:'Fin de semana', sub:'Sáb – Dom',      iconKey:'compassRose' },
+];
+let activeTimeFilter = 'ahora';
+
+// Un lugar por experiencia distinta (orden con intención editorial), tope de 6 —
+// así se siente curado y no como "todo lo que tenemos".
+const TODAY_CURATION_ORDER = ['aventura','cita','tranquilo','gastronomia','familia','noche','naturaleza','adrenalina'];
+function curateTodayExperiences(){
+  const used = new Set();
+  const picks = [];
+  TODAY_CURATION_ORDER.forEach(expId => {
+    if (picks.length >= 6) return;
+    const place = DEMO_PLACES.find(p =>
+      p.experiences.includes(expId) && !used.has(p.id) &&
+      (!p.availableTimes || !p.availableTimes.length || p.availableTimes.includes(activeTimeFilter))
+    );
+    if (place){ picks.push(place); used.add(place.id); }
+  });
+  return picks;
+}
+
+function renderTimeFilters(){
+  timeFilters.innerHTML = '';
+  TODAY_TIME_FILTERS.forEach(tf => {
+    const chip = document.createElement('button');
+    chip.className = 'chip tf-chip' + (tf.id === activeTimeFilter ? ' active' : '');
+    chip.innerHTML = `<span class="tf-top">${icon(tf.iconKey, 13)}<span>${tf.label}</span></span><span class="tf-sub">${tf.sub}</span>`;
+    chip.addEventListener('click', () => {
+      activeTimeFilter = tf.id;
+      renderTimeFilters();
+      renderTodayRail();
+    });
+    timeFilters.appendChild(chip);
+  });
+}
+
+function renderTodayRail(){
+  experiencesRail.innerHTML = '';
+  const picks = curateTodayExperiences();
+
+  if (!picks.length){
+    experiencesRail.innerHTML = `<div class="rail-empty">
+      <span class="re-icon">${icon('sparkle', 22)}</span>
+      <span class="re-title">Estamos preparando la selección de hoy…</span>
+      <span>Vuelve a intentarlo en unos momentos.</span>
+    </div>`;
+    return;
+  }
+
+  picks.forEach(place => {
+    const cat = catById(place.category);
+    const primaryExp = place.categoryPrimary ? expById(place.categoryPrimary) : null;
+    const tagInfo = primaryExp || cat;
+    const color = getComputedStyle(document.documentElement).getPropertyValue(tagInfo.color.replace('var(','').replace(')','')).trim();
+
+    const card = document.createElement('div');
+    card.className = 'today-card';
+    card.innerHTML = `
+      <div class="photo" style="background-image:url(${place.image})">
+        <span class="today-badge">${icon('sparkle', 11)}Hoy</span>
+        <span class="tc-tag" style="color:${color}">${tagInfo.icon}${tagInfo.label}</span>
+      </div>
+      <div class="tc-info">
+        <div class="tc-name">${place.name}</div>
+        <div class="tc-loc">${icon('pin', 11)}<span>${place.locality}</span></div>
+        <div class="tc-desc">${place.description || ''}</div>
+      </div>`;
+    card.addEventListener('click', () => { collapseSheet(); selectPlaceById(place.id); });
+    experiencesRail.appendChild(card);
+  });
+}
+renderTimeFilters();
+renderTodayRail();
 
 const placesRail = document.getElementById('placesRail');
 const placesEmpty = document.getElementById('placesEmpty');
