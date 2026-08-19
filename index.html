@@ -1303,9 +1303,14 @@ const EXPERIENCE_PANEL_COPY = {
 // isDemo:true = dato de marcador de posición, NO un negocio/lugar real.
 // Fase 2 reemplazará esto por una base verificada (nombre, coords, fotos reales).
 // `category` = tipo de lugar (fijo, 1 valor) · `experiences` = planes que ofrece (0..N valores)
-function makePlace({ id, name, category, locality, lat, lng, image, description='', experiences=[], categoryPrimary=null, isDemo=true, isTestData=false }) {
+// `images` (plural, opcional) prepara la arquitectura para una futura galería en la
+// ficha del POI. Ningún lugar existente necesita tocarse: si no se pasa `images`,
+// se deriva automáticamente de `image` (un solo elemento) — mismo comportamiento
+// de siempre para los 22 lugares de ejemplo que ya existen.
+function makePlace({ id, name, category, locality, lat, lng, image, images=[], description='', experiences=[], categoryPrimary=null, isDemo=true, isTestData=false }) {
+  const gallery = images.length ? images : (image ? [image] : []);
   return {
-    id, name, category, locality, lat, lng, image, isDemo, experiences, categoryPrimary, isTestData,
+    id, name, category, locality, lat, lng, image, images:gallery, isDemo, experiences, categoryPrimary, isTestData,
     description, address:'', openingHours:'', priceRange:'',
     phone:'', website:'', instagram:'', tags:[]
   };
@@ -1371,10 +1376,28 @@ makePlace({ id:'p9', name:'Punto patrimonial de ejemplo', category:'patrimonio',
     image:'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=400&q=60',
     description:'Marcador de posición — cielos despejados, ideal para observación nocturna. Datos reales pendientes de verificación.',
     categoryPrimary:'noche', experiences:['noche','cita'] }),
- makePlace({ id:'p15', name:'Rincón de ejemplo', category:'naturaleza', locality:'El Tambo', lat:-31.7902, lng:-71.0188,
+  makePlace({ id:'p15', name:'Rincón de ejemplo', category:'naturaleza', locality:'El Tambo', lat:-31.7902, lng:-71.0188,
     image:'https://images.unsplash.com/photo-1477587458883-47145ed94245?w=400&q=60',
     description:'Marcador de posición — paseo tranquilo junto al agua. Datos reales pendientes de verificación.',
     experiences:['tranquilo'] }),
+
+  // ---------- PRIMER POI REAL ----------
+  makePlace({
+    id:'cerro-chico', name:'Cerro Chico', category:'naturaleza', locality:'Salamanca',
+    lat:-31.78234814769401, lng:-70.95937796622286,
+    image:'assets/cerro-chico/01-vista-aerea.jpg',
+    images:[
+      'assets/cerro-chico/01-vista-aerea.jpg',
+      'assets/cerro-chico/02-vista-cumbre.jpg',
+      'assets/cerro-chico/03-atardecer.jpg',
+      'assets/cerro-chico/04-visitante.jpg',
+      'assets/cerro-chico/05-niebla.jpg',
+      'assets/cerro-chico/06-petroglifos.jpg',
+    ],
+    description:'Cerro emblemático de Salamanca, con senderos hasta la cumbre y vistas panorámicas sobre el valle del Choapa. Conserva petroglifos originarios en su ladera.',
+    categoryPrimary:'aventura', experiences:['aventura','naturaleza','tranquilo'],
+    isDemo:false,
+  }),
 ];
 
 /* ---------- 2B. DATOS DE PRUEBA — categoría principal + categorías compatibles ----------
@@ -1391,10 +1414,7 @@ const TEST_CATEGORY_PLACES = [
     image:'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&q=60',
     description:'Dato de prueba — no es un lugar real. Sirve para validar el sistema de colores por categoría.',
     categoryPrimary:'cita', experiences:['cita','tranquilo'], isTestData:true }),
-  makePlace({ id:'test2', name:'Caminata Cerro Chico', category:'naturaleza', locality:'Salamanca', lat:-31.7775, lng:-70.9665,
-    image:'https://images.unsplash.com/photo-1454391304352-2bf4678b1a7a?w=400&q=60',
-    description:'Dato de prueba — no es un lugar real. Sirve para validar el sistema de colores por categoría.',
-    categoryPrimary:'aventura', experiences:['aventura','naturaleza','tranquilo'], isTestData:true }),
+
   makePlace({ id:'test3', name:'Mirador del Valle', category:'naturaleza', locality:'Salamanca', lat:-31.7738, lng:-70.9605,
     image:'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&q=60',
     description:'Dato de prueba — no es un lugar real. Sirve para validar el sistema de colores por categoría.',
