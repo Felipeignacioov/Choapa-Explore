@@ -2451,6 +2451,18 @@ document.getElementById('breadcrumbPill').addEventListener('click', () => {
   else if (state.currentLocality) exitLocality({ fly:true });
 });
 
+// Red de seguridad contra el flyTo cancelado a medio camino: si el usuario toca
+// una comuna y se arrepiente alejando el zoom con sus propios dedos antes de
+// llegar, el evento 'zoom' que debería limpiar el estado puede perderse en esa
+// interrupción, dejando el breadcrumb pegado con la comuna vieja. 'moveend'
+// dispara una sola vez cuando el mapa queda completamente quieto (gesto
+// terminado o cancelado), así que sirve de corrección final infalible.
+map.on('moveend', () => {
+  if (currentZoomTier() === 'comuna' && state.currentLocality){
+    exitLocality({ fly:false });
+  }
+});
+
 // Mensaje flotante sobre el mapa: con una experiencia filtrada (ej. "Cita") y
 // sin zona elegida todavía, invita a explorar una comuna para ver ahí las
 // experiencias de esa categoría. Desaparece apenas se entra a una localidad.
