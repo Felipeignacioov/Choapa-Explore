@@ -296,6 +296,29 @@ img{-webkit-user-drag:none; user-select:none;}
   display:flex; flex-direction:column; align-items:center;
   transition:opacity .3s ease, transform .3s cubic-bezier(.32,.9,.34,1);
 }
+
+/* CERCANO — el zoom se acerca al umbral donde aparecen las localidades: el
+   círculo crece un poco y gana un halo turquesa suave, comunicando proximidad
+   antes de que ocurra el cambio de nivel (no solo "más grande porque sí"). */
+.locality-marker.near .loc-visual{transform:scale(1.12);}
+.locality-marker.near svg{
+  filter:drop-shadow(0 0 7px rgba(95,225,232,0.4)) drop-shadow(0 2px 5px rgba(2,8,15,0.38));
+}
+
+/* SELECCIONADO — al tocar: relleno turquesa + halo + flash de escala rápido
+   (180ms). Se pausa la respiración del halo mientras dura el flash para que la
+   transición de opacidad no compita con la animación infinita. */
+.locality-marker.selected .loc-visual{
+  transform:scale(1.22);
+  transition:transform .18s cubic-bezier(.34,1.56,.64,1), opacity .3s ease;
+}
+.locality-marker.selected svg circle:nth-child(2){
+  fill:var(--turquoise-bright); transition:fill .16s ease;
+}
+.locality-marker.selected .loc-halo{
+  animation-play-state:paused;
+  opacity:0.4; transition:opacity .18s ease;
+}
 .locality-marker svg{filter:drop-shadow(0 2px 5px rgba(2,8,15,0.38)); overflow:visible;}
 .locality-marker.hidden-level .loc-visual{opacity:0; transform:scale(0.5);}
 .locality-marker:active .loc-visual{transform:scale(0.94);}
@@ -1688,6 +1711,7 @@ const CHOAPA_MAX_BOUNDS = [
 // Umbrales que dividen el sistema de exploración continuo en 3 niveles:
 // CHOAPA (comunas) → LOCALIDAD (zona de influencia) → EXPERIENCIAS (POIs individuales)
 const ZOOM_SHOW_COUNTS = 9.6;    // desde aquí, las comunas muestran su cantidad de lugares
+const ZOOM_COMUNA_NEAR = 8.8;    // desde aquí, la comuna entra en estado "cercano" (crece + halo)
 const ZOOM_SUBLOCALITY = 10.0;   // desde aquí, se ven las localidades dentro de la comuna
 const ZOOM_DETAIL = 12.4;        // desde aquí, se ven las experiencias (POIs) individuales
 
@@ -2036,7 +2060,13 @@ function renderLocalityMarkers(){
         </div>
         ${localitySVG('var(--turquoise-bright)')}
       </div>`;
-    el.addEventListener('click', (e) => { e.stopPropagation(); enterLocality(loc, { fly:true }); });
+   el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // Flash de selección (180ms) antes de navegar — confirmación táctil inmediata.
+      el.classList.add('selected');
+      setTimeout(() => el.classList.remove('selected'), 220);
+      enterLocality(loc, { fly:true });
+    });
 
     const marker = new maplibregl.Marker({ element: el, anchor:'bottom' })
       .setLngLat([loc.lng, loc.lat])
@@ -2126,7 +2156,11 @@ function currentZoomTier(){
 function updateExplorationLevel(){
   const tier = currentZoomTier();
   const showCounts = map.getZoom() >= ZOOM_SHOW_COUNTS;
-  document.querySelectorAll('.locality-marker').forEach(el => el.classList.toggle('show-count', showCounts));
+  const near = map.getZoom() >= ZOOM_COMUNA_NEAR;
+  document.querySelectorAll('.locality-marker').forEach(el => {
+    el.classList.toggle('show-count', showCounts);
+    el.classList.toggle('near', near);
+  });
 
   if (tier === lastTier) return; // sin cambio de nivel, no re-renderizamos
   lastTier = tier;
