@@ -1827,9 +1827,13 @@ function tintMapLayers(){
       // Calles — jerarquía clara entre principales y secundarias, para que nunca
       // formen una rejilla dominante: las principales quedan apenas visibles
       // (sirven para orientarse), las secundarias casi se disuelven en el fondo.
-      if (l.type === 'line' && /highway_major|highway_motorway/.test(l.id)){
+     if (l.type === 'line' && /highway_major|highway_motorway/.test(l.id)){
         map.setPaintProperty(l.id, 'line-color', '#2A4A63');
         map.setPaintProperty(l.id, 'line-opacity', 0.55);
+        // Ancho propio — antes heredaban el grosor por defecto del estilo base
+        // (muy fino), por eso el halo del Río Choapa terminaba viéndose con más
+        // protagonismo que una calle principal real.
+        map.setPaintProperty(l.id, 'line-width', ['interpolate', ['linear'], ['zoom'], 8, 1.4, 12, 2.6, 16, 4.5]);
       }
       if (l.type === 'line' && /highway_minor|highway_path|road_pier|road_area_pier/.test(l.id)){
         map.setPaintProperty(l.id, 'line-color', '#16283A');
