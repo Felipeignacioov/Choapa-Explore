@@ -942,7 +942,7 @@ img{-webkit-user-drag:none; user-select:none;}
 .album-view.active{display:block;}
 
 /* Portadas de capítulo — Salamanca, Illapel, Los Vilos, Canela, Caimanes, Recuerdos del Choapa */
-.album-chapters{display:flex; flex-direction:column; gap:14px;}
+.album-chapters{display:flex; flex-direction:column; gap:16px;}
 .chapter-cover{
   position:relative; min-height:132px; border-radius:var(--radius-l); overflow:hidden;
   background:var(--surface) center/cover no-repeat; border:1px solid var(--border-glass);
@@ -963,6 +963,98 @@ img{-webkit-user-drag:none; user-select:none;}
 .chapter-cover:active .cc-arrow{transform:translateX(3px);}
 .chapter-cover.personal .cc-name{color:var(--text-primary);}
 .chapter-cover.personal .cc-arrow{color:var(--turquoise-bright);}
+
+/* Capítulo SIN ningún recuerdo real todavía — "blueprint" en vez de mostrar una
+   foto de stock que hacía parecer que la comuna ya estaba explorada. Ícono de
+   montaña casi grabado, borde punteado — un hueco en el mapa esperando llenarse. */
+.chapter-cover.blueprint{
+  background-image:none !important;
+  border-style:dashed; border-color:var(--border-glass);
+  background:linear-gradient(160deg, rgba(255,255,255,0.02), rgba(255,255,255,0));
+}
+.chapter-cover.blueprint::after{display:none;}
+.chapter-cover.blueprint .bp-icon{
+  position:absolute; right:14px; top:50%; transform:translateY(-50%);
+  color:var(--text-tertiary); opacity:0.16; display:flex; z-index:0;
+}
+.chapter-cover.blueprint .cc-name{color:var(--text-primary);}
+.chapter-cover.blueprint .cc-count{color:var(--text-tertiary);}
+.chapter-cover.blueprint .cc-arrow{color:var(--text-tertiary);}
+
+/* Capítulo CON recuerdos reales — leve efecto "pila de fotos" detrás de la
+   portada, para que se sienta como un cuaderno de viaje que se va llenando. */
+.chapter-cover.has-memories{
+  box-shadow:var(--shadow-card), -4px 5px 0 -2px rgba(255,255,255,0.03), -4px 5px 0 -1px var(--border-glass);
+}
+
+/* "Recuerdos del Choapa" — tratamiento distinto (polaroids), para diferenciarlo
+   claramente de los capítulos estructurados por comuna. */
+.chapter-cover.personal{
+  min-height:150px;
+}
+.chapter-cover.personal .cc-polaroid{
+  position:absolute; width:64px; height:78px; border-radius:6px;
+  background:var(--surface-elevated-2) center/cover no-repeat;
+  border:3px solid rgba(255,255,255,0.92); box-shadow:0 6px 14px rgba(2,8,15,0.4);
+}
+.chapter-cover.personal .cc-polaroid.p1{right:66px; top:16px; transform:rotate(-7deg);}
+.chapter-cover.personal .cc-polaroid.p2{right:22px; top:22px; transform:rotate(5deg);}
+.chapter-cover.personal.blueprint .cc-polaroid{
+  background:var(--surface); border-color:var(--border-glass); border-style:dashed;
+}
+
+/* Vista detalle de un capítulo — grilla de recuerdos */
+.album-detail-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+.album-card{
+  border-radius:var(--radius-m); overflow:hidden; position:relative; aspect-ratio:1/1.05;
+  background:var(--surface); border:1px solid var(--border-glass); box-shadow:var(--shadow-card);
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1);
+}
+.album-card:active{transform:scale(0.96);}
+.album-card.unlocked{background-size:cover; background-position:center; animation:album-card-in .4s cubic-bezier(.2,.9,.28,1.1) backwards;}
+.album-card.unlocked::after{
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(to bottom, rgba(7,19,31,0) 45%, rgba(7,19,31,0.85) 100%);
+}
+.album-card .ac-info{position:absolute; left:0; right:0; bottom:0; z-index:1; padding:10px;}
+.album-card .ac-name{font-size:12px; font-weight:700; color:#fff; line-height:1.25;}
+.album-card .ac-loc{font-size:10px; color:rgba(255,255,255,0.75); margin-top:1px;}
+
+@keyframes album-card-in{
+  from{ opacity:0; transform:scale(0.92); }
+  to{ opacity:1; transform:scale(1); }
+}
+
+/* Casilla "aún sin descubrir" — círculo punteado con el ícono de categoría muy
+   tenue de fondo, casi grabado, en vez de un candado genérico. Se siente como un
+   hueco del mapa esperando ser llenado, no como un error de carga. */
+.album-card.locked{
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0;
+  border-style:dashed; border-color:var(--border-glass);
+}
+.album-card.locked .lock-badge{
+  width:52px; height:52px; border-radius:50%; margin-bottom:10px;
+  border:1px dashed var(--border-glass);
+  display:flex; align-items:center; justify-content:center;
+  color:var(--text-tertiary); opacity:0.4;
+}
+.album-card.locked .lock-label{font-size:10px; color:var(--text-tertiary); font-weight:600; text-align:center; padding:0 8px;}
+
+.album-card.add-tile{
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+  border-style:dashed; border-color:var(--turquoise); color:var(--turquoise-bright);
+  background:rgba(95,225,232,0.06);
+}
+.album-card.add-tile span{font-size:11px; font-weight:600; text-align:center; padding:0 10px;}
+
+/* Anillo de progreso en la cabecera — sensación de colección que se va
+   completando, sin barra de videojuego ni número gritado. */
+.album-progress{display:flex; align-items:center; gap:9px; margin-bottom:14px;}
+.album-progress svg{transform:rotate(-90deg); flex-shrink:0;}
+.album-progress .ap-track{fill:none; stroke:rgba(255,255,255,0.08); stroke-width:3;}
+.album-progress .ap-fill{fill:none; stroke:var(--turquoise-bright); stroke-width:3; stroke-linecap:round; transition:stroke-dasharray .5s ease;}
+.album-progress .ap-text{font-size:11.5px; color:var(--text-secondary); font-weight:600;}
+.album-progress .ap-text b{color:var(--text-primary);}
 
 /* Vista detalle de un capítulo — grilla de recuerdos */
 .album-detail-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
@@ -1317,6 +1409,7 @@ img{-webkit-user-drag:none; user-select:none;}
     <div class="album-body">
       <div class="album-view active" id="albumIndexView">
         <div class="album-tagline">Aquí no coleccionas likes. Coleccionas momentos.</div>
+        <div class="album-progress" id="albumProgress"></div>
 
         <div class="album-stats">
           <div class="album-stat"><div class="as-value" id="statExperiences">0/0</div><div class="as-label">experiencias<br>descubiertas</div></div>
@@ -3740,13 +3833,16 @@ function showAlbumIndex(){
   renderAlbumIndex();
 }
 
-// Portada de cada capítulo: el recuerdo libre más reciente de esa localidad si existe,
-// si no la foto del primer lugar cargado ahí.
-function chapterCoverImage(locality){
+// Portada de cada capítulo: SOLO fotos reales — el recuerdo libre más reciente de
+// esa localidad, o si no, la foto que el propio usuario subió a alguno de sus
+// lugares. Ya no cae de vuelta a la foto de stock del lugar: si nada de eso
+// existe, el capítulo pasa a modo "blueprint" (ver renderAlbumIndex) en vez de
+// mostrar una portada que hace parecer explorada una comuna que no lo está.
+function chapterCoverImage(locality, memories){
   const freeform = LocalityMemoryStore.getAll(locality.id)[0];
   if (freeform) return freeform.photoUrl;
-  const place = placesInLocality(locality)[0];
-  return place ? place.image : '';
+  const unlockedPlace = placesInLocality(locality).find(p => memories[p.id]);
+  return unlockedPlace ? memories[unlockedPlace.id].photoUrl : null;
 }
 
 function renderAlbumIndex(){
@@ -3764,19 +3860,35 @@ function renderAlbumIndex(){
   document.getElementById('statLocalities').textContent = exploredLocalities.size;
   document.getElementById('statMemories').textContent = memoryPlaces.length + freeformTotal + personalTotal;
 
+  // Anillo de progreso — mismo dato que ya usa el primer stat (X/Y), solo que acá
+  // se lee de un vistazo en vez de tener que leer la fracción.
+  const totalUnits = DEMO_PLACES.length;
+  const doneUnits = memoryPlaces.length;
+  const pct = totalUnits ? doneUnits / totalUnits : 0;
+  const R = 15, C = 2 * Math.PI * R;
+  document.getElementById('albumProgress').innerHTML = `
+    <svg width="36" height="36" viewBox="0 0 36 36">
+      <circle class="ap-track" cx="18" cy="18" r="${R}"/>
+      <circle class="ap-fill" cx="18" cy="18" r="${R}" stroke-dasharray="${C * pct} ${C}"/>
+    </svg>
+    <span class="ap-text"><b>${doneUnits}</b> de ${totalUnits} lugares descubiertos</span>`;
+
   albumChapters.innerHTML = '';
 
   LOCALITIES.forEach(locality => {
     const count = placesInLocality(locality).filter(p => memories[p.id]).length + LocalityMemoryStore.count(locality.id);
-    const cover = chapterCoverImage(locality);
+    const cover = chapterCoverImage(locality, memories);
     const chapter = document.createElement('div');
-    chapter.className = 'chapter-cover';
-    if (cover) chapter.style.backgroundImage = `url(${cover})`;
+    chapter.className = 'chapter-cover' + (cover ? ' has-memories' : ' blueprint');
+    if (cover){
+      chapter.style.backgroundImage = `url(${cover})`;
+    }
     chapter.innerHTML = `
+      ${cover ? '' : `<span class="bp-icon">${icon('mountain', 46)}</span>`}
       <div class="cc-row">
         <div>
           <div class="cc-name">${locality.name}</div>
-          <div class="cc-count">${count} recuerdo${count === 1 ? '' : 's'}</div>
+          <div class="cc-count">${count ? `${count} recuerdo${count === 1 ? '' : 's'}` : 'Aún sin explorar'}</div>
         </div>
         <span class="cc-arrow">${CHEVRON_RIGHT}</span>
       </div>`;
@@ -3784,16 +3896,19 @@ function renderAlbumIndex(){
     albumChapters.appendChild(chapter);
   });
 
-  // Último capítulo — álbum personal libre, sin lugares ni experiencias asociadas
-  const personalCover = PersonalMemoryStore.getAll()[0];
+  // Último capítulo — álbum personal libre, sin lugares ni experiencias asociadas.
+  // Tratamiento de polaroids en vez de portada de comuna, para diferenciarlo del
+  // resto: son recuerdos libres, no un lugar que se va "desbloqueando".
+  const personalPhotos = PersonalMemoryStore.getAll();
   const personalChapter = document.createElement('div');
-  personalChapter.className = 'chapter-cover personal';
-  if (personalCover) personalChapter.style.backgroundImage = `url(${personalCover.photoUrl})`;
+  personalChapter.className = 'chapter-cover personal' + (personalTotal ? '' : ' blueprint');
   personalChapter.innerHTML = `
+    <div class="cc-polaroid p1" style="${personalPhotos[1] ? `background-image:url(${personalPhotos[1].photoUrl})` : ''}"></div>
+    <div class="cc-polaroid p2" style="${personalPhotos[0] ? `background-image:url(${personalPhotos[0].photoUrl})` : ''}"></div>
     <div class="cc-row">
       <div>
         <div class="cc-name">Recuerdos del Choapa</div>
-        <div class="cc-count">${personalTotal} recuerdo${personalTotal === 1 ? '' : 's'}</div>
+        <div class="cc-count">${personalTotal ? `${personalTotal} recuerdo${personalTotal === 1 ? '' : 's'}` : 'Momentos libres, sin lugar fijo'}</div>
       </div>
       <span class="cc-arrow">${CHEVRON_RIGHT}</span>
     </div>`;
@@ -3848,9 +3963,8 @@ function renderLocalityAlbum(localityId){
     } else {
       card.className = 'album-card locked';
       card.innerHTML = `
-        <span class="lock-icon">${icon('lock', 20)}</span>
-        <span class="lock-type">${cat.icon}</span>
-        <span class="lock-label">Aún por descubrir</span>`;
+        <span class="lock-badge">${icon(cat.iconKey, 22)}</span>
+        <span class="lock-label">Aún sin descubrir</span>`;
       card.addEventListener('click', () => { closeAlbum(); selectPlaceById(place.id); });
     }
     albumDetailGrid.appendChild(card);
