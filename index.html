@@ -396,7 +396,7 @@ img{-webkit-user-drag:none; user-select:none;}
   display:flex; flex-direction:column;
   touch-action:none;
 }
-.sheet.expanded{height:var(--sheet-expanded);}
+.sheet.expanded{height:86vh; height:86dvh;}
 .sheet.collapsed{
   height:0; opacity:0; box-shadow:none; border-top-color:transparent;
   pointer-events:none;
@@ -1170,15 +1170,16 @@ img{-webkit-user-drag:none; user-select:none;}
         <div class="time-filters" id="timeFilters"></div>
         <div class="rail" id="experiencesRail"></div>
       </div>
-    <div class="sheet-section">
+     <div class="sheet-section">
         <div class="sheet-section-head">
           <div>
-            <div class="sheet-section-title" id="placesSectionTitle">Recomendados para ti <span class="demo-badge">● DEMO</span></div>
+            <div class="sheet-section-title" id="placesSectionTitle">Recomendados para ti</div>
             <div class="sheet-section-subtitle" id="placesSubtitle" style="display:none;"></div>
           </div>
-          <span class="sheet-see-all">Ver todo ›</span>
+          <span class="sheet-see-all" id="placesSeeAll">Ver todo ›</span>
         </div>
         <div class="rail" id="placesRail"></div>
+        <div class="guardados-grid" id="placesExpandedGrid" style="display:none; margin-top:4px;"></div>
         <div class="rail-empty" id="placesEmpty" style="display:none;">
           <span class="re-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m14.6 9.4-2 4.6-4.6 2 2-4.6Z"/></svg></span>
           <span class="re-title">Estamos explorando esta zona…</span>
@@ -3036,11 +3037,21 @@ let activeTimeFilter = 'ahora';
 
 // Un lugar por experiencia distinta (orden con intención editorial), tope de 6 —
 // así se siente curado y no como "todo lo que tenemos".
-const TODAY_CURATION_ORDER = ['aventura','cita','tranquilo','gastronomia','familia','noche','naturaleza','adrenalina'];
+// Cada franja horaria prioriza categorías distintas — así el selector cambia el
+// resultado de verdad, sin necesitar todavía datos reales de horario por lugar.
+// (availableTimes se sigue respetando en cuanto algún lugar lo declare — misma
+// arquitectura preparada de siempre, solo se le suma este criterio extra.)
+const TODAY_CURATION_ORDERS = {
+  ahora: ['aventura','cita','tranquilo','gastronomia','familia','noche','naturaleza','adrenalina'],
+  tarde: ['familia','tranquilo','gastronomia','aventura','naturaleza','cita','adrenalina','noche'],
+  noche: ['noche','cita','gastronomia','tranquilo','aventura','familia','naturaleza','adrenalina'],
+  finde: ['aventura','familia','naturaleza','adrenalina','gastronomia','cita','tranquilo','noche'],
+};
 function curateTodayExperiences(){
+  const order = TODAY_CURATION_ORDERS[activeTimeFilter] || TODAY_CURATION_ORDERS.ahora;
   const used = new Set();
   const picks = [];
-  TODAY_CURATION_ORDER.forEach(expId => {
+  order.forEach(expId => {
     if (picks.length >= 6) return;
     const place = DEMO_PLACES.find(p =>
       p.experiences.includes(expId) && !used.has(p.id) &&
@@ -3109,38 +3120,72 @@ const placesEmpty = document.getElementById('placesEmpty');
 const placesSectionTitle = document.getElementById('placesSectionTitle');
 const placesSubtitle = document.getElementById('placesSubtitle');
 
-function renderPlacesRail(){
-  placesRail.innerHTML = '';
+// Filtro compartido de "Recomendados para ti" — misma función que usan tanto el
+// carrusel horizontal como la vista "Ver todo", así nunca se desincronizan.
+// Preparado para evolucionar (punto 5 del brief): el día que existan señales
+// reales de categorías más usadas, guardados, visitados o ubicación, este es el
+// único lugar donde hay que enchufarlas — todo lo demás ya las consume desde acá.
+function getRecommendedPlaces(){
   const aliases = activeLocalityAliases();
-  const exp = expById(state.activeExperience);
-  const deepest = state.currentSublocality || state.currentLocality;
   const filtering = state.activeExperience !== 'todos';
-
-  const filtered = DEMO_PLACES.filter(p =>
+  return DEMO_PLACES.filter(p =>
     (!filtering || p.experiences.includes(state.activeExperience)) &&
     (!aliases || aliases.includes(p.locality))
   );
+}
+
+// Tarjeta para la vista "Ver todo" (lista vertical completa) — reutiliza .gd-card,
+// el mismo componente visual que ya usan Guardados y Cerca de ti.
+function buildRecommendedCard(place){
+  const cat = catById(place.category);
+  const primaryExp = place.categoryPrimary ? expById(place.categoryPrimary) : null;
+  const tagInfo = primaryExp || cat;
+  const color = getComputedStyle(document.documentElement).getPropertyValue(tagInfo.color.replace('var(','').replace(')','')).trim();
+  const card = document.createElement('div');
+  card.className = 'gd-card';
+  card.innerHTML = `
+    <div class="gd-photo" style="background-image:url(${place.image})"></div>
+    <div class="gd-info">
+      <span class="gd-tag" style="color:${color}">${tagInfo.icon}${tagInfo.label}</span>
+      <div class="gd-name">${place.name}</div>
+      <div class="gd-loc">${icon('pin', 12)}<span>${place.locality}</span></div>
+    </div>`;
+  card.addEventListener('click', () => { collapseSheet(); selectPlaceById(place.id); });
+  return card;
+}
+
+let placesExpandedView = false;
+function renderPlacesRail(){
+  placesRail.innerHTML = '';
+  const exp = expById(state.activeExperience);
+  const deepest = state.currentSublocality || state.currentLocality;
+  const filtering = state.activeExperience !== 'todos';
+  const filtered = getRecommendedPlaces();
 
   if (deepest){
     const total = placesInLocality(deepest).length;
-    placesSectionTitle.innerHTML = `${icon('pin', 15)} Explorando ${deepest.name} <span class="demo-badge">● DEMO</span>`;
+    placesSectionTitle.innerHTML = `${icon('pin', 15)} Explorando ${deepest.name}`;
     placesSubtitle.textContent = `${total} lugar${total === 1 ? '' : 'es'} por descubrir` + (filtering ? ` · ${exp.label.toLowerCase()}` : '');
     placesSubtitle.style.display = 'block';
   } else if (filtering){
     const copy = EXPERIENCE_PANEL_COPY[state.activeExperience];
-    placesSectionTitle.innerHTML = `${exp.icon} ${copy ? copy.title : exp.label} <span class="demo-badge">● DEMO</span>`;
+    placesSectionTitle.innerHTML = `${exp.icon} ${copy ? copy.title : exp.label}`;
     placesSubtitle.textContent = copy ? copy.tagline : '';
     placesSubtitle.style.display = 'block';
   } else {
-    placesSectionTitle.innerHTML = `Recomendados para ti <span class="demo-badge">● DEMO</span>`;
+    placesSectionTitle.innerHTML = `Recomendados para ti`;
     placesSubtitle.style.display = 'none';
   }
 
   placesEmpty.style.display = filtered.length ? 'none' : 'flex';
 
   filtered.forEach(place => {
-    const pcat = catById(place.category);
-    const color = getComputedStyle(document.documentElement).getPropertyValue(pcat.color.replace('var(','').replace(')','')).trim();
+    const cat = catById(place.category);
+    // Igual que en la ficha del POI / "¿Qué hacer hoy?" / Guardados / Cerca de ti:
+    // la experiencia principal manda sobre el tipo de lugar cuando existe.
+    const primaryExp = place.categoryPrimary ? expById(place.categoryPrimary) : null;
+    const tagInfo = primaryExp || cat;
+    const color = getComputedStyle(document.documentElement).getPropertyValue(tagInfo.color.replace('var(','').replace(')','')).trim();
     const card = document.createElement('div');
     card.className = 'place-card';
     card.innerHTML = `
@@ -3150,12 +3195,31 @@ function renderPlacesRail(){
       <div class="info">
         <div class="pname">${place.name}</div>
         <div class="ploc">${place.locality}</div>
-        <span class="ptag" style="color:${color}; background:rgba(255,255,255,0.06)"><span class="dot"></span>${pcat.label}</span>
+        <span class="ptag" style="color:${color}; background:rgba(255,255,255,0.06)"><span class="dot"></span>${tagInfo.label}</span>
       </div>`;
     card.addEventListener('click', () => selectPlaceById(place.id));
     placesRail.appendChild(card);
   });
+
+  if (placesExpandedView) renderPlacesExpanded(filtered);
 }
+
+function renderPlacesExpanded(filtered){
+  const grid = document.getElementById('placesExpandedGrid');
+  grid.innerHTML = '';
+  filtered.forEach(place => grid.appendChild(buildRecommendedCard(place)));
+}
+
+document.getElementById('placesSeeAll').addEventListener('click', () => {
+  placesExpandedView = !placesExpandedView;
+  const btn = document.getElementById('placesSeeAll');
+  const rail = document.getElementById('placesRail');
+  const grid = document.getElementById('placesExpandedGrid');
+  btn.textContent = placesExpandedView ? 'Ver menos ‹' : 'Ver todo ›';
+  rail.style.display = placesExpandedView ? 'none' : 'flex';
+  grid.style.display = placesExpandedView ? 'flex' : 'none';
+  if (placesExpandedView) renderPlacesExpanded(getRecommendedPlaces());
+});
 renderPlacesRail();
 function selectPlaceById(id){
   const place = DEMO_PLACES.find(p => p.id === id);
