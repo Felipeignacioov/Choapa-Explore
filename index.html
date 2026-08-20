@@ -2232,9 +2232,8 @@ function renderSublocalityMarkers(subs){
     marker._el = el;
     sublocalityMarkers.push(marker);
 
-    setTimeout(() => el.classList.remove('entering'), 40 + i * 55);
+   setTimeout(() => el.classList.remove('entering'), 40 + i * 55);
   });
-}
   scheduleCollisionCheck();
 }
 function clearSublocalityMarkers(){
