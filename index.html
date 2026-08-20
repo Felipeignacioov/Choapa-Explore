@@ -1741,6 +1741,7 @@ map.on('load', () => {
   document.getElementById('mapLoading').style.opacity = '0';
   setTimeout(() => document.getElementById('mapLoading').style.display='none', 400);
  tintMapLayers();
+  renderTerrainDepth();
   renderTerritoryFade();
   renderLocalityMarkers();
   updateExplorationLevel();
@@ -1892,6 +1893,92 @@ function tintMapLayers(){
       }
    }catch(e){ /* layer paint prop not applicable — skip */ }
   });
+}
+
+// Profundidad del territorio: relieve muy tenue + glow ambiental en las 4 comunas
+// + protagonismo sutil del Río Choapa. Todo por debajo de los POIs (que son
+// marcadores HTML, siempre por encima de cualquier capa del mapa) y sin tocar
+// tintMapLayers() ni la lógica de niveles/navegación.
+function renderTerrainDepth(){
+  const turquoise = getComputedStyle(document.documentElement).getPropertyValue('--turquoise-bright').trim() || '#5FE1E8';
+  const layers = map.getStyle().layers;
+
+  // ---- 1) Hillshade extremadamente tenue ----
+  // Fuente pública Terrarium (AWS elevation-tiles-prod) — sin API key. Se inserta
+  // justo encima del fondo y debajo de agua/calles/edificios/etiquetas, así se
+  // lee como textura de terreno, nunca como un elemento que compite con nada.
+  map.addSource('terrain-dem', {
+    type:'raster-dem',
+    tiles:['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+    tileSize:256, encoding:'terrarium', maxzoom:15,
+  });
+  const bgIndex = layers.findIndex(l => l.type === 'background');
+  const hillshadeBeforeId = (bgIndex >= 0 && layers[bgIndex + 1]) ? layers[bgIndex + 1].id : layers[0].id;
+  map.addLayer({
+    id:'hillshade-subtle', type:'hillshade', source:'terrain-dem',
+    paint:{
+      'hillshade-exaggeration':0.25,
+      'hillshade-shadow-color':'#0A1420',
+      'hillshade-highlight-color':'rgba(255,255,255,0.05)',
+      'hillshade-accent-color':'#0A1420',
+      'hillshade-illumination-direction':315,
+    },
+  }, hillshadeBeforeId);
+
+  // ---- 2) Glow territorial en las 4 comunas ----
+  // circle-blur:1 = desvanecimiento amplio y sin borde duro, tal como pide el
+  // brief — nada de canvas ni patrones, es la forma nativa de MapLibre de
+  // conseguir esto. Mismas coordenadas de LOCALITIES, ningún dato nuevo.
+  map.addSource('comuna-glow', {
+    type:'geojson',
+    data:{
+      type:'FeatureCollection',
+      features: LOCALITIES.map(loc => ({
+        type:'Feature', properties:{ name: loc.name },
+        geometry:{ type:'Point', coordinates:[loc.lng, loc.lat] },
+      })),
+    },
+  });
+  map.addLayer({
+    id:'comuna-glow-layer', type:'circle', source:'comuna-glow',
+    paint:{
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 55, 10, 130, 13, 240],
+      'circle-color': turquoise,
+      'circle-opacity': 0.07,
+      'circle-blur': 1,
+      'circle-pitch-alignment':'map',
+    },
+  });
+
+  // ---- 3) Río Choapa con protagonismo sutil ----
+  // Mismo source/source-layer que la capa "waterway" ya tinta — solo se agregan
+  // dos capas de línea filtradas al río principal por su nombre real en OSM
+  // ("Río Choapa"): un halo ancho y translúcido debajo, y un núcleo más luminoso
+  // encima. No es una ruta destacada — el núcleo es un azul natural, no el
+  // turquesa de marca; el turquesa solo se usa (muy tenue) en el halo.
+  const waterwayLayer = layers.find(l => l.id === 'waterway');
+  if (waterwayLayer){
+    const riverFilter = ['match', ['get','name'], ['Río Choapa', 'Rio Choapa'], true, false];
+    map.addLayer({
+      id:'rio-choapa-halo', type:'line',
+      source: waterwayLayer.source, 'source-layer': waterwayLayer['source-layer'],
+      filter: riverFilter,
+      paint:{
+        'line-color': turquoise, 'line-opacity':0.10,
+        'line-width': ['interpolate', ['linear'], ['zoom'], 8, 3, 14, 10],
+        'line-blur': 4,
+      },
+    });
+    map.addLayer({
+      id:'rio-choapa-core', type:'line',
+      source: waterwayLayer.source, 'source-layer': waterwayLayer['source-layer'],
+      filter: riverFilter,
+      paint:{
+        'line-color': '#3E8FA8', 'line-opacity':0.85,
+        'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.8, 14, 2.2],
+      },
+    });
+  }
 }
 
 // Difumina el mapa hacia el azul-noche de marca a medida que el usuario se acerca
