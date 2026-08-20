@@ -2364,6 +2364,14 @@ function findNearestSublocality(subs, lat, lng){
 
 // Nivel 1 → Nivel 2: vuelo suave hacia la comuna, pero SIN acercarse demasiado —
 // debe quedar visible toda su zona de influencia (localidades vecinas), no solo el centro.
+// Personalidad de vuelo por comuna — SOLO Salamanca e Illapel por ahora, para
+// validar la sensación antes de extenderlo al resto del Choapa. Cualquier otra
+// comuna sigue exactamente con el flyTo genérico de siempre, sin tocar nada.
+const COMUNA_FLIGHT = {
+  salamanca: { curve:1.55, speed:0.95, duration:780 },
+  illapel:   { curve:1.45, speed:1.0,  duration:780 },
+};
+
 function enterLocality(locality, { fly }){
   state.currentLocality = locality;
   state.currentSublocality = null;
@@ -2374,13 +2382,21 @@ function enterLocality(locality, { fly }){
     // influencia completa. Sin Nivel 2 todavía: vamos directo al detalle, igual
     // que antes, para no dejar al usuario "varado" mirando un mapa vacío.
     const zoom = hasSublocalities ? 10.6 : 13;
-    map.flyTo({ center:[locality.lng, locality.lat], zoom, duration:1400, curve:1.3, easing:t => t*(2-t) });
+    const flight = COMUNA_FLIGHT[locality.id];
+    if (flight){
+      map.flyTo({
+        center:[locality.lng, locality.lat], zoom,
+        curve:flight.curve, speed:flight.speed, duration:flight.duration,
+        easing:t => t*(2-t),
+      });
+    } else {
+      map.flyTo({ center:[locality.lng, locality.lat], zoom, duration:1400, curve:1.3, easing:t => t*(2-t) });
+    }
   }
   renderPOIs();
   updateExplorationBreadcrumb();
   renderPlacesRail();
 }
-
 function exitLocality({ fly }){
   state.currentLocality = null;
   state.currentSublocality = null;
