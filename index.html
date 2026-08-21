@@ -534,7 +534,13 @@ img{-webkit-user-drag:none; user-select:none;}
   text-shadow:0 2px 8px rgba(2,8,15,0.4);
 }
 .sheet-hero-title .accent{color:var(--turquoise-bright);}
-.sheet-hero-tagline{font-size:13px; color:var(--text-secondary); font-weight:500; margin-top:14px; text-shadow:0 1px 4px rgba(2,8,15,0.4);}
+.sheet-hero-tagline{font-size:13px; color:var(--text-secondary); font-weight:500; margin-top:14px; text-shadow:0 1px 4px rgba(2,8,15,0.4); transition:opacity .16s ease;}
+
+/* Hero más nocturno para el momento "Esta noche" — capa extra de tinte frío. */
+.sheet-hero.night::before{
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(200deg, rgba(30,20,60,0.35) 0%, rgba(7,19,31,0.1) 55%);
+}
 @keyframes hero-in{
   from{opacity:0; transform:translateY(10px);}
   to{opacity:1; transform:translateY(0);}
@@ -1436,7 +1442,7 @@ img{-webkit-user-drag:none; user-select:none;}
     <div class="sheet-body" id="sheetBody">
      <div class="sheet-hero">
         <div class="sheet-hero-title">¿Qué hacer <span class="accent">hoy</span> en el Choapa?</div>
-        <div class="sheet-hero-tagline">Descubre el mejor panorama para este momento.</div>
+        <div class="sheet-hero-tagline" id="sheetHeroTagline">Descubre el mejor panorama para este momento.</div>
       </div>
       <div class="sheet-section">
         <div class="time-filters" id="timeFilters"></div>
@@ -3466,11 +3472,21 @@ let activeTimeFilter = 'ahora';
 // resultado de verdad, sin necesitar todavía datos reales de horario por lugar.
 // (availableTimes se sigue respetando en cuanto algún lugar lo declare — misma
 // arquitectura preparada de siempre, solo se le suma este criterio extra.)
+// Acotado a lo que realmente tiene sentido en cada momento (no las 8 experiencias
+// reordenadas) — así el contenido cambia de verdad, no solo el orden. Se reutiliza
+// esta MISMA lista para reordenar "Sigue explorando", "Colecciones" y el cierre
+// editorial, así los 5 bloques narran el mismo momento de forma coherente.
 const TODAY_CURATION_ORDERS = {
-  ahora: ['aventura','cita','tranquilo','gastronomia','familia','noche','naturaleza','adrenalina'],
-  tarde: ['familia','tranquilo','gastronomia','aventura','naturaleza','cita','adrenalina','noche'],
-  noche: ['noche','cita','gastronomia','tranquilo','aventura','familia','naturaleza','adrenalina'],
-  finde: ['aventura','familia','naturaleza','adrenalina','gastronomia','cita','tranquilo','noche'],
+  ahora: ['naturaleza','tranquilo','gastronomia','aventura'],
+  tarde: ['tranquilo','aventura','familia','gastronomia','cita'],
+  noche: ['noche','gastronomia','tranquilo','cita'],
+  finde: ['aventura','naturaleza','familia','adrenalina'],
+};
+const HERO_SUBTITLES = {
+  ahora: 'Descubre el mejor panorama para este momento.',
+  tarde: 'Aprovecha las últimas horas de luz.',
+  noche: 'El valle bajo un cielo distinto.',
+  finde: 'Planifica tu próxima escapada por el Choapa.',
 };
 function curateTodayExperiences(){
   const order = TODAY_CURATION_ORDERS[activeTimeFilter] || TODAY_CURATION_ORDERS.ahora;
@@ -3496,12 +3512,37 @@ function renderTimeFilters(){
     chip.addEventListener('click', () => {
       activeTimeFilter = tf.id;
       renderTimeFilters();
-      renderTodayRail();
+      applyMomentTransition();
     });
     timeFilters.appendChild(chip);
   });
 }
 
+// Al cambiar de momento, los 5 bloques narrativos (Hero, destacada, "Sigue
+// explorando", "Colecciones", cierre) se desvanecen juntos, se actualizan, y
+// vuelven a aparecer — nunca se siente como una recarga de pantalla.
+function updateMomentContent(){
+  const tagline = document.getElementById('sheetHeroTagline');
+  if (tagline) tagline.textContent = HERO_SUBTITLES[activeTimeFilter] || HERO_SUBTITLES.ahora;
+  if (sheetHero) sheetHero.classList.toggle('night', activeTimeFilter === 'noche');
+  renderTodayRail();
+  renderExploreMoreRail();
+  renderCollectionsRail();
+  renderClosingFeature();
+}
+function applyMomentTransition(){
+  const targets = [
+    sheetHero, todayFeatured,
+    document.getElementById('exploreMoreRail'),
+    document.getElementById('collectionsRail'),
+    document.getElementById('closingFeature'),
+  ].filter(Boolean);
+  targets.forEach(el => { el.style.transition = 'opacity .16s ease'; el.style.opacity = '0'; });
+  setTimeout(() => {
+    updateMomentContent();
+    targets.forEach(el => { el.style.opacity = '1'; });
+  }, 160);
+}
 function buildTodayTagInfo(place){
   const cat = catById(place.category);
   const primaryExp = place.categoryPrimary ? expById(place.categoryPrimary) : null;
@@ -3691,7 +3732,15 @@ function renderExploreMoreRail(){
   const wrap = document.getElementById('exploreMoreRail');
   if (!wrap) return;
   wrap.innerHTML = '';
-  LOCALITIES.forEach(loc => {
+  const momentTags = TODAY_CURATION_ORDERS[activeTimeFilter] || TODAY_CURATION_ORDERS.ahora;
+  const ordered = LOCALITIES
+    .map(loc => ({
+      loc,
+      relevant: placesInLocality(loc).filter(p => p.experiences.some(e => momentTags.includes(e))).length,
+    }))
+    .sort((a, b) => b.relevant - a.relevant)
+    .map(x => x.loc);
+  ordered.forEach(loc => {
     const count = placesInLocality(loc).length;
     const card = document.createElement('div');
     card.className = 'zone-card';
@@ -3720,7 +3769,11 @@ function renderCollectionsRail(){
   const wrap = document.getElementById('collectionsRail');
   if (!wrap) return;
   wrap.innerHTML = '';
-  COLLECTIONS.forEach(col => {
+  const momentTags = TODAY_CURATION_ORDERS[activeTimeFilter] || TODAY_CURATION_ORDERS.ahora;
+  const ordered = [...COLLECTIONS].sort((a, b) =>
+    (momentTags.includes(a.experience) ? 0 : 1) - (momentTags.includes(b.experience) ? 0 : 1)
+  );
+  ordered.forEach(col => {
     const exp = expById(col.experience);
     const color = getComputedStyle(document.documentElement).getPropertyValue(exp.color.replace('var(','').replace(')','')).trim();
     const card = document.createElement('div');
@@ -3737,7 +3790,17 @@ function renderCollectionsRail(){
 function renderClosingFeature(){
   const wrap = document.getElementById('closingFeature');
   if (!wrap) return;
-  const loc = state.currentLocality || LOCALITIES.find(l => l.id === 'salamanca') || LOCALITIES[0];
+  let loc = state.currentLocality;
+  if (!loc){
+    // Sin comuna activa: la más relevante para el momento actual, no siempre
+    // Salamanca — así el cierre editorial también narra "Esta noche"/"Fin de
+    // semana", etc.
+    const momentTags = TODAY_CURATION_ORDERS[activeTimeFilter] || TODAY_CURATION_ORDERS.ahora;
+    const ranked = LOCALITIES
+      .map(l => ({ l, relevant: placesInLocality(l).filter(p => p.experiences.some(e => momentTags.includes(e))).length }))
+      .sort((a, b) => b.relevant - a.relevant);
+    loc = (ranked[0] && ranked[0].relevant > 0) ? ranked[0].l : (LOCALITIES.find(l => l.id === 'salamanca') || LOCALITIES[0]);
+  }
   const count = placesInLocality(loc).length;
   wrap.innerHTML = `
     <div class="closing-card" style="background-image:url(${communeHeroImage(loc)})">
