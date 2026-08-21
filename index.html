@@ -489,6 +489,13 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 
 .sheet-section{padding:18px 18px 6px;}
+/* Solo la sección justo después del Hero sube y se superpone levemente sobre su
+   borde inferior — el resto de secciones (ej. "Recomendados para ti") no se toca. */
+.sheet-hero + .sheet-section{
+  margin-top:-12px; position:relative; z-index:1;
+  background:linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-primary) 100%);
+  border-radius:18px 18px 0 0;
+}
 .sheet-section-head{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:12px;}
 .sheet-section-title{font-family:var(--font-display); font-size:17px; font-weight:700; letter-spacing:-0.1px;}
 .sheet-section-title svg{vertical-align:-3px; color:var(--turquoise-bright); margin-right:1px;}
@@ -510,12 +517,15 @@ img{-webkit-user-drag:none; user-select:none;}
 /* Hero contextual — reemplaza al viejo título suelto de la sección. Aquí vive el
    protagonismo del panel al abrirse. */
 .sheet-hero{
+  --hero-img: url('assets/cerro-chico/02-vista-aerea.jpg');
   position:relative;
   padding:24px 20px 26px; min-height:190px;
   display:flex; flex-direction:column; justify-content:flex-end;
+  /* Arriba muy limpio (protagonismo del paisaje), oscurecimiento fuerte solo en
+     el último 30% — el título gana contraste sin que la foto pierda presencia. */
   background:
-    linear-gradient(180deg, rgba(7,19,31,0.12) 0%, rgba(7,19,31,0.5) 55%, rgba(7,19,31,0.93) 100%),
-    url('assets/cerro-chico/02-vista-aerea.jpg') center/cover no-repeat;
+    linear-gradient(180deg, rgba(7,19,31,0.05) 0%, rgba(7,19,31,0.15) 45%, rgba(7,19,31,0.4) 70%, rgba(7,19,31,0.97) 100%),
+    var(--hero-img) center/cover no-repeat;
   animation:hero-in .5s cubic-bezier(.2,.9,.28,1.05) backwards;
 }
 .sheet-hero-title{
@@ -1417,7 +1427,7 @@ img{-webkit-user-drag:none; user-select:none;}
       <svg viewBox="0 0 24 24" fill="none"><path d="M12 20s-7-4.4-9.5-9C.8 7.4 3 4 6.5 4 9 4 11 6 12 7.5 13 6 15 4 17.5 4 21 4 23.2 7.4 21.5 11 19 15.6 12 20 12 20Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
       Guardados
     </button>
-    <button class="nav-item main active">
+    <button class="nav-item main active" id="navMapMain">
       <span class="icon-wrap"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M9 3 3 5.5v15L9 18l6 2.5 6-2.5v-15L15 5.5 9 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 3v15M15 5.5v15" stroke="currentColor" stroke-width="1.8"/></svg></span>
     </button>
    <button class="nav-item" id="navNearby">
@@ -2549,6 +2559,7 @@ function enterLocality(locality, { fly }){
   state.currentLocality = locality;
   state.currentSublocality = null;
   updateZonePrompt();
+  updateSheetHero();
   const hasSublocalities = (SUBLOCALITIES[locality.id] || []).length > 0;
   if (fly){
     // Con Nivel 2 cargado: nos quedamos a media distancia para ver la zona de
@@ -2574,6 +2585,7 @@ function exitLocality({ fly }){
   state.currentLocality = null;
   state.currentSublocality = null;
   updateZonePrompt();
+  updateSheetHero();
   clearSublocalityMarkers();
   if (fly){
     map.fitBounds(CHOAPA_BOUNDS, { padding:{ top:220, bottom:280, left:40, right:40 }, duration:1200 });
@@ -3700,7 +3712,37 @@ function collapseSheet(){
   updateChromeOffset();
 }
 
+// Hero contextual — arquitectura lista para que la portada represente la comuna
+// que se está explorando. Hoy solo Salamanca tiene foto real (Cerro Chico); el
+// resto cae al Hero por defecto hasta tener fotografías verificadas de cada una
+// — no se inventa ninguna imagen mientras tanto. Se engancha a enterLocality/
+// exitLocality, que ya existen, sin tocar su lógica de navegación.
+const sheetHero = document.querySelector('.sheet-hero');
+const COMUNA_HERO_IMAGES = {
+  salamanca: 'assets/cerro-chico/02-vista-aerea.jpg',
+  illapel: null,
+  canela: null,
+  losvilos: null,
+};
+function updateSheetHero(){
+  const localityId = state.currentLocality ? state.currentLocality.id : null;
+  const img = localityId ? COMUNA_HERO_IMAGES[localityId] : null;
+  if (img) sheetHero.style.setProperty('--hero-img', `url('${img}')`);
+  else sheetHero.style.removeProperty('--hero-img');
+}
+
 sheetPill.addEventListener('click', expandSheet);
+
+// Tocar el botón del mapa, o tocar el mapa mismo (la franja visible arriba de la
+// sheet), cierra la sheet abierta/expandida — la misma intención en ambos casos:
+// "quiero volver a ver el mapa". map.on('click') (no un listener de DOM en #map)
+// para que solo dispare con un tap real, nunca durante un pan/zoom del mapa.
+document.getElementById('navMapMain').addEventListener('click', () => {
+  if (!sheet.classList.contains('collapsed')) collapseSheet();
+});
+map.on('click', () => {
+  if (!sheet.classList.contains('collapsed')) collapseSheet();
+});
 sheetHandle.addEventListener('click', () => {
   // expandido → abierto (compacto) → píldora
   if (sheet.classList.contains('expanded')) openSheet();
