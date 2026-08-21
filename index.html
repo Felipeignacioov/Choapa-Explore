@@ -435,7 +435,11 @@ img{-webkit-user-drag:none; user-select:none;}
 .sheet{
   position:absolute; left:0; right:0; bottom:0; z-index:20;
   height:var(--sheet-compact);
-  background:linear-gradient(180deg, var(--bg-night) 0%, var(--bg-primary) 100%);
+  /* Franja superior semi-transparente + blur: el mapa se insinúa detrás, dando
+     continuidad visual entre el territorio y el panel — se vuelve sólido a
+     partir de los ~260px, donde empieza el contenido normal. */
+  background:linear-gradient(180deg, rgba(11,23,38,0.6) 0px, rgba(11,23,38,0.9) 170px, var(--bg-primary) 260px);
+  backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
   border-top:1px solid var(--border-glass);
   border-radius:24px 24px 0 0;
   box-shadow:var(--shadow-sheet), inset 0 1px 0 rgba(255,255,255,0.05);
@@ -473,8 +477,11 @@ img{-webkit-user-drag:none; user-select:none;}
 @media (min-width:640px){ .sheet-pill{max-width:608px; left:50%; transform:translateX(-50%);} .sheet-pill.hidden{transform:translateX(-50%) translateY(10px) scale(0.97);} }
 
 .sheet-handle-area{padding:10px 0 4px; display:flex; justify-content:center; flex-shrink:0; cursor:grab;}
-.sheet-handle{width:38px; height:4px; border-radius:var(--radius-pill); background:var(--border-subtle);}
-
+.sheet-handle{
+  width:46px; height:4px; border-radius:var(--radius-pill);
+  background:linear-gradient(90deg, rgba(145,164,184,0.16), rgba(95,225,232,0.4), rgba(145,164,184,0.16));
+  box-shadow:0 0 8px rgba(95,225,232,0.18);
+}
 .sheet-body{
   flex:1; overflow-y:auto; overscroll-behavior:contain;
   padding:4px 0 calc(96px + var(--safe-bottom));
@@ -497,8 +504,70 @@ img{-webkit-user-drag:none; user-select:none;}
   padding:3px 8px; border-radius:6px; margin-left:8px; vertical-align:middle;
 }
 
-.rail{display:flex; gap:11px; overflow-x:auto; scrollbar-width:none; padding:0 18px 6px; margin:0 -18px;}
+.rail{display:flex; gap:13px; overflow-x:auto; scrollbar-width:none; padding:0 18px 6px; margin:0 -18px;}
 .rail::-webkit-scrollbar{display:none;}
+
+/* Hero contextual — reemplaza al viejo título suelto de la sección. Aquí vive el
+   protagonismo del panel al abrirse. */
+.sheet-hero{
+  padding:22px 20px 24px; min-height:150px;
+  display:flex; flex-direction:column; justify-content:flex-end;
+  animation:hero-in .5s cubic-bezier(.2,.9,.28,1.05) backwards;
+}
+.sheet-hero-title{
+  font-family:var(--font-display); font-size:22px; font-weight:800; letter-spacing:-0.2px;
+  color:var(--text-primary); line-height:1.22;
+}
+.sheet-hero-title .accent{color:var(--turquoise-bright);}
+.sheet-hero-tagline{font-size:13px; color:var(--text-secondary); font-weight:500; margin-top:6px;}
+@keyframes hero-in{
+  from{opacity:0; transform:translateY(10px);}
+  to{opacity:1; transform:translateY(0);}
+}
+
+/* Tarjeta destacada — la recomendación principal del momento, antes del carrusel. */
+.featured-today{margin-bottom:6px;}
+.featured-eyebrow{
+  display:flex; align-items:center; gap:6px;
+  font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;
+  color:var(--turquoise-bright); margin-bottom:9px;
+}
+.featured-card{
+  border-radius:var(--radius-l); overflow:hidden;
+  background:var(--surface); border:1px solid var(--border-glass);
+  box-shadow:var(--shadow-card), inset 0 1px 0 rgba(255,255,255,0.05);
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1);
+  animation:featured-in .45s cubic-bezier(.2,.9,.28,1.05) backwards;
+  animation-delay:80ms;
+}
+.featured-card:active{transform:scale(0.98);}
+.featured-card .photo{position:relative; height:186px; width:100%; background:var(--surface-elevated) center/cover no-repeat;}
+.featured-card .photo::after{
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(to bottom, rgba(7,19,31,0) 40%, rgba(7,19,31,0.68) 100%);
+}
+.featured-card .featured-badge{
+  position:absolute; top:11px; left:11px; z-index:1;
+  display:flex; align-items:center; gap:4px;
+  font-size:10.5px; font-weight:700; color:#04222A;
+  background:var(--turquoise-bright); padding:5px 11px 5px 8px; border-radius:var(--radius-pill);
+}
+.featured-card .tc-tag{
+  position:absolute; right:11px; bottom:11px; z-index:1;
+  display:flex; align-items:center; gap:5px;
+  font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.3px;
+  background:rgba(8,19,31,0.6); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  padding:5px 10px; border-radius:var(--radius-pill);
+}
+.featured-card .tc-info{padding:14px 16px 16px;}
+.featured-card .tc-name{font-family:var(--font-display); font-size:17px; font-weight:700; margin-bottom:5px; letter-spacing:-0.1px;}
+.featured-card .tc-loc{display:flex; align-items:center; gap:5px; font-size:11.5px; color:var(--text-secondary); margin-bottom:8px;}
+.featured-card .tc-loc svg{flex-shrink:0; color:var(--text-tertiary);}
+.featured-card .tc-desc{font-size:12.5px; line-height:1.5; color:var(--text-secondary);}
+@keyframes featured-in{
+  from{opacity:0; transform:translateY(16px) scale(0.97);}
+  to{opacity:1; transform:translateY(0) scale(1);}
+}
 
 .exp-card{
   flex-shrink:0; width:148px; padding:13px;
@@ -532,8 +601,14 @@ img{-webkit-user-drag:none; user-select:none;}
   background:var(--surface); border:1px solid var(--border-glass);
   box-shadow:var(--shadow-card), inset 0 1px 0 rgba(255,255,255,0.05);
   transition:transform .16s cubic-bezier(.34,1.56,.64,1);
+  animation:tc-in .38s cubic-bezier(.2,.9,.28,1.1) backwards;
+  animation-delay:var(--tc-delay, 0ms);
 }
 .today-card:active{transform:scale(0.97);}
+@keyframes tc-in{
+  from{opacity:0; transform:translateY(14px) scale(0.96);}
+  to{opacity:1; transform:translateY(0) scale(1);}
+}
 .today-card .photo{position:relative; height:118px; width:100%; background:var(--surface-elevated) center/cover no-repeat;}
 .today-card .photo::after{
   content:''; position:absolute; inset:0;
@@ -553,7 +628,7 @@ img{-webkit-user-drag:none; user-select:none;}
   background:rgba(8,19,31,0.6); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
   padding:4px 9px; border-radius:var(--radius-pill);
 }
-.today-card .tc-info{padding:11px 13px 13px;}
+.today-card .tc-info{padding:12px 14px 14px;}
 .today-card .tc-name{font-size:13.5px; font-weight:700; line-height:1.28; margin-bottom:4px; letter-spacing:-0.1px;}
 .today-card .tc-loc{display:flex; align-items:center; gap:4px; font-size:10.5px; color:var(--text-secondary); margin-bottom:6px;}
 .today-card .tc-loc svg{flex-shrink:0; color:var(--text-tertiary);}
@@ -1299,14 +1374,13 @@ img{-webkit-user-drag:none; user-select:none;}
   <div class="sheet collapsed" id="sheet">
     <div class="sheet-handle-area" id="sheetHandle"><div class="sheet-handle"></div></div>
     <div class="sheet-body" id="sheetBody">
-     <div class="sheet-section">
-        <div class="sheet-section-head">
-          <div>
-            <div class="sheet-section-title">¿Qué hacer <span class="accent">hoy</span> en el Choapa?</div>
-            <div class="sheet-section-subtitle">Experiencias que puedes disfrutar hoy.</div>
-          </div>
-        </div>
+     <div class="sheet-hero">
+        <div class="sheet-hero-title">¿Qué hacer <span class="accent">hoy</span> en el Choapa?</div>
+        <div class="sheet-hero-tagline">Descubre el mejor panorama para este momento.</div>
+      </div>
+      <div class="sheet-section">
         <div class="time-filters" id="timeFilters"></div>
+        <div class="featured-today" id="todayFeatured"></div>
         <div class="rail" id="experiencesRail"></div>
       </div>
      <div class="sheet-section">
@@ -3315,6 +3389,7 @@ function setActiveExperience(id){
 // DEMO_PLACES/EXPERIENCE_TAGS de siempre; nada de datos ni sistema paralelo.
 const experiencesRail = document.getElementById('experiencesRail');
 const timeFilters = document.getElementById('timeFilters');
+const todayFeatured = document.getElementById('todayFeatured');
 
 // Franjas horarias — arquitectura lista para filtrar de verdad más adelante
 // (día/hora/ubicación/eventos). Hoy en día un lugar puede declarar en qué
@@ -3371,11 +3446,21 @@ function renderTimeFilters(){
   });
 }
 
+function buildTodayTagInfo(place){
+  const cat = catById(place.category);
+  const primaryExp = place.categoryPrimary ? expById(place.categoryPrimary) : null;
+  const tagInfo = primaryExp || cat;
+  const color = getComputedStyle(document.documentElement).getPropertyValue(tagInfo.color.replace('var(','').replace(')','')).trim();
+  return { tagInfo, color };
+}
+
 function renderTodayRail(){
   experiencesRail.innerHTML = '';
+  todayFeatured.innerHTML = '';
   const picks = curateTodayExperiences();
 
   if (!picks.length){
+    todayFeatured.style.display = 'none';
     experiencesRail.innerHTML = `<div class="rail-empty">
       <span class="re-icon">${icon('sparkle', 22)}</span>
       <span class="re-title">Estamos preparando la selección de hoy…</span>
@@ -3384,14 +3469,31 @@ function renderTodayRail(){
     return;
   }
 
-  picks.forEach(place => {
-    const cat = catById(place.category);
-    const primaryExp = place.categoryPrimary ? expById(place.categoryPrimary) : null;
-    const tagInfo = primaryExp || cat;
-    const color = getComputedStyle(document.documentElement).getPropertyValue(tagInfo.color.replace('var(','').replace(')','')).trim();
+  // La primera experiencia curada se destaca como la recomendación principal del
+  // momento — el resto sigue en el carrusel horizontal, exactamente como antes.
+  const [featured, ...rest] = picks;
+  todayFeatured.style.display = 'block';
+  const featuredTag = buildTodayTagInfo(featured);
+  todayFeatured.innerHTML = `
+    <div class="featured-eyebrow">${icon('sparkle', 11)} Recomendación de ahora</div>
+    <div class="featured-card">
+      <div class="photo" style="background-image:url(${featured.image})">
+        <span class="featured-badge">${icon('sparkle', 11)}Hoy</span>
+        <span class="tc-tag" style="color:${featuredTag.color}">${featuredTag.tagInfo.icon}${featuredTag.tagInfo.label}</span>
+      </div>
+      <div class="tc-info">
+        <div class="tc-name">${featured.name}</div>
+        <div class="tc-loc">${icon('pin', 12)}<span>${featured.locality}</span></div>
+        <div class="tc-desc">${featured.description || ''}</div>
+      </div>
+    </div>`;
+  todayFeatured.querySelector('.featured-card').addEventListener('click', () => { collapseSheet(); selectPlaceById(featured.id); });
 
+  rest.forEach((place, i) => {
+    const { tagInfo, color } = buildTodayTagInfo(place);
     const card = document.createElement('div');
     card.className = 'today-card';
+    card.style.setProperty('--tc-delay', (i * 45) + 'ms');
     card.innerHTML = `
       <div class="photo" style="background-image:url(${place.image})">
         <span class="today-badge">${icon('sparkle', 11)}Hoy</span>
