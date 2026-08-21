@@ -644,6 +644,51 @@ img{-webkit-user-drag:none; user-select:none;}
   padding:4px 9px; border-radius:var(--radius-pill);
 }
 .today-card .tc-info{padding:12px 14px 14px;}
+
+/* "Sigue explorando" — invita a cambiar de territorio, no a otra experiencia. */
+.zone-card{
+  flex-shrink:0; width:200px; border-radius:var(--radius-l); overflow:hidden;
+  background:var(--surface); border:1px solid var(--border-glass);
+  box-shadow:var(--shadow-card), inset 0 1px 0 rgba(255,255,255,0.05);
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1);
+}
+.zone-card:active{transform:scale(0.97);}
+.zone-card .photo{height:104px; width:100%; background:var(--surface-elevated) center/cover no-repeat;}
+.zone-card .zc-info{padding:12px 13px 13px;}
+.zone-card .zc-name{font-family:var(--font-display); font-size:14.5px; font-weight:700; margin-bottom:4px;}
+.zone-card .zc-blurb{
+  font-size:11px; line-height:1.4; color:var(--text-secondary); margin-bottom:7px;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+.zone-card .zc-count{font-size:10.5px; font-weight:700; color:var(--turquoise-bright);}
+
+/* "Colecciones del Choapa" — formas de descubrir, no lugares puntuales. */
+.collection-card{
+  flex-shrink:0; display:flex; align-items:center; gap:9px;
+  padding:12px 16px; border-radius:var(--radius-pill);
+  background:rgba(255,255,255,0.04); border:1px solid var(--border-glass);
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1);
+}
+.collection-card:active{transform:scale(0.96);}
+.collection-card .col-icon{color:var(--col-color, var(--turquoise-bright)); display:flex;}
+.collection-card .col-title{font-size:12.5px; font-weight:700; color:var(--text-primary); white-space:nowrap;}
+
+/* Cierre editorial — portada de ancho completo, una sola comuna destacada. */
+.closing-card{
+  position:relative; min-height:150px; border-radius:var(--radius-l); overflow:hidden;
+  background:var(--surface) center/cover no-repeat; border:1px solid var(--border-glass);
+  box-shadow:var(--shadow-card); display:flex; align-items:flex-end;
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1);
+}
+.closing-card:active{transform:scale(0.98);}
+.closing-card::after{
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(180deg, rgba(7,19,31,0.05) 40%, rgba(7,19,31,0.88) 100%);
+}
+.closing-card .cf-inner{position:relative; z-index:1; padding:18px;}
+.closing-card .cf-eyebrow{font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--turquoise-bright); margin-bottom:4px;}
+.closing-card .cf-title{font-family:var(--font-display); font-size:21px; font-weight:800; color:#fff; margin-bottom:5px;}
+.closing-card .cf-meta{font-size:11.5px; color:rgba(255,255,255,0.75);}
 .today-card .tc-name{font-size:13.5px; font-weight:700; line-height:1.28; margin-bottom:4px; letter-spacing:-0.1px;}
 .today-card .tc-loc{display:flex; align-items:center; gap:4px; font-size:10.5px; color:var(--text-secondary); margin-bottom:6px;}
 .today-card .tc-loc svg{flex-shrink:0; color:var(--text-tertiary);}
@@ -1398,22 +1443,16 @@ img{-webkit-user-drag:none; user-select:none;}
         <div class="featured-today" id="todayFeatured"></div>
         <div class="rail" id="experiencesRail"></div>
       </div>
-     <div class="sheet-section">
-        <div class="sheet-section-head">
-          <div>
-            <div class="sheet-section-title" id="placesSectionTitle">Recomendados para ti</div>
-            <div class="sheet-section-subtitle" id="placesSubtitle" style="display:none;"></div>
-          </div>
-          <span class="sheet-see-all" id="placesSeeAll">Ver todo ›</span>
-        </div>
-        <div class="rail" id="placesRail"></div>
-        <div class="guardados-grid" id="placesExpandedGrid" style="display:none; margin-top:4px;"></div>
-        <div class="rail-empty" id="placesEmpty" style="display:none;">
-          <span class="re-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m14.6 9.4-2 4.6-4.6 2 2-4.6Z"/></svg></span>
-          <span class="re-title">Estamos explorando esta zona…</span>
-          <span>Pronto encontrarás nuevos lugares aquí.</span>
-        </div>
+      <div class="sheet-section">
+        <div class="sheet-section-title">Sigue explorando</div>
+        <div class="rail" id="exploreMoreRail" style="margin-top:11px;"></div>
       </div>
+      <div class="sheet-section">
+        <div class="sheet-section-title">Colecciones del Choapa</div>
+        <div class="sheet-section-subtitle">Formas de descubrir el valle.</div>
+        <div class="rail" id="collectionsRail" style="margin-top:11px;"></div>
+      </div>
+      <div class="sheet-section" id="closingFeature"></div>
     </div>
   </div>
 
@@ -3569,6 +3608,7 @@ function buildRecommendedCard(place){
 
 let placesExpandedView = false;
 function renderPlacesRail(){
+  if (!placesRail) return; // sección "Recomendados para ti" retirada — no-op seguro
   placesRail.innerHTML = '';
   const exp = expById(state.activeExperience);
   const deepest = state.currentSublocality || state.currentLocality;
@@ -3623,16 +3663,96 @@ function renderPlacesExpanded(filtered){
   filtered.forEach(place => grid.appendChild(buildRecommendedCard(place)));
 }
 
-document.getElementById('placesSeeAll').addEventListener('click', () => {
-  placesExpandedView = !placesExpandedView;
-  const btn = document.getElementById('placesSeeAll');
-  const rail = document.getElementById('placesRail');
-  const grid = document.getElementById('placesExpandedGrid');
-  btn.textContent = placesExpandedView ? 'Ver menos ‹' : 'Ver todo ›';
-  rail.style.display = placesExpandedView ? 'none' : 'flex';
-  grid.style.display = placesExpandedView ? 'flex' : 'none';
-  if (placesExpandedView) renderPlacesExpanded(getRecommendedPlaces());
-});
+/* ---------- "Sigue explorando" / "Colecciones del Choapa" / cierre editorial ----------
+   Reemplaza a "Recomendados para ti": en vez de repetir experiencias puntuales,
+   invita a cambiar de territorio o a explorar por tema. Reutiliza EXACTAMENTE
+   LOCALITIES, placesInLocality(), EXPERIENCE_TAGS y setActiveExperience() — nada
+   de datos ni arquitectura nueva. */
+
+// Blurbs editoriales breves por comuna — descripción de carácter general, no
+// afirmaciones sobre negocios específicos (mismo criterio que el resto del copy).
+const COMUNA_BLURBS = {
+  salamanca: 'Cerros con petroglifos, ríos y el corazón histórico del valle.',
+  illapel:   'Capital provincial entre montañas, con historia minera y valles fértiles.',
+  canela:    'Cerros costeros y cielos despejados hacia el Pacífico.',
+  losvilos:  'Costa, caletas y el océano como protagonista.',
+};
+// Imagen representativa de cada comuna: la real si ya existe (COMUNA_HERO_IMAGES,
+// hoy solo Salamanca), o si no, la del primer lugar cargado ahí — mismas fotos
+// que la app ya usa en otras partes para esa comuna, ninguna nueva.
+function communeHeroImage(locality){
+  const real = COMUNA_HERO_IMAGES[locality.id];
+  if (real) return real;
+  const first = placesInLocality(locality)[0];
+  return first ? first.image : '';
+}
+
+function renderExploreMoreRail(){
+  const wrap = document.getElementById('exploreMoreRail');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  LOCALITIES.forEach(loc => {
+    const count = placesInLocality(loc).length;
+    const card = document.createElement('div');
+    card.className = 'zone-card';
+    card.innerHTML = `
+      <div class="photo" style="background-image:url(${communeHeroImage(loc)})"></div>
+      <div class="zc-info">
+        <div class="zc-name">${loc.name}</div>
+        <div class="zc-blurb">${COMUNA_BLURBS[loc.id] || ''}</div>
+        <div class="zc-count">${count} experiencia${count === 1 ? '' : 's'}</div>
+      </div>`;
+    card.addEventListener('click', () => { collapseSheet(); enterLocality(loc, { fly:true }); });
+    wrap.appendChild(card);
+  });
+}
+
+// Cada colección es una forma de descubrir, mapeada a una experiencia que ya
+// existe — tocarla filtra el mapa exactamente como un chip de categoría.
+const COLLECTIONS = [
+  { title:'Atardeceres del Choapa', iconKey:'sunset',      experience:'tranquilo' },
+  { title:'Pozones escondidos',     iconKey:'aventura',    experience:'aventura' },
+  { title:'Miradores imperdibles',  iconKey:'naturaleza',  experience:'naturaleza' },
+  { title:'Sabores del valle',      iconKey:'gastronomia', experience:'gastronomia' },
+  { title:'Bajo las estrellas',     iconKey:'noche',       experience:'noche' },
+];
+function renderCollectionsRail(){
+  const wrap = document.getElementById('collectionsRail');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  COLLECTIONS.forEach(col => {
+    const exp = expById(col.experience);
+    const color = getComputedStyle(document.documentElement).getPropertyValue(exp.color.replace('var(','').replace(')','')).trim();
+    const card = document.createElement('div');
+    card.className = 'collection-card';
+    card.style.setProperty('--col-color', color);
+    card.innerHTML = `<span class="col-icon">${icon(col.iconKey, 20)}</span><span class="col-title">${col.title}</span>`;
+    card.addEventListener('click', () => { collapseSheet(); setActiveExperience(col.experience); });
+    wrap.appendChild(card);
+  });
+}
+
+// Cierre editorial: la comuna que se esté explorando (state.currentLocality), o
+// Salamanca por defecto — es la única con POI 100% real (Cerro Chico) hoy.
+function renderClosingFeature(){
+  const wrap = document.getElementById('closingFeature');
+  if (!wrap) return;
+  const loc = state.currentLocality || LOCALITIES.find(l => l.id === 'salamanca') || LOCALITIES[0];
+  const count = placesInLocality(loc).length;
+  wrap.innerHTML = `
+    <div class="closing-card" style="background-image:url(${communeHeroImage(loc)})">
+      <div class="cf-inner">
+        <div class="cf-eyebrow">Descubre</div>
+        <div class="cf-title">${loc.name}</div>
+        <div class="cf-meta">${count} experiencia${count === 1 ? '' : 's'} · ${COMUNA_BLURBS[loc.id] || ''}</div>
+      </div>
+    </div>`;
+  wrap.querySelector('.closing-card').addEventListener('click', () => { collapseSheet(); enterLocality(loc, { fly:true }); });
+}
+
+renderExploreMoreRail();
+renderCollectionsRail();
+renderClosingFeature();
 renderPlacesRail();
 function selectPlaceById(id){
   const place = DEMO_PLACES.find(p => p.id === id);
@@ -3729,6 +3849,7 @@ function updateSheetHero(){
   const img = localityId ? COMUNA_HERO_IMAGES[localityId] : null;
   if (img) sheetHero.style.setProperty('--hero-img', `url('${img}')`);
   else sheetHero.style.removeProperty('--hero-img');
+  renderClosingFeature(); // el cierre editorial sigue a la comuna que se explora
 }
 
 sheetPill.addEventListener('click', expandSheet);
