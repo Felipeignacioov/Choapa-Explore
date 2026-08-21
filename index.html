@@ -3750,9 +3750,6 @@ function renderClosingFeature(){
   wrap.querySelector('.closing-card').addEventListener('click', () => { collapseSheet(); enterLocality(loc, { fly:true }); });
 }
 
-renderExploreMoreRail();
-renderCollectionsRail();
-renderClosingFeature();
 renderPlacesRail();
 function selectPlaceById(id){
   const place = DEMO_PLACES.find(p => p.id === id);
@@ -3851,7 +3848,11 @@ function updateSheetHero(){
   else sheetHero.style.removeProperty('--hero-img');
   renderClosingFeature(); // el cierre editorial sigue a la comuna que se explora
 }
-
+// Primer render de las 3 secciones editoriales — recién acá COMUNA_HERO_IMAGES
+// ya existe (se declaró un par de líneas arriba), así que es seguro llamarlas.
+renderExploreMoreRail();
+renderCollectionsRail();
+renderClosingFeature();
 sheetPill.addEventListener('click', expandSheet);
 
 // Tocar el botón del mapa, o tocar el mapa mismo (la franja visible arriba de la
