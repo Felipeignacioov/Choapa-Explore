@@ -3928,10 +3928,17 @@ document.getElementById('navMapMain').addEventListener('click', () => {
 map.on('click', () => {
   if (!sheet.classList.contains('collapsed')) collapseSheet();
 });
+// Cualquier toque fuera del sheet (y fuera de su píldora) cierra el sheet —
+// buscador, chips, header, POIs, comunas, lo que sea. Usa capture:true para
+// enterarse del toque antes de que cualquier otro handler decida detener su
+// propagación, así nunca se queda "sordo" a un tap externo.
+document.addEventListener('click', (e) => {
+  if (sheet.classList.contains('collapsed')) return;
+  if (e.target.closest('#sheet') || e.target.closest('#sheetPill')) return;
+  collapseSheet();
+}, true);
 sheetHandle.addEventListener('click', () => {
-  // expandido → abierto (compacto) → píldora
-  if (sheet.classList.contains('expanded')) openSheet();
-  else collapseSheet();
+  collapseSheet();
 });
 
 function onDragStart(y){
@@ -3954,11 +3961,13 @@ function onDragEnd(){
   sheet.classList.remove('dragging');
   const h = sheet.getBoundingClientRect().height;
   sheet.style.height = '';
-  if (h < 110) collapseSheet();
-  else if (h > window.innerHeight * 0.45) expandSheet();
-  else { sheet.classList.remove('expanded', 'collapsed'); sheetPill.classList.add('hidden'); state.sheetExpanded = false; setTimeout(updateChromeOffset, 50); }
+  // Antes existía un tercer estado "compacto" (230px, sin colapsar del todo) —
+  // con el Hero grande actual ese estado se veía roto: mostraba casi toda la
+  // foto pero quedaba "pillado" ahí. Ahora la decisión es binaria: o se expande
+  // del todo, o se colapsa del todo — nunca queda a medias.
+  if (h > window.innerHeight * 0.4) expandSheet();
+  else collapseSheet();
 }
-
 sheetHandle.addEventListener('touchstart', e => onDragStart(e.touches[0].clientY), { passive:true });
 sheetHandle.addEventListener('touchmove', e => onDragMove(e.touches[0].clientY), { passive:true });
 sheetHandle.addEventListener('touchend', onDragEnd);
