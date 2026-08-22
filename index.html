@@ -64,7 +64,7 @@
   --shadow-card: 0 8px 24px rgba(2,8,15,0.35), 0 1px 2px rgba(2,8,15,0.3);
   --shadow-sheet: 0 -16px 48px rgba(2,8,15,0.5);
   --shadow-modal: 0 20px 48px rgba(2,8,15,0.55), 0 2px 6px rgba(2,8,15,0.4);
-  --border-glass: rgba(180,200,220,0.16);
+  --border-glass: rgba(180,200,220,0.20);
 
   --sheet-compact: 230px;
   --sheet-expanded: 86vh;
@@ -128,7 +128,7 @@ img{-webkit-user-drag:none; user-select:none;}
 
 .searchbar{
   display:flex; align-items:center; gap:9px;
-  background:rgba(16,36,56,0.6); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+  background:rgba(16,36,56,0.6); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
   border:1px solid var(--border-glass);
   border-radius:var(--radius-pill);
   padding:10.5px 16px;
@@ -185,7 +185,7 @@ img{-webkit-user-drag:none; user-select:none;}
 .chip{
   flex-shrink:0; display:flex; align-items:center; gap:6px;
   padding:8.5px 14px; border-radius:var(--radius-pill);
-  background:rgba(16,36,56,0.68); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  background:rgba(16,36,56,0.68); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
   border:1px solid var(--border-glass); box-shadow:var(--shadow-float);
   font-size:13px; font-weight:600; color:var(--text-secondary);
   transition:background .16s cubic-bezier(.4,0,.2,1), color .16s ease, border-color .16s ease, transform .16s cubic-bezier(.34,1.56,.64,1), box-shadow .16s ease;
@@ -211,9 +211,9 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 .map-controls button{
   width:34px; height:34px; display:flex; align-items:center; justify-content:center;
-  color:var(--text-secondary); transition:background .15s ease, color .15s ease;
+  color:var(--text-secondary); transition:background .16s ease, color .16s ease, transform .16s cubic-bezier(.34,1.56,.64,1);
 }
-.map-controls button:active{background:rgba(95,225,232,0.14); color:var(--turquoise-bright);}
+.map-controls button:active{background:rgba(95,225,232,0.14); color:var(--turquoise-bright); transform:scale(0.9);}
 .map-controls .divider{height:1px; background:var(--border-subtle); margin:0 7px;}
 
 .locate-btn{
@@ -256,13 +256,18 @@ img{-webkit-user-drag:none; user-select:none;}
   transition:transform .22s cubic-bezier(.34,1.56,.64,1), filter .22s ease, opacity .22s ease;
   filter:drop-shadow(0 1.5px 3px rgba(2,8,15,0.38));
   opacity:0.94;
-  animation:poi-enter .32s cubic-bezier(.2,.9,.28,1.1) backwards;
-  animation-delay:var(--enter-delay, 0ms);
+  animation:poi-enter .32s cubic-bezier(.2,.9,.28,1.1) backwards, poi-breathe 4.4s ease-in-out .6s infinite;
+  animation-delay:var(--enter-delay, 0ms), calc(var(--enter-delay, 0ms) + 600ms);
 }
 .poi-marker.selected .poi-visual{
   transform:scale(1.55);
   opacity:1;
   filter:drop-shadow(0 3px 8px rgba(2,8,15,0.42));
+  animation:none;
+}
+@keyframes poi-breathe{
+  0%,100%{ transform:scale(1); }
+  50%{ transform:scale(1.035); }
 }
 @keyframes poi-enter{
   from{ opacity:0; transform:scale(0.4); }
@@ -461,7 +466,7 @@ img{-webkit-user-drag:none; user-select:none;}
   height:var(--pill-height);
   display:flex; align-items:center; justify-content:space-between; gap:10px;
   padding:0 18px;
-  background:rgba(16,36,56,0.74); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+  background:rgba(16,36,56,0.74); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
   border:1px solid var(--border-glass); box-shadow:var(--shadow-float);
   border-radius:var(--radius-pill);
   transition:opacity .24s ease, transform .24s cubic-bezier(.2,.9,.28,1.1);
@@ -1992,8 +1997,9 @@ map.touchZoomRotate.enable({ around:'center' });
 map.on('load', () => {
   document.getElementById('mapLoading').style.opacity = '0';
   setTimeout(() => document.getElementById('mapLoading').style.display='none', 400);
- tintMapLayers();
+tintMapLayers();
   renderTerrainDepth();
+  applyMoodAtmosphere('todos');
   renderTerritoryFade();
   renderLocalityMarkers();
   updateExplorationLevel();
@@ -2049,8 +2055,10 @@ function tintMapLayers(){
       // claramente del azul noche del fondo, transmite costa/naturaleza sin ser
       // un color brillante ni saturado.
       if (l.type === 'fill' && l.id === 'water'){
-        map.setPaintProperty(l.id, 'fill-color', '#0B303B');
-        map.setPaintProperty(l.id, 'fill-outline-color', 'rgba(95,225,232,0.10)');
+        // Núcleo apenas más claro + borde un poco más presente — profundidad sin
+        // subir el brillo general del agua.
+        map.setPaintProperty(l.id, 'fill-color', '#0E3742');
+        map.setPaintProperty(l.id, 'fill-outline-color', 'rgba(95,225,232,0.13)');
       }
       // Cauces (ríos/esteros) — coherentes con el agua, no gris genérico
       if (l.type === 'line' && l.id === 'waterway'){
@@ -2095,7 +2103,7 @@ function tintMapLayers(){
      // Nombres de calles — más discretos y solo desde un zoom cercano, para que
       // nunca compitan con los POIs (que recién aparecen a ese mismo nivel).
       if (l.type === 'symbol' && l.id.indexOf('highway_name') === 0){
-        map.setPaintProperty(l.id, 'text-opacity', 0.5);
+        map.setPaintProperty(l.id, 'text-opacity', 0.4);
         map.setPaintProperty(l.id, 'text-halo-color', 'rgba(11,23,38,0.8)');
         map.setPaintProperty(l.id, 'text-halo-width', 0.8);
         map.setLayoutProperty(l.id, 'text-size', 9);
@@ -2123,11 +2131,11 @@ function tintMapLayers(){
       // 2) Aldeas/caseríos/barrios — no aportan nada en la vista general (saturarían
       //    el mapa), así que empiezan invisibles y solo aparecen, muy tenues, al
       //    acercarse más allá de donde ya se ven las localidades propias.
-      if (l.type === 'symbol' && /^place_(village|hamlet|suburb|neighbourhood|locality|isolated_dwelling)/.test(l.id)){
+     if (l.type === 'symbol' && /^place_(village|hamlet|suburb|neighbourhood|locality|isolated_dwelling)/.test(l.id)){
         map.setPaintProperty(l.id, 'text-opacity', [
           'interpolate', ['linear'], ['zoom'],
           10.5, 0,
-          13, 0.4,
+          13, 0.28,
         ]);
         map.setPaintProperty(l.id, 'text-color', '#597389');
         map.setPaintProperty(l.id, 'text-halo-color', 'rgba(11,23,38,0.6)');
@@ -2195,7 +2203,7 @@ function renderTerrainDepth(){
       })),
     },
   });
-  map.addLayer({
+ map.addLayer({
     id:'comuna-glow-layer', type:'circle', source:'comuna-glow',
     paint:{
       'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 28, 10, 65, 13, 120],
@@ -2205,6 +2213,15 @@ function renderTerrainDepth(){
       'circle-pitch-alignment':'map',
     },
   });
+  // Variación mínima (±2.5%) del radio — la comuna "respira" sin que se note
+  // como una animación explícita.
+  setInterval(() => {
+    if (!map.getLayer('comuna-glow-layer')) return;
+    const mult = 1 + Math.sin(performance.now() / 5200) * 0.025;
+    map.setPaintProperty('comuna-glow-layer', 'circle-radius', [
+      'interpolate', ['linear'], ['zoom'], 7, 28 * mult, 10, 65 * mult, 13, 120 * mult,
+    ]);
+  }, 260);
 
   // ---- 3) Río Choapa con protagonismo sutil ----
   // Mismo source/source-layer que la capa "waterway" ya tinta — solo se agregan
@@ -2239,14 +2256,22 @@ function renderTerrainDepth(){
     // baja de brillo suavemente para que el foco vuelva a las experiencias.
     map.setPaintProperty('rio-choapa-core', 'line-opacity-transition', { duration:500 });
     map.setPaintProperty('rio-choapa-halo', 'line-opacity-transition', { duration:500 });
+    let riverHaloBase = 0.10;
     map.on('moveend', () => {
+      riverHaloBase = 0.05;
       map.setPaintProperty('rio-choapa-core', 'line-opacity', 0.55);
-      map.setPaintProperty('rio-choapa-halo', 'line-opacity', 0.05);
     });
     map.on('movestart', () => {
+      riverHaloBase = 0.10;
       map.setPaintProperty('rio-choapa-core', 'line-opacity', 0.85);
-      map.setPaintProperty('rio-choapa-halo', 'line-opacity', 0.10);
     });
+    // Brillo ambiental muy lento (ciclo de ~7s) sobre el halo del río — se suma,
+    // no reemplaza, al comportamiento de moveend/movestart de arriba.
+    setInterval(() => {
+      if (!map.getLayer('rio-choapa-halo')) return;
+      const wobble = Math.sin(performance.now() / 3500) * 0.015;
+      map.setPaintProperty('rio-choapa-halo', 'line-opacity', Math.max(0, riverHaloBase + wobble));
+    }, 220);
   }
 }
 
@@ -2761,6 +2786,37 @@ function updateZonePrompt(){
       updateZonePromptContent();
       zonePrompt.classList.remove('content-swap');
     }, 140);
+  }
+}
+
+// Mezcla dos colores hex en un porcentaje dado — sin librerías, sin nada nuevo
+// que aprender: solo aritmética de canales RGB.
+function blendHex(baseHex, tintHex, amount){
+  const b = parseInt(baseHex.slice(1), 16), t = parseInt(tintHex.slice(1), 16);
+  const br=(b>>16)&255, bg=(b>>8)&255, bb=b&255;
+  const tr=(t>>16)&255, tg=(t>>8)&255, tb=t&255;
+  const r = Math.round(br + (tr-br)*amount);
+  const g = Math.round(bg + (tg-bg)*amount);
+  const bl = Math.round(bb + (tb-bb)*amount);
+  return `rgb(${r},${g},${bl})`;
+}
+const BASE_BG_COLOR = '#0B1726';
+// Atmósfera del mapa según la experiencia activa — nunca cambia el mapa en sí,
+// solo el tinte del fondo y del glow territorial, a una mezcla muy baja (4-5%)
+// del color de marca de esa experiencia. Se llama desde setActiveExperience() y
+// una vez al cargar (con "todos", que es un no-op visual).
+function applyMoodAtmosphere(expId){
+  const exp = expById(expId);
+  const turquoiseBase = getComputedStyle(document.documentElement).getPropertyValue('--turquoise-bright').trim() || '#5FE1E8';
+  const tint = expId === 'todos' ? turquoiseBase : getComputedStyle(document.documentElement).getPropertyValue(exp.color.replace('var(','').replace(')','')).trim();
+  const bgLayer = map.getStyle().layers.find(l => l.type === 'background');
+  if (bgLayer){
+    map.setPaintProperty(bgLayer.id, 'background-color-transition', { duration:900 });
+    map.setPaintProperty(bgLayer.id, 'background-color', blendHex(BASE_BG_COLOR, tint, expId === 'todos' ? 0 : 0.045));
+  }
+  if (map.getLayer('comuna-glow-layer')){
+    map.setPaintProperty('comuna-glow-layer', 'circle-color-transition', { duration:900 });
+    map.setPaintProperty('comuna-glow-layer', 'circle-color', blendHex(turquoiseBase, tint, expId === 'todos' ? 0 : 0.35));
   }
 }
 
@@ -3434,6 +3490,7 @@ EXPERIENCE_TAGS.forEach(exp => {
 function setActiveExperience(id){
   state.activeExperience = id;
   updateZonePrompt();
+  applyMoodAtmosphere(id);
   document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.exp === id));
   searchInput.placeholder = SEARCH_PLACEHOLDERS[id] || SEARCH_PLACEHOLDERS.todos;
   renderPOIs();
