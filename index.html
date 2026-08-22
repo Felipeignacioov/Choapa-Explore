@@ -2107,8 +2107,11 @@ function tintMapLayers(){
       // formen una rejilla dominante: las principales quedan apenas visibles
       // (sirven para orientarse), las secundarias casi se disuelven en el fondo.
      if (l.type === 'line' && /highway_major|highway_motorway/.test(l.id)){
-        map.setPaintProperty(l.id, 'line-color', '#2A4A63');
-        map.setPaintProperty(l.id, 'line-opacity', 0.55);
+        // Mismo grosor de siempre (no se toca line-width) — solo un color algo
+        // más luminoso y ~10% más de opacidad, para que guíen la mirada sin
+        // competir con el río ni los POIs.
+        map.setPaintProperty(l.id, 'line-color', '#33587A');
+        map.setPaintProperty(l.id, 'line-opacity', 0.6);
         // Ancho propio — antes heredaban el grosor por defecto del estilo base
         // (muy fino), por eso el halo del Río Choapa terminaba viéndose con más
         // protagonismo que una calle principal real.
@@ -2197,16 +2200,46 @@ function renderTerrainDepth(){
   });
   const bgIndex = layers.findIndex(l => l.type === 'background');
   const hillshadeBeforeId = (bgIndex >= 0 && layers[bgIndex + 1]) ? layers[bgIndex + 1].id : layers[0].id;
-  map.addLayer({
+   map.addLayer({
     id:'hillshade-subtle', type:'hillshade', source:'terrain-dem',
     paint:{
-      'hillshade-exaggeration':0.25,
+      // Exaggeration sube ~35% — es el parámetro que separa laderas de quebradas
+      // (microcontraste real de relieve), no un brillo general del mapa.
+      'hillshade-exaggeration':0.34,
+      // El accent-color se separa levemente del shadow-color (antes eran
+      // idénticos) — dos tonos de sombra en vez de uno solo suman una capa extra
+      // de definición en las zonas bajas sin oscurecer más el conjunto.
       'hillshade-shadow-color':'#0A1420',
-      'hillshade-highlight-color':'rgba(255,255,255,0.05)',
-      'hillshade-accent-color':'#0A1420',
+      'hillshade-highlight-color':'rgba(255,255,255,0.085)',
+      'hillshade-accent-color':'#0D1A24',
       'hillshade-illumination-direction':315,
     },
   }, hillshadeBeforeId);
+
+  // ---- 1b) Punto de respiración del valle ----
+  // Un punto FIJO en el centro geográfico real del territorio (no de la pantalla:
+  // así nunca "persigue" tu vista al panear, que rompería la sensación de mapa
+  // real). Mismo recurso técnico que el glow de las comunas, pero con un tono
+  // neutro-cálido en vez de turquesa — no debe leerse como una fuente de luz,
+  // solo como una variación de profundidad detrás del terreno.
+  const valleyCenter = [
+    (CHOAPA_BOUNDS[0][0] + CHOAPA_BOUNDS[1][0]) / 2,
+    (CHOAPA_BOUNDS[0][1] + CHOAPA_BOUNDS[1][1]) / 2,
+  ];
+  map.addSource('valley-breath', {
+    type:'geojson',
+    data:{ type:'Feature', geometry:{ type:'Point', coordinates: valleyCenter } },
+  });
+  map.addLayer({
+    id:'valley-breath-layer', type:'circle', source:'valley-breath',
+    paint:{
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 220, 10, 340, 13, 480],
+      'circle-color': '#3A4F63',
+      'circle-opacity': 0.035,
+      'circle-blur': 1,
+      'circle-pitch-alignment':'map',
+    },
+  });
 
   // ---- 2) Glow territorial en las 4 comunas ----
   // circle-blur:1 = desvanecimiento amplio y sin borde duro, tal como pide el
