@@ -2003,7 +2003,9 @@ map.on('load', () => {
   setTimeout(() => document.getElementById('mapLoading').style.display='none', 400);
 tintMapLayers();
   renderTerrainDepth();
- applyMoodAtmosphere('todos'); // sin categoría activa: --mood-glow queda 'transparent', sin halo extra
+ currentDayPeriod = getDayPeriod();
+  applyMoodAtmosphere('todos'); // sin categoría activa: --mood-glow queda 'transparent', sin halo extra
+  setInterval(updateDayPeriod, 3 * 60 * 1000);
   renderTerritoryFade();
   renderLocalityMarkers();
   updateExplorationLevel();
@@ -2872,7 +2874,9 @@ function updateZonePrompt(){
 }
 
 // Mezcla dos colores hex en un porcentaje dado — sin librerías, sin nada nuevo
-// que aprender: solo aritmética de canales RGB.
+// que aprender: solo aritmética de canales RGB. Devuelve hex (no rgb()) para que
+// el resultado se pueda volver a mezclar una segunda vez sin romperse — eso es
+// justo lo que necesita el ciclo día/noche: hora primero, categoría encima.
 function blendHex(baseHex, tintHex, amount){
   const b = parseInt(baseHex.slice(1), 16), t = parseInt(tintHex.slice(1), 16);
   const br=(b>>16)&255, bg=(b>>8)&255, bb=b&255;
@@ -2880,9 +2884,65 @@ function blendHex(baseHex, tintHex, amount){
   const r = Math.round(br + (tr-br)*amount);
   const g = Math.round(bg + (tg-bg)*amount);
   const bl = Math.round(bb + (tb-bb)*amount);
-  return `rgb(${r},${g},${bl})`;
+  const toHex = n => n.toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(bl)}`;
 }
 const BASE_BG_COLOR = '#0B1726';
+
+// ---------- Ciclo día/noche real — sol calculado para las coordenadas del Choapa ----------
+// Algoritmo compacto de posición solar (el mismo principio que usa la librería
+// SunCalc): exacto a pocos minutos, calculado en el momento — no horas fijas que
+// quedarían mal todo el año por el cambio estacional real de la duración del día
+// en Chile. No se pide ubicación al usuario: se usa la hora local del propio
+// dispositivo, que en la enorme mayoría de los casos ya es la hora de Chile.
+const CHOAPA_SUN_LAT = -31.7, CHOAPA_SUN_LNG = -70.9;
+function getSunTimes(date, lat, lng){
+  const rad = Math.PI / 180;
+  const dayMs = 864e5, J1970 = 2440588, J2000 = 2451545;
+  const toJulian = d => d.valueOf() / dayMs - 0.5 + J1970;
+  const fromJulian = j => new Date((j + 0.5 - J1970) * dayMs);
+  const toDays = d => toJulian(d) - J2000;
+  const e = rad * 23.4397;
+  const declination = (l, b) => Math.asin(Math.sin(b) * Math.cos(e) + Math.cos(b) * Math.sin(e) * Math.sin(l));
+  const solarMeanAnomaly = d => rad * (357.5291 + 0.98560028 * d);
+  const eclipticLongitude = M => {
+    const C = rad * (1.9148 * Math.sin(M) + 0.02 * Math.sin(2 * M) + 0.0003 * Math.sin(3 * M));
+    return M + C + rad * 102.9372 + Math.PI;
+  };
+  const julianCycle = (d, lw) => Math.round(d - 0.0009 - lw / (2 * Math.PI));
+  const approxTransit = (Ht, lw, n) => 0.0009 + (Ht + lw) / (2 * Math.PI) + n;
+  const solarTransitJ = (ds, M, L) => J2000 + ds + 0.0053 * Math.sin(M) - 0.0069 * Math.sin(2 * L);
+  const hourAngle = (h, phi, d) => Math.acos((Math.sin(h) - Math.sin(phi) * Math.sin(d)) / (Math.cos(phi) * Math.cos(d)));
+
+  const lw = rad * -lng, phi = rad * lat, d = toDays(date);
+  const n = julianCycle(d, lw), ds = approxTransit(0, lw, n);
+  const M = solarMeanAnomaly(ds), L = eclipticLongitude(M);
+  const dec = declination(L, 0);
+  const Jnoon = solarTransitJ(ds, M, L);
+  const w = hourAngle(rad * -0.833, phi, dec);
+  const Jset = solarTransitJ(approxTransit(w, lw, n), M, L);
+  const Jrise = Jnoon - (Jset - Jnoon);
+  return { sunrise: fromJulian(Jrise), sunset: fromJulian(Jset) };
+}
+
+// 3 estados narrativos: "day" es el estado de siempre (sin tinte), "dusk" cubre
+// AMBOS crepúsculos (±45min alrededor de la salida/puesta real del sol) con un
+// tinte cálido, "night" el resto con un tinte frío — tomado de --exp-noche, ya
+// parte de la paleta de marca, no un color ajeno al sistema.
+function getDayPeriod(){
+  const now = new Date();
+  const { sunrise, sunset } = getSunTimes(now, CHOAPA_SUN_LAT, CHOAPA_SUN_LNG);
+  const TWILIGHT_MS = 45 * 60 * 1000;
+  if (Math.abs(now - sunrise) < TWILIGHT_MS || Math.abs(now - sunset) < TWILIGHT_MS) return 'dusk';
+  if (now > sunrise && now < sunset) return 'day';
+  return 'night';
+}
+const TIME_ATMOSPHERE = {
+  day:   { bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315 },
+  dusk:  { bgTint:'#E8A24D', bgAmount:0.05, glowAmount:0.22, glowOpacity:0.055, illum:305 },
+  night: { bgTint:'#8B7CF0', bgAmount:0.06, glowAmount:0.28, glowOpacity:0.032, illum:300 },
+};
+let currentDayPeriod = null;
 // Atmósfera del mapa según la experiencia activa — nunca cambia el mapa en sí,
 // solo el tinte del fondo y del glow territorial, a una mezcla muy baja (4-5%)
 // del color de marca de esa experiencia. Se llama desde setActiveExperience() y
@@ -2893,19 +2953,35 @@ function applyMoodAtmosphere(expId){
   const tint = expId === 'todos' ? turquoiseBase : getComputedStyle(document.documentElement).getPropertyValue(exp.color.replace('var(','').replace(')','')).trim();
   const active = expId !== 'todos';
 
-  // Fondo — igual que antes, solo se acorta la transición a 300-500ms.
+  // La hora del día define la BASE; la categoría se mezcla encima de esa base,
+  // nunca la reemplaza — "Aventura" a mediodía y "Aventura" de noche se sienten
+  // como el mismo sistema, en dos momentos distintos del valle.
+  const period = TIME_ATMOSPHERE[currentDayPeriod || 'day'];
+  const bgTimeBase = period.bgTint ? blendHex(BASE_BG_COLOR, period.bgTint, period.bgAmount) : BASE_BG_COLOR;
+  const glowTimeBase = period.bgTint ? blendHex(turquoiseBase, period.bgTint, period.glowAmount) : turquoiseBase;
+
+  // Fondo
   const bgLayer = map.getStyle().layers.find(l => l.type === 'background');
   if (bgLayer){
-    map.setPaintProperty(bgLayer.id, 'background-color-transition', { duration:400 });
-    map.setPaintProperty(bgLayer.id, 'background-color', blendHex(BASE_BG_COLOR, tint, active ? 0.045 : 0));
+    map.setPaintProperty(bgLayer.id, 'background-color-transition', { duration:600 });
+    map.setPaintProperty(bgLayer.id, 'background-color', blendHex(bgTimeBase, tint, active ? 0.045 : 0));
   }
 
-  // Glow territorial — el color nace desde ahí (mismo halo de siempre alrededor
-  // de las comunas), intensidad de opacidad SIN cambiar (sigue en 0.05); solo el
-  // matiz se desplaza hacia la categoría activa.
+  // Glow territorial — matiz de categoría sobre la base del momento del día. La
+  // opacidad (intensidad del halo) también respira con la hora — de noche las
+  // comunas se sienten más "dormidas" — sin tocar la animación de respiración
+  // del radio que ya existe (esa sigue funcionando exactamente igual, aparte).
   if (map.getLayer('comuna-glow-layer')){
-    map.setPaintProperty('comuna-glow-layer', 'circle-color-transition', { duration:400 });
-    map.setPaintProperty('comuna-glow-layer', 'circle-color', blendHex(turquoiseBase, tint, active ? 0.35 : 0));
+    map.setPaintProperty('comuna-glow-layer', 'circle-color-transition', { duration:600 });
+    map.setPaintProperty('comuna-glow-layer', 'circle-opacity-transition', { duration:600 });
+    map.setPaintProperty('comuna-glow-layer', 'circle-color', blendHex(glowTimeBase, tint, active ? 0.35 : 0));
+    map.setPaintProperty('comuna-glow-layer', 'circle-opacity', period.glowOpacity);
+  }
+
+  // Hillshade — el ángulo de iluminación se corre unos grados al anochecer,
+  // simulando sombras más largas y rasantes; el exaggeration no se toca.
+  if (map.getLayer('hillshade-subtle')){
+    map.setPaintProperty('hillshade-subtle', 'hillshade-illumination-direction', period.illum);
   }
 
   // Río Choapa — reflejo sutil de la categoría, sin perder su identidad: el
@@ -2929,6 +3005,16 @@ function applyMoodAtmosphere(expId){
   // centro/ícono de cada POI sigue exactamente con su color de categoría/
   // experiencia de siempre (eso no se toca, es identidad de cada lugar).
   document.documentElement.style.setProperty('--mood-glow', active ? tint : 'transparent');
+}
+
+// Se revisa cada 3 minutos — suficiente para que la transición se sienta natural
+// sin recalcular en cada frame. Solo reaplica si el período realmente cambió
+// (evita reiniciar transiciones sin necesidad cada vez que corre el intervalo).
+function updateDayPeriod(){
+  const period = getDayPeriod();
+  if (period === currentDayPeriod) return;
+  currentDayPeriod = period;
+  applyMoodAtmosphere(state.activeExperience);
 }
 
 const SAVED_KEY = 'choapa_explore_saved_places';
