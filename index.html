@@ -2256,15 +2256,13 @@ function renderTerrainDepth(){
       filter: waterFillLayer.filter || null,
       paint:{
         'line-color': '#1E5866',
-        // Opacidad un poco más baja y pareja — transición más suave hacia el
-        // océano abierto, en vez de un salto de brillo.
-        'line-opacity': ['interpolate', ['linear'], ['zoom'], 7, 0.12, 12, 0.20],
-        // Ancho reducido ~40% — el brillo se concentra en la línea de costa en
-        // vez de extenderse hacia adentro del océano.
-        'line-width': ['interpolate', ['linear'], ['zoom'], 7, 3.5, 12, 9.5],
-        // Blur reducido ~40% (dentro del rango 35-45% pedido) — menos borroso,
-        // más "luz reflejada en la costa" que halo flotando.
-        'line-blur': 3,
+        'line-opacity': ['interpolate', ['linear'], ['zoom'], 7, 0.10, 12, 0.16],
+        // Mucho más angosto que antes: en cuerpos de agua anchos (el mar) sigue
+        // leyéndose como un borde de costa; en lagos/embalses angostos y
+        // ramificados (como el de tu captura), ya no alcanza a juntarse desde
+        // ambas orillas y cubrir toda el agua — queda como un filo, no un relleno.
+        'line-width': ['interpolate', ['linear'], ['zoom'], 7, 1.6, 12, 4],
+        'line-blur': 2,
       },
     }, coastBeforeId);
   }
