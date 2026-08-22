@@ -64,7 +64,8 @@
   --shadow-card: 0 8px 24px rgba(2,8,15,0.35), 0 1px 2px rgba(2,8,15,0.3);
   --shadow-sheet: 0 -16px 48px rgba(2,8,15,0.5);
   --shadow-modal: 0 20px 48px rgba(2,8,15,0.55), 0 2px 6px rgba(2,8,15,0.4);
-  --border-glass: rgba(180,200,220,0.20);
+ --border-glass: rgba(180,200,220,0.20);
+  --mood-glow: transparent;
 
   --sheet-compact: 230px;
   --sheet-expanded: 86vh;
@@ -274,6 +275,7 @@ img{-webkit-user-drag:none; user-select:none;}
   to{ opacity:0.9; transform:scale(1); }
 }
 .poi-visual svg{width:100%; height:100%; overflow:visible;}
+.poi-visual svg .poi-mood-halo{transition:fill .4s ease;}
 .poi-marker .halo{opacity:0; transition:opacity .25s ease; transform-origin:center;}
 .poi-marker.selected .halo{opacity:0.9; animation:poi-pulse 1.8s ease-out infinite;}
 @keyframes poi-pulse{
@@ -1999,7 +2001,7 @@ map.on('load', () => {
   setTimeout(() => document.getElementById('mapLoading').style.display='none', 400);
 tintMapLayers();
   renderTerrainDepth();
-  applyMoodAtmosphere('todos');
+ applyMoodAtmosphere('todos'); // sin categoría activa: --mood-glow queda 'transparent', sin halo extra
   renderTerritoryFade();
   renderLocalityMarkers();
   updateExplorationLevel();
@@ -2338,13 +2340,13 @@ function poiSVG(color, iconKey){
   return `
   <svg viewBox="0 0 22 22">
     <circle class="halo" cx="11" cy="11" r="9" fill="none" stroke="${color}" stroke-width="1.4"/>
+    <circle class="poi-mood-halo" cx="11" cy="11" r="10.3" fill="var(--mood-glow, transparent)" opacity="0.15"/>
     <circle cx="11" cy="11" r="8.6" fill="${color}" opacity="0.09"/>
     <circle cx="11" cy="11" r="7.7" fill="#0D1F30" stroke="${color}" stroke-width="1.15" stroke-opacity="0.9"/>
     <circle cx="9.2" cy="9" r="2.6" fill="rgba(255,255,255,0.045)"/>
     ${iconGlyph(iconKey, 11, 11, 10, color)}
   </svg>`;
 }
-
 function clearPOIMarkers(){
   markers.forEach(m => m.remove());
   markers = [];
@@ -2809,15 +2811,38 @@ function applyMoodAtmosphere(expId){
   const exp = expById(expId);
   const turquoiseBase = getComputedStyle(document.documentElement).getPropertyValue('--turquoise-bright').trim() || '#5FE1E8';
   const tint = expId === 'todos' ? turquoiseBase : getComputedStyle(document.documentElement).getPropertyValue(exp.color.replace('var(','').replace(')','')).trim();
+  const active = expId !== 'todos';
+
+  // Fondo — igual que antes, solo se acorta la transición a 300-500ms.
   const bgLayer = map.getStyle().layers.find(l => l.type === 'background');
   if (bgLayer){
-    map.setPaintProperty(bgLayer.id, 'background-color-transition', { duration:900 });
-    map.setPaintProperty(bgLayer.id, 'background-color', blendHex(BASE_BG_COLOR, tint, expId === 'todos' ? 0 : 0.045));
+    map.setPaintProperty(bgLayer.id, 'background-color-transition', { duration:400 });
+    map.setPaintProperty(bgLayer.id, 'background-color', blendHex(BASE_BG_COLOR, tint, active ? 0.045 : 0));
   }
+
+  // Glow territorial — el color nace desde ahí (mismo halo de siempre alrededor
+  // de las comunas), intensidad de opacidad SIN cambiar (sigue en 0.05); solo el
+  // matiz se desplaza hacia la categoría activa.
   if (map.getLayer('comuna-glow-layer')){
-    map.setPaintProperty('comuna-glow-layer', 'circle-color-transition', { duration:900 });
-    map.setPaintProperty('comuna-glow-layer', 'circle-color', blendHex(turquoiseBase, tint, expId === 'todos' ? 0 : 0.35));
+    map.setPaintProperty('comuna-glow-layer', 'circle-color-transition', { duration:400 });
+    map.setPaintProperty('comuna-glow-layer', 'circle-color', blendHex(turquoiseBase, tint, active ? 0.35 : 0));
   }
+
+  // Río Choapa — reflejo sutil de la categoría, sin perder su identidad: el
+  // núcleo (#3E8FA8, el azul natural de siempre) se desplaza muy poco (22%), el
+  // halo (turquesa de marca) un poco más (40%) ya que es la capa decorativa.
+  if (map.getLayer('rio-choapa-core')){
+    map.setPaintProperty('rio-choapa-core', 'line-color-transition', { duration:400 });
+    map.setPaintProperty('rio-choapa-halo', 'line-color-transition', { duration:400 });
+    map.setPaintProperty('rio-choapa-core', 'line-color', blendHex('#3E8FA8', tint, active ? 0.22 : 0));
+    map.setPaintProperty('rio-choapa-halo', 'line-color', blendHex(turquoiseBase, tint, active ? 0.4 : 0));
+  }
+
+  // Halo exterior de los POIs — variable CSS global, así TODOS los marcadores ya
+  // renderizados se actualizan al instante sin re-crear ni un solo pin. El
+  // centro/ícono de cada POI sigue exactamente con su color de categoría/
+  // experiencia de siempre (eso no se toca, es identidad de cada lugar).
+  document.documentElement.style.setProperty('--mood-glow', active ? tint : 'transparent');
 }
 
 const SAVED_KEY = 'choapa_explore_saved_places';
