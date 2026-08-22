@@ -413,8 +413,9 @@ img{-webkit-user-drag:none; user-select:none;}
   position:absolute; left:16px; right:16px; z-index:9;
   display:flex; align-items:center; gap:10px;
   padding:11px 14px;
-  background:rgba(16,36,56,0.82); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
-  border:1px solid var(--border-glass); box-shadow:var(--shadow-float);
+  background:rgba(16,36,56,0.82); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,0.12);
+  box-shadow:var(--shadow-float), inset 0 1px 0 rgba(255,255,255,0.1), 0 12px 30px rgba(2,8,15,0.38);
   border-radius:var(--radius-m);
   opacity:0; transform:translateY(-6px) scale(0.98); pointer-events:none;
   transition:opacity .28s ease, transform .28s cubic-bezier(.2,.9,.28,1.1), border-color .2s ease;
@@ -1361,8 +1362,9 @@ img{-webkit-user-drag:none; user-select:none;}
   </div>
 
   <button class="compass-btn" id="btnCompass" aria-label="Volver al norte" style="top:260px;">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" id="compassNeedle" style="transition:transform .5s cubic-bezier(.32,.9,.34,1);">
-      <circle cx="12" cy="12" r="10" stroke="var(--border-subtle)" stroke-width="1"/>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" id="compassNeedle">
+      <circle cx="12" cy="12" r="10" stroke="rgba(180,200,220,0.26)" stroke-width="0.75"/>
+      <circle cx="12" cy="12" r="9.2" stroke="rgba(95,225,232,0.16)" stroke-width="0.5"/>
       <path d="M12 3 15 12 12 21 9 12Z" fill="var(--turquoise-bright)"/>
       <path d="M12 3 15 12 12 12Z" fill="#F0625B"/>
     </svg>
@@ -2034,9 +2036,24 @@ map.on('move', () => {
 /* ---------- BRÚJULA — aparece al rotar, vuelve suave al norte ---------- */
 const compassBtn = document.getElementById('btnCompass');
 const compassNeedle = document.getElementById('compassNeedle');
+// Inercia real: en vez de dejar que una transición CSS persiga un valor que
+// cambia muchas veces por segundo durante el gesto (se ve trabada), un lerp por
+// requestAnimationFrame persigue el ángulo objetivo con una suavidad constante
+// — se siente como un instrumento físico, no como un valor que salta.
+let compassCurrent = 0, compassTarget = 0, compassRaf = null;
+function compassLoop(){
+  compassCurrent += (compassTarget - compassCurrent) * 0.14;
+  compassNeedle.style.transform = `rotate(${compassCurrent}deg)`;
+  if (Math.abs(compassTarget - compassCurrent) > 0.05){
+    compassRaf = requestAnimationFrame(compassLoop);
+  } else {
+    compassRaf = null;
+  }
+}
 function updateCompass(){
   const bearing = map.getBearing();
-  compassNeedle.style.transform = `rotate(${-bearing}deg)`;
+  compassTarget = -bearing;
+  if (!compassRaf) compassRaf = requestAnimationFrame(compassLoop);
   const rotated = Math.abs(bearing) > 0.5 || map.getPitch() > 0.5;
   compassBtn.classList.toggle('visible', rotated);
 }
@@ -2224,6 +2241,27 @@ function renderTerrainDepth(){
       'interpolate', ['linear'], ['zoom'], 7, 28 * mult, 10, 65 * mult, 13, 120 * mult,
     ]);
   }, 260);
+
+ // ---- 2b) Halo costero — más presencia del océano sin cambiar su color base ----
+  // Mismo recurso que el halo del río: una línea ancha y muy difusa (line-blur)
+  // trazada sobre el borde del polígono de agua, dándole una sensación de
+  // profundidad/luz cerca de la costa sin tocar el fill-color del agua en sí.
+  const waterFillLayer = layers.find(l => l.id === 'water');
+  if (waterFillLayer){
+    const waterIdx = layers.findIndex(l => l.id === 'water');
+    const coastBeforeId = layers[waterIdx + 1] ? layers[waterIdx + 1].id : undefined;
+    map.addLayer({
+      id:'coast-glow', type:'line',
+      source: waterFillLayer.source, 'source-layer': waterFillLayer['source-layer'],
+      filter: waterFillLayer.filter || null,
+      paint:{
+        'line-color': '#1E5866',
+        'line-opacity': ['interpolate', ['linear'], ['zoom'], 7, 0.16, 12, 0.28],
+        'line-width': ['interpolate', ['linear'], ['zoom'], 7, 6, 12, 16],
+        'line-blur': 5,
+      },
+    }, coastBeforeId);
+  }
 
   // ---- 3) Río Choapa con protagonismo sutil ----
   // Mismo source/source-layer que la capa "waterway" ya tinta — solo se agregan
@@ -2831,13 +2869,19 @@ function applyMoodAtmosphere(expId){
   // Río Choapa — reflejo sutil de la categoría, sin perder su identidad: el
   // núcleo (#3E8FA8, el azul natural de siempre) se desplaza muy poco (22%), el
   // halo (turquesa de marca) un poco más (40%) ya que es la capa decorativa.
+  // El color "viaja" del halo hacia el núcleo: el halo cambia de inmediato, el
+  // núcleo lo sigue ~110ms después — la sensación de un tinte que se asienta
+  // progresivamente, no un salto instantáneo en las dos capas a la vez.
   if (map.getLayer('rio-choapa-core')){
-    map.setPaintProperty('rio-choapa-core', 'line-color-transition', { duration:400 });
-    map.setPaintProperty('rio-choapa-halo', 'line-color-transition', { duration:400 });
-    map.setPaintProperty('rio-choapa-core', 'line-color', blendHex('#3E8FA8', tint, active ? 0.22 : 0));
+    map.setPaintProperty('rio-choapa-core', 'line-color-transition', { duration:350 });
+    map.setPaintProperty('rio-choapa-halo', 'line-color-transition', { duration:350 });
     map.setPaintProperty('rio-choapa-halo', 'line-color', blendHex(turquoiseBase, tint, active ? 0.4 : 0));
+    setTimeout(() => {
+      if (map.getLayer('rio-choapa-core')){
+        map.setPaintProperty('rio-choapa-core', 'line-color', blendHex('#3E8FA8', tint, active ? 0.22 : 0));
+      }
+    }, 110);
   }
-
   // Halo exterior de los POIs — variable CSS global, así TODOS los marcadores ya
   // renderizados se actualizan al instante sin re-crear ni un solo pin. El
   // centro/ícono de cada POI sigue exactamente con su color de categoría/
