@@ -2048,38 +2048,41 @@ map.on('zoomend', updateExplorationLevel);
 // de estos límites, así que esta corrección nunca interfiere con la navegación
 // existente — solo actúa cuando de verdad hace falta.
 // ---------- Elasticidad territorial unificada ----------
-// CHOAPA_MAX_BOUNDS (arriba) NO se toca — sigue existiendo tal cual, porque
-// "Cerca de mí" lo usa por separado (isInsideChoapa) para saber si el usuario
-// está físicamente dentro del Choapa; ese es un uso completamente distinto y no
-// se debe romper. La elasticidad de cámara pasa a usar su propio margen,
-// calculado como un % de lo que se ve en pantalla EN CADA EJE, en cada momento
-// — así nunca hay un eje "más permisivo" que otro (la asimetría anterior venía
-// de que un celular en vertical muestra más grados de latitud que de longitud a
-// un mismo zoom, así que un eje caía en la rama "por borde" y el otro en la
-// rama "por centro", mucho más bruta). Con el margen proporcional al viewport,
-// la caja de corrección NUNCA puede ser más chica que la pantalla misma, así que
-// ya no hace falta ninguna rama de respaldo — un solo método, en los 4 lados.
-const CHOAPA_ELASTIC_MARGIN_RATIO = 0.16; // % del viewport visible en cada eje — el único número a ajustar
-
+// Margen FIJO en grados (no depende del zoom ni del tamaño de pantalla) — el
+// mismo "colchón" de respiración alrededor del territorio real, siempre. Reusa
+// CHOAPA_MAX_BOUNDS (ya reducido ~35% respecto al original, sesión anterior) en
+// vez de calcular un % del viewport: eso es lo que causaba sentirse "encerrado"
+// muy acercado (margen chico en grados a zoom alto) y tirones muy alejado
+// (margen inestable cuando el viewport es más grande que el propio territorio).
+// Con un margen fijo, la elasticidad se siente idéntica sin importar el zoom:
+// llegás al borde real del Choapa, y desde ahí — siempre desde ahí — empieza a
+// estirarse un poco antes de volver.
 function computeElasticCorrection(){
   const b = map.getBounds();
   const center = map.getCenter();
+  const [[minLng, minLat], [maxLng, maxLat]] = CHOAPA_MAX_BOUNDS;
   const viewLng = b.getEast() - b.getWest();
   const viewLat = b.getNorth() - b.getSouth();
-  const marginLng = viewLng * CHOAPA_ELASTIC_MARGIN_RATIO;
-  const marginLat = viewLat * CHOAPA_ELASTIC_MARGIN_RATIO;
-  const minLng = CHOAPA_BOUNDS[0][0] - marginLng, maxLng = CHOAPA_BOUNDS[1][0] + marginLng;
-  const minLat = CHOAPA_BOUNDS[0][1] - marginLat, maxLat = CHOAPA_BOUNDS[1][1] + marginLat;
 
   let newLng = center.lng, newLat = center.lat;
-  if (b.getWest() < minLng) newLng = center.lng + (minLng - b.getWest());
-  else if (b.getEast() > maxLng) newLng = center.lng + (maxLng - b.getEast());
-  if (b.getSouth() < minLat) newLat = center.lat + (minLat - b.getSouth());
-  else if (b.getNorth() > maxLat) newLat = center.lat + (maxLat - b.getNorth());
+  // Si la pantalla (a este zoom) es más ancha/alta que la propia caja elástica,
+  // exigir ambos bordes a la vez es geométricamente imposible sin forzar la
+  // cámara — en ese caso se deja al usuario totalmente libre en ese eje (nunca
+  // "empuja"), en vez de pelear con un cálculo que no puede satisfacerse.
+  if (viewLng <= (maxLng - minLng)){
+    if (b.getWest() < minLng) newLng = center.lng + (minLng - b.getWest());
+    else if (b.getEast() > maxLng) newLng = center.lng + (maxLng - b.getEast());
+  }
+  if (viewLat <= (maxLat - minLat)){
+    if (b.getSouth() < minLat) newLat = center.lat + (minLat - b.getSouth());
+    else if (b.getNorth() > maxLat) newLat = center.lat + (maxLat - b.getNorth());
+  }
 
   if (newLng === center.lng && newLat === center.lat) return null;
   return [newLng, newLat];
 }
+
+</parameter>
 
 // Dos banderas de estado — la pieza que faltaba y causaba el "parate":
 // - userInteracting: true mientras el usuario tiene el dedo puesto (arrastrando
