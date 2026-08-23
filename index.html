@@ -2373,14 +2373,17 @@ function renderTerrainDepth(){
       type:'geojson',
       data:{ type:'Feature', properties:{}, geometry:{ type:'Point', coordinates:[losVilos.lng, losVilos.lat] } },
     });
-    map.addLayer({
+   map.addLayer({
       id:'losvilos-reflection-layer', type:'circle', source:'losvilos-reflection',
       paint:{
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 60, 13, 160],
+        // Radio ~22% más chico (dentro del rango 20-25% pedido).
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 47, 13, 125],
         'circle-color': '#BFEFF2',
         'circle-opacity': 0, // se activa solo al entrar a Los Vilos
         'circle-opacity-transition': { duration:700 },
-        'circle-blur': 1,
+        // Blur reducido (1 → 0.7): el brillo se concentra más cerca de la costa
+        // y se desvanece antes hacia mar abierto, en vez de difuminarse ancho.
+        'circle-blur': 0.7,
         'circle-pitch-alignment':'map',
       },
     }, coastBeforeId);
@@ -2803,7 +2806,9 @@ const COMUNA_FLIGHT = {
 function updateLosVilosReflection(){
   if (!map.getLayer('losvilos-reflection-layer')) return;
   const active = state.currentLocality && state.currentLocality.id === 'losvilos';
-  map.setPaintProperty('losvilos-reflection-layer', 'circle-opacity', active ? 0.05 : 0);
+  // 0.05 → 0.0425 (15% menos) — sigue presente, deja de ser lo primero que
+  // llama la atención al entrar a la comuna.
+  map.setPaintProperty('losvilos-reflection-layer', 'circle-opacity', active ? 0.0425 : 0);
 }
 
 function enterLocality(locality, { fly }){
