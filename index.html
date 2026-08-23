@@ -2047,25 +2047,44 @@ map.on('zoomend', updateExplorationLevel);
 // (enterLocality, exitLocality, etc.): ningún destino de la app cae nunca fuera
 // de estos límites, así que esta corrección nunca interfiere con la navegación
 // existente — solo actúa cuando de verdad hace falta.
-let boundsSnapTimer = null;
+// Corrige por el BORDE visible de la pantalla, no solo por el centro — así el
+// margen reducido (CHOAPA_MAX_BOUNDS) se nota de verdad incluso muy alejado,
+// donde el ancho de la pantalla en grados puede superar el propio tamaño de la
+// caja. Si eso pasa (viewport más ancho que la caja), corrige por centro como
+// respaldo — ese es justamente el caso que antes producía el bug de bloqueo, así
+// que nunca se fuerzan ambos bordes de un eje a la vez cuando no caben los dos.
+// Se dispara UNA sola vez al terminar el gesto (moveend ya espera a que termine
+// toda la inercia/momentum del arrastre), sin ningún retraso artificial — ese
+// retraso era justamente lo que se sentía como el "parate" en la esquina.
 map.on('moveend', () => {
+  const b = map.getBounds();
   const center = map.getCenter();
   const [[minLng, minLat], [maxLng, maxLat]] = CHOAPA_MAX_BOUNDS;
-  const clampedLng = Math.min(Math.max(center.lng, minLng), maxLng);
-  const clampedLat = Math.min(Math.max(center.lat, minLat), maxLat);
-  if (clampedLng === center.lng && clampedLat === center.lat) return; // ya está dentro
+  const viewLng = b.getEast() - b.getWest();
+  const viewLat = b.getNorth() - b.getSouth();
+  let newLng = center.lng, newLat = center.lat;
 
-  clearTimeout(boundsSnapTimer);
-  boundsSnapTimer = setTimeout(() => {
-    if (map.isMoving()) return; // el usuario ya encadenó otro gesto — no se lo arrebatamos
-    map.easeTo({
-      center:[clampedLng, clampedLat],
-      duration:550,
-      easing:t => 1 - Math.pow(1 - t, 3), // ease-out cúbico, sin rebote
-    });
-  }, 60);
+  if (viewLng <= (maxLng - minLng)){
+    if (b.getWest() < minLng) newLng = center.lng + (minLng - b.getWest());
+    else if (b.getEast() > maxLng) newLng = center.lng + (maxLng - b.getEast());
+  } else {
+    newLng = Math.min(Math.max(center.lng, minLng), maxLng);
+  }
+
+  if (viewLat <= (maxLat - minLat)){
+    if (b.getSouth() < minLat) newLat = center.lat + (minLat - b.getSouth());
+    else if (b.getNorth() > maxLat) newLat = center.lat + (maxLat - b.getNorth());
+  } else {
+    newLat = Math.min(Math.max(center.lat, minLat), maxLat);
+  }
+
+  if (newLng === center.lng && newLat === center.lat) return; // ya está dentro
+  map.easeTo({
+    center:[newLng, newLat],
+    duration:480,
+    easing:t => 1 - Math.pow(1 - t, 3), // ease-out cúbico, sin rebote
+  });
 });
-map.on('dragstart', () => clearTimeout(boundsSnapTimer));
 // La inclinación de cámara (pitch) está desactivada a nivel de configuración
 // del mapa (maxPitch:0, pitchWithRotate:false, touchPitch:false) — era la causa
 // raíz de que el mapa se congelara al combinarse con ciertos rangos de zoom.
