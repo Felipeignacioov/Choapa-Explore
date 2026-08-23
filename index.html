@@ -101,7 +101,8 @@ img{-webkit-user-drag:none; user-select:none;}
 .map-vignette{
   position:absolute; inset:0; pointer-events:none; z-index:1;
   background:
-    linear-gradient(to bottom, rgba(7,19,31,0.82) 0%, rgba(7,19,31,0.0) 18%, rgba(7,19,31,0.0) 68%, rgba(7,19,31,0.7) 100%);
+    linear-gradient(to bottom, rgba(7,19,31,0.82) 0%, rgba(7,19,31,0.0) 18%, rgba(7,19,31,0.0) 68%, rgba(7,19,31,0.7) 100%),
+    radial-gradient(ellipse at center, rgba(7,19,31,0) 58%, rgba(7,19,31,0.32) 100%);
 }
 
 /* ---------------- HEADER ---------------- */
@@ -1964,8 +1965,8 @@ const CHOAPA_BOUNDS = [
   [-70.45, -31.05], // noreste
 ];
 const CHOAPA_MAX_BOUNDS = [
-  [-72.20, -32.55], // suroeste + margen — tope real de navegación
-  [-70.05, -30.65], // noreste + margen
+  [-72.04, -32.41], // suroeste + margen — reducido ~35% (antes -72.20,-32.55)
+  [-70.19, -30.79], // noreste + margen — reducido ~35% (antes -70.05,-30.65)
 ];
 
 // Umbrales que dividen el sistema de exploración continuo en 3 niveles:
@@ -1998,6 +1999,21 @@ const map = new maplibregl.Map({
 // 1 dedo = pan · 2 dedos = pellizcar zoom + rotar, con inclinación natural
 map.touchZoomRotate.enable({ around:'center' });
 
+// Compatibilidad con rotación/resize del dispositivo. MapLibre ya observa el
+// tamaño de su contenedor automáticamente, pero esto es una capa extra de
+// seguridad explícita, tal como pide el brief: fuerza un resize real después
+// de que el navegador termine de aplicar el nuevo layout (por eso el pequeño
+// delay en orientationchange — inmediatamente después del evento, en algunos
+// navegadores el viewport todavía no terminó de asentarse). No se recalculan
+// "límites" en el sentido de coordenadas — CHOAPA_MAX_BOUNDS son lat/lng fijos,
+// no dependen del tamaño de pantalla — pero si en el futuro se agrega algo
+// basado en píxeles de viewport, este es el lugar correcto para refrescarlo.
+function handleViewportChange(){
+  map.resize();
+}
+window.addEventListener('resize', handleViewportChange);
+window.addEventListener('orientationchange', () => setTimeout(handleViewportChange, 250));
+
 map.on('load', () => {
   document.getElementById('mapLoading').style.opacity = '0';
   setTimeout(() => document.getElementById('mapLoading').style.display='none', 400);
@@ -2020,15 +2036,36 @@ map.on('zoomend', updateExplorationLevel);
 // frame de movimiento — así nunca compite con el gesto que el usuario tiene en
 // curso: dentro de CHOAPA_MAX_BOUNDS se navega libre, y justo al tocar ese borde
 // el desplazamiento simplemente se detiene ahí, sin bloquear zoom ni rotación.
-map.on('move', () => {
+// Elasticidad de cámara: mientras el usuario arrastra, NO hay ninguna corrección
+// compitiendo cuadro a cuadro (eso es justo lo que generaba tanto la sensación
+// de "lienzo infinito" como, en un intento anterior con otro método de cálculo,
+// el bug de bloqueo en ciertas rotaciones). El territorio se puede pisar
+// libremente durante el gesto. Recién cuando el gesto termina y la cámara se
+// asienta ('moveend'), si el centro quedó fuera de CHOAPA_MAX_BOUNDS, se anima
+// de vuelta con un ease-out cúbico — natural, sin rebote.
+// No hace falta distinguir gestos del usuario de vuelos programáticos
+// (enterLocality, exitLocality, etc.): ningún destino de la app cae nunca fuera
+// de estos límites, así que esta corrección nunca interfiere con la navegación
+// existente — solo actúa cuando de verdad hace falta.
+let boundsSnapTimer = null;
+map.on('moveend', () => {
   const center = map.getCenter();
   const [[minLng, minLat], [maxLng, maxLat]] = CHOAPA_MAX_BOUNDS;
   const clampedLng = Math.min(Math.max(center.lng, minLng), maxLng);
   const clampedLat = Math.min(Math.max(center.lat, minLat), maxLat);
-  if (clampedLng !== center.lng || clampedLat !== center.lat){
-    map.setCenter([clampedLng, clampedLat]);
-  }
+  if (clampedLng === center.lng && clampedLat === center.lat) return; // ya está dentro
+
+  clearTimeout(boundsSnapTimer);
+  boundsSnapTimer = setTimeout(() => {
+    if (map.isMoving()) return; // el usuario ya encadenó otro gesto — no se lo arrebatamos
+    map.easeTo({
+      center:[clampedLng, clampedLat],
+      duration:550,
+      easing:t => 1 - Math.pow(1 - t, 3), // ease-out cúbico, sin rebote
+    });
+  }, 60);
 });
+map.on('dragstart', () => clearTimeout(boundsSnapTimer));
 // La inclinación de cámara (pitch) está desactivada a nivel de configuración
 // del mapa (maxPitch:0, pitchWithRotate:false, touchPitch:false) — era la causa
 // raíz de que el mapa se congelara al combinarse con ciertos rangos de zoom.
