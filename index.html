@@ -2047,44 +2047,65 @@ map.on('zoomend', updateExplorationLevel);
 // (enterLocality, exitLocality, etc.): ningún destino de la app cae nunca fuera
 // de estos límites, así que esta corrección nunca interfiere con la navegación
 // existente — solo actúa cuando de verdad hace falta.
-// Corrige por el BORDE visible de la pantalla, no solo por el centro — así el
-// margen reducido (CHOAPA_MAX_BOUNDS) se nota de verdad incluso muy alejado,
-// donde el ancho de la pantalla en grados puede superar el propio tamaño de la
-// caja. Si eso pasa (viewport más ancho que la caja), corrige por centro como
-// respaldo — ese es justamente el caso que antes producía el bug de bloqueo, así
-// que nunca se fuerzan ambos bordes de un eje a la vez cuando no caben los dos.
-// Se dispara UNA sola vez al terminar el gesto (moveend ya espera a que termine
-// toda la inercia/momentum del arrastre), sin ningún retraso artificial — ese
-// retraso era justamente lo que se sentía como el "parate" en la esquina.
-map.on('moveend', () => {
+// ---------- Elasticidad territorial unificada ----------
+// CHOAPA_MAX_BOUNDS (arriba) NO se toca — sigue existiendo tal cual, porque
+// "Cerca de mí" lo usa por separado (isInsideChoapa) para saber si el usuario
+// está físicamente dentro del Choapa; ese es un uso completamente distinto y no
+// se debe romper. La elasticidad de cámara pasa a usar su propio margen,
+// calculado como un % de lo que se ve en pantalla EN CADA EJE, en cada momento
+// — así nunca hay un eje "más permisivo" que otro (la asimetría anterior venía
+// de que un celular en vertical muestra más grados de latitud que de longitud a
+// un mismo zoom, así que un eje caía en la rama "por borde" y el otro en la
+// rama "por centro", mucho más bruta). Con el margen proporcional al viewport,
+// la caja de corrección NUNCA puede ser más chica que la pantalla misma, así que
+// ya no hace falta ninguna rama de respaldo — un solo método, en los 4 lados.
+const CHOAPA_ELASTIC_MARGIN_RATIO = 0.16; // % del viewport visible en cada eje — el único número a ajustar
+
+function computeElasticCorrection(){
   const b = map.getBounds();
   const center = map.getCenter();
-  const [[minLng, minLat], [maxLng, maxLat]] = CHOAPA_MAX_BOUNDS;
   const viewLng = b.getEast() - b.getWest();
   const viewLat = b.getNorth() - b.getSouth();
+  const marginLng = viewLng * CHOAPA_ELASTIC_MARGIN_RATIO;
+  const marginLat = viewLat * CHOAPA_ELASTIC_MARGIN_RATIO;
+  const minLng = CHOAPA_BOUNDS[0][0] - marginLng, maxLng = CHOAPA_BOUNDS[1][0] + marginLng;
+  const minLat = CHOAPA_BOUNDS[0][1] - marginLat, maxLat = CHOAPA_BOUNDS[1][1] + marginLat;
+
   let newLng = center.lng, newLat = center.lat;
+  if (b.getWest() < minLng) newLng = center.lng + (minLng - b.getWest());
+  else if (b.getEast() > maxLng) newLng = center.lng + (maxLng - b.getEast());
+  if (b.getSouth() < minLat) newLat = center.lat + (minLat - b.getSouth());
+  else if (b.getNorth() > maxLat) newLat = center.lat + (maxLat - b.getNorth());
 
-  if (viewLng <= (maxLng - minLng)){
-    if (b.getWest() < minLng) newLng = center.lng + (minLng - b.getWest());
-    else if (b.getEast() > maxLng) newLng = center.lng + (maxLng - b.getEast());
-  } else {
-    newLng = Math.min(Math.max(center.lng, minLng), maxLng);
-  }
+  if (newLng === center.lng && newLat === center.lat) return null;
+  return [newLng, newLat];
+}
 
-  if (viewLat <= (maxLat - minLat)){
-    if (b.getSouth() < minLat) newLat = center.lat + (minLat - b.getSouth());
-    else if (b.getNorth() > maxLat) newLat = center.lat + (maxLat - b.getNorth());
-  } else {
-    newLat = Math.min(Math.max(center.lat, minLat), maxLat);
-  }
+// Dos banderas de estado — la pieza que faltaba y causaba el "parate":
+// - userInteracting: true mientras el usuario tiene el dedo puesto (arrastrando
+//   O haciendo zoom). Mientras sea true, NUNCA se dispara una corrección — así
+//   una corrección jamás puede pelear contra un gesto activo.
+// - correctingBounds: true solo mientras nuestra propia animación de vuelta
+//   está en el aire. El moveend que ESA animación genera se ignora (si no, se
+//   re-evaluaría a sí misma en bucle); y si el usuario interrumpe con un gesto
+//   nuevo, se apaga al instante para que MapLibre le ceda el control sin pelea.
+let userInteracting = false;
+let correctingBounds = false;
 
-  if (newLng === center.lng && newLat === center.lat) return; // ya está dentro
-  map.easeTo({
-    center:[newLng, newLat],
-    duration:480,
-    easing:t => 1 - Math.pow(1 - t, 3), // ease-out cúbico, sin rebote
-  });
-});
+function tryElasticCorrection(){
+  if (correctingBounds || userInteracting) return;
+  const target = computeElasticCorrection();
+  if (!target) return;
+  correctingBounds = true;
+  map.easeTo({ center:target, duration:480, easing:t => 1 - Math.pow(1 - t, 3) });
+  map.once('moveend', () => { correctingBounds = false; });
+}
+
+map.on('moveend', tryElasticCorrection);
+map.on('dragstart', () => { userInteracting = true; correctingBounds = false; });
+map.on('dragend',   () => { userInteracting = false; });
+map.on('zoomstart', () => { userInteracting = true; correctingBounds = false; });
+map.on('zoomend',   () => { userInteracting = false; });
 // La inclinación de cámara (pitch) está desactivada a nivel de configuración
 // del mapa (maxPitch:0, pitchWithRotate:false, touchPitch:false) — era la causa
 // raíz de que el mapa se congelara al combinarse con ciertos rangos de zoom.
