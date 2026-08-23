@@ -2285,21 +2285,110 @@ function renderTerrainDepth(){
   if (waterFillLayer){
     const waterIdx = layers.findIndex(l => l.id === 'water');
     const coastBeforeId = layers[waterIdx + 1] ? layers[waterIdx + 1].id : undefined;
-   map.addLayer({
+    map.addLayer({
       id:'coast-glow', type:'line',
       source: waterFillLayer.source, 'source-layer': waterFillLayer['source-layer'],
       filter: waterFillLayer.filter || null,
       paint:{
         'line-color': '#1E5866',
         'line-opacity': ['interpolate', ['linear'], ['zoom'], 7, 0.10, 12, 0.16],
-        // Mucho más angosto que antes: en cuerpos de agua anchos (el mar) sigue
-        // leyéndose como un borde de costa; en lagos/embalses angostos y
-        // ramificados (como el de tu captura), ya no alcanza a juntarse desde
-        // ambas orillas y cubrir toda el agua — queda como un filo, no un relleno.
         'line-width': ['interpolate', ['linear'], ['zoom'], 7, 1.6, 12, 4],
         'line-blur': 2,
       },
     }, coastBeforeId);
+
+    // ---- El Pacífico respira ----
+    // 1) Respiración de luminancia: NO se mueve el agua, solo su luz — ciclo de
+    // ~10s, variación máxima 2.5% hacia blanco sobre el color base del agua.
+    // Imperceptible como animación explícita; perceptible como "nunca está del
+    // todo congelado". Mismo mecanismo de setInterval+seno que ya usa el halo
+    // del río, así que no introduce ningún patrón nuevo al proyecto.
+    const WATER_BASE = '#0E3742';
+    setInterval(() => {
+      if (!map.getLayer('water')) return;
+      const wobble = (Math.sin(performance.now() / 1650) + 1) / 2 * 0.025; // 0 → 2.5%
+      map.setPaintProperty('water', 'fill-color', blendHex(WATER_BASE, '#FFFFFF', wobble));
+    }, 240);
+
+    // 2) Textura costera — una segunda línea, más fina y difusa que coast-glow,
+    // casi invisible lejos y apenas perceptible en zoom medio/cercano — lectura
+    // de espuma difusa en el litoral, nunca una ola.
+    map.addLayer({
+      id:'coast-foam', type:'line',
+      source: waterFillLayer.source, 'source-layer': waterFillLayer['source-layer'],
+      filter: waterFillLayer.filter || null,
+      paint:{
+        'line-color': '#8FD9DC',
+        'line-opacity': ['interpolate', ['linear'], ['zoom'], 7, 0, 10, 0.05, 13, 0.11],
+        'line-width': ['interpolate', ['linear'], ['zoom'], 7, 0.5, 13, 1.6],
+        'line-blur': 1.5,
+      },
+    }, coastBeforeId);
+
+    // 3) Profundidad del océano en 3 bandas — costa más luminosa, banda
+    // intermedia verde-azulada, mar abierto (el fill 'water' de siempre, sin
+    // tocar) queda como la profundidad más oscura. Anclado en las 2 comunas
+    // costeras reales (Los Vilos, Canela) — mismo mecanismo que el glow
+    // territorial de las 4 comunas, solo con otra paleta y radios más grandes.
+    const coastalCommunes = LOCALITIES.filter(l => l.id === 'losvilos' || l.id === 'canela');
+    map.addSource('ocean-depth', {
+      type:'geojson',
+      data:{
+        type:'FeatureCollection',
+        features: coastalCommunes.map(loc => ({
+          type:'Feature', properties:{},
+          geometry:{ type:'Point', coordinates:[loc.lng, loc.lat] },
+        })),
+      },
+    });
+    map.addLayer({
+      id:'ocean-depth-mid', type:'circle', source:'ocean-depth',
+      paint:{
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 90, 10, 200, 13, 340],
+        'circle-color': '#1F6E6A',
+        'circle-opacity': 0.05,
+        'circle-blur': 1,
+        'circle-pitch-alignment':'map',
+      },
+    }, coastBeforeId);
+    map.addLayer({
+      id:'ocean-depth-shore', type:'circle', source:'ocean-depth',
+      paint:{
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 30, 10, 70, 13, 120],
+        'circle-color': '#3E8FA8',
+        'circle-opacity': 0.06,
+        'circle-blur': 1,
+        'circle-pitch-alignment':'map',
+      },
+    }, coastBeforeId);
+
+    // 4) Reflejo de Los Vilos — un desplazamiento horizontal extremadamente
+    // lento (15-20s de ciclo) sobre una franja de brillo propia, SOLO visible
+    // cuando el usuario está dentro de Los Vilos (togglea su opacidad
+    // updateLosVilosReflection(), enganchada a enterLocality/exitLocality más
+    // abajo). fill-translate es un desplazamiento puramente visual — no mueve
+    // ninguna geometría real ni afecta interactividad.
+    const losVilos = LOCALITIES.find(l => l.id === 'losvilos');
+    map.addSource('losvilos-reflection', {
+      type:'geojson',
+      data:{ type:'Feature', properties:{}, geometry:{ type:'Point', coordinates:[losVilos.lng, losVilos.lat] } },
+    });
+    map.addLayer({
+      id:'losvilos-reflection-layer', type:'circle', source:'losvilos-reflection',
+      paint:{
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 60, 13, 160],
+        'circle-color': '#BFEFF2',
+        'circle-opacity': 0, // se activa solo al entrar a Los Vilos
+        'circle-opacity-transition': { duration:700 },
+        'circle-blur': 1,
+        'circle-pitch-alignment':'map',
+      },
+    }, coastBeforeId);
+    setInterval(() => {
+      if (!map.getLayer('losvilos-reflection-layer')) return;
+      const drift = Math.sin(performance.now() / 2800) * 14; // px, horizontal, muy lento
+      map.setPaintProperty('losvilos-reflection-layer', 'circle-translate', [drift, 0]);
+    }, 260);
   }
 
   // ---- 3) Río Choapa con protagonismo sutil ----
@@ -2709,11 +2798,20 @@ const COMUNA_FLIGHT = {
   canela:    { curve:1.5,  speed:0.85, duration:860 },
 };
 
+// Reflejo de Los Vilos — visible solo mientras se explora esa comuna
+// específicamente; en cualquier otra comuna o en la vista general, invisible.
+function updateLosVilosReflection(){
+  if (!map.getLayer('losvilos-reflection-layer')) return;
+  const active = state.currentLocality && state.currentLocality.id === 'losvilos';
+  map.setPaintProperty('losvilos-reflection-layer', 'circle-opacity', active ? 0.05 : 0);
+}
+
 function enterLocality(locality, { fly }){
   state.currentLocality = locality;
   state.currentSublocality = null;
   updateZonePrompt();
   updateSheetHero();
+  updateLosVilosReflection();
   const hasSublocalities = (SUBLOCALITIES[locality.id] || []).length > 0;
   if (fly){
     // Con Nivel 2 cargado: nos quedamos a media distancia para ver la zona de
@@ -2740,6 +2838,7 @@ function exitLocality({ fly }){
   state.currentSublocality = null;
   updateZonePrompt();
   updateSheetHero();
+  updateLosVilosReflection();
   clearSublocalityMarkers();
   if (fly){
     map.fitBounds(CHOAPA_BOUNDS, { padding:{ top:220, bottom:280, left:40, right:40 }, duration:1200 });
