@@ -2078,11 +2078,9 @@ function computeElasticCorrection(){
     else if (b.getNorth() > maxLat) newLat = center.lat + (maxLat - b.getNorth());
   }
 
-  if (newLng === center.lng && newLat === center.lat) return null;
+ if (newLng === center.lng && newLat === center.lat) return null;
   return [newLng, newLat];
 }
-
-</parameter>
 
 // Dos banderas de estado — la pieza que faltaba y causaba el "parate":
 // - userInteracting: true mientras el usuario tiene el dedo puesto (arrastrando
