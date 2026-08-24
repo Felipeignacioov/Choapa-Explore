@@ -1983,6 +1983,18 @@ let localityMarkers = [];
 let sublocalityMarkers = [];
 
 /* ---------- 4. MAP INIT ---------- */
+// Red de seguridad NATIVA de MapLibre — un límite duro pero muy generoso (1.5°
+// más allá de la zona elástica CHOAPA_MAX_BOUNDS), para que ni el fling más
+// fuerte pueda escapar del mundo real de Choapa Explore. No sustituye la
+// elasticidad (maxBounds nativo bloquea de forma dura, no permite "salir y
+// volver suave") — es solo el último resguardo, invisible en el uso normal.
+// Antes evitábamos maxBounds nativo por el pitch de cámara; con maxPitch:0 esa
+// razón ya no existe, así que se puede usar con seguridad como capa base.
+const CHOAPA_SAFETY_BOUNDS = [
+  [CHOAPA_MAX_BOUNDS[0][0] - 1.5, CHOAPA_MAX_BOUNDS[0][1] - 1.5],
+  [CHOAPA_MAX_BOUNDS[1][0] + 1.5, CHOAPA_MAX_BOUNDS[1][1] + 1.5],
+];
+
 const map = new maplibregl.Map({
   container:'map',
   style:'https://tiles.openfreemap.org/styles/dark',
@@ -1995,6 +2007,11 @@ const map = new maplibregl.Map({
   dragRotate:true,
   pitchWithRotate:false,
   touchPitch:false,
+  maxBounds: CHOAPA_SAFETY_BOUNDS,
+  // Evita que el mapa dibuje copias repetidas del planeta al costado — la causa
+  // real del bug "el mapa da la vuelta y aparece una zona oscura" en un fling
+  // muy fuerte (wrap-around horizontal del mundo).
+  renderWorldCopies:false,
 });
 // 1 dedo = pan · 2 dedos = pellizcar zoom + rotar, con inclinación natural
 map.touchZoomRotate.enable({ around:'center' });
@@ -2057,6 +2074,13 @@ map.on('zoomend', updateExplorationLevel);
 // Con un margen fijo, la elasticidad se siente idéntica sin importar el zoom:
 // llegás al borde real del Choapa, y desde ahí — siempre desde ahí — empieza a
 // estirarse un poco antes de volver.
+// Corrección uniforme en los 4 ejes. Cuando la pantalla es más ancha/alta que la
+// propia caja elástica (caso frecuente en celulares en vertical para el eje
+// norte-sur), YA NO se deja ese eje completamente libre — eso era exactamente
+// la causa de que la elasticidad se sintiera "solo hacia la costa": el eje
+// vertical caía en ese caso casi siempre y quedaba sin ningún límite. Ahora ese
+// caso cae a una corrección por centro, así todo eje tiene siempre algún tipo
+// de resistencia — los 4 lados quedan simétricos de verdad.
 function computeElasticCorrection(){
   const b = map.getBounds();
   const center = map.getCenter();
@@ -2065,33 +2089,43 @@ function computeElasticCorrection(){
   const viewLat = b.getNorth() - b.getSouth();
 
   let newLng = center.lng, newLat = center.lat;
-  // Si la pantalla (a este zoom) es más ancha/alta que la propia caja elástica,
-  // exigir ambos bordes a la vez es geométricamente imposible sin forzar la
-  // cámara — en ese caso se deja al usuario totalmente libre en ese eje (nunca
-  // "empuja"), en vez de pelear con un cálculo que no puede satisfacerse.
   if (viewLng <= (maxLng - minLng)){
     if (b.getWest() < minLng) newLng = center.lng + (minLng - b.getWest());
     else if (b.getEast() > maxLng) newLng = center.lng + (maxLng - b.getEast());
+  } else {
+    newLng = Math.min(Math.max(center.lng, minLng), maxLng);
   }
   if (viewLat <= (maxLat - minLat)){
     if (b.getSouth() < minLat) newLat = center.lat + (minLat - b.getSouth());
     else if (b.getNorth() > maxLat) newLat = center.lat + (maxLat - b.getNorth());
+  } else {
+    newLat = Math.min(Math.max(center.lat, minLat), maxLat);
   }
 
- if (newLng === center.lng && newLat === center.lat) return null;
+  if (newLng === center.lng && newLat === center.lat) return null;
   return [newLng, newLat];
 }
 
-// Dos banderas de estado — la pieza que faltaba y causaba el "parate":
-// - userInteracting: true mientras el usuario tiene el dedo puesto (arrastrando
-//   O haciendo zoom). Mientras sea true, NUNCA se dispara una corrección — así
-//   una corrección jamás puede pelear contra un gesto activo.
-// - correctingBounds: true solo mientras nuestra propia animación de vuelta
-//   está en el aire. El moveend que ESA animación genera se ignora (si no, se
-//   re-evaluaría a sí misma en bucle); y si el usuario interrumpe con un gesto
-//   nuevo, se apaga al instante para que MapLibre le ceda el control sin pelea.
+// Única fuente de verdad para "¿el usuario tiene el dedo puesto?": Pointer Events
+// directo sobre el canvas del mapa, en vez de los pares dragstart/dragend y
+// zoomstart/zoomend de MapLibre — esos pares a veces no se emparejaban bien en
+// gestos mixtos (pellizcar y luego arrastrar sin soltar), dejando la bandera
+// trabada en "true" para siempre. Pointer Events unifica touch/mouse/pen y
+// siempre se empareja correctamente por diseño de la propia API del navegador.
+const mapCanvas = map.getCanvasContainer();
 let userInteracting = false;
 let correctingBounds = false;
+
+function markInteractionStart(){
+  userInteracting = true;
+  correctingBounds = false; // cede el control de inmediato — nunca pelea contra el nuevo gesto
+}
+function markInteractionEnd(){
+  userInteracting = false;
+}
+mapCanvas.addEventListener('pointerdown', markInteractionStart, { passive:true });
+window.addEventListener('pointerup', markInteractionEnd, { passive:true });
+window.addEventListener('pointercancel', markInteractionEnd, { passive:true });
 
 function tryElasticCorrection(){
   if (correctingBounds || userInteracting) return;
@@ -2103,10 +2137,6 @@ function tryElasticCorrection(){
 }
 
 map.on('moveend', tryElasticCorrection);
-map.on('dragstart', () => { userInteracting = true; correctingBounds = false; });
-map.on('dragend',   () => { userInteracting = false; });
-map.on('zoomstart', () => { userInteracting = true; correctingBounds = false; });
-map.on('zoomend',   () => { userInteracting = false; });
 // La inclinación de cámara (pitch) está desactivada a nivel de configuración
 // del mapa (maxPitch:0, pitchWithRotate:false, touchPitch:false) — era la causa
 // raíz de que el mapa se congelara al combinarse con ciertos rangos de zoom.
