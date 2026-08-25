@@ -1999,12 +1999,9 @@ const map = new maplibregl.Map({
   container:'map',
   style:'https://tiles.openfreemap.org/styles/dark',
  bounds: CHOAPA_BOUNDS,
-  // Bottom reducido ~18% (280 → 230): menos "peso" hacia el sur en el encuadre
-  // inicial — el padding inferior es lo que empuja el territorio hacia abajo en
-  // pantalla (más espacio reservado abajo = el mapa se centra más bajo dentro
-  // del área restante). Al reducirlo, el territorio sube y deja de asomar ese
-  // borde oscuro junto a la píldora "¿Qué hacer hoy?".
-  fitBoundsOptions:{ padding:{ top:220, bottom:230, left:40, right:40 } },
+   // Se pasó de largo con 230 (quedó demasiado arriba) — vuelve a un punto medio
+  // entre el original (280) y el ajuste anterior (230).
+  fitBoundsOptions:{ padding:{ top:220, bottom:258, left:40, right:40 } },
  minZoom:7.6,
   maxZoom:17,
   maxPitch:0,
