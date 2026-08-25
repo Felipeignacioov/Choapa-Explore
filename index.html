@@ -93,7 +93,7 @@ img{-webkit-user-drag:none; user-select:none;}
 #app{position:relative; width:100vw; height:100vh; height:100dvh;}
 
 /* ---------------- MAP ---------------- */
-#map{position:absolute; inset:0; background:var(--bg-primary);}
+#map{position:absolute; inset:0; background:var(--bg-primary); touch-action:none;}
 .maplibregl-ctrl-attrib{display:none !important;}
 .maplibregl-ctrl-logo{display:none !important;}
 
@@ -2029,8 +2029,22 @@ map.touchZoomRotate.enable({ around:'center' });
 function handleViewportChange(){
   map.resize();
 }
-window.addEventListener('resize', handleViewportChange);
-window.addEventListener('orientationchange', () => setTimeout(handleViewportChange, 250));
+// La causa real del salto vertical: en móvil, un gesto vertical hace que la
+// barra de direcciones del navegador se colapse/expanda, lo que dispara este
+// mismo 'resize' — y si map.resize() se ejecuta A MITAD del arrastre, MapLibre
+// recalcula el canvas con dimensiones nuevas mientras el gesto seguía anclado a
+// las dimensiones viejas: eso es exactamente lo que produce el salto a una zona
+// vacía (solo pasa en vertical porque solo el scroll vertical mueve la barra de
+// direcciones — nunca el horizontal). La solución: si el usuario tiene el dedo
+// puesto (userInteracting), el resize se pospone y se aplica recién al soltar
+// (ver markInteractionEnd más abajo) — nunca a mitad de gesto.
+let resizePending = false;
+function requestViewportChange(){
+  if (userInteracting){ resizePending = true; return; }
+  handleViewportChange();
+}
+window.addEventListener('resize', requestViewportChange);
+window.addEventListener('orientationchange', () => setTimeout(requestViewportChange, 250));
 
 // La elasticidad no debe activarse durante el encuadre inicial (fitBounds) — ese
 // primer asentamiento de cámara también dispara 'moveend', y sin esta guarda el
@@ -2138,6 +2152,7 @@ function markInteractionStart(){
 }
 function markInteractionEnd(){
   userInteracting = false;
+  if (resizePending){ resizePending = false; handleViewportChange(); }
 }
 mapCanvas.addEventListener('pointerdown', markInteractionStart, { passive:true });
 window.addEventListener('pointerup', markInteractionEnd, { passive:true });
