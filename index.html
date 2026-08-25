@@ -2125,12 +2125,33 @@ function computeElasticCorrection(){
   const b = map.getBounds();
   const center = map.getCenter();
   const [[minLng, minLat], [maxLng, maxLat]] = CHOAPA_MAX_BOUNDS;
+  const viewLng = b.getEast() - b.getWest();
+  const viewLat = b.getNorth() - b.getSouth();
 
   let newLng = center.lng, newLat = center.lat;
-  if (b.getWest() < minLng) newLng = center.lng + (minLng - b.getWest());
-  else if (b.getEast() > maxLng) newLng = center.lng + (maxLng - b.getEast());
-  if (b.getSouth() < minLat) newLat = center.lat + (minLat - b.getSouth());
-  else if (b.getNorth() > maxLat) newLat = center.lat + (maxLat - b.getNorth());
+
+  // Cuando lo que se ve en pantalla es más ancho/alto que la propia caja de
+  // límites (muy común en zoom alejado — la vista inicial con las 4 comunas ya
+  // cae en este caso), AMBOS bordes de ese eje quedan "violados" a la vez. Antes
+  // el código revisaba primero un lado (ej. sur) y, como casi siempre estaba mal,
+  // corregía SIEMPRE hacia ese lado sin importar hacia dónde arrastraste — eso
+  // era el "vuelve muy arriba pase lo que pase". Ahora, en ese caso, se centra
+  // en la caja en vez de sesgar hacia un borde fijo.
+  if (viewLng >= (maxLng - minLng)){
+    newLng = (minLng + maxLng) / 2;
+  } else if (b.getWest() < minLng){
+    newLng = center.lng + (minLng - b.getWest());
+  } else if (b.getEast() > maxLng){
+    newLng = center.lng + (maxLng - b.getEast());
+  }
+
+  if (viewLat >= (maxLat - minLat)){
+    newLat = (minLat + maxLat) / 2;
+  } else if (b.getSouth() < minLat){
+    newLat = center.lat + (minLat - b.getSouth());
+  } else if (b.getNorth() > maxLat){
+    newLat = center.lat + (maxLat - b.getNorth());
+  }
 
   if (newLng === center.lng && newLat === center.lat) return null;
   return [newLng, newLat];
