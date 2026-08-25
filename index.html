@@ -2047,8 +2047,6 @@ let mapReady = false;
 
 map.on('load', () => {
   map.once('moveend', () => { mapReady = true; });
-
-map.on('load', () => {
   document.getElementById('mapLoading').style.opacity = '0';
   setTimeout(() => document.getElementById('mapLoading').style.display='none', 400);
  tintMapLayers();
