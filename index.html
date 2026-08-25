@@ -1999,7 +1999,12 @@ const map = new maplibregl.Map({
   container:'map',
   style:'https://tiles.openfreemap.org/styles/dark',
  bounds: CHOAPA_BOUNDS,
-  fitBoundsOptions:{ padding:{ top:220, bottom:280, left:40, right:40 } },
+  // Bottom reducido ~18% (280 → 230): menos "peso" hacia el sur en el encuadre
+  // inicial — el padding inferior es lo que empuja el territorio hacia abajo en
+  // pantalla (más espacio reservado abajo = el mapa se centra más bajo dentro
+  // del área restante). Al reducirlo, el territorio sube y deja de asomar ese
+  // borde oscuro junto a la píldora "¿Qué hacer hoy?".
+  fitBoundsOptions:{ padding:{ top:220, bottom:230, left:40, right:40 } },
  minZoom:7.6,
   maxZoom:17,
   maxPitch:0,
@@ -2081,26 +2086,27 @@ map.on('zoomend', updateExplorationLevel);
 // vertical caía en ese caso casi siempre y quedaba sin ningún límite. Ahora ese
 // caso cae a una corrección por centro, así todo eje tiene siempre algún tipo
 // de resistencia — los 4 lados quedan simétricos de verdad.
+// Mismo método de corrección (por borde de pantalla) en los 4 lados, sin
+// excepción. Antes existía una rama alternativa ("por centro", mucho más
+// permisiva) que se activaba cuando el viewport no cabía dentro de la caja
+// elástica — y en un celular vertical, eso pasaba casi siempre en el eje
+// norte-sur (la pantalla muestra más territorio vertical que horizontal a un
+// mismo zoom), nunca en este-oeste. Esa rama ya no hace falta: el sistema de
+// Pointer Events (más abajo) ya cancela cualquier corrección en el instante en
+// que el usuario vuelve a tocar la pantalla, así que aplicar siempre la
+// corrección por borde es seguro incluso cuando el viewport es más grande que
+// la caja — en ese caso simplemente se acerca lo más posible al límite excedido,
+// que es exactamente el comportamiento elástico esperado.
 function computeElasticCorrection(){
   const b = map.getBounds();
   const center = map.getCenter();
   const [[minLng, minLat], [maxLng, maxLat]] = CHOAPA_MAX_BOUNDS;
-  const viewLng = b.getEast() - b.getWest();
-  const viewLat = b.getNorth() - b.getSouth();
 
   let newLng = center.lng, newLat = center.lat;
-  if (viewLng <= (maxLng - minLng)){
-    if (b.getWest() < minLng) newLng = center.lng + (minLng - b.getWest());
-    else if (b.getEast() > maxLng) newLng = center.lng + (maxLng - b.getEast());
-  } else {
-    newLng = Math.min(Math.max(center.lng, minLng), maxLng);
-  }
-  if (viewLat <= (maxLat - minLat)){
-    if (b.getSouth() < minLat) newLat = center.lat + (minLat - b.getSouth());
-    else if (b.getNorth() > maxLat) newLat = center.lat + (maxLat - b.getNorth());
-  } else {
-    newLat = Math.min(Math.max(center.lat, minLat), maxLat);
-  }
+  if (b.getWest() < minLng) newLng = center.lng + (minLng - b.getWest());
+  else if (b.getEast() > maxLng) newLng = center.lng + (maxLng - b.getEast());
+  if (b.getSouth() < minLat) newLat = center.lat + (minLat - b.getSouth());
+  else if (b.getNorth() > maxLat) newLat = center.lat + (maxLat - b.getNorth());
 
   if (newLng === center.lng && newLat === center.lat) return null;
   return [newLng, newLat];
