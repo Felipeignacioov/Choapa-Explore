@@ -1999,9 +1999,8 @@ const map = new maplibregl.Map({
   container:'map',
   style:'https://tiles.openfreemap.org/styles/dark',
  bounds: CHOAPA_BOUNDS,
-   // Se pasó de largo con 230 (quedó demasiado arriba) — vuelve a un punto medio
-  // entre el original (280) y el ajuste anterior (230).
-  fitBoundsOptions:{ padding:{ top:220, bottom:258, left:40, right:40 } },
+   // Un poco más al norte que el punto medio anterior (258).
+  fitBoundsOptions:{ padding:{ top:220, bottom:246, left:40, right:40 } },
  minZoom:7.6,
   maxZoom:17,
   maxPitch:0,
@@ -2036,12 +2035,18 @@ window.addEventListener('orientationchange', () => setTimeout(handleViewportChan
 // La elasticidad no debe activarse durante el encuadre inicial (fitBounds) — ese
 // primer asentamiento de cámara también dispara 'moveend', y sin esta guarda el
 // sistema de corrección lo interpretaba como "el usuario se salió del límite" y
-// movía la cámara automáticamente, sin ningún toque real — exactamente el salto
-// que no debía pasar. 'idle' se dispara una sola vez, cuando el mapa terminó
-// TODO su trabajo inicial (estilo cargado + cámara completamente quieta), así
-// que es el momento correcto y garantizado para empezar a vigilar los límites.
+// movía la cámara automáticamente. 'idle' NO sirve para esto: con las
+// animaciones ambientales ya en marcha (glow de comunas, agua, río, reflejo de
+// Los Vilos — todas corriendo en setInterval sin parar), el mapa nunca llega a
+// un estado realmente "quieto", así que 'idle' nunca disparaba y la elasticidad
+// quedaba apagada para siempre. En su lugar: el primer 'moveend' después de
+// 'load' es justo el que corresponde al propio fitBounds asentándose — ocurre
+// una sola vez, de forma garantizada, y recién después de ese se empieza a
+// vigilar.
 let mapReady = false;
-map.once('idle', () => { mapReady = true; });
+
+map.on('load', () => {
+  map.once('moveend', () => { mapReady = true; });
 
 map.on('load', () => {
   document.getElementById('mapLoading').style.opacity = '0';
