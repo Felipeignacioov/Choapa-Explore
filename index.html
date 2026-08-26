@@ -258,6 +258,7 @@ img{-webkit-user-drag:none; user-select:none;}
   transition:transform .22s cubic-bezier(.34,1.56,.64,1), filter .22s ease, opacity .22s ease;
   filter:drop-shadow(0 1.5px 3px rgba(2,8,15,0.38));
   opacity:0.94;
+  will-change:transform; /* evita el recálculo de drop-shadow cuadro a cuadro con la respiración — causa real del tirite en reposo */
   animation:poi-enter .32s cubic-bezier(.2,.9,.28,1.1) backwards, poi-breathe 4.4s ease-in-out .6s infinite;
   animation-delay:var(--enter-delay, 0ms), calc(var(--enter-delay, 0ms) + 600ms);
 }
@@ -303,6 +304,7 @@ img{-webkit-user-drag:none; user-select:none;}
 .loc-visual{
   display:flex; flex-direction:column; align-items:center;
   transition:opacity .3s ease, transform .3s cubic-bezier(.32,.9,.34,1);
+  will-change:transform; /* mismo motivo que en los POIs — evita el tirite del drop-shadow por la respiración del halo */
 }
 
 /* CERCANO — el zoom se acerca al umbral donde aparecen las localidades: el
