@@ -2134,13 +2134,6 @@ function computeElasticCorrection(){
 
   let newLng = center.lng, newLat = center.lat;
 
-  // Cuando lo que se ve en pantalla es más ancho/alto que la propia caja de
-  // límites (muy común en zoom alejado — la vista inicial con las 4 comunas ya
-  // cae en este caso), AMBOS bordes de ese eje quedan "violados" a la vez. Antes
-  // el código revisaba primero un lado (ej. sur) y, como casi siempre estaba mal,
-  // corregía SIEMPRE hacia ese lado sin importar hacia dónde arrastraste — eso
-  // era el "vuelve muy arriba pase lo que pase". Ahora, en ese caso, se centra
-  // en la caja en vez de sesgar hacia un borde fijo.
   if (viewLng >= (maxLng - minLng)){
     newLng = (minLng + maxLng) / 2;
   } else if (b.getWest() < minLng){
@@ -2157,7 +2150,12 @@ function computeElasticCorrection(){
     newLat = center.lat + (maxLat - b.getNorth());
   }
 
-  if (newLng === center.lng && newLat === center.lat) return null;
+  // Tolerancia ~0.0005° (medio metro) — sin esto, easeTo casi nunca deja el
+  // centro en el punto EXACTO calculado (coma flotante), así que la corrección
+  // se volvía a disparar sobre sí misma en un bucle infinito de correcciones
+  // microscópicas — eso era el tirite continuo después de volver del borde.
+  const EPS = 0.0005;
+  if (Math.abs(newLng - center.lng) < EPS && Math.abs(newLat - center.lat) < EPS) return null;
   return [newLng, newLat];
 }
 
