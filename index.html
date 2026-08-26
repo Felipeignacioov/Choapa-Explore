@@ -2691,13 +2691,30 @@ function renderTerritoryFade(){
       const tg = landRGB.g + (oceanRGB.g - landRGB.g) * westWeight;
       const tb = landRGB.b + (oceanRGB.b - landRGB.b) * westWeight;
       const idx = (py * SIZE + px) * 4;
-      data[idx]   = baseRGB.r + (tr - baseRGB.r) * tintAmount;
-      data[idx+1] = baseRGB.g + (tg - baseRGB.g) * tintAmount;
-      data[idx+2] = baseRGB.b + (tb - baseRGB.b) * tintAmount;
-      data[idx+3] = Math.round(opacity * 255);
+            // Dithering: un <canvas> solo tiene 256 niveles por canal. El degradado en
+      // sí ya es matemáticamente continuo, pero al redondear a un entero de 8
+      // bits, el ojo (muy sensible a bordes — efecto "Mach bands") percibe cada
+      // salto de nivel como una línea nítida, formando anillos donde el radio
+      // elíptico cae justo en el mismo nivel. Sumar un ruido diminuto e
+      // imperceptible ANTES de redondear rompe esa alineación: ya no hay una
+      // línea continua de píxeles con el mismo valor exacto, solo grano fino que
+      // el ojo no distingue a la distancia normal de uso.
+      const dither = (Math.random() - 0.5) * 1.2;
+      const clamp255 = v => Math.min(255, Math.max(0, Math.round(v)));
+      data[idx]   = clamp255(baseRGB.r + (tr - baseRGB.r) * tintAmount + dither);
+      data[idx+1] = clamp255(baseRGB.g + (tg - baseRGB.g) * tintAmount + dither);
+      data[idx+2] = clamp255(baseRGB.b + (tb - baseRGB.b) * tintAmount + dither);
+      data[idx+3] = clamp255(opacity * 255 + dither);
     }
   }
-  ctx.putImageData(imgData, 0, 0);
+    ctx.putImageData(imgData, 0, 0);
+
+  // Limpieza defensiva: si una versión anterior de esta capa quedó activa (por
+  // ejemplo, un reemplazo de código que no matcheó 100%), se retira antes de
+  // agregar la nueva — evita capas duplicadas superpuestas, que también se leen
+  // como bandas.
+  if (map.getLayer('territory-fade-layer')) map.removeLayer('territory-fade-layer');
+  if (map.getSource('territory-fade')) map.removeSource('territory-fade');
 
   map.addSource('territory-fade', {
     type:'image', url: canvas.toDataURL(),
