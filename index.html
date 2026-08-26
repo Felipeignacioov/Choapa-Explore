@@ -2625,37 +2625,7 @@ function renderTerritoryFade(){
   const outer = CHOAPA_MAX_BOUNDS;
   const lerp = (a, b, t) => [ a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t ];
   const boundsAt = t => [ lerp(inner[0], outer[0], t), lerp(inner[1], outer[1], t) ];
-
-  // Esquinas orgánicas: antes cada anillo era un rectángulo de 4 esquinas
-  // exactas — y un rectángulo que crece uniformemente hacia afuera SIEMPRE tiene
-  // esquinas de 90°, sin importar cuántos anillos se generen entre medio. Ahora
-  // cada anillo es un rectángulo con las esquinas redondeadas (aproximadas con
-  // pequeños arcos), y ese radio crece con t: casi recto cerca del territorio
-  // real (t≈0, no distorsiona la forma real del Choapa) y muy suavizado hacia el
-  // borde exterior (t≈1) — las esquinas se van "perdiendo" progresivamente, tal
-  // como pide el punto 5 del brief, sin necesidad de ningún efecto de blur (que
-  // los fill layers de MapLibre no soportan de forma nativa).
-  function cornerRadiusFrac(t){ return 0.04 + t * 0.34; }
-  function ring(sw, ne, t = 1){
-    const w = ne[0] - sw[0], h = ne[1] - sw[1];
-    const r = Math.min(w, h) * cornerRadiusFrac(t);
-    const cx0 = sw[0] + r, cx1 = ne[0] - r, cy0 = sw[1] + r, cy1 = ne[1] - r;
-    const STEPS = 6; // segmentos por esquina — suficiente para leerse orgánico
-    const pts = [];
-    const arc = (cx, cy, a0, a1) => {
-      for (let i = 0; i <= STEPS; i++){
-        const a = a0 + (a1 - a0) * (i / STEPS);
-        pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
-      }
-    };
-    arc(cx1, cy0, -Math.PI / 2, 0);
-    arc(cx1, cy1, 0, Math.PI / 2);
-    arc(cx0, cy1, Math.PI / 2, Math.PI);
-    arc(cx0, cy0, Math.PI, 1.5 * Math.PI);
-    pts.push(pts[0]);
-    return pts;
-  }
-
+  const ring = (sw, ne) => [[sw[0],sw[1]], [ne[0],sw[1]], [ne[0],ne[1]], [sw[0],ne[1]], [sw[0],sw[1]]];
  const RINGS = 28;              // más anillos = transición más suave, sin bandas visibles
   const MAX_OPACITY = 0.97;
   const ease = t => t * t;       // ease-in: casi invisible cerca, se acelera hacia el borde
@@ -2668,7 +2638,7 @@ function renderTerritoryFade(){
     features.push({
       type:'Feature',
       properties:{ opacity: ease(t1) * MAX_OPACITY },
-      geometry:{ type:'Polygon', coordinates:[ ring(b1[0], b1[1], t1), ring(b0[0], b0[1], t0) ] }
+      geometry:{ type:'Polygon', coordinates:[ ring(b1[0], b1[1]), ring(b0[0], b0[1]) ] }
     });
   }
 // Sello final: más allá de CHOAPA_MAX_BOUNDS aún hay mapa visible en pantallas
@@ -2687,47 +2657,15 @@ function renderTerritoryFade(){
   features.push({
     type:'Feature',
     properties:{ opacity: 0.99 },
-    geometry:{ type:'Polygon', coordinates:[ ring(sealEdge[0], sealEdge[1], 1), ring(boundsAt(1)[0], boundsAt(1)[1], 1) ] }
+    geometry:{ type:'Polygon', coordinates:[ ring(sealEdge[0], sealEdge[1]), ring(boundsAt(1)[0], boundsAt(1)[1]) ] }
   });
   map.addSource('territory-fade', { type:'geojson', data:{ type:'FeatureCollection', features } });
   map.addLayer({
     id:'territory-fade-layer', type:'fill', source:'territory-fade',
     paint:{ 'fill-color':'#0B1726', 'fill-opacity':['get','opacity'] }
   });
-
-  // ---- Tinte direccional del exterior ----
-  // El Choapa tiene mar al oeste y continuidad de relieve hacia los otros 3
-  // lados (norte, este, sur — agrupados, misma filosofía de continuidad
-  // terrestre). En vez de reescribir el sistema de anillos para que cada uno
-  // tenga color según su posición (arriesgado y redundante con lo ya validado
-  // arriba), se agrega UNA capa aditiva nueva, muy translúcida, por encima del
-  // desvanecimiento existente — sin tocarlo: mitad oceánica en un azul-verdoso
-  // coherente con la paleta de agua que ya usa el resto del mapa, mitad
-  // terrestre en un tono neutro-oscuro apenas distinto. Intensidad muy por
-  // debajo de cualquier elemento del interior (POIs > localidades > comunas >
-  // río > relieve > esto).
-  const westSplitLng = inner[0][0]; // borde oeste real del territorio — de ahí hacia afuera es "el lado del mar"
-  const fadeOuterSW = sealEdge[0], fadeOuterNE = sealEdge[1];
-  map.addSource('territory-tint', {
-    type:'geojson',
-    data:{
-      type:'FeatureCollection',
-      features:[
-        { type:'Feature', properties:{ tint:'ocean' },
-          geometry:{ type:'Polygon', coordinates:[ ring(fadeOuterSW, [westSplitLng, fadeOuterNE[1]], 1) ] } },
-        { type:'Feature', properties:{ tint:'land' },
-          geometry:{ type:'Polygon', coordinates:[ ring([westSplitLng, fadeOuterSW[1]], fadeOuterNE, 1) ] } },
-      ],
-    },
-  });
-  map.addLayer({
-    id:'territory-tint-layer', type:'fill', source:'territory-tint',
-    paint:{
-      'fill-color': ['match', ['get','tint'], 'ocean', '#123C46', 'land', '#1A2420', '#0B1726'],
-      'fill-opacity': 0.1,
-    },
-  });
 }
+
 
 /* ---------- 5. POI MARKERS ---------- */
 function poiSVG(color, iconKey){
