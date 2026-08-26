@@ -2621,48 +2621,88 @@ function renderTerrainDepth(){
 // degradado continuo: transparente cerca del territorio real, oscureciéndose
 // progresivamente hacia el horizonte, sin cortes duros entre capas.
 function renderTerritoryFade(){
+  // Antes: anillos RECTANGULARES concéntricos — mismo rectángulo escalado desde
+  // CHOAPA_BOUNDS hasta CHOAPA_MAX_BOUNDS. Por eso cada esquina era literalmente
+  // una esquina de 90°, sin importar cuántos anillos se agregaran.
+  // Ahora: elipses concéntricas que CIRCUNSCRIBEN esos mismos rectángulos (tocan
+  // justo sus 4 esquinas, sin dejar zona muerta dentro del territorio real) —
+  // geometría orgánica, sin un solo ángulo recto en todo el recorrido.
+  // CHOAPA_BOUNDS / CHOAPA_MAX_BOUNDS se siguen usando solo como referencia de
+  // tamaño — no se tocan, igual que el resto del sistema de elasticidad.
   const inner = CHOAPA_BOUNDS;
   const outer = CHOAPA_MAX_BOUNDS;
-  const lerp = (a, b, t) => [ a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t ];
-  const boundsAt = t => [ lerp(inner[0], outer[0], t), lerp(inner[1], outer[1], t) ];
-  const ring = (sw, ne) => [[sw[0],sw[1]], [ne[0],sw[1]], [ne[0],ne[1]], [sw[0],ne[1]], [sw[0],sw[1]]];
- const RINGS = 28;              // más anillos = transición más suave, sin bandas visibles
-  const MAX_OPACITY = 0.97;
-  const ease = t => t * t;       // ease-in: casi invisible cerca, se acelera hacia el borde
+  const center = [ (inner[0][0]+inner[1][0])/2, (inner[0][1]+inner[1][1])/2 ];
+  // sqrt(2) = radio de la elipse que circunscribe un rectángulo con esos semiejes
+  // (toca exactamente las 4 esquinas) — +4% de margen para que ningún punto real
+  // del territorio quede dentro de la zona de desvanecimiento.
+  const SQRT2 = Math.SQRT2 * 1.04;
+  const rxInner = (inner[1][0]-inner[0][0])/2 * SQRT2;
+  const ryInner = (inner[1][1]-inner[0][1])/2 * SQRT2;
+  const rxOuter = (outer[1][0]-outer[0][0])/2 * SQRT2;
+  const ryOuter = (outer[1][1]-outer[0][1])/2 * SQRT2;
+  // Mismo margen y misma razón que el "sello" anterior (cubrir el viewport más
+  // ancho posible a minZoom sin dibujar un polígono del tamaño del mundo) — solo
+  // que ahora crece como parte de la misma elipse, no como una forma aparte.
+  const sealMargin = 3;
+  const rxSealOuter = rxOuter + sealMargin;
+  const rySealOuter = ryOuter + sealMargin;
+
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const ellipsePoint = (rx, ry, angle) => [ center[0] + rx*Math.cos(angle), center[1] + ry*Math.sin(angle) ];
+
+  // ---------- Oeste = mar · resto = continuidad de tierra ----------
+  // No se inventa geografía: el estilo base ya trae el Pacífico real al oeste y
+  // relieve real en el resto (mismas tiles que alimenta hillshade-subtle, sin
+  // límite geográfico propio). Este tinte solo refuerza esa lectura muy sutilmente
+  // sobre el propio degradado — nunca reemplaza el color base.
+  const FADE_BASE  = '#0B1726'; // idéntico al color anterior
+  const FADE_OCEAN = '#0A2530'; // profundidad marina, coherente con el agua ya tintada en el mapa
+  const FADE_LAND  = '#171009'; // continuidad terrestre, cálido y muy contenido
+  const westWeight = angle => Math.max(0, -Math.cos(angle)); // 1 en oeste puro, 0 en norte/este/sur
+
+  const SLICES = 16;             // resolución angular — sin escalón perceptible entre cuñas
+  const RINGS = 24;              // anillos entre el territorio real y el límite de navegación
+  const SEAL_RINGS = 8;          // anillos extra más allá del límite, sellando sin muro brusco
+  const MAX_OPACITY = 0.94;      // levemente más bajo: deja pasar un hilo de relieve/agua real
+  const SEAL_OPACITY = 0.95;     // el sello sigue la misma curva, ya no salta a 0.99 de golpe
+  const ease = t => t * t;       // mismo ease-in de siempre
+
   const features = [];
-  for (let i = 0; i < RINGS; i++){
-    const t0 = i / RINGS;
-    const t1 = (i + 1) / RINGS;
-    const b0 = boundsAt(t0);
-    const b1 = boundsAt(t1);
-    features.push({
-      type:'Feature',
-      properties:{ opacity: ease(t1) * MAX_OPACITY },
-      geometry:{ type:'Polygon', coordinates:[ ring(b1[0], b1[1]), ring(b0[0], b0[1]) ] }
-    });
+  function pushRing(t0, t1, opacity){
+    const rx0 = t0 <= 1 ? lerp(rxInner, rxOuter, t0) : lerp(rxOuter, rxSealOuter, t0-1);
+    const ry0 = t0 <= 1 ? lerp(ryInner, ryOuter, t0) : lerp(ryOuter, rySealOuter, t0-1);
+    const rx1 = t1 <= 1 ? lerp(rxInner, rxOuter, t1) : lerp(rxOuter, rxSealOuter, t1-1);
+    const ry1 = t1 <= 1 ? lerp(ryInner, ryOuter, t1) : lerp(ryOuter, rySealOuter, t1-1);
+    for (let s = 0; s < SLICES; s++){
+      const a0 = (s / SLICES) * Math.PI * 2;
+      const a1 = ((s + 1) / SLICES) * Math.PI * 2;
+      const aMid = (a0 + a1) / 2;
+      const tint = blendHex(FADE_LAND, FADE_OCEAN, westWeight(aMid));
+      const color = blendHex(FADE_BASE, tint, ease(Math.min(t1,1)) * 0.5);
+      const outerArc = [ ellipsePoint(rx1, ry1, a0), ellipsePoint(rx1, ry1, aMid), ellipsePoint(rx1, ry1, a1) ];
+      const innerArc = [ ellipsePoint(rx0, ry0, a1), ellipsePoint(rx0, ry0, aMid), ellipsePoint(rx0, ry0, a0) ];
+      const coords = [...outerArc, ...innerArc, outerArc[0]];
+      features.push({
+        type:'Feature',
+        properties:{ opacity, color },
+        geometry:{ type:'Polygon', coordinates:[coords] }
+      });
+    }
   }
-// Sello final: más allá de CHOAPA_MAX_BOUNDS aún hay mapa visible en pantallas
-  // verticales (celular) donde el viewport alcanza a mostrar de sobra el límite de
-  // navegación. Antes este polígono cubría casi todo el planeta, lo que forzaba a
-  // MapLibre a renderizarlo en cada fotograma de cualquier animación de cámara —
-  // carísimo en celular, y la causa real de los congelamientos al volar hacia una
-  // zona. Ahora se acota a un margen generoso pero finito alrededor de
-  // CHOAPA_MAX_BOUNDS, de sobra para cubrir cualquier borde visible al zoom mínimo
-  // permitido, sin el costo de dibujar un polígono del tamaño del mundo.
-  const sealMargin = 3; // grados — sobra para el viewport más ancho posible (minZoom)
-  const sealEdge = [
-    [outer[0][0] - sealMargin, outer[0][1] - sealMargin],
-    [outer[1][0] + sealMargin, outer[1][1] + sealMargin],
-  ];
-  features.push({
-    type:'Feature',
-    properties:{ opacity: 0.99 },
-    geometry:{ type:'Polygon', coordinates:[ ring(sealEdge[0], sealEdge[1]), ring(boundsAt(1)[0], boundsAt(1)[1]) ] }
-  });
+  for (let i = 0; i < RINGS; i++){
+    const t0 = i / RINGS, t1 = (i + 1) / RINGS;
+    pushRing(t0, t1, ease(t1) * MAX_OPACITY);
+  }
+  for (let i = 0; i < SEAL_RINGS; i++){
+    const t0 = 1 + i / SEAL_RINGS, t1 = 1 + (i + 1) / SEAL_RINGS;
+    const op = lerp(MAX_OPACITY, SEAL_OPACITY, (i + 1) / SEAL_RINGS);
+    pushRing(t0, t1, op);
+  }
+
   map.addSource('territory-fade', { type:'geojson', data:{ type:'FeatureCollection', features } });
   map.addLayer({
     id:'territory-fade-layer', type:'fill', source:'territory-fade',
-    paint:{ 'fill-color':'#0B1726', 'fill-opacity':['get','opacity'] }
+    paint:{ 'fill-color':['get','color'], 'fill-opacity':['get','opacity'] }
   });
 }
 
