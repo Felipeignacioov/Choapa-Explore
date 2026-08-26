@@ -2621,91 +2621,98 @@ function renderTerrainDepth(){
 // degradado continuo: transparente cerca del territorio real, oscureciéndose
 // progresivamente hacia el horizonte, sin cortes duros entre capas.
 function renderTerritoryFade(){
-  // Antes: anillos RECTANGULARES concéntricos — mismo rectángulo escalado desde
-  // CHOAPA_BOUNDS hasta CHOAPA_MAX_BOUNDS. Por eso cada esquina era literalmente
-  // una esquina de 90°, sin importar cuántos anillos se agregaran.
-  // Ahora: elipses concéntricas que CIRCUNSCRIBEN esos mismos rectángulos (tocan
-  // justo sus 4 esquinas, sin dejar zona muerta dentro del territorio real) —
-  // geometría orgánica, sin un solo ángulo recto en todo el recorrido.
-  // CHOAPA_BOUNDS / CHOAPA_MAX_BOUNDS se siguen usando solo como referencia de
-  // tamaño — no se tocan, igual que el resto del sistema de elasticidad.
+  // Un fill vectorial (aunque tenga muchos anillos/cuñas) SIEMPRE tiene color
+  // plano por polígono — por eso se veían bandas tipo "diana", sin importar
+  // cuántos stops se agregaran, es una limitación estructural del enfoque.
+  // Ahora el degradado se calcula UNA sola vez, píxel a píxel, en un <canvas>,
+  // y se muestra como imagen georreferenciada (image source + raster layer) —
+  // el filtrado bilineal de la GPU interpola de forma continua entre píxeles,
+  // sin ningún salto de color perceptible, a cualquier zoom.
+  // CHOAPA_BOUNDS / CHOAPA_MAX_BOUNDS se usan solo como referencia de tamaño,
+  // exactamente igual que antes — el sistema de elasticidad no se toca.
   const inner = CHOAPA_BOUNDS;
   const outer = CHOAPA_MAX_BOUNDS;
   const center = [ (inner[0][0]+inner[1][0])/2, (inner[0][1]+inner[1][1])/2 ];
-  // sqrt(2) = radio de la elipse que circunscribe un rectángulo con esos semiejes
-  // (toca exactamente las 4 esquinas) — +4% de margen para que ningún punto real
-  // del territorio quede dentro de la zona de desvanecimiento.
   const SQRT2 = Math.SQRT2 * 1.04;
   const rxInner = (inner[1][0]-inner[0][0])/2 * SQRT2;
   const ryInner = (inner[1][1]-inner[0][1])/2 * SQRT2;
   const rxOuter = (outer[1][0]-outer[0][0])/2 * SQRT2;
   const ryOuter = (outer[1][1]-outer[0][1])/2 * SQRT2;
-  // Mismo margen y misma razón que el "sello" anterior (cubrir el viewport más
-  // ancho posible a minZoom sin dibujar un polígono del tamaño del mundo) — solo
-  // que ahora crece como parte de la misma elipse, no como una forma aparte.
-  const sealMargin = 3;
-  const rxSealOuter = rxOuter + sealMargin;
-  const rySealOuter = ryOuter + sealMargin;
+  const sealMargin = 3; // mismo margen y misma razón que antes (cubrir el viewport más ancho a minZoom)
+  const rxMax = rxOuter + sealMargin;
+  const ryMax = ryOuter + sealMargin;
 
-  const lerp = (a, b, t) => a + (b - a) * t;
-  const ellipsePoint = (rx, ry, angle) => [ center[0] + rx*Math.cos(angle), center[1] + ry*Math.sin(angle) ];
+  const FADE_BASE  = '#0B1726';
+  const FADE_OCEAN = '#0A2530'; // oeste — profundidad marina
+  const FADE_LAND  = '#171009'; // resto — continuidad terrestre, cálido y contenido
+  const MAX_OPACITY = 0.94;
+  const SEAL_OPACITY = 0.95;
+  const ease = t => t * t;
 
-  // ---------- Oeste = mar · resto = continuidad de tierra ----------
-  // No se inventa geografía: el estilo base ya trae el Pacífico real al oeste y
-  // relieve real en el resto (mismas tiles que alimenta hillshade-subtle, sin
-  // límite geográfico propio). Este tinte solo refuerza esa lectura muy sutilmente
-  // sobre el propio degradado — nunca reemplaza el color base.
-  const FADE_BASE  = '#0B1726'; // idéntico al color anterior
-  const FADE_OCEAN = '#0A2530'; // profundidad marina, coherente con el agua ya tintada en el mapa
-  const FADE_LAND  = '#171009'; // continuidad terrestre, cálido y muy contenido
-  const westWeight = angle => Math.max(0, -Math.cos(angle)); // 1 en oeste puro, 0 en norte/este/sur
+  // rx(t)/ry(t): misma familia de elipses de antes (inner→outer en t:[0,1],
+  // outer→sello en t:[1,2]) — solo que ahora se evalúa por píxel, no por anillo.
+  function axesAt(t){
+    if (t <= 1) return [ rxInner + (rxOuter-rxInner)*t, ryInner + (ryOuter-ryInner)*t ];
+    const u = t - 1;
+    return [ rxOuter + (rxMax-rxOuter)*u, ryOuter + (ryMax-ryOuter)*u ];
+  }
+  // Distancia elíptica normalizada como parámetro continuo (0 = borde real del
+  // territorio, 1 = límite de navegación, 2 = borde del sello) — resuelta por
+  // bisección porque rx/ry dependen de t (no despejable en forma cerrada).
+  function solveT(dx, dy){
+    const f = t => { const [rx, ry] = axesAt(t); return (dx/rx)**2 + (dy/ry)**2 - 1; };
+    if (f(0) <= 0) return 0;
+    if (f(2) >= 0) return 2;
+    let lo = 0, hi = 2;
+    for (let i = 0; i < 12; i++){ const mid = (lo+hi)/2; if (f(mid) > 0) lo = mid; else hi = mid; }
+    return (lo + hi) / 2;
+  }
+  const hexToRgb = hex => { const n = parseInt(hex.slice(1),16); return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 }; };
+  const baseRGB = hexToRgb(FADE_BASE), oceanRGB = hexToRgb(FADE_OCEAN), landRGB = hexToRgb(FADE_LAND);
 
-  const SLICES = 16;             // resolución angular — sin escalón perceptible entre cuñas
-  const RINGS = 24;              // anillos entre el territorio real y el límite de navegación
-  const SEAL_RINGS = 8;          // anillos extra más allá del límite, sellando sin muro brusco
-  const MAX_OPACITY = 0.94;      // levemente más bajo: deja pasar un hilo de relieve/agua real
-  const SEAL_OPACITY = 0.95;     // el sello sigue la misma curva, ya no salta a 0.99 de golpe
-  const ease = t => t * t;       // mismo ease-in de siempre
+  const SIZE = 512; // resolución del lienzo — de sobra para que el filtrado
+                     // bilineal de la GPU lo lea como un degradado continuo
+  const canvas = document.createElement('canvas');
+  canvas.width = SIZE; canvas.height = SIZE;
+  const ctx = canvas.getContext('2d');
+  const imgData = ctx.createImageData(SIZE, SIZE);
+  const data = imgData.data;
 
-  const features = [];
-  function pushRing(t0, t1, opacity){
-    const rx0 = t0 <= 1 ? lerp(rxInner, rxOuter, t0) : lerp(rxOuter, rxSealOuter, t0-1);
-    const ry0 = t0 <= 1 ? lerp(ryInner, ryOuter, t0) : lerp(ryOuter, rySealOuter, t0-1);
-    const rx1 = t1 <= 1 ? lerp(rxInner, rxOuter, t1) : lerp(rxOuter, rxSealOuter, t1-1);
-    const ry1 = t1 <= 1 ? lerp(ryInner, ryOuter, t1) : lerp(ryOuter, rySealOuter, t1-1);
-    for (let s = 0; s < SLICES; s++){
-      const a0 = (s / SLICES) * Math.PI * 2;
-      const a1 = ((s + 1) / SLICES) * Math.PI * 2;
-      const aMid = (a0 + a1) / 2;
-      const tint = blendHex(FADE_LAND, FADE_OCEAN, westWeight(aMid));
-      const color = blendHex(FADE_BASE, tint, ease(Math.min(t1,1)) * 0.5);
-      const outerArc = [ ellipsePoint(rx1, ry1, a0), ellipsePoint(rx1, ry1, aMid), ellipsePoint(rx1, ry1, a1) ];
-      const innerArc = [ ellipsePoint(rx0, ry0, a1), ellipsePoint(rx0, ry0, aMid), ellipsePoint(rx0, ry0, a0) ];
-      const coords = [...outerArc, ...innerArc, outerArc[0]];
-      features.push({
-        type:'Feature',
-        properties:{ opacity, color },
-        geometry:{ type:'Polygon', coordinates:[coords] }
-      });
+  for (let py = 0; py < SIZE; py++){
+    const lat = center[1] + ryMax - (py / (SIZE-1)) * 2 * ryMax; // fila 0 = norte
+    for (let px = 0; px < SIZE; px++){
+      const lng = center[0] - rxMax + (px / (SIZE-1)) * 2 * rxMax;
+      const dx = lng - center[0], dy = lat - center[1];
+      const t = solveT(dx, dy);
+      const opacity = t <= 1 ? ease(t) * MAX_OPACITY : MAX_OPACITY + (SEAL_OPACITY - MAX_OPACITY) * (t - 1);
+      const westWeight = Math.max(0, -Math.cos(Math.atan2(dy, dx))); // 1 en oeste puro, 0 en el resto
+      const tintAmount = ease(Math.min(t, 1)) * 0.5;
+      const tr = landRGB.r + (oceanRGB.r - landRGB.r) * westWeight;
+      const tg = landRGB.g + (oceanRGB.g - landRGB.g) * westWeight;
+      const tb = landRGB.b + (oceanRGB.b - landRGB.b) * westWeight;
+      const idx = (py * SIZE + px) * 4;
+      data[idx]   = baseRGB.r + (tr - baseRGB.r) * tintAmount;
+      data[idx+1] = baseRGB.g + (tg - baseRGB.g) * tintAmount;
+      data[idx+2] = baseRGB.b + (tb - baseRGB.b) * tintAmount;
+      data[idx+3] = Math.round(opacity * 255);
     }
   }
-  for (let i = 0; i < RINGS; i++){
-    const t0 = i / RINGS, t1 = (i + 1) / RINGS;
-    pushRing(t0, t1, ease(t1) * MAX_OPACITY);
-  }
-  for (let i = 0; i < SEAL_RINGS; i++){
-    const t0 = 1 + i / SEAL_RINGS, t1 = 1 + (i + 1) / SEAL_RINGS;
-    const op = lerp(MAX_OPACITY, SEAL_OPACITY, (i + 1) / SEAL_RINGS);
-    pushRing(t0, t1, op);
-  }
+  ctx.putImageData(imgData, 0, 0);
 
-  map.addSource('territory-fade', { type:'geojson', data:{ type:'FeatureCollection', features } });
+  map.addSource('territory-fade', {
+    type:'image', url: canvas.toDataURL(),
+    coordinates:[
+      [center[0]-rxMax, center[1]+ryMax], // NO
+      [center[0]+rxMax, center[1]+ryMax], // NE
+      [center[0]+rxMax, center[1]-ryMax], // SE
+      [center[0]-rxMax, center[1]-ryMax], // SO
+    ],
+  });
   map.addLayer({
-    id:'territory-fade-layer', type:'fill', source:'territory-fade',
-    paint:{ 'fill-color':['get','color'], 'fill-opacity':['get','opacity'] }
+    id:'territory-fade-layer', type:'raster', source:'territory-fade',
+    paint:{ 'raster-fade-duration':0 }
   });
 }
-
 
 /* ---------- 5. POI MARKERS ---------- */
 function poiSVG(color, iconKey){
