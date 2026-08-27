@@ -4015,6 +4015,30 @@ EXPERIENCE_TAGS.forEach(exp => {
   chip.addEventListener('click', () => setActiveExperience(exp.id));
   chipsRow.appendChild(chip);
 });
+
+// Fade en los bordes de la fila de chips: en vez de un gradiente fijo (que se
+// vería aunque no haga falta scroll), se recalcula la máscara según la posición
+// real del scroll — fade a la derecha si hay más chips fuera de vista, fade a
+// la izquierda solo si ya se hizo scroll, y sin máscara si todos los chips caben.
+function updateChipsFade(){
+  const maxScroll = chipsRow.scrollWidth - chipsRow.clientWidth;
+  let mask;
+  if (maxScroll <= 2){
+    mask = 'none';
+  } else if (chipsRow.scrollLeft <= 2){
+    mask = 'linear-gradient(to right, black calc(100% - 28px), transparent 100%)';
+  } else if (chipsRow.scrollLeft >= maxScroll - 2){
+    mask = 'linear-gradient(to right, transparent 0, black 28px)';
+  } else {
+    mask = 'linear-gradient(to right, transparent 0, black 28px, black calc(100% - 28px), transparent 100%)';
+  }
+  chipsRow.style.webkitMaskImage = mask;
+  chipsRow.style.maskImage = mask;
+}
+chipsRow.addEventListener('scroll', updateChipsFade, { passive:true });
+window.addEventListener('resize', updateChipsFade);
+updateChipsFade();
+
 function setActiveExperience(id){
   state.activeExperience = id;
   updateZonePrompt();
