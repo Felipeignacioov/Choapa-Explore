@@ -2310,23 +2310,24 @@ function tintMapLayers(){
       // Calles — jerarquía clara entre principales y secundarias, para que nunca
       // formen una rejilla dominante: las principales quedan apenas visibles
       // (sirven para orientarse), las secundarias casi se disuelven en el fondo.
-             if (l.type === 'line' && /highway_major|highway_motorway/.test(l.id)){
-        // Color menos saturado (antes #33587A tenía un tono más "plástico") —
-        // más cercano a un mapa cartográfico premium en modo oscuro.
-        map.setPaintProperty(l.id, 'line-color', '#4A6172');
-        map.setPaintProperty(l.id, 'line-opacity', 0.58);
-        // Curva de grosor subida respecto al ajuste anterior (que quedó muy
-        // fina, tipo boceto técnico) — más presencia sin volver al grosor
-        // "de juguete" inicial.
-        map.setPaintProperty(l.id, 'line-width', ['interpolate', ['linear'], ['zoom'], 8, 2.0, 12, 3.4, 16, 6.0, 18, 7.5]);
+                 if (l.type === 'line' && /highway_major|highway_motorway/.test(l.id)){
+        // Color más oscuro y desaturado que el ajuste anterior (que quedó
+        // demasiado brillante/plano, con aspecto de plano técnico) — se integra
+        // mejor con el resto del mapa oscuro.
+        map.setPaintProperty(l.id, 'line-color', '#3D5560');
+        map.setPaintProperty(l.id, 'line-opacity', 0.5);
+        // Grosor con más presencia en zoom cercano, para maximizar el contraste
+        // frente a las secundarias.
+        map.setPaintProperty(l.id, 'line-width', ['interpolate', ['linear'], ['zoom'], 8, 1.8, 12, 3.2, 16, 6.8, 18, 9.0]);
       }
       if (l.type === 'line' && /highway_minor|highway_path|road_pier|road_area_pier/.test(l.id)){
-        // Curva propia, subida de grosor pero manteniendo una brecha clara
-        // (~50-55% del grosor de las principales en cada zoom) frente a la
-        // curva de arriba, para que la jerarquía vial se lea de un vistazo.
-        map.setPaintProperty(l.id, 'line-color', '#243444');
-        map.setPaintProperty(l.id, 'line-opacity', 0.42);
-        map.setPaintProperty(l.id, 'line-width', ['interpolate', ['linear'], ['zoom'], 10, 1.0, 13, 1.7, 16, 2.6, 18, 3.4]);
+        // Bastante más oscura, más opaca (menos visible) y más delgada que el
+        // ajuste anterior — ahora ronda el 22-25% del grosor de las principales
+        // en cada zoom (antes 50-55%), para que la jerarquía sea innegable y
+        // las secundarias dejen de competir en brillo con etiquetas/principales.
+        map.setPaintProperty(l.id, 'line-color', '#1C2938');
+        map.setPaintProperty(l.id, 'line-opacity', 0.30);
+        map.setPaintProperty(l.id, 'line-width', ['interpolate', ['linear'], ['zoom'], 10, 0.7, 13, 1.1, 16, 1.6, 18, 2.0]);
       }
 
      // Nombres de calles — más discretos y solo desde un zoom cercano, para que
