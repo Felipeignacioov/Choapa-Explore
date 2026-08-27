@@ -1407,6 +1407,15 @@ img{-webkit-user-drag:none; user-select:none;}
   transform:translateY(28px) scale(0.97); opacity:0; pointer-events:none;
   transition:transform .38s cubic-bezier(.2,.9,.28,1.14), opacity .26s ease;
 }
+.rsp-cancel{
+  position:absolute; top:-14px; right:14px; z-index:1;
+  width:28px; height:28px; border-radius:50%;
+  background:var(--surface-elevated); border:1px solid var(--border-glass);
+  box-shadow:var(--shadow-float);
+  display:flex; align-items:center; justify-content:center; color:var(--text-secondary);
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1);
+}
+.rsp-cancel:active{transform:scale(0.88);}
 .route-summary-panel.visible{transform:translateY(0) scale(1); opacity:1; pointer-events:auto;}
 .rsp-modes{display:flex; gap:8px; margin-bottom:12px;}
 .rsp-mode-mini{
@@ -1778,7 +1787,10 @@ img{-webkit-user-drag:none; user-select:none;}
   </div>
 
   <!-- ================= NAVEGACIÓN REAL — Fase 2: resumen de ruta ================= -->
-  <div class="route-summary-panel" id="routeSummaryPanel">
+    <div class="route-summary-panel" id="routeSummaryPanel">
+    <button class="rsp-cancel" id="rspCancel" aria-label="Cancelar navegación">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
     <div class="rsp-modes" id="rspModes"></div>
     <div class="rsp-main">
       <div class="rsp-info">
@@ -3817,11 +3829,10 @@ function openTransportModeSheet(place){
 function closeTransportModeSheet(){
   transportSheetEl.classList.remove('visible');
 }
-// Si el usuario cierra la ficha del POI mientras el panel de resumen está
-// activo, no debe quedar la ruta dibujada ni el panel flotando sin contexto.
-document.getElementById('poiDetailClose').addEventListener('click', () => {
-  if (routeSummaryPanel.classList.contains('visible')) clearNavRoute();
-});
+// La tarjeta del POI ahora se oculta automáticamente en cuanto arranca el
+// cálculo de ruta (ver calculateAndShowRoute), así que este listener ya no
+// puede coincidir con el panel de resumen visible — se retira para no dejar
+// código muerto. Cancelar la ruta se maneja ahora en #rspCancel.
 document.getElementById('transportSheetClose').addEventListener('click', closeTransportModeSheet);
 transportSheetEl.addEventListener('click', (e) => { if (e.target === transportSheetEl) closeTransportModeSheet(); });
 
@@ -3967,6 +3978,13 @@ async function calculateAndShowRoute(mode){
   const userCoords = state.nav.userCoords;
   if (!place || !userCoords) return;
 
+  // La tarjeta de detalle sigue abierta detrás del selector de modo — se oculta
+  // recién ahora (mismo mecanismo de clase 'visible' que usa el resto de la
+  // app) para dejar el mapa a pantalla completa con la ruta trazada, como una
+  // app de navegación real. No se destruye el DOM: su contenido/scroll queda
+  // intacto para cuando se restaure al cancelar.
+  document.getElementById('poiDetail').classList.remove('visible');
+
   const rspStatus = document.getElementById('rspStatus');
   routeSummaryPanel.classList.add('visible');
   rspStatus.style.display = 'flex';
@@ -3993,6 +4011,14 @@ async function calculateAndShowRoute(mode){
 
 document.getElementById('rspGoBtn').addEventListener('click', () => {
   // Sin funcionalidad todavía — se conecta en la Fase 3 (navegación activa).
+});
+
+// Cancelar antes de "Ir ahora": limpia la ruta del mapa (clearNavRoute, ya
+// existente) y restaura la tarjeta del POI exactamente como estaba —
+// reactivando su clase 'visible', sin haber tocado su contenido/scroll.
+document.getElementById('rspCancel').addEventListener('click', () => {
+  clearNavRoute();
+  if (state.selectedPlace) document.getElementById('poiDetail').classList.add('visible');
 });
 /* ---------- 7b. GUARDADOS — vista sobre savedPlaceIds, sin datos nuevos ---------- */
 // No hay una fuente de verdad paralela: esta pantalla solo lee/escribe el mismo
