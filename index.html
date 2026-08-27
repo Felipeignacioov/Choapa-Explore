@@ -2345,13 +2345,13 @@ function tintMapLayers(){
       // 2) Aldeas/caseríos/barrios — no aportan nada en la vista general (saturarían
       //    el mapa), así que empiezan invisibles y solo aparecen, muy tenues, al
       //    acercarse más allá de donde ya se ven las localidades propias.
-          if (l.type === 'symbol' && /^place_(village|hamlet|suburb|neighbourhood|locality|isolated_dwelling)/.test(l.id)){
+              if (l.type === 'symbol' && /^place_(village|hamlet|suburb|neighbourhood|locality|isolated_dwelling)/.test(l.id)){
         map.setPaintProperty(l.id, 'text-opacity', [
           'interpolate', ['linear'], ['zoom'],
           10.5, 0,
-          13, 0.18,
+          13, 0.09,
         ]);
-        map.setPaintProperty(l.id, 'text-color', '#41546A');
+        map.setPaintProperty(l.id, 'text-color', '#384658');
         map.setPaintProperty(l.id, 'text-halo-color', 'rgba(11,23,38,0.6)');
         map.setPaintProperty(l.id, 'text-halo-width', 0.9);
         map.setLayoutProperty(l.id, 'text-size', 8.5);
