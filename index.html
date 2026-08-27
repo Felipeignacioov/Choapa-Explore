@@ -2310,20 +2310,22 @@ function tintMapLayers(){
       // Calles — jerarquía clara entre principales y secundarias, para que nunca
       // formen una rejilla dominante: las principales quedan apenas visibles
       // (sirven para orientarse), las secundarias casi se disuelven en el fondo.
-     if (l.type === 'line' && /highway_major|highway_motorway/.test(l.id)){
-        // Mismo grosor de siempre (no se toca line-width) — solo un color algo
-        // más luminoso y ~10% más de opacidad, para que guíen la mirada sin
-        // competir con el río ni los POIs.
-        map.setPaintProperty(l.id, 'line-color', '#33587A');
-        map.setPaintProperty(l.id, 'line-opacity', 0.6);
-        // Ancho propio — antes heredaban el grosor por defecto del estilo base
-        // (muy fino), por eso el halo del Río Choapa terminaba viéndose con más
-        // protagonismo que una calle principal real.
+         if (l.type === 'line' && /highway_major|highway_motorway/.test(l.id)){
+        // Color menos saturado (antes #33587A tenía un tono más "plástico") —
+        // más cercano a un mapa cartográfico premium en modo oscuro.
+        map.setPaintProperty(l.id, 'line-color', '#4A6172');
+        map.setPaintProperty(l.id, 'line-opacity', 0.58);
         map.setPaintProperty(l.id, 'line-width', ['interpolate', ['linear'], ['zoom'], 8, 1.4, 12, 2.6, 16, 4.5]);
       }
       if (l.type === 'line' && /highway_minor|highway_path|road_pier|road_area_pier/.test(l.id)){
-        map.setPaintProperty(l.id, 'line-color', '#16283A');
-        map.setPaintProperty(l.id, 'line-opacity', 0.35);
+        // Antes esta capa nunca tuvo un line-width propio — heredaba el ancho
+        // por defecto del estilo base, que resultaba prácticamente igual al de
+        // las calles principales (de ahí la sensación de "todas del mismo
+        // grosor"). Ahora tiene su propia curva, notoriamente más delgada, para
+        // que la jerarquía vial se lea de un vistazo.
+        map.setPaintProperty(l.id, 'line-color', '#243444');
+        map.setPaintProperty(l.id, 'line-opacity', 0.42);
+        map.setPaintProperty(l.id, 'line-width', ['interpolate', ['linear'], ['zoom'], 10, 0.6, 13, 1.1, 16, 1.8, 18, 2.4]);
       }
 
      // Nombres de calles — más discretos y solo desde un zoom cercano, para que
@@ -2404,12 +2406,16 @@ function renderTerrainDepth(){
   });
   const bgIndex = layers.findIndex(l => l.type === 'background');
   const hillshadeBeforeId = (bgIndex >= 0 && layers[bgIndex + 1]) ? layers[bgIndex + 1].id : layers[0].id;
-   map.addLayer({
+     map.addLayer({
     id:'hillshade-subtle', type:'hillshade', source:'terrain-dem',
     paint:{
-      // Exaggeration sube ~35% — es el parámetro que separa laderas de quebradas
-      // (microcontraste real de relieve), no un brillo general del mapa.
-      'hillshade-exaggeration':0.34,
+      // La fuente DEM (Terrarium) tiene maxzoom:15 — más allá de eso MapLibre
+      // estira los últimos tiles disponibles (overzoom), lo que se ve como
+      // bloques/dentado. En vez de mantener el mismo exaggeration siempre (que
+      // hace ese pixelado más notorio cuanto más cerca), se reduce el contraste
+      // del relieve a partir de zoom 14 — disimula la falta de resolución real
+      // sin inventar detalle que no existe.
+      'hillshade-exaggeration': ['interpolate', ['linear'], ['zoom'], 8, 0.34, 14, 0.30, 16, 0.20, 17.5, 0.14],
       // El accent-color se separa levemente del shadow-color (antes eran
       // idénticos) — dos tonos de sombra en vez de uno solo suman una capa extra
       // de definición en las zonas bajas sin oscurecer más el conjunto.
