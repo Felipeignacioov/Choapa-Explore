@@ -1464,6 +1464,41 @@ img{-webkit-user-drag:none; user-select:none;}
 .rsp-status.loading{color:var(--turquoise-bright);}
 .rsp-status.error{color:#F0625B; border-color:rgba(240,98,91,0.3); background:rgba(240,98,91,0.08);}
 
+/* ---------------- NAVEGACIÓN REAL — HUD de navegación activa (Fase 3) ---------------- */
+.active-nav-hud{
+  position:absolute; left:16px; right:16px; z-index:22;
+  bottom:calc(var(--nav-footprint) + 14px);
+  background:var(--surface-elevated); border:1px solid var(--border-glass);
+  border-radius:var(--radius-l); padding:14px 16px calc(14px + var(--safe-bottom));
+  box-shadow:var(--shadow-modal), inset 0 1px 0 rgba(255,255,255,0.06);
+  transform:translateY(28px) scale(0.97); opacity:0; pointer-events:none;
+  transition:transform .38s cubic-bezier(.2,.9,.28,1.14), opacity .26s ease;
+}
+.active-nav-hud.visible{transform:translateY(0) scale(1); opacity:1; pointer-events:auto;}
+.anh-top{display:flex; align-items:center; gap:12px;}
+.anh-mode-icon{
+  width:34px; height:34px; border-radius:50%; flex-shrink:0;
+  background:rgba(95,225,232,0.12); color:var(--turquoise-bright);
+  display:flex; align-items:center; justify-content:center;
+}
+.anh-info{flex:1; display:flex; flex-direction:column;}
+.anh-eta{font-family:var(--font-display); font-size:19px; font-weight:800; color:var(--text-primary);}
+.anh-dist{font-size:11.5px; color:var(--text-secondary); margin-top:1px;}
+.anh-cancel{
+  width:30px; height:30px; border-radius:50%; flex-shrink:0;
+  background:rgba(240,98,91,0.12); border:1px solid rgba(240,98,91,0.3);
+  display:flex; align-items:center; justify-content:center; color:#F0625B;
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1);
+}
+.anh-cancel:active{transform:scale(0.88);}
+.anh-status{
+  margin-top:12px; padding:10px 12px; border-radius:var(--radius-m);
+  display:flex; align-items:center; gap:8px;
+  font-size:12px; font-weight:500;
+  background:rgba(255,255,255,0.04); border:1px solid var(--border-glass); color:var(--text-secondary);
+}
+.anh-status.error{color:#F0625B; border-color:rgba(240,98,91,0.3); background:rgba(240,98,91,0.08);}
+
 /* Loading state */
 .map-loading{
   position:absolute; inset:0; z-index:5; background:var(--bg-primary);
@@ -1823,7 +1858,31 @@ img{-webkit-user-drag:none; user-select:none;}
         Ir ahora
       </button>
     </div>
-    <div class="rsp-status" id="rspStatus" style="display:none;"></div>
+        <div class="rsp-status" id="rspStatus" style="display:none;"></div>
+  </div>
+
+  <!-- ================= NAVEGACIÓN REAL — Fase 3: navegación activa ================= -->
+  <div class="active-nav-hud" id="activeNavHud">
+    <div class="anh-top">
+      <span class="anh-mode-icon" id="anhModeIcon"></span>
+      <div class="anh-info">
+        <div class="anh-eta" id="anhEta">—</div>
+        <div class="anh-dist" id="anhDist">—</div>
+      </div>
+      <button class="anh-cancel" id="anhCancel" aria-label="Cancelar navegación">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="anh-status" id="anhStatus" style="display:none;"></div>
+  </div>
+
+  <!-- Confirmación breve de llegada — reutiliza el mismo estilo de memory-toast -->
+  <div class="memory-toast" id="arrivalToast">
+    <span class="mt-icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5c.7 4 2.4 6.9 5.9 9.5-3.5 2.6-5.2 5.5-5.9 9.5-.7-4-2.4-6.9-5.9-9.5 3.5-2.6 5.2-5.5 5.9-9.5Z" fill="currentColor" stroke="none"/></svg></span>
+    <div class="mt-text">
+      <div class="mt-title">¡Llegaste a tu destino!</div>
+      <div class="mt-sub" id="arrivalToastSub">—</div>
+    </div>
   </div>
 </div>
 
@@ -4122,10 +4181,6 @@ async function calculateAndShowRoute(mode){
   }
 }
 
-document.getElementById('rspGoBtn').addEventListener('click', () => {
-  // Sin funcionalidad todavía — se conecta en la Fase 3 (navegación activa).
-});
-
 // Cancelar antes de "Ir ahora": limpia la ruta del mapa (clearNavRoute, ya
 // existente) y restaura la tarjeta del POI exactamente como estaba —
 // reactivando su clase 'visible', sin haber tocado su contenido/scroll.
@@ -4133,6 +4188,137 @@ document.getElementById('rspCancel').addEventListener('click', () => {
   clearNavRoute();
   if (state.selectedPlace) document.getElementById('poiDetail').classList.add('visible');
 });
+
+/* ---------- Fase 3: navegación activa — helpers de geometría ----------
+   Sin librerías externas: distancia planar simple (mismo criterio que ya usan
+   findNearestLocality/findNearestSublocality para "punto más cercano" — el
+   área del Choapa es chica, esa aproximación es confiable acá también). La
+   distancia real en metros para el HUD sigue usando distanceKm(), Haversine
+   exacto ya existente en la app. */
+function nearestPointOnSegment(p, a, b){
+  const dx = b[0] - a[0], dy = b[1] - a[1];
+  const lenSq = dx*dx + dy*dy;
+  if (lenSq === 0) return { point:a };
+  let t = ((p[0]-a[0])*dx + (p[1]-a[1])*dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  return { point:[a[0] + dx*t, a[1] + dy*t] };
+}
+// Punto más cercano de la geometría ORIGINAL de la ruta a la posición actual
+// — siempre se busca sobre la ruta completa de ORS, nunca sobre una versión ya
+// recortada, así un desvío del usuario no rompe el cálculo del siguiente tramo.
+function nearestPointOnLine(coords, p){
+  let best = coords[0], bestDist = Infinity, bestIndex = 0;
+  for (let i = 0; i < coords.length - 1; i++){
+    const { point } = nearestPointOnSegment(p, coords[i], coords[i+1]);
+    const d = Math.hypot(point[0]-p[0], point[1]-p[1]);
+    if (d < bestDist){ bestDist = d; best = point; bestIndex = i; }
+  }
+  return { point: best, segmentIndex: bestIndex };
+}
+// Geometría restante: desde el punto proyectado del usuario hasta el final de
+// la ruta original — el tramo ya recorrido queda fuera.
+function trimRouteFromPoint(coords, nearest){
+  return [nearest.point, ...coords.slice(nearest.segmentIndex + 1)];
+}
+function lineLengthMeters(coords){
+  let total = 0;
+  for (let i = 0; i < coords.length - 1; i++){
+    total += distanceKm(coords[i][1], coords[i][0], coords[i+1][1], coords[i+1][0]) * 1000;
+  }
+  return total;
+}
+
+/* ---------- Fase 3: navegación activa ---------- */
+const activeNavHud = document.getElementById('activeNavHud');
+const arrivalToast = document.getElementById('arrivalToast');
+const ARRIVAL_RADIUS_M = 35;
+
+function startActiveNavigation(){
+  if (!state.nav.routeGeoJSON || !state.nav.targetPlace) return;
+  if (!navigator.geolocation){
+    const anhStatus = document.getElementById('anhStatus');
+    anhStatus.style.display = 'flex';
+    anhStatus.className = 'anh-status error';
+    anhStatus.innerHTML = `${icon('pin', 13)} Tu navegador no permite seguimiento de ubicación.`;
+    return;
+  }
+
+  // Velocidad promedio real, derivada de la respuesta de ORS ya obtenida en
+  // la Fase 2 (distancia/duración totales) — nunca se vuelve a llamar a ORS
+  // durante la navegación activa.
+  state.nav.speedMps = state.nav.routeDistance / state.nav.routeDuration;
+  document.getElementById('anhModeIcon').innerHTML = TRANSPORT_MODE_ICON_SVG[state.nav.mode] || '';
+
+  routeSummaryPanel.classList.remove('visible');
+  activeNavHud.classList.add('visible');
+
+  state.nav.watchId = navigator.geolocation.watchPosition(
+    pos => onNavPositionUpdate({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+    err => onNavPositionError(err),
+    { enableHighAccuracy:true, maximumAge:2000, timeout:12000 }
+  );
+}
+
+function onNavPositionUpdate(userCoords){
+  document.getElementById('anhStatus').style.display = 'none';
+  state.nav.userCoords = userCoords;
+  placeUserMarker(userCoords.lat, userCoords.lng);
+
+  const place = state.nav.targetPlace;
+  const distToDestM = distanceKm(userCoords.lat, userCoords.lng, place.lat, place.lng) * 1000;
+  if (distToDestM <= ARRIVAL_RADIUS_M){
+    finishNavigation('arrived');
+    return;
+  }
+
+  const coords = state.nav.routeGeoJSON.coordinates;
+  const nearest = nearestPointOnLine(coords, [userCoords.lng, userCoords.lat]);
+  const remaining = trimRouteFromPoint(coords, nearest);
+  drawRouteOnMap({ type:'LineString', coordinates: remaining }); // reutiliza la función existente de Fase 2, sin tocarla
+
+  const remainingM = lineLengthMeters(remaining);
+  const remainingS = state.nav.speedMps > 0 ? remainingM / state.nav.speedMps : 0;
+  document.getElementById('anhEta').textContent = formatDuration(remainingS);
+  document.getElementById('anhDist').textContent = formatRouteDistance(remainingM);
+
+  // Cámara siguiendo al usuario — animación adicional de este flujo únicamente,
+  // no reemplaza ni modifica la elasticidad/bounds/moveend del mapa en modo
+  // exploración normal.
+  map.easeTo({ center:[userCoords.lng, userCoords.lat], zoom: Math.max(map.getZoom(), 15.5), duration:700 });
+}
+
+function onNavPositionError(err){
+  const anhStatus = document.getElementById('anhStatus');
+  anhStatus.style.display = 'flex';
+  anhStatus.className = 'anh-status error';
+  anhStatus.innerHTML = err.code === 1
+    ? `${icon('pin', 13)} Necesitamos tu ubicación para seguir la navegación.`
+    : `${icon('pin', 13)} Señal de ubicación perdida — intentando reconectar…`;
+  // No se detiene watchPosition: el navegador suele seguir reintentando solo;
+  // el botón de cancelar del HUD sigue disponible en todo momento.
+}
+
+// reason: 'cancelled' | 'arrived' — ambos limpian watch/capa/HUD igual; solo
+// 'arrived' muestra el toast de confirmación antes de cerrar.
+function finishNavigation(reason){
+  if (state.nav.watchId != null){
+    navigator.geolocation.clearWatch(state.nav.watchId);
+    state.nav.watchId = null;
+  }
+  activeNavHud.classList.remove('visible');
+
+  if (reason === 'arrived'){
+    document.getElementById('arrivalToastSub').textContent = state.nav.targetPlace ? state.nav.targetPlace.name : '';
+    arrivalToast.classList.add('visible');
+    setTimeout(() => arrivalToast.classList.remove('visible'), 3200);
+  }
+
+  clearNavRoute(); // ya limpia capa/fuente de ruta, marcador de destino, y resetea state.nav.active + tiers
+  if (state.selectedPlace) document.getElementById('poiDetail').classList.add('visible');
+}
+
+document.getElementById('rspGoBtn').addEventListener('click', startActiveNavigation);
+document.getElementById('anhCancel').addEventListener('click', () => finishNavigation('cancelled'));
 /* ---------- 7b. GUARDADOS — vista sobre savedPlaceIds, sin datos nuevos ---------- */
 // No hay una fuente de verdad paralela: esta pantalla solo lee/escribe el mismo
 // savedPlaceIds + SAVED_KEY que ya usa el corazón de la ficha del POI. Al abrir
