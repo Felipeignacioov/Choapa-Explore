@@ -2072,7 +2072,14 @@ map.on('load', () => {
  currentDayPeriod = getDayPeriod();
   applyMoodAtmosphere('todos'); // sin categoría activa: --mood-glow queda 'transparent', sin halo extra
   setInterval(updateDayPeriod, 3 * 60 * 1000);
-  renderTerritoryFade();
+  // Aislado en try/catch: si el degradado exterior falla por cualquier motivo,
+  // el resto del mapa (POIs, comunas, localidades) sigue funcionando con
+  // normalidad — un problema puramente visual ya no puede tirar abajo toda la app.
+  try {
+    renderTerritoryFade();
+  } catch (e) {
+    console.error('renderTerritoryFade() falló — se omite el degradado exterior, el resto del mapa sigue normal:', e);
+  }
   renderLocalityMarkers();
   updateExplorationLevel();
 });
