@@ -466,6 +466,12 @@ img{-webkit-user-drag:none; user-select:none;}
   transition:opacity .28s ease, transform .28s cubic-bezier(.2,.9,.28,1.1), border-color .2s ease;
 }
 .zone-prompt.visible{opacity:1; transform:translateY(0) scale(1); pointer-events:auto;}
+/* Cuando el breadcrumb ("< Salamanca") está visible, el banner de categoría baja
+   a una segunda fila en vez de superponerse — ambos comparten el mismo top:178px
+   inline y el mismo ancho, así que sin esto el banner tapaba por completo al
+   botón de volver. !important porque el top viene fijado por style inline en
+   el HTML del elemento. */
+.zone-prompt.pushed-down{ top:234px !important; }
 .zone-prompt .zp-icon{flex-shrink:0; display:flex;}
 .zone-prompt .zp-text{display:flex; flex-direction:column; gap:1px; min-width:0;}
 .zone-prompt .zp-title{font-family:var(--font-display); font-size:13px; font-weight:700; color:var(--text-primary);}
@@ -3153,7 +3159,10 @@ function exitLocality({ fly }){
   updateLosVilosReflection();
   clearSublocalityMarkers();
   if (fly){
-    map.fitBounds(CHOAPA_BOUNDS, { padding:{ top:220, bottom:280, left:40, right:40 }, duration:1200 });
+    // Mismo padding EXACTO que fitBoundsOptions en la inicialización del mapa
+    // (bottom:246, no 280) — antes esa diferencia hacía que el zoom/centro final
+    // no coincidiera con el spawn real, percibiéndose como un segundo reacomodo.
+    map.fitBounds(CHOAPA_BOUNDS, { padding:{ top:220, bottom:246, left:40, right:40 }, duration:1200 });
   }
   updateExplorationBreadcrumb();
   renderPlacesRail();
@@ -3179,6 +3188,15 @@ function exitSublocality({ fly }){
   renderPlacesRail();
 }
 
+// Mantiene sincronizada la posición del banner de categoría respecto al botón
+// de volver — se llama tanto al cambiar de nivel de exploración como al
+// cambiar el filtro de categoría, así nunca quedan desincronizados sin
+// importar cuál de los dos cambie primero.
+function syncZonePromptOffset(){
+  const breadcrumbVisible = document.getElementById('breadcrumbPill').classList.contains('visible');
+  document.getElementById('zonePrompt').classList.toggle('pushed-down', breadcrumbVisible);
+}
+
 function updateExplorationBreadcrumb(){
   const breadcrumb = document.getElementById('breadcrumbPill');
   const label = document.getElementById('breadcrumbLabel');
@@ -3191,6 +3209,7 @@ function updateExplorationBreadcrumb(){
   } else {
     breadcrumb.classList.remove('visible');
   }
+  syncZonePromptOffset();
 }
 // Retrocede un nivel a la vez: si hay sub-localidad activa, vuelve a la comuna;
 // si no, vuelve de la comuna a la vista completa del Choapa.
@@ -3269,6 +3288,7 @@ function updateZonePrompt(){
   }
   zonePromptContentKey = key;
 
+   syncZonePromptOffset();
   if (!zonePromptWasVisible){
     // Primera aparición: contenido correcto desde ya, solo se anima el panel completo.
     updateZonePromptContent();
