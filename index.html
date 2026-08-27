@@ -287,6 +287,14 @@ img{-webkit-user-drag:none; user-select:none;}
   100%{opacity:0; transform:scale(1.9);}
 }
 
+.nav-dest-marker{width:26px; height:26px; display:flex; align-items:center; justify-content:center;}
+.nav-dest-marker svg{width:100%; height:100%; overflow:visible; filter:drop-shadow(0 2px 6px rgba(2,8,15,0.4));}
+.nav-dest-marker .halo{transform-origin:center; animation:nav-dest-pulse 2.6s ease-in-out infinite;}
+@keyframes nav-dest-pulse{
+  0%,100%{ opacity:0.28; transform:scale(1); }
+  50%{ opacity:0.5; transform:scale(1.08); }
+}
+
 .user-dot{width:22px; height:22px;}
 .user-dot .ring{animation:pulse-ring 2.4s ease-out infinite;}
 @keyframes pulse-ring{
@@ -1865,10 +1873,10 @@ function icon(name, size = 16, extraAttrs = ''){
 }
 // Variante para incrustar como <g> dentro de OTRO svg (ej. el glifo dentro del pin de un POI),
 // centrado dentro de una caja de `box` px ubicada en (cx,cy) del sistema de coordenadas padre.
-function iconGlyph(name, cx, cy, box, color){
+function iconGlyph(name, cx, cy, box, color, strokeWidth = 2.1){
   const p = ICON_PATHS[name] || '';
   const s = box / 24;
-  return `<g transform="translate(${cx - box / 2},${cy - box / 2}) scale(${s})" style="color:${color};" fill="none" stroke="${color}" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">${p}</g>`;
+  return `<g transform="translate(${cx - box / 2},${cy - box / 2}) scale(${s})" style="color:${color};" fill="none" stroke="${color}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round">${p}</g>`;
 }
 
 /* ---------- 1. CATEGORÍAS (TIPO DE LUGAR — "qué es") ---------- */
@@ -2975,6 +2983,27 @@ function poiSVG(color, iconKey){
     ${iconGlyph(iconKey, 11, 11, 10, color)}
   </svg>`;
 }
+// Marcador de destino en modo navegación — misma silueta que un POI normal,
+// pero con tratamiento propio: gradiente radial (mismo patrón que los pines de
+// comuna en localitySVG), trazo de ícono más fino (1.7, igual que "Ideal para")
+// y un halo contenido en vez del glow ancho de .poi-marker.selected.
+function navDestSVG(color, iconKey, gradId){
+  return `
+  <svg viewBox="0 0 22 22">
+    <defs>
+      <radialGradient id="${gradId}" cx="35%" cy="30%" r="65%">
+        <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.5"/>
+        <stop offset="35%" stop-color="${color}" stop-opacity="1"/>
+        <stop offset="100%" stop-color="${color}" stop-opacity="0.88"/>
+      </radialGradient>
+    </defs>
+    <circle class="halo" cx="11" cy="11" r="8.4" fill="none" stroke="${color}" stroke-width="0.9" stroke-opacity="0.5"/>
+    <circle cx="11" cy="11" r="7.9" fill="${color}" opacity="0.06"/>
+    <circle cx="11" cy="11" r="7.7" fill="url(#${gradId})" stroke="${color}" stroke-width="1" stroke-opacity="0.9"/>
+    <circle cx="9.2" cy="9" r="2.6" fill="rgba(255,255,255,0.05)"/>
+    ${iconGlyph(iconKey, 11, 11, 10, color, 1.7)}
+  </svg>`;
+}
 function clearPOIMarkers(){
   markers.forEach(m => m.remove());
   markers = [];
@@ -3910,8 +3939,8 @@ function renderNavDestinationMarker(place){
   const cat = catById(place.category);
   const color = navDestinationColor(place);
   const el = document.createElement('div');
-  el.className = 'poi-marker selected'; // clase ya existente — tratamiento de POI resaltado
-  el.innerHTML = `<div class="poi-visual">${poiSVG(color, cat.iconKey)}</div>`;
+  el.className = 'nav-dest-marker';
+  el.innerHTML = navDestSVG(color, cat.iconKey, `nav-dest-grad-${place.id}`);
   state.nav.destMarker = new maplibregl.Marker({ element: el, anchor:'center' })
     .setLngLat([place.lng, place.lat])
     .addTo(map);
