@@ -829,7 +829,10 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 .poi-card .photo::after{
   content:''; position:absolute; inset:0;
-  background:linear-gradient(to bottom, rgba(7,19,31,0) 45%, rgba(10,23,38,0.75) 100%);
+  /* Último tramo del degradado llega a var(--surface-elevated) sólido — el
+     mismo color de fondo de la tarjeta — para que la unión foto→contenido se
+     sienta integrada en vez de un corte seco. */
+  background:linear-gradient(to bottom, rgba(7,19,31,0) 40%, rgba(10,23,38,0.55) 72%, var(--surface-elevated) 100%);
 }
 .poi-card .cat-badge{
   position:absolute; left:12px; bottom:10px; z-index:1;
@@ -851,6 +854,17 @@ img{-webkit-user-drag:none; user-select:none;}
   background:rgba(7,19,31,0.55); backdrop-filter:blur(6px);
   padding:5px 10px; border-radius:var(--radius-pill);
 }
+.poi-card .gallery-dots{
+  position:absolute; left:0; right:0; bottom:9px; z-index:1;
+  display:flex; justify-content:center; gap:5px; pointer-events:none;
+}
+.poi-card .gallery-dots span{
+  width:5px; height:5px; border-radius:50%;
+  background:rgba(255,255,255,0.4);
+}
+.poi-card .gallery-dots span.active{
+  background:#fff;
+}
 
 .poi-card .body{padding:14px 16px 14px; overflow-y:auto;}
 .poi-card .pname{font-family:var(--font-display); font-size:18px; font-weight:700; margin-bottom:3px;}
@@ -862,6 +876,12 @@ img{-webkit-user-drag:none; user-select:none;}
   font-family:var(--font-display); font-size:12.5px; font-weight:700;
   color:var(--turquoise-bright); text-transform:uppercase; letter-spacing:0.5px;
   margin-bottom:7px;
+}
+/* Selector más específico que el de arriba — afecta SOLO a "Información
+   práctica" (vive dentro de #poiDetailInfoSection), dejando "La experiencia"
+   exactamente igual que antes. */
+#poiDetailInfoSection .pd-section-title{
+  font-size:10.5px; font-weight:600; color:var(--text-secondary);
 }
 .poi-card .pdesc{font-size:13.5px; color:var(--text-secondary); line-height:1.55;}
 
@@ -878,8 +898,10 @@ img{-webkit-user-drag:none; user-select:none;}
 
 .poi-card .pd-tags{display:flex; flex-wrap:wrap; gap:7px;}
 .poi-card .pd-tag{
-  font-size:11.5px; font-weight:600; padding:5px 12px; border-radius:var(--radius-pill);
-  background:rgba(255,255,255,0.05); border:1px solid var(--border-glass); color:var(--text-secondary);
+  /* Sin relleno (los chips interactivos SIEMPRE tienen background) y borde más
+     fino/tenue — se lee como etiqueta informativa, no como algo tocable. */
+  font-size:11px; font-weight:500; padding:4px 11px; border-radius:var(--radius-pill);
+  background:transparent; border:1px solid rgba(145,164,184,0.22); color:var(--text-tertiary);
 }
 
 .poi-card .meta-row{display:flex; gap:14px; margin-bottom:12px;}
@@ -1425,8 +1447,9 @@ img{-webkit-user-drag:none; user-select:none;}
       <button class="close" id="poiDetailClose" aria-label="Cerrar">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       </button>
-      <span class="cat-badge" id="poiDetailTag"><span class="dot"></span>Categoría</span>
+           <span class="cat-badge" id="poiDetailTag"><span class="dot"></span>Categoría</span>
       <span class="gallery-hint" id="poiDetailGalleryHint" style="display:none;"></span>
+      <div class="gallery-dots" id="poiDetailDots"></div>
     </div>
     <div class="body">
       <div class="pname" id="poiDetailName">—</div>
@@ -3555,12 +3578,15 @@ function selectPlace(place, el){
   document.getElementById('poiDetailDesc').textContent = place.description || 'Todavía no hay una descripción disponible para esta experiencia.';
 
   // Indicador de galería sobre la foto — solo si hay más de una imagen real
-  const galleryHint = document.getElementById('poiDetailGalleryHint');
+   const galleryHint = document.getElementById('poiDetailGalleryHint');
+  const galleryDots = document.getElementById('poiDetailDots');
   if (place.images && place.images.length > 1){
     galleryHint.style.display = 'inline-flex';
     galleryHint.innerHTML = `${icon('camera', 12)} ${place.images.length} fotos`;
+    galleryDots.innerHTML = place.images.map((_, i) => `<span class="${i === 0 ? 'active' : ''}"></span>`).join('');
   } else {
     galleryHint.style.display = 'none';
+    galleryDots.innerHTML = '';
   }
 
   // Información práctica — solo campos que realmente existen. "Tipo de experiencia"
