@@ -2620,160 +2620,45 @@ function renderTerrainDepth(){
 // anillos angostos con una curva de suavizado (ease-in) — el ojo lo lee como un
 // degradado continuo: transparente cerca del territorio real, oscureciéndose
 // progresivamente hacia el horizonte, sin cortes duros entre capas.
+
 function renderTerritoryFade(){
-  // ARQUITECTURA EN DOS CAPAS — esta es la corrección de fondo:
-  //
-  // 1) Un canvas PEQUEÑO Y DENSO cubre solo desde el territorio real hasta un
-  //    poco más allá del límite de navegación. Toda su resolución (768x768) se
-  //    concentra donde el degradado realmente cambia — antes ese mismo canvas
-  //    cubría hasta +3° de margen extra "por si acaso", y el degradado real
-  //    quedaba comprimido en apenas ~36 píxeles reales (de ahí las bandas: muy
-  //    pocos píxeles repartiendo todo el rango de opacidad).
-  // 2) Más allá de eso, un ÚNICO polígono de color plano (sin anillos, sin
-  //    cuñas, sin degradado) cubre hasta CHOAPA_SAFETY_BOUNDS — el límite físico
-  //    que MapLibre ya impone de forma NATIVA (`maxBounds` en la inicialización
-  //    del mapa). La cámara nunca puede mostrar nada más allá de ahí, así que
-  //    esa zona no necesita degradado: ya casi no cambia, y un color sólido no
-  //    puede generar bandas porque no hay nada que escalonar.
-  //
-  // El empalme entre ambas capas está calculado para que la opacidad y el color
-  // calcen EXACTAMENTE en el borde (ver comentarios abajo) — no hay costura.
   const inner = CHOAPA_BOUNDS;
   const outer = CHOAPA_MAX_BOUNDS;
-  const safety = CHOAPA_SAFETY_BOUNDS;
-  const center = [ (inner[0][0]+inner[1][0])/2, (inner[0][1]+inner[1][1])/2 ];
-  const SQRT2 = Math.SQRT2 * 1.04;
-  const rxInner = (inner[1][0]-inner[0][0])/2 * SQRT2;
-  const ryInner = (inner[1][1]-inner[0][1])/2 * SQRT2;
-  const rxOuter = (outer[1][0]-outer[0][0])/2 * SQRT2;
-  const ryOuter = (outer[1][1]-outer[0][1])/2 * SQRT2;
-  const rxSafety = (safety[1][0]-safety[0][0])/2 * SQRT2;
-  const rySafety = (safety[1][1]-safety[0][1])/2 * SQRT2;
-  // El canvas se extiende, más allá del límite de navegación, la misma distancia
-  // que ya recorre la propia franja de desvanecimiento — suficiente para que la
-  // curva termine de suavizarse antes del empalme, sin desperdiciar resolución.
-  const rxCanvas = rxOuter + (rxOuter - rxInner);
-  const ryCanvas = ryOuter + (ryOuter - ryInner);
-
-  const FADE_BASE  = '#0B1726';
-  const FADE_OCEAN = '#0A2530'; // oeste — profundidad marina
-  const FADE_LAND  = '#171009'; // resto — continuidad terrestre, cálido y contenido
-  const MAX_OPACITY = 0.94;
-  const SEAL_OPACITY = 0.95;
+  const lerp = (a, b, t) => [ a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t ];
+  const boundsAt = t => [ lerp(inner[0], outer[0], t), lerp(inner[1], outer[1], t) ];
+  const ring = (sw, ne) => [[sw[0],sw[1]], [ne[0],sw[1]], [ne[0],ne[1]], [sw[0],ne[1]], [sw[0],sw[1]]];
+  const RINGS = 28;
+  const MAX_OPACITY = 0.97;
   const ease = t => t * t;
-
-  function axesAt(t){
-    if (t <= 1) return [ rxInner + (rxOuter-rxInner)*t, ryInner + (ryOuter-ryInner)*t ];
-    const u = t - 1;
-    return [ rxOuter + (rxCanvas-rxOuter)*u, ryOuter + (ryCanvas-ryOuter)*u ];
+  const features = [];
+  for (let i = 0; i < RINGS; i++){
+    const t0 = i / RINGS;
+    const t1 = (i + 1) / RINGS;
+    const b0 = boundsAt(t0);
+    const b1 = boundsAt(t1);
+    features.push({
+      type:'Feature',
+      properties:{ opacity: ease(t1) * MAX_OPACITY },
+      geometry:{ type:'Polygon', coordinates:[ ring(b1[0], b1[1]), ring(b0[0], b0[1]) ] }
+    });
   }
-  function solveT(dx, dy){
-    const f = t => { const [rx, ry] = axesAt(t); return (dx/rx)**2 + (dy/ry)**2 - 1; };
-    if (f(0) <= 0) return 0;
-    if (f(2) >= 0) return 2;
-    let lo = 0, hi = 2;
-    for (let i = 0; i < 12; i++){ const mid = (lo+hi)/2; if (f(mid) > 0) lo = mid; else hi = mid; }
-    return (lo + hi) / 2;
-  }
-  const hexToRgb = hex => { const n = parseInt(hex.slice(1),16); return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 }; };
-  const baseRGB = hexToRgb(FADE_BASE), oceanRGB = hexToRgb(FADE_OCEAN), landRGB = hexToRgb(FADE_LAND);
-
-  // ---------- Capa 1: canvas denso (territorio → límite de navegación + margen) ----------
-  const SIZE = 768;
-  const canvas = document.createElement('canvas');
-  canvas.width = SIZE; canvas.height = SIZE;
-  const ctx = canvas.getContext('2d');
-  const imgData = ctx.createImageData(SIZE, SIZE);
-  const data = imgData.data;
-
-  for (let py = 0; py < SIZE; py++){
-    const lat = center[1] + ryCanvas - (py / (SIZE-1)) * 2 * ryCanvas;
-    for (let px = 0; px < SIZE; px++){
-      const lng = center[0] - rxCanvas + (px / (SIZE-1)) * 2 * rxCanvas;
-      const dx = lng - center[0], dy = lat - center[1];
-      const t = solveT(dx, dy);
-      // En t=2 (borde exacto de este canvas) esto da SIEMPRE 0.94+0.01=0.95,
-      // idéntico a SEAL_OPACITY del polígono plano de la Capa 2 — empalme exacto.
-      const opacity = t <= 1 ? ease(t) * MAX_OPACITY : MAX_OPACITY + (SEAL_OPACITY - MAX_OPACITY) * (t - 1);
-      const westWeight = Math.max(0, -Math.cos(Math.atan2(dy, dx)));
-      const tintAmount = ease(Math.min(t, 1)) * 0.5; // se satura en 0.5 desde t=1 en adelante
-      const tr = landRGB.r + (oceanRGB.r - landRGB.r) * westWeight;
-      const tg = landRGB.g + (oceanRGB.g - landRGB.g) * westWeight;
-      const tb = landRGB.b + (oceanRGB.b - landRGB.b) * westWeight;
-      const idx = (py * SIZE + px) * 4;
-           data[idx]   = tr + (baseRGB.r - tr) * (1 - tintAmount);
-      data[idx+1] = tg + (baseRGB.g - tg) * (1 - tintAmount);
-      data[idx+2] = tb + (baseRGB.b - tb) * (1 - tintAmount);
-      data[idx+3] = Math.round(opacity * 255);
-    }
-  }
-  ctx.putImageData(imgData, 0, 0);
-
-  // ---------- Capa 2: polígono plano único (límite de navegación → límite físico real) ----------
-  function ellipseRing(rx, ry, n, reverse){
-    const pts = [];
-    for (let i = 0; i < n; i++){
-      const a = (i / n) * Math.PI * 2;
-      pts.push([ center[0] + rx*Math.cos(a), center[1] + ry*Math.sin(a) ]);
-    }
-    pts.push(pts[0]);
-    return reverse ? pts.reverse() : pts;
-  }
-  const sealTint = {
-    r: baseRGB.r + ((landRGB.r+oceanRGB.r)/2 - baseRGB.r) * 0.5,
-    g: baseRGB.g + ((landRGB.g+oceanRGB.g)/2 - baseRGB.g) * 0.5,
-    b: baseRGB.b + ((landRGB.b+oceanRGB.b)/2 - baseRGB.b) * 0.5,
-  };
-  const toHex = n => Math.round(n).toString(16).padStart(2,'0');
-  const sealColor = `#${toHex(sealTint.r)}${toHex(sealTint.g)}${toHex(sealTint.b)}`;
-  const sealFeature = {
+  const sealMargin = 3;
+  const sealEdge = [
+    [outer[0][0] - sealMargin, outer[0][1] - sealMargin],
+    [outer[1][0] + sealMargin, outer[1][1] + sealMargin],
+  ];
+  features.push({
     type:'Feature',
-    properties:{ opacity: SEAL_OPACITY, color: sealColor },
-    geometry:{ type:'Polygon', coordinates:[
-      ellipseRing(rxSafety*1.03, rySafety*1.03, 96, false),
-      ellipseRing(rxCanvas*0.98, ryCanvas*0.98, 96, true),
-    ] }
-  };
-
-  ['territory-fade-layer','territory-fade-seal-layer'].forEach(id => { if (map.getLayer(id)) map.removeLayer(id); });
-  ['territory-fade','territory-fade-seal'].forEach(id => { if (map.getSource(id)) map.removeSource(id); });
-
-  map.addSource('territory-fade', {
-    type:'image', url: canvas.toDataURL(),
-    coordinates:[
-      [center[0]-rxCanvas, center[1]+ryCanvas],
-      [center[0]+rxCanvas, center[1]+ryCanvas],
-      [center[0]+rxCanvas, center[1]-ryCanvas],
-      [center[0]-rxCanvas, center[1]-ryCanvas],
-    ],
+    properties:{ opacity: 0.99 },
+    geometry:{ type:'Polygon', coordinates:[ ring(sealEdge[0], sealEdge[1]), ring(boundsAt(1)[0], boundsAt(1)[1]) ] }
   });
+  map.addSource('territory-fade', { type:'geojson', data:{ type:'FeatureCollection', features } });
   map.addLayer({
-    id:'territory-fade-layer', type:'raster', source:'territory-fade',
-    paint:{ 'raster-fade-duration':0, 'raster-resampling':'linear' }
-  });
-
-  map.addSource('territory-fade-seal', { type:'geojson', data:{ type:'FeatureCollection', features:[sealFeature] } });
-  map.addLayer({
-    id:'territory-fade-seal-layer', type:'fill', source:'territory-fade-seal',
-    paint:{ 'fill-color':['get','color'], 'fill-opacity':['get','opacity'] }
+    id:'territory-fade-layer', type:'fill', source:'territory-fade',
+    paint:{ 'fill-color':'#0B1726', 'fill-opacity':['get','opacity'] }
   });
 }
-  ctx.putImageData(imgData, 0, 0);
-
-  // ---------- Capa 2: polígono plano único (límite de navegación → límite físico real) ----------
-  // Un solo color, una sola opacidad — sin anillos ni cuñas, así que no hay
-  // absolutamente nada que pueda generar una banda aquí.
-  function ellipseRing(rx, ry, n, reverse){
-    const pts = [];
-    for (let i = 0; i < n; i++){
-      const a = (i / n) * Math.PI * 2;
-      pts.push([ center[0] + rx*Math.cos(a), center[1] + ry*Math.sin(a) ]);
-    }
-    pts.push(pts[0]); // cierre exacto del anillo
-    return reverse ? pts.reverse() : pts;
-  }
-  const sealTint =
-
+   
 /* ---------- 5. POI MARKERS ---------- */
 function poiSVG(color, iconKey){
   return `
