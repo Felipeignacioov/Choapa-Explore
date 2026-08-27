@@ -349,8 +349,8 @@ img{-webkit-user-drag:none; user-select:none;}
   animation: comuna-halo-pulse 5s ease-in-out infinite;
 }
 @keyframes comuna-halo-pulse{
-  0%,100%{ opacity:0.09; r:10.5; }
-  50%{ opacity:0.17; r:11.1; }
+  0%,100%{ opacity:0.05; r:10.5; }
+  50%{ opacity:0.27; r:11.1; }
 }
 .locality-marker .loc-label{
   margin-bottom:5px; padding:5px 12px; border-radius:var(--radius-pill);
@@ -411,6 +411,19 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 .locality-marker.sublocality.entering svg{
   opacity:0; transform:translateY(4px) scale(0.82);
+}
+
+/* Destello de confirmación al tocar un pin de COMUNA — un pico breve de brillo
+   en el halo que se apaga rápido, antes/durante la transición de cámara. Clase
+   propia (tap-flash) con mayor especificidad que comuna-halo-pulse, así que la
+   sustituye solo mientras dura el toque; al quitarse la clase, el pulso normal
+   continúa. :not(.sublocality) asegura que nunca afecte a los pines violeta. */
+.locality-marker:not(.sublocality).tap-flash .loc-halo{
+  animation: comuna-tap-flash 380ms ease-out;
+}
+@keyframes comuna-tap-flash{
+  0%{ opacity:0.62; }
+  100%{ opacity:0.1; }
 }
 /* Breadcrumb — sustituye al pill de clima mientras se explora una localidad */
 .breadcrumb-pill{
@@ -2862,11 +2875,13 @@ function renderLocalityMarkers(){
         </div>
                 ${localitySVG('var(--turquoise-bright)', `comuna-grad-${loc.id}`)}
       </div>`;
-   el.addEventListener('click', (e) => {
+     el.addEventListener('click', (e) => {
       e.stopPropagation();
-      // Flash de selección (180ms) antes de navegar — confirmación táctil inmediata.
-      el.classList.add('selected');
+      // Flash de selección (180ms) + destello de brillo del halo (380ms) —
+      // confirmación táctil inmediata antes de que empiece el vuelo de cámara.
+      el.classList.add('selected', 'tap-flash');
       setTimeout(() => el.classList.remove('selected'), 220);
+      setTimeout(() => el.classList.remove('tap-flash'), 400);
       enterLocality(loc, { fly:true });
     });
 
