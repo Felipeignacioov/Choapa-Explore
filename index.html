@@ -378,8 +378,8 @@ img{-webkit-user-drag:none; user-select:none;}
    Núcleo pequeño y preciso + anillo fino sin relleno — lenguaje de marcador
    cartográfico/técnico, no de "target" ni de brillo de videojuego. */
 .locality-marker.sublocality svg{
-  width:18.75px; height:18.75px;
-  filter:drop-shadow(0 0 3px rgba(139,124,255,0.26)) drop-shadow(0 1.5px 3px rgba(2,8,15,0.42));
+  width:20.5px; height:20.5px;
+  filter:drop-shadow(0 0 4px rgba(139,124,255,0.38)) drop-shadow(0 1.5px 3px rgba(2,8,15,0.42));
 }
 .locality-marker.sublocality:active svg{
   filter:drop-shadow(0 0 5px rgba(139,124,255,0.42)) drop-shadow(0 1.5px 3px rgba(2,8,15,0.42));
@@ -427,6 +427,18 @@ img{-webkit-user-drag:none; user-select:none;}
 @keyframes comuna-tap-flash{
   0%{ opacity:0.62; }
   100%{ opacity:0.1; }
+}
+
+/* Pulso propio de las localidades (violeta) — mismo sistema y duración (5s) que
+   el de los pines de comuna, con radios propios de este halo más chico. Más
+   específico que la regla general .locality-marker .loc-halo (loc-breathe), así
+   que la sustituye solo para sub-localidades, sin tocar el pulso de comuna. */
+.locality-marker.sublocality .loc-halo{
+  animation: sublocality-halo-pulse 5s ease-in-out infinite;
+}
+@keyframes sublocality-halo-pulse{
+  0%,100%{ opacity:0.08; r:5.6; }
+  50%{ opacity:0.26; r:5.9; }
 }
 /* Breadcrumb — sustituye al pill de clima mientras se explora una localidad */
 .breadcrumb-pill{
@@ -2856,10 +2868,10 @@ function localitySVG(color, gradId){
 function sublocalityDotSVG(color){
   return `
   <svg viewBox="0 0 18 18">
-    <circle class="loc-halo" cx="9" cy="9" r="5" fill="${color}" opacity="0.14"/>
-    <circle cx="9" cy="9" r="4.76" fill="none" stroke="${color}" stroke-width="1" stroke-opacity="0.55"/>
-    <circle cx="9" cy="9" r="2.36" fill="${color}"/>
-    <circle cx="8.5" cy="8.5" r="0.6" fill="rgba(255,255,255,0.5)"/>
+    <circle class="loc-halo" cx="9" cy="9" r="5.6" fill="${color}" opacity="0.16"/>
+    <circle cx="9" cy="9" r="4.76" fill="none" stroke="${color}" stroke-width="1" stroke-opacity="0.68"/>
+    <circle cx="9" cy="9" r="2.75" fill="${color}"/>
+    <circle cx="8.5" cy="8.5" r="0.68" fill="rgba(255,255,255,0.5)"/>
   </svg>`;
 }
 function renderLocalityMarkers(){
