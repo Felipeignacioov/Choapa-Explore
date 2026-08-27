@@ -2200,7 +2200,7 @@ const ZOOM_DETAIL = 12.4;        // desde aquí, se ven las experiencias (POIs) 
 let state = { activeExperience:'todos', selectedPlace:null, sheetExpanded:false, currentLocality:null, currentSublocality:null };
 // Estado del flujo de navegación real ("Cómo llegar") — deliberadamente
 // separado de `state` para no interferir con la lógica de exploración/mapa.
-state.nav = { active:false, mode:null, targetPlace:null, userCoords:null, routeGeoJSON:null, routeDuration:null, routeDistance:null, watchId:null, requestToken:0 };
+state.nav = { active:false, mode:null, targetPlace:null, userCoords:null, routeGeoJSON:null, routeDuration:null, routeDistance:null, watchId:null, requestToken:0, destMarker:null };
 let markers = [];
 let localityMarkers = [];
 let sublocalityMarkers = [];
@@ -3102,6 +3102,11 @@ function renderLocalityMarkers(){
 // reintroducir el problema de estabilidad que ya corregimos en los otros niveles.
 function renderSublocalityMarkers(subs){
   clearSublocalityMarkers();
+  // Mientras hay una ruta de navegación activa, las localidades (violeta) no
+  // deben mostrarse en ningún nivel de zoom — se corta acá, antes de crear
+  // ningún marcador nuevo. La lógica normal de tiers no se toca: apenas
+  // termine la navegación, esta misma función vuelve a renderizar normal.
+  if (state.nav.active) return;
   subs.forEach((sub, i) => {
     const el = document.createElement('div');
     // Arranca en estado "entering" (oculto/desplazado) — se quita con un pequeño
@@ -3886,14 +3891,51 @@ document.getElementById('poiDetailDirections').addEventListener('click', (e) => 
 const ORS_PROFILE_LABELS = { 'foot-walking':'A pie', 'cycling-regular':'Bicicleta', 'driving-car':'Automóvil' };
 const routeSummaryPanel = document.getElementById('routeSummaryPanel');
 
+// Marcador forzado del destino durante la navegación — independiente del
+// array `markers` que usa renderPOIs() (así nunca se limpia por accidente al
+// cambiar de tier/localidad). Reutiliza poiSVG() y la misma resolución de
+// color por categoryPrimary/categoría que ya usa selectPlace(), así se ve con
+// su color real — nunca confundible con un pin de localidad o comuna.
+function navDestinationColor(place){
+  const cat = catById(place.category);
+  let colorVar = null;
+  if (place.categoryPrimary){
+    const primaryExp = expById(place.categoryPrimary);
+    if (primaryExp) colorVar = getComputedStyle(document.documentElement).getPropertyValue(primaryExp.color.replace('var(','').replace(')','')).trim();
+  }
+  return colorVar || getComputedStyle(document.documentElement).getPropertyValue(cat.color.replace('var(','').replace(')','')).trim() || '#16B8C4';
+}
+function renderNavDestinationMarker(place){
+  clearNavDestinationMarker();
+  const cat = catById(place.category);
+  const color = navDestinationColor(place);
+  const el = document.createElement('div');
+  el.className = 'poi-marker selected'; // clase ya existente — tratamiento de POI resaltado
+  el.innerHTML = `<div class="poi-visual">${poiSVG(color, cat.iconKey)}</div>`;
+  state.nav.destMarker = new maplibregl.Marker({ element: el, anchor:'center' })
+    .setLngLat([place.lng, place.lat])
+    .addTo(map);
+}
+function clearNavDestinationMarker(){
+  if (state.nav.destMarker){ state.nav.destMarker.remove(); state.nav.destMarker = null; }
+}
+
 function clearNavRoute(){
   if (map.getLayer('nav-route-line')) map.removeLayer('nav-route-line');
   if (map.getLayer('nav-route-line-halo')) map.removeLayer('nav-route-line-halo');
   if (map.getSource('nav-route')) map.removeSource('nav-route');
   routeSummaryPanel.classList.remove('visible');
+  clearNavDestinationMarker();
+  state.nav.active = false;
   state.nav.routeGeoJSON = null;
   state.nav.routeDuration = null;
   state.nav.routeDistance = null;
+  // Se resetea lastTier para forzar un re-render completo del nivel de
+  // exploración: si el zoom no cambió durante la navegación,
+  // updateExplorationLevel() no haría nada por sí sola, y las localidades no
+  // volverían a aparecer al cancelar.
+  lastTier = null;
+  updateExplorationLevel();
 }
 
 async function fetchRoute(mode, from, to){
@@ -3998,8 +4040,15 @@ async function calculateAndShowRoute(mode){
     state.nav.routeGeoJSON = route.geometry;
     state.nav.routeDuration = route.durationS;
     state.nav.routeDistance = route.distanceM;
-    drawRouteOnMap(route.geometry);
+       drawRouteOnMap(route.geometry);
     flyToRouteOverview(route.geometry, userCoords, place);
+    // Modo navegación activo: las localidades se ocultan sin importar el zoom,
+    // y el POI de destino se fuerza a mostrarse aunque el usuario no haya
+    // "entrado" a esa localidad — la jerarquía normal comuna → localidad → POI
+    // se retoma recién al cancelar/llegar (ver clearNavRoute).
+    state.nav.active = true;
+    clearSublocalityMarkers();
+    renderNavDestinationMarker(place);
     rspStatus.style.display = 'none';
     renderRouteSummaryPanel();
   } catch(err){
