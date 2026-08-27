@@ -2701,12 +2701,63 @@ function renderTerritoryFade(){
       const tg = landRGB.g + (oceanRGB.g - landRGB.g) * westWeight;
       const tb = landRGB.b + (oceanRGB.b - landRGB.b) * westWeight;
       const idx = (py * SIZE + px) * 4;
-      data[idx]   = tr + (baseRGB.r - tr) * (1 - tintAmount);
+           data[idx]   = tr + (baseRGB.r - tr) * (1 - tintAmount);
       data[idx+1] = tg + (baseRGB.g - tg) * (1 - tintAmount);
       data[idx+2] = tb + (baseRGB.b - tb) * (1 - tintAmount);
       data[idx+3] = Math.round(opacity * 255);
     }
   }
+  ctx.putImageData(imgData, 0, 0);
+
+  // ---------- Capa 2: polígono plano único (límite de navegación → límite físico real) ----------
+  function ellipseRing(rx, ry, n, reverse){
+    const pts = [];
+    for (let i = 0; i < n; i++){
+      const a = (i / n) * Math.PI * 2;
+      pts.push([ center[0] + rx*Math.cos(a), center[1] + ry*Math.sin(a) ]);
+    }
+    pts.push(pts[0]);
+    return reverse ? pts.reverse() : pts;
+  }
+  const sealTint = {
+    r: baseRGB.r + ((landRGB.r+oceanRGB.r)/2 - baseRGB.r) * 0.5,
+    g: baseRGB.g + ((landRGB.g+oceanRGB.g)/2 - baseRGB.g) * 0.5,
+    b: baseRGB.b + ((landRGB.b+oceanRGB.b)/2 - baseRGB.b) * 0.5,
+  };
+  const toHex = n => Math.round(n).toString(16).padStart(2,'0');
+  const sealColor = `#${toHex(sealTint.r)}${toHex(sealTint.g)}${toHex(sealTint.b)}`;
+  const sealFeature = {
+    type:'Feature',
+    properties:{ opacity: SEAL_OPACITY, color: sealColor },
+    geometry:{ type:'Polygon', coordinates:[
+      ellipseRing(rxSafety*1.03, rySafety*1.03, 96, false),
+      ellipseRing(rxCanvas*0.98, ryCanvas*0.98, 96, true),
+    ] }
+  };
+
+  ['territory-fade-layer','territory-fade-seal-layer'].forEach(id => { if (map.getLayer(id)) map.removeLayer(id); });
+  ['territory-fade','territory-fade-seal'].forEach(id => { if (map.getSource(id)) map.removeSource(id); });
+
+  map.addSource('territory-fade', {
+    type:'image', url: canvas.toDataURL(),
+    coordinates:[
+      [center[0]-rxCanvas, center[1]+ryCanvas],
+      [center[0]+rxCanvas, center[1]+ryCanvas],
+      [center[0]+rxCanvas, center[1]-ryCanvas],
+      [center[0]-rxCanvas, center[1]-ryCanvas],
+    ],
+  });
+  map.addLayer({
+    id:'territory-fade-layer', type:'raster', source:'territory-fade',
+    paint:{ 'raster-fade-duration':0, 'raster-resampling':'linear' }
+  });
+
+  map.addSource('territory-fade-seal', { type:'geojson', data:{ type:'FeatureCollection', features:[sealFeature] } });
+  map.addLayer({
+    id:'territory-fade-seal-layer', type:'fill', source:'territory-fade-seal',
+    paint:{ 'fill-color':['get','color'], 'fill-opacity':['get','opacity'] }
+  });
+}
   ctx.putImageData(imgData, 0, 0);
 
   // ---------- Capa 2: polígono plano único (límite de navegación → límite físico real) ----------
