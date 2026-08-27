@@ -1397,6 +1397,46 @@ img{-webkit-user-drag:none; user-select:none;}
 .transport-status.success{color:var(--turquoise-bright); border-color:rgba(95,225,232,0.3); background:rgba(22,184,196,0.08);}
 .transport-status.error{color:#F0625B; border-color:rgba(240,98,91,0.3); background:rgba(240,98,91,0.08);}
 
+/* ---------------- NAVEGACIÓN REAL — resumen de ruta (Fase 2) ---------------- */
+.route-summary-panel{
+  position:absolute; left:16px; right:16px; z-index:22;
+  bottom:calc(var(--nav-footprint) + 14px);
+  background:var(--surface-elevated); border:1px solid var(--border-glass);
+  border-radius:var(--radius-l); padding:14px 16px calc(14px + var(--safe-bottom));
+  box-shadow:var(--shadow-modal), inset 0 1px 0 rgba(255,255,255,0.06);
+  transform:translateY(28px) scale(0.97); opacity:0; pointer-events:none;
+  transition:transform .38s cubic-bezier(.2,.9,.28,1.14), opacity .26s ease;
+}
+.route-summary-panel.visible{transform:translateY(0) scale(1); opacity:1; pointer-events:auto;}
+.rsp-modes{display:flex; gap:8px; margin-bottom:12px;}
+.rsp-mode-mini{
+  flex:1; display:flex; align-items:center; justify-content:center; gap:6px;
+  padding:8px; border-radius:var(--radius-s);
+  background:rgba(255,255,255,0.04); border:1px solid var(--border-glass);
+  color:var(--text-secondary); font-size:11.5px; font-weight:600;
+  transition:background .16s ease, border-color .16s ease, color .16s ease;
+}
+.rsp-mode-mini.active{background:rgba(22,184,196,0.12); border-color:rgba(95,225,232,0.4); color:var(--turquoise-bright);}
+.rsp-main{display:flex; align-items:center; justify-content:space-between; gap:12px;}
+.rsp-info{display:flex; flex-direction:column;}
+.rsp-eta{font-family:var(--font-display); font-size:20px; font-weight:800; color:var(--text-primary);}
+.rsp-dist{font-size:12px; color:var(--text-secondary); margin-top:1px;}
+.rsp-go-btn{
+  display:flex; align-items:center; gap:7px;
+  background:var(--turquoise); color:#052024; font-weight:700; font-size:14px;
+  padding:12px 20px; border-radius:var(--radius-m);
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1), background .18s ease;
+}
+.rsp-go-btn:active{transform:scale(0.97); background:var(--turquoise-bright);}
+.rsp-status{
+  margin-top:12px; padding:10px 12px; border-radius:var(--radius-m);
+  display:flex; align-items:center; gap:8px;
+  font-size:12px; font-weight:500;
+  background:rgba(255,255,255,0.04); border:1px solid var(--border-glass); color:var(--text-secondary);
+}
+.rsp-status.loading{color:var(--turquoise-bright);}
+.rsp-status.error{color:#F0625B; border-color:rgba(240,98,91,0.3); background:rgba(240,98,91,0.08);}
+
 /* Loading state */
 .map-loading{
   position:absolute; inset:0; z-index:5; background:var(--bg-primary);
@@ -1733,8 +1773,24 @@ img{-webkit-user-drag:none; user-select:none;}
           <span class="tm-label">Automóvil</span>
         </button>
       </div>
-      <div class="transport-status" id="transportModeStatus" style="display:none;"></div>
+           <div class="transport-status" id="transportModeStatus" style="display:none;"></div>
     </div>
+  </div>
+
+  <!-- ================= NAVEGACIÓN REAL — Fase 2: resumen de ruta ================= -->
+  <div class="route-summary-panel" id="routeSummaryPanel">
+    <div class="rsp-modes" id="rspModes"></div>
+    <div class="rsp-main">
+      <div class="rsp-info">
+        <div class="rsp-eta" id="rspEta">—</div>
+        <div class="rsp-dist" id="rspDist">—</div>
+      </div>
+      <button class="rsp-go-btn" id="rspGoBtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="m3 11 18-8-8 18-2-8-8-2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+        Ir ahora
+      </button>
+    </div>
+    <div class="rsp-status" id="rspStatus" style="display:none;"></div>
   </div>
 </div>
 
@@ -2132,7 +2188,7 @@ const ZOOM_DETAIL = 12.4;        // desde aquí, se ven las experiencias (POIs) 
 let state = { activeExperience:'todos', selectedPlace:null, sheetExpanded:false, currentLocality:null, currentSublocality:null };
 // Estado del flujo de navegación real ("Cómo llegar") — deliberadamente
 // separado de `state` para no interferir con la lógica de exploración/mapa.
-state.nav = { active:false, mode:null, targetPlace:null, userCoords:null, routeGeoJSON:null, routeDuration:null, routeDistance:null, watchId:null };
+state.nav = { active:false, mode:null, targetPlace:null, userCoords:null, routeGeoJSON:null, routeDuration:null, routeDistance:null, watchId:null, requestToken:0 };
 let markers = [];
 let localityMarkers = [];
 let sublocalityMarkers = [];
@@ -3761,6 +3817,11 @@ function openTransportModeSheet(place){
 function closeTransportModeSheet(){
   transportSheetEl.classList.remove('visible');
 }
+// Si el usuario cierra la ficha del POI mientras el panel de resumen está
+// activo, no debe quedar la ruta dibujada ni el panel flotando sin contexto.
+document.getElementById('poiDetailClose').addEventListener('click', () => {
+  if (routeSummaryPanel.classList.contains('visible')) clearNavRoute();
+});
 document.getElementById('transportSheetClose').addEventListener('click', closeTransportModeSheet);
 transportSheetEl.addEventListener('click', (e) => { if (e.target === transportSheetEl) closeTransportModeSheet(); });
 
@@ -3783,11 +3844,12 @@ function requestUserLocationForNav(mode){
     return;
   }
 
-  navigator.geolocation.getCurrentPosition(pos => {
+    navigator.geolocation.getCurrentPosition(pos => {
     state.nav.userCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
     placeUserMarker(state.nav.userCoords.lat, state.nav.userCoords.lng);
-    statusEl.className = 'transport-status success';
-    statusEl.innerHTML = `${icon('pin', 14)} Ubicación lista — el cálculo de ruta real llega en el siguiente paso.`;
+    statusEl.style.display = 'none';
+    closeTransportModeSheet();
+    calculateAndShowRoute(mode);
   }, (err) => {
     statusEl.className = 'transport-status error';
     statusEl.innerHTML = err.code === 1
@@ -3804,6 +3866,133 @@ document.getElementById('poiDetailDirections').addEventListener('click', (e) => 
   const place = state.selectedPlace;
   if (!place) return;
   openTransportModeSheet(place);
+});
+
+/* ---------- Fase 2: ruta real (OpenRouteService) + vista panorámica + resumen ----------
+   Todo el estado sigue viviendo en state.nav (declarado en Fase 1). requestToken
+   descarta respuestas viejas si el usuario cambia de modo a mitad de cálculo —
+   solo la petición más reciente puede pintar el resultado. */
+const ORS_PROFILE_LABELS = { 'foot-walking':'A pie', 'cycling-regular':'Bicicleta', 'driving-car':'Automóvil' };
+const routeSummaryPanel = document.getElementById('routeSummaryPanel');
+
+function clearNavRoute(){
+  if (map.getLayer('nav-route-line')) map.removeLayer('nav-route-line');
+  if (map.getLayer('nav-route-line-halo')) map.removeLayer('nav-route-line-halo');
+  if (map.getSource('nav-route')) map.removeSource('nav-route');
+  routeSummaryPanel.classList.remove('visible');
+  state.nav.routeGeoJSON = null;
+  state.nav.routeDuration = null;
+  state.nav.routeDistance = null;
+}
+
+async function fetchRoute(mode, from, to){
+  const myToken = ++state.nav.requestToken;
+  const res = await fetch(`https://api.openrouteservice.org/v2/directions/${mode}/geojson`, {
+    method:'POST',
+    headers:{ 'Authorization': ORS_API_KEY, 'Content-Type':'application/json' },
+    body: JSON.stringify({ coordinates:[[from.lng, from.lat], [to.lng, to.lat]] }),
+  });
+  if (myToken !== state.nav.requestToken) return null; // hay una petición más nueva en curso — se descarta esta respuesta
+  if (!res.ok) throw new Error(`ORS respondió ${res.status}`);
+  const data = await res.json();
+  if (myToken !== state.nav.requestToken) return null;
+  const feature = data.features && data.features[0];
+  if (!feature) throw new Error('Sin ruta en la respuesta');
+  return {
+    geometry: feature.geometry,
+    distanceM: feature.properties.summary.distance,
+    durationS: feature.properties.summary.duration,
+  };
+}
+
+function drawRouteOnMap(geometry){
+  const data = { type:'Feature', geometry, properties:{} };
+  if (map.getSource('nav-route')){
+    map.getSource('nav-route').setData(data);
+  } else {
+    map.addSource('nav-route', { type:'geojson', data });
+    map.addLayer({
+      id:'nav-route-line-halo', type:'line', source:'nav-route',
+      layout:{ 'line-cap':'round', 'line-join':'round' },
+      paint:{ 'line-color':'#5FE1E8', 'line-opacity':0.25, 'line-width':10, 'line-blur':3 },
+    });
+    map.addLayer({
+      id:'nav-route-line', type:'line', source:'nav-route',
+      layout:{ 'line-cap':'round', 'line-join':'round' },
+      paint:{ 'line-color':'#5FE1E8', 'line-opacity':0.95, 'line-width':4.5 },
+    });
+  }
+}
+
+// Encuadre panorámico usuario→destino, mismo patrón de easing que ya usa el
+// resto de la app (curve/duration coherentes con enterLocality/exitLocality).
+function flyToRouteOverview(geometry, userCoords, place){
+  const lngs = geometry.coordinates.map(c => c[0]).concat([userCoords.lng, place.lng]);
+  const lats = geometry.coordinates.map(c => c[1]).concat([userCoords.lat, place.lat]);
+  const bounds = [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]];
+  map.fitBounds(bounds, { padding:{ top:120, bottom:260, left:50, right:50 }, duration:1100, easing:t => t*(2-t) });
+}
+
+function formatDuration(seconds){
+  const min = Math.round(seconds / 60);
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60), m = min % 60;
+  return `${h} h ${m} min`;
+}
+function formatRouteDistance(meters){
+  return meters < 1000 ? `${Math.round(meters)} m` : `${(meters/1000).toFixed(1)} km`;
+}
+
+function renderRouteSummaryPanel(){
+  const rspModes = document.getElementById('rspModes');
+  rspModes.innerHTML = '';
+  Object.keys(ORS_PROFILE_LABELS).forEach(mode => {
+    const btn = document.createElement('button');
+    btn.className = 'rsp-mode-mini' + (mode === state.nav.mode ? ' active' : '');
+    btn.textContent = ORS_PROFILE_LABELS[mode];
+    btn.addEventListener('click', () => { if (mode !== state.nav.mode) calculateAndShowRoute(mode); });
+    rspModes.appendChild(btn);
+  });
+  document.getElementById('rspEta').textContent = state.nav.routeDuration != null ? formatDuration(state.nav.routeDuration) : '—';
+  document.getElementById('rspDist').textContent = state.nav.routeDistance != null ? formatRouteDistance(state.nav.routeDistance) : '—';
+  routeSummaryPanel.classList.add('visible');
+}
+
+// Punto de entrada de esta fase: calcula la ruta para el modo dado y actualiza
+// mapa + panel. Se llama tanto desde la Fase 1 (apenas hay ubicación) como al
+// cambiar de modo dentro del propio panel de resumen.
+async function calculateAndShowRoute(mode){
+  state.nav.mode = mode;
+  const place = state.nav.targetPlace;
+  const userCoords = state.nav.userCoords;
+  if (!place || !userCoords) return;
+
+  const rspStatus = document.getElementById('rspStatus');
+  routeSummaryPanel.classList.add('visible');
+  rspStatus.style.display = 'flex';
+  rspStatus.className = 'rsp-status loading';
+  rspStatus.innerHTML = `${icon('compassRose', 13)} Calculando ruta…`;
+  renderRouteSummaryPanel();
+
+  try{
+    const route = await fetchRoute(mode, userCoords, place);
+    if (!route) return; // respuesta descartada por una petición más nueva
+    state.nav.routeGeoJSON = route.geometry;
+    state.nav.routeDuration = route.durationS;
+    state.nav.routeDistance = route.distanceM;
+    drawRouteOnMap(route.geometry);
+    flyToRouteOverview(route.geometry, userCoords, place);
+    rspStatus.style.display = 'none';
+    renderRouteSummaryPanel();
+  } catch(err){
+    console.error('Error calculando ruta ORS', err);
+    rspStatus.className = 'rsp-status error';
+    rspStatus.innerHTML = `${icon('pin', 13)} No pudimos calcular la ruta. Revisa tu conexión e inténtalo de nuevo.`;
+  }
+}
+
+document.getElementById('rspGoBtn').addEventListener('click', () => {
+  // Sin funcionalidad todavía — se conecta en la Fase 3 (navegación activa).
 });
 /* ---------- 7b. GUARDADOS — vista sobre savedPlaceIds, sin datos nuevos ---------- */
 // No hay una fuente de verdad paralela: esta pantalla solo lee/escribe el mismo
