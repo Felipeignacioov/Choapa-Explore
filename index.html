@@ -1415,10 +1415,19 @@ img{-webkit-user-drag:none; user-select:none;}
   transform:translateY(28px) scale(0.97); opacity:0; pointer-events:none;
   transition:transform .38s cubic-bezier(.2,.9,.28,1.14), opacity .26s ease;
 }
+/* Antes .rsp-cancel flotaba con top:-14px (a medio camino afuera del borde
+   superior del panel) — se veía suelto, sin pertenecer al recuadro. Ahora vive
+   en una fila normal (.rsp-header) dentro del padding del panel, igual que el
+   resto del contenido, mientras mantiene el mismo tratamiento visual (fondo,
+   borde, sombra) que los controles flotantes del mapa (zoom, brújula). */
+.rsp-header{
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:12px;
+}
+.rsp-header-title{font-family:var(--font-display); font-size:12.5px; font-weight:700; color:var(--text-secondary);}
 .rsp-cancel{
-  position:absolute; top:-14px; right:14px; z-index:1;
-  width:28px; height:28px; border-radius:50%;
-  background:var(--surface-elevated); border:1px solid var(--border-glass);
+  width:26px; height:26px; border-radius:50%; flex-shrink:0;
+  background:rgba(16,36,56,0.72); border:1px solid var(--border-glass);
   box-shadow:var(--shadow-float);
   display:flex; align-items:center; justify-content:center; color:var(--text-secondary);
   transition:transform .16s cubic-bezier(.34,1.56,.64,1);
@@ -1433,6 +1442,7 @@ img{-webkit-user-drag:none; user-select:none;}
   color:var(--text-secondary); font-size:11.5px; font-weight:600;
   transition:background .16s ease, border-color .16s ease, color .16s ease;
 }
+.rsp-mode-mini svg{flex-shrink:0; display:block;}
 .rsp-mode-mini.active{background:rgba(22,184,196,0.12); border-color:rgba(95,225,232,0.4); color:var(--turquoise-bright);}
 .rsp-main{display:flex; align-items:center; justify-content:space-between; gap:12px;}
 .rsp-info{display:flex; flex-direction:column;}
@@ -1795,10 +1805,13 @@ img{-webkit-user-drag:none; user-select:none;}
   </div>
 
   <!-- ================= NAVEGACIÓN REAL — Fase 2: resumen de ruta ================= -->
-    <div class="route-summary-panel" id="routeSummaryPanel">
-    <button class="rsp-cancel" id="rspCancel" aria-label="Cancelar navegación">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-    </button>
+      <div class="route-summary-panel" id="routeSummaryPanel">
+    <div class="rsp-header">
+      <span class="rsp-header-title">Tu ruta</span>
+      <button class="rsp-cancel" id="rspCancel" aria-label="Cancelar navegación">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
     <div class="rsp-modes" id="rspModes"></div>
     <div class="rsp-main">
       <div class="rsp-info">
@@ -3923,6 +3936,14 @@ document.getElementById('poiDetailDirections').addEventListener('click', (e) => 
    descarta respuestas viejas si el usuario cambia de modo a mitad de cálculo —
    solo la petición más reciente puede pintar el resultado. */
 const ORS_PROFILE_LABELS = { 'foot-walking':'A pie', 'cycling-regular':'Bicicleta', 'driving-car':'Automóvil' };
+// Mismos trazos SVG que ya usa el selector inicial (#transportSheet) — se
+// reutilizan acá para que los botones de modo del panel de resumen (rsp-mode-mini)
+// también muestren su ícono, en vez de solo texto.
+const TRANSPORT_MODE_ICON_SVG = {
+  'foot-walking': `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4" r="1.7" fill="currentColor" stroke="none"/><path d="M10 8.5 8 12l1.5 1.5L8 20M10 8.5l3 1.5 3 6M13 10l3.5-1.5M13 10l-1 4 3 2.5"/></svg>`,
+  'cycling-regular': `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="17" r="3.3"/><circle cx="18" cy="17" r="3.3"/><path d="M6 17 10 9h5l3 8M10 9 8.5 6h-2M10 9l3 4h5"/></svg>`,
+  'driving-car': `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v-3.2L6 8.5A2 2 0 0 1 7.8 7.3h8.4A2 2 0 0 1 18 8.5l2 4.3V16"/><path d="M4 16h16M4 16v2M20 16v2"/><circle cx="7.5" cy="16" r="1.4" fill="currentColor" stroke="none"/><circle cx="16.5" cy="16" r="1.4" fill="currentColor" stroke="none"/></svg>`,
+};
 const routeSummaryPanel = document.getElementById('routeSummaryPanel');
 
 // Marcador forzado del destino durante la navegación — independiente del
@@ -4043,9 +4064,9 @@ function renderRouteSummaryPanel(){
   const rspModes = document.getElementById('rspModes');
   rspModes.innerHTML = '';
   Object.keys(ORS_PROFILE_LABELS).forEach(mode => {
-    const btn = document.createElement('button');
+       const btn = document.createElement('button');
     btn.className = 'rsp-mode-mini' + (mode === state.nav.mode ? ' active' : '');
-    btn.textContent = ORS_PROFILE_LABELS[mode];
+    btn.innerHTML = `${TRANSPORT_MODE_ICON_SVG[mode]}<span>${ORS_PROFILE_LABELS[mode]}</span>`;
     btn.addEventListener('click', () => { if (mode !== state.nav.mode) calculateAndShowRoute(mode); });
     rspModes.appendChild(btn);
   });
