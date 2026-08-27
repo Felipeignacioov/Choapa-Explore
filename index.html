@@ -4023,14 +4023,14 @@ EXPERIENCE_TAGS.forEach(exp => {
 function updateChipsFade(){
   const maxScroll = chipsRow.scrollWidth - chipsRow.clientWidth;
   let mask;
-  if (maxScroll <= 2){
+   if (maxScroll <= 2){
     mask = 'none';
   } else if (chipsRow.scrollLeft <= 2){
-    mask = 'linear-gradient(to right, black calc(100% - 28px), transparent 100%)';
+    mask = 'linear-gradient(to right, black calc(100% - 36px), transparent 100%)';
   } else if (chipsRow.scrollLeft >= maxScroll - 2){
-    mask = 'linear-gradient(to right, transparent 0, black 28px)';
+    mask = 'linear-gradient(to right, transparent 0, black 36px)';
   } else {
-    mask = 'linear-gradient(to right, transparent 0, black 28px, black calc(100% - 28px), transparent 100%)';
+    mask = 'linear-gradient(to right, transparent 0, black 36px, black calc(100% - 36px), transparent 100%)';
   }
   chipsRow.style.webkitMaskImage = mask;
   chipsRow.style.maskImage = mask;
