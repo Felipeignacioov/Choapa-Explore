@@ -368,8 +368,11 @@ img{-webkit-user-drag:none; user-select:none;}
   max-height:0; opacity:0; overflow:hidden; transition:max-height .25s ease, opacity .2s ease;
 }
 .locality-marker.show-count .loc-count{max-height:14px; opacity:1;}
-.locality-marker.label-collapsed .loc-label{opacity:0; transform:scale(0.92); pointer-events:none;}
-
+/* Antes esto ocultaba el pill al 100% (opacity:0) cuando dos etiquetas
+   colisionaban, dejando un punto violeta "desnudo" que se confundía con
+   texto ajeno del mapa base cerca de él. Ahora se atenúa pero nunca desaparece
+   del todo — el punto siempre queda asociado a algo de texto legible. */
+.locality-marker.label-collapsed .loc-label{opacity:0.4; transform:scale(0.9); pointer-events:none;}
 /* Nivel 2 — sub-localidades dentro de una comuna: más chicas y discretas que las
    comunas (Nivel 1), color propio (violeta eléctrico) para no confundirse con ellas.
    Núcleo pequeño y preciso + anillo fino sin relleno — lenguaje de marcador
@@ -383,11 +386,11 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 .locality-marker.sublocality:active .loc-visual{transform:scale(0.9);}
 .locality-marker.sublocality .loc-label{
-  padding:3px 9px; margin-bottom:4px; background:rgba(10,20,34,0.74);
-  border-color:rgba(139,124,255,0.16);
+  padding:3px 9px; margin-bottom:4px; background:rgba(10,20,34,0.9);
+  border-color:rgba(139,124,255,0.34);
   backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
 }
-.locality-marker.sublocality .loc-name{font-size:9.5px; font-weight:600; color:var(--text-secondary); letter-spacing:0.3px;}
+.locality-marker.sublocality .loc-name{font-size:9.5px; font-weight:700; color:var(--text-primary); letter-spacing:0.3px;}
 .locality-marker.sublocality .loc-count{color:var(--sub-locality);}
 
 /* El aro exterior (2do círculo del SVG) solo se ve cuando el zoom está lo
@@ -2342,16 +2345,16 @@ function tintMapLayers(){
       // 2) Aldeas/caseríos/barrios — no aportan nada en la vista general (saturarían
       //    el mapa), así que empiezan invisibles y solo aparecen, muy tenues, al
       //    acercarse más allá de donde ya se ven las localidades propias.
-     if (l.type === 'symbol' && /^place_(village|hamlet|suburb|neighbourhood|locality|isolated_dwelling)/.test(l.id)){
+          if (l.type === 'symbol' && /^place_(village|hamlet|suburb|neighbourhood|locality|isolated_dwelling)/.test(l.id)){
         map.setPaintProperty(l.id, 'text-opacity', [
           'interpolate', ['linear'], ['zoom'],
           10.5, 0,
-          13, 0.28,
+          13, 0.18,
         ]);
-        map.setPaintProperty(l.id, 'text-color', '#597389');
+        map.setPaintProperty(l.id, 'text-color', '#41546A');
         map.setPaintProperty(l.id, 'text-halo-color', 'rgba(11,23,38,0.6)');
         map.setPaintProperty(l.id, 'text-halo-width', 0.9);
-        map.setLayoutProperty(l.id, 'text-size', 9);
+        map.setLayoutProperty(l.id, 'text-size', 8.5);
       }
       // Íconos/etiquetas de POI genéricos de OpenStreetMap (comercios, servicios
       // sin curar) — el mapa debe sentirse como el escenario de las experiencias
