@@ -2072,14 +2072,7 @@ map.on('load', () => {
  currentDayPeriod = getDayPeriod();
   applyMoodAtmosphere('todos'); // sin categoría activa: --mood-glow queda 'transparent', sin halo extra
   setInterval(updateDayPeriod, 3 * 60 * 1000);
-  // Aislado en try/catch: si el degradado exterior falla por cualquier motivo,
-  // el resto del mapa (POIs, comunas, localidades) sigue funcionando con
-  // normalidad — un problema puramente visual ya no puede tirar abajo toda la app.
-  try {
-    renderTerritoryFade();
-  } catch (e) {
-    console.error('renderTerritoryFade() falló — se omite el degradado exterior, el resto del mapa sigue normal:', e);
-  }
+  renderTerritoryFade();
   renderLocalityMarkers();
   updateExplorationLevel();
 });
@@ -2627,45 +2620,114 @@ function renderTerrainDepth(){
 // anillos angostos con una curva de suavizado (ease-in) — el ojo lo lee como un
 // degradado continuo: transparente cerca del territorio real, oscureciéndose
 // progresivamente hacia el horizonte, sin cortes duros entre capas.
-
 function renderTerritoryFade(){
+  // Un fill vectorial (aunque tenga muchos anillos/cuñas) SIEMPRE tiene color
+  // plano por polígono — por eso se veían bandas tipo "diana", sin importar
+  // cuántos stops se agregaran, es una limitación estructural del enfoque.
+  // Ahora el degradado se calcula UNA sola vez, píxel a píxel, en un <canvas>,
+  // y se muestra como imagen georreferenciada (image source + raster layer) —
+  // el filtrado bilineal de la GPU interpola de forma continua entre píxeles,
+  // sin ningún salto de color perceptible, a cualquier zoom.
+  // CHOAPA_BOUNDS / CHOAPA_MAX_BOUNDS se usan solo como referencia de tamaño,
+  // exactamente igual que antes — el sistema de elasticidad no se toca.
   const inner = CHOAPA_BOUNDS;
   const outer = CHOAPA_MAX_BOUNDS;
-  const lerp = (a, b, t) => [ a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t ];
-  const boundsAt = t => [ lerp(inner[0], outer[0], t), lerp(inner[1], outer[1], t) ];
-  const ring = (sw, ne) => [[sw[0],sw[1]], [ne[0],sw[1]], [ne[0],ne[1]], [sw[0],ne[1]], [sw[0],sw[1]]];
-  const RINGS = 28;
-  const MAX_OPACITY = 0.97;
+  const center = [ (inner[0][0]+inner[1][0])/2, (inner[0][1]+inner[1][1])/2 ];
+  const SQRT2 = Math.SQRT2 * 1.04;
+  const rxInner = (inner[1][0]-inner[0][0])/2 * SQRT2;
+  const ryInner = (inner[1][1]-inner[0][1])/2 * SQRT2;
+  const rxOuter = (outer[1][0]-outer[0][0])/2 * SQRT2;
+  const ryOuter = (outer[1][1]-outer[0][1])/2 * SQRT2;
+  const sealMargin = 3; // mismo margen y misma razón que antes (cubrir el viewport más ancho a minZoom)
+  const rxMax = rxOuter + sealMargin;
+  const ryMax = ryOuter + sealMargin;
+
+  const FADE_BASE  = '#0B1726';
+  const FADE_OCEAN = '#0A2530'; // oeste — profundidad marina
+  const FADE_LAND  = '#171009'; // resto — continuidad terrestre, cálido y contenido
+  const MAX_OPACITY = 0.94;
+  const SEAL_OPACITY = 0.95;
   const ease = t => t * t;
-  const features = [];
-  for (let i = 0; i < RINGS; i++){
-    const t0 = i / RINGS;
-    const t1 = (i + 1) / RINGS;
-    const b0 = boundsAt(t0);
-    const b1 = boundsAt(t1);
-    features.push({
-      type:'Feature',
-      properties:{ opacity: ease(t1) * MAX_OPACITY },
-      geometry:{ type:'Polygon', coordinates:[ ring(b1[0], b1[1]), ring(b0[0], b0[1]) ] }
-    });
+
+  // rx(t)/ry(t): misma familia de elipses de antes (inner→outer en t:[0,1],
+  // outer→sello en t:[1,2]) — solo que ahora se evalúa por píxel, no por anillo.
+  function axesAt(t){
+    if (t <= 1) return [ rxInner + (rxOuter-rxInner)*t, ryInner + (ryOuter-ryInner)*t ];
+    const u = t - 1;
+    return [ rxOuter + (rxMax-rxOuter)*u, ryOuter + (ryMax-ryOuter)*u ];
   }
-  const sealMargin = 3;
-  const sealEdge = [
-    [outer[0][0] - sealMargin, outer[0][1] - sealMargin],
-    [outer[1][0] + sealMargin, outer[1][1] + sealMargin],
-  ];
-  features.push({
-    type:'Feature',
-    properties:{ opacity: 0.99 },
-    geometry:{ type:'Polygon', coordinates:[ ring(sealEdge[0], sealEdge[1]), ring(boundsAt(1)[0], boundsAt(1)[1]) ] }
+  // Distancia elíptica normalizada como parámetro continuo (0 = borde real del
+  // territorio, 1 = límite de navegación, 2 = borde del sello) — resuelta por
+  // bisección porque rx/ry dependen de t (no despejable en forma cerrada).
+  function solveT(dx, dy){
+    const f = t => { const [rx, ry] = axesAt(t); return (dx/rx)**2 + (dy/ry)**2 - 1; };
+    if (f(0) <= 0) return 0;
+    if (f(2) >= 0) return 2;
+    let lo = 0, hi = 2;
+    for (let i = 0; i < 12; i++){ const mid = (lo+hi)/2; if (f(mid) > 0) lo = mid; else hi = mid; }
+    return (lo + hi) / 2;
+  }
+  const hexToRgb = hex => { const n = parseInt(hex.slice(1),16); return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 }; };
+  const baseRGB = hexToRgb(FADE_BASE), oceanRGB = hexToRgb(FADE_OCEAN), landRGB = hexToRgb(FADE_LAND);
+
+   const SIZE = 768; // resolución del lienzo — margen amplio para que el filtrado
+                     // bilineal de la GPU interpole como un degradado continuo
+  const canvas = document.createElement('canvas');
+  canvas.width = SIZE; canvas.height = SIZE;
+  const ctx = canvas.getContext('2d');
+  const imgData = ctx.createImageData(SIZE, SIZE);
+  const data = imgData.data;
+
+  for (let py = 0; py < SIZE; py++){
+    const lat = center[1] + ryMax - (py / (SIZE-1)) * 2 * ryMax; // fila 0 = norte
+    for (let px = 0; px < SIZE; px++){
+      const lng = center[0] - rxMax + (px / (SIZE-1)) * 2 * rxMax;
+      const dx = lng - center[0], dy = lat - center[1];
+      const t = solveT(dx, dy);
+      const opacity = t <= 1 ? ease(t) * MAX_OPACITY : MAX_OPACITY + (SEAL_OPACITY - MAX_OPACITY) * (t - 1);
+      const westWeight = Math.max(0, -Math.cos(Math.atan2(dy, dx))); // 1 en oeste puro, 0 en el resto
+      const tintAmount = ease(Math.min(t, 1)) * 0.5;
+      const tr = landRGB.r + (oceanRGB.r - landRGB.r) * westWeight;
+      const tg = landRGB.g + (oceanRGB.g - landRGB.g) * westWeight;
+      const tb = landRGB.b + (oceanRGB.b - landRGB.b) * westWeight;
+      const idx = (py * SIZE + px) * 4;
+                 // Sin ruido/dithering: la función ya es continua por píxel (no hay stops
+      // discretos que suavizar), así que un redondeo directo a 8 bits sobre un
+      // degradado lento como este es indistinguible del valor exacto a simple
+      // vista — agregar ruido aquí solo ensuciaba la superficie sin necesidad.
+      data[idx]   = tr + (baseRGB.r - tr) * (1 - tintAmount);
+      data[idx+1] = tg + (baseRGB.g - tg) * (1 - tintAmount);
+      data[idx+2] = tb + (baseRGB.b - tb) * (1 - tintAmount);
+      data[idx+3] = Math.round(opacity * 255);
+    }
+  }
+    ctx.putImageData(imgData, 0, 0);
+
+  // Limpieza defensiva: si una versión anterior de esta capa quedó activa (por
+  // ejemplo, un reemplazo de código que no matcheó 100%), se retira antes de
+  // agregar la nueva — evita capas duplicadas superpuestas, que también se leen
+  // como bandas.
+  if (map.getLayer('territory-fade-layer')) map.removeLayer('territory-fade-layer');
+  if (map.getSource('territory-fade')) map.removeSource('territory-fade');
+
+  map.addSource('territory-fade', {
+    type:'image', url: canvas.toDataURL(),
+    coordinates:[
+      [center[0]-rxMax, center[1]+ryMax], // NO
+      [center[0]+rxMax, center[1]+ryMax], // NE
+      [center[0]+rxMax, center[1]-ryMax], // SE
+      [center[0]-rxMax, center[1]-ryMax], // SO
+    ],
   });
-  map.addSource('territory-fade', { type:'geojson', data:{ type:'FeatureCollection', features } });
-  map.addLayer({
-    id:'territory-fade-layer', type:'fill', source:'territory-fade',
-    paint:{ 'fill-color':'#0B1726', 'fill-opacity':['get','opacity'] }
+   map.addLayer({
+    id:'territory-fade-layer', type:'raster', source:'territory-fade',
+    // 'linear' = interpolación bilineal real entre píxeles del canvas al
+    // escalar sobre el mapa — es lo que convierte el degradado calculado en una
+    // superficie lisa en pantalla, en vez de bloques o grano visibles.
+    paint:{ 'raster-fade-duration':0, 'raster-resampling':'linear' }
   });
 }
-   
+
 /* ---------- 5. POI MARKERS ---------- */
 function poiSVG(color, iconKey){
   return `
