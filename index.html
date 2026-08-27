@@ -1349,6 +1349,54 @@ img{-webkit-user-drag:none; user-select:none;}
 .md-btn:active{transform:scale(0.96);}
 .md-btn-danger{color:#F0625B; border-color:rgba(240,98,91,0.3); background:rgba(240,98,91,0.08);}
 
+/* ---------------- NAVEGACIÓN REAL — selector de modo (Fase 1) ---------------- */
+.transport-sheet{
+  position:absolute; inset:0; z-index:75;
+  background:rgba(2,8,15,0.72); backdrop-filter:blur(6px);
+  display:flex; align-items:flex-end; justify-content:center;
+  opacity:0; pointer-events:none; transition:opacity .24s ease;
+}
+.transport-sheet.visible{opacity:1; pointer-events:auto;}
+.transport-sheet-card{
+  width:100%; max-width:520px;
+  background:var(--surface-elevated); border:1px solid var(--border-glass);
+  border-radius:24px 24px 0 0; padding:22px 20px calc(24px + var(--safe-bottom));
+  box-shadow:var(--shadow-modal), inset 0 1px 0 rgba(255,255,255,0.06);
+  position:relative;
+  transform:translateY(16px); transition:transform .3s cubic-bezier(.2,.9,.28,1.1);
+}
+.transport-sheet.visible .transport-sheet-card{transform:translateY(0);}
+.transport-sheet-card .close{
+  position:absolute; top:14px; right:14px; z-index:2;
+  width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.06);
+  display:flex; align-items:center; justify-content:center; color:var(--text-secondary);
+}
+.transport-sheet-title{font-family:var(--font-display); font-size:17px; font-weight:700; margin-bottom:4px;}
+.transport-sheet-sub{font-size:12.5px; color:var(--text-secondary); margin-bottom:18px;}
+.transport-modes{display:flex; gap:10px;}
+.transport-mode-btn{
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:8px;
+  padding:16px 8px; border-radius:var(--radius-m);
+  background:rgba(255,255,255,0.04); border:1px solid var(--border-glass);
+  color:var(--text-secondary);
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1), background .18s ease, border-color .18s ease, color .18s ease;
+}
+.transport-mode-btn:active{transform:scale(0.96);}
+.transport-mode-btn.active{
+  background:rgba(22,184,196,0.12); border-color:rgba(95,225,232,0.4); color:var(--turquoise-bright);
+}
+.transport-mode-btn .tm-icon{display:flex;}
+.transport-mode-btn .tm-label{font-size:12px; font-weight:600;}
+.transport-status{
+  margin-top:16px; padding:11px 14px; border-radius:var(--radius-m);
+  display:flex; align-items:center; gap:8px;
+  font-size:12.5px; font-weight:500;
+  background:rgba(255,255,255,0.04); border:1px solid var(--border-glass); color:var(--text-secondary);
+}
+.transport-status.loading{color:var(--turquoise-bright);}
+.transport-status.success{color:var(--turquoise-bright); border-color:rgba(95,225,232,0.3); background:rgba(22,184,196,0.08);}
+.transport-status.error{color:#F0625B; border-color:rgba(240,98,91,0.3); background:rgba(240,98,91,0.08);}
+
 /* Loading state */
 .map-loading{
   position:absolute; inset:0; z-index:5; background:var(--bg-primary);
@@ -1655,11 +1703,37 @@ img{-webkit-user-drag:none; user-select:none;}
         <div class="md-loc" id="mdLoc">—</div>
         <div class="md-caption" id="mdCaption">"Yo estuve aquí."</div>
         <div class="md-date" id="mdDate">—</div>
-        <div class="md-actions">
+               <div class="md-actions">
           <button class="md-btn" id="mdReplace">Reemplazar foto</button>
           <button class="md-btn md-btn-danger" id="mdDelete">Eliminar recuerdo</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ================= NAVEGACIÓN REAL — Fase 1: selector de modo ================= -->
+  <div class="transport-sheet" id="transportSheet">
+    <div class="transport-sheet-card">
+      <button class="close" id="transportSheetClose" aria-label="Cerrar">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <div class="transport-sheet-title">¿Cómo quieres llegar?</div>
+      <div class="transport-sheet-sub">Elige un modo de transporte para calcular tu ruta.</div>
+      <div class="transport-modes">
+        <button class="transport-mode-btn" data-mode="foot-walking">
+          <span class="tm-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4" r="1.7" fill="currentColor" stroke="none"/><path d="M10 8.5 8 12l1.5 1.5L8 20M10 8.5l3 1.5 3 6M13 10l3.5-1.5M13 10l-1 4 3 2.5"/></svg></span>
+          <span class="tm-label">A pie</span>
+        </button>
+        <button class="transport-mode-btn" data-mode="cycling-regular">
+          <span class="tm-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="17" r="3.3"/><circle cx="18" cy="17" r="3.3"/><path d="M6 17 10 9h5l3 8M10 9 8.5 6h-2M10 9l3 4h5"/></svg></span>
+          <span class="tm-label">Bicicleta</span>
+        </button>
+        <button class="transport-mode-btn" data-mode="driving-car">
+          <span class="tm-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v-3.2L6 8.5A2 2 0 0 1 7.8 7.3h8.4A2 2 0 0 1 18 8.5l2 4.3V16"/><path d="M4 16h16M4 16v2M20 16v2"/><circle cx="7.5" cy="16" r="1.4" fill="currentColor" stroke="none"/><circle cx="16.5" cy="16" r="1.4" fill="currentColor" stroke="none"/></svg></span>
+          <span class="tm-label">Automóvil</span>
+        </button>
+      </div>
+      <div class="transport-status" id="transportModeStatus" style="display:none;"></div>
     </div>
   </div>
 </div>
@@ -2042,6 +2116,11 @@ const CHOAPA_MAX_BOUNDS = [
   [-70.19, -30.79], // noreste + margen — reducido ~35% (antes -70.05,-30.65)
 ];
 
+// Navegación real — OpenRouteService. Key gratuita, visible client-side por
+// ahora (aceptado explícitamente para esta etapa). Se usa recién en la Fase 2
+// (cálculo de ruta); en la Fase 1 solo queda declarada.
+const ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjQ2NjI1YzU3ZjJhYzQyYWFiOTk0NDI0YjNkMGMyMzJmIiwiaCI6Im11cm11cjY0In0=';
+
 // Umbrales que dividen el sistema de exploración continuo en 3 niveles:
 // CHOAPA (comunas) → LOCALIDAD (zona de influencia) → EXPERIENCIAS (POIs individuales)
 const ZOOM_SHOW_COUNTS = 9.6;    // desde aquí, las comunas muestran su cantidad de lugares
@@ -2051,6 +2130,9 @@ const ZOOM_SUBLOCALITY = 10.0;   // desde aquí, se ven las localidades dentro d
 const ZOOM_DETAIL = 12.4;        // desde aquí, se ven las experiencias (POIs) individuales
 
 let state = { activeExperience:'todos', selectedPlace:null, sheetExpanded:false, currentLocality:null, currentSublocality:null };
+// Estado del flujo de navegación real ("Cómo llegar") — deliberadamente
+// separado de `state` para no interferir con la lógica de exploración/mapa.
+state.nav = { active:false, mode:null, targetPlace:null, userCoords:null, routeGeoJSON:null, routeDuration:null, routeDistance:null, watchId:null };
 let markers = [];
 let localityMarkers = [];
 let sublocalityMarkers = [];
@@ -3660,13 +3742,69 @@ document.getElementById('poiDetailSave').addEventListener('click', (e) => {
   e.currentTarget.classList.toggle('saved', savedPlaceIds.has(id));
 });
 
+/* ---------- 12. NAVEGACIÓN REAL — Fase 1: selector de modo + permiso de ubicación ----------
+   Fase 2 agregará el cálculo de ruta real (OpenRouteService) + vista panorámica.
+   Fase 3 agregará la navegación activa con seguimiento en tiempo real.
+   Todo el estado vive en state.nav — separado del resto de state para no tocar
+   la lógica de exploración/mapa ya existente. */
+const transportSheetEl = document.getElementById('transportSheet');
+
+function openTransportModeSheet(place){
+  state.nav.targetPlace = place;
+  state.nav.mode = null;
+  document.querySelectorAll('.transport-mode-btn').forEach(b => b.classList.remove('active'));
+  const statusEl = document.getElementById('transportModeStatus');
+  statusEl.style.display = 'none';
+  statusEl.className = 'transport-status';
+  transportSheetEl.classList.add('visible');
+}
+function closeTransportModeSheet(){
+  transportSheetEl.classList.remove('visible');
+}
+document.getElementById('transportSheetClose').addEventListener('click', closeTransportModeSheet);
+transportSheetEl.addEventListener('click', (e) => { if (e.target === transportSheetEl) closeTransportModeSheet(); });
+
+// Fase 1: al elegir un modo se pide/confirma la ubicación del usuario y se
+// refleja en el mapa con el mismo marcador que ya usa "Cerca de mí"
+// (placeUserMarker, sin duplicar lógica). El cálculo de ruta real llega en la
+// Fase 2 — por ahora solo se confirma que la ubicación quedó lista.
+function requestUserLocationForNav(mode){
+  state.nav.mode = mode;
+  document.querySelectorAll('.transport-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+
+  const statusEl = document.getElementById('transportModeStatus');
+  statusEl.style.display = 'flex';
+  statusEl.className = 'transport-status loading';
+  statusEl.innerHTML = `${icon('compassRose', 14)} Obteniendo tu ubicación…`;
+
+  if (!navigator.geolocation){
+    statusEl.className = 'transport-status error';
+    statusEl.innerHTML = `${icon('pin', 14)} Tu navegador no permite acceder a la ubicación.`;
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(pos => {
+    state.nav.userCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    placeUserMarker(state.nav.userCoords.lat, state.nav.userCoords.lng);
+    statusEl.className = 'transport-status success';
+    statusEl.innerHTML = `${icon('pin', 14)} Ubicación lista — el cálculo de ruta real llega en el siguiente paso.`;
+  }, (err) => {
+    statusEl.className = 'transport-status error';
+    statusEl.innerHTML = err.code === 1
+      ? `${icon('pin', 14)} Necesitamos tu ubicación para calcular la ruta. Revisa los permisos del navegador e inténtalo de nuevo.`
+      : `${icon('pin', 14)} No pudimos obtener tu ubicación. Inténtalo de nuevo.`;
+  });
+}
+document.querySelectorAll('.transport-mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => requestUserLocationForNav(btn.dataset.mode));
+});
+
 document.getElementById('poiDetailDirections').addEventListener('click', (e) => {
   e.stopPropagation();
   const place = state.selectedPlace;
   if (!place) return;
-  window.open(`https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`, '_blank');
+  openTransportModeSheet(place);
 });
-
 /* ---------- 7b. GUARDADOS — vista sobre savedPlaceIds, sin datos nuevos ---------- */
 // No hay una fuente de verdad paralela: esta pantalla solo lee/escribe el mismo
 // savedPlaceIds + SAVED_KEY que ya usa el corazón de la ficha del POI. Al abrir
