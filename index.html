@@ -1499,6 +1499,23 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 .anh-status.error{color:#F0625B; border-color:rgba(240,98,91,0.3); background:rgba(240,98,91,0.08);}
 
+/* Botón de recentrar — mismo tratamiento visual que locate-btn/compass-btn.
+   Solo visible cuando el seguimiento automático está pausado (el usuario
+   interactuó manualmente con el mapa durante la navegación activa). */
+.nav-recenter-btn{
+  position:absolute; right:16px; z-index:22;
+  bottom:calc(var(--nav-footprint) + 14px + 78px);
+  width:38px; height:38px; border-radius:50%;
+  background:rgba(16,36,56,0.8); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  border:1px solid var(--border-glass); box-shadow:var(--shadow-float);
+  display:flex; align-items:center; justify-content:center; color:var(--turquoise-bright);
+  opacity:0; transform:scale(0.7); pointer-events:none;
+  transition:opacity .22s ease, transform .22s cubic-bezier(.34,1.56,.64,1), background .16s ease;
+}
+.nav-recenter-btn.visible{opacity:1; transform:scale(1); pointer-events:auto;}
+.nav-recenter-btn:active{transform:scale(0.88); background:rgba(95,225,232,0.16);}
+@media (min-width:640px){ .nav-recenter-btn{right:calc(50% - 320px + 16px);} }
+
 /* Loading state */
 .map-loading{
   position:absolute; inset:0; z-index:5; background:var(--bg-primary);
@@ -1861,7 +1878,10 @@ img{-webkit-user-drag:none; user-select:none;}
         <div class="rsp-status" id="rspStatus" style="display:none;"></div>
   </div>
 
-  <!-- ================= NAVEGACIÓN REAL — Fase 3: navegación activa ================= -->
+   <!-- ================= NAVEGACIÓN REAL — Fase 3: navegación activa ================= -->
+  <button class="nav-recenter-btn" id="navRecenterBtn" aria-label="Recentrar">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="m3 11 18-8-8 18-2-8-8-2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+  </button>
   <div class="active-nav-hud" id="activeNavHud">
     <div class="anh-top">
       <span class="anh-mode-icon" id="anhModeIcon"></span>
@@ -4233,6 +4253,29 @@ const activeNavHud = document.getElementById('activeNavHud');
 const arrivalToast = document.getElementById('arrivalToast');
 const ARRIVAL_RADIUS_M = 35;
 
+const navRecenterBtn = document.getElementById('navRecenterBtn');
+
+// Distingue un gesto real del usuario (e.originalEvent viene poblado con el
+// evento de mouse/touch) de un movimiento programático como el propio
+// easeTo() del seguimiento automático (originalEvent es undefined ahí) — así
+// este listener nunca confunde su propia animación con una interacción manual.
+function handleManualMapInteraction(e){
+  if (!state.nav.active || !state.nav.followMode) return;
+  if (!e.originalEvent) return; // gesto programático (nuestro propio easeTo) — se ignora
+  state.nav.followMode = false;
+  navRecenterBtn.classList.add('visible');
+}
+map.on('dragstart', handleManualMapInteraction);
+map.on('zoomstart', handleManualMapInteraction);
+
+navRecenterBtn.addEventListener('click', () => {
+  state.nav.followMode = true;
+  navRecenterBtn.classList.remove('visible');
+  if (state.nav.userCoords){
+    map.easeTo({ center:[state.nav.userCoords.lng, state.nav.userCoords.lat], zoom:15.5, duration:600 });
+  }
+});
+
 function startActiveNavigation(){
   if (!state.nav.routeGeoJSON || !state.nav.targetPlace) return;
   if (!navigator.geolocation){
@@ -4247,6 +4290,7 @@ function startActiveNavigation(){
   // la Fase 2 (distancia/duración totales) — nunca se vuelve a llamar a ORS
   // durante la navegación activa.
   state.nav.speedMps = state.nav.routeDistance / state.nav.routeDuration;
+  state.nav.followMode = true;
   document.getElementById('anhModeIcon').innerHTML = TRANSPORT_MODE_ICON_SVG[state.nav.mode] || '';
 
   routeSummaryPanel.classList.remove('visible');
@@ -4276,15 +4320,19 @@ function onNavPositionUpdate(userCoords){
   const remaining = trimRouteFromPoint(coords, nearest);
   drawRouteOnMap({ type:'LineString', coordinates: remaining }); // reutiliza la función existente de Fase 2, sin tocarla
 
-  const remainingM = lineLengthMeters(remaining);
+   const remainingM = lineLengthMeters(remaining);
   const remainingS = state.nav.speedMps > 0 ? remainingM / state.nav.speedMps : 0;
   document.getElementById('anhEta').textContent = formatDuration(remainingS);
   document.getElementById('anhDist').textContent = formatRouteDistance(remainingM);
 
-  // Cámara siguiendo al usuario — animación adicional de este flujo únicamente,
-  // no reemplaza ni modifica la elasticidad/bounds/moveend del mapa en modo
-  // exploración normal.
-  map.easeTo({ center:[userCoords.lng, userCoords.lat], zoom: Math.max(map.getZoom(), 15.5), duration:700 });
+  // Cámara siguiendo al usuario — solo si el modo seguimiento sigue activo. Si
+  // el usuario interactuó manualmente (zoom/pan), se respeta su posición hasta
+  // que toque el botón de recentrar — nunca se retoma solo por el paso del
+  // tiempo. Animación adicional de este flujo únicamente, no reemplaza ni
+  // modifica la elasticidad/bounds/moveend del mapa en modo exploración normal.
+  if (state.nav.followMode){
+    map.easeTo({ center:[userCoords.lng, userCoords.lat], zoom: Math.max(map.getZoom(), 15.5), duration:700 });
+  }
 }
 
 function onNavPositionError(err){
@@ -4306,6 +4354,8 @@ function finishNavigation(reason){
     state.nav.watchId = null;
   }
   activeNavHud.classList.remove('visible');
+  navRecenterBtn.classList.remove('visible');
+  state.nav.followMode = true; // reset — la próxima navegación empieza siempre en modo seguimiento
 
   if (reason === 'arrived'){
     document.getElementById('arrivalToastSub').textContent = state.nav.targetPlace ? state.nav.targetPlace.name : '';
