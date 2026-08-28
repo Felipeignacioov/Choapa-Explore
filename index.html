@@ -3131,6 +3131,13 @@ function activeLocalityAliases(){
 function renderPOIs(){
   clearPOIMarkers();
 
+  // Mientras hay una ruta de navegación activa, los POIs de categoría no deben
+  // mostrarse — mismo criterio y misma variable de estado (state.nav.active)
+  // que ya oculta los pines de localidad. El único POI visible en este modo es
+  // el marcador de destino forzado (renderNavDestinationMarker), que es
+  // independiente de este array de marcadores.
+  if (state.nav.active) return;
+
   // Nivel 3: solo se muestran POIs individuales cuando estamos en zoom de detalle
   if (map.getZoom() < ZOOM_DETAIL) return;
 
@@ -4239,8 +4246,9 @@ async function calculateAndShowRoute(mode){
     // y el POI de destino se fuerza a mostrarse aunque el usuario no haya
     // "entrado" a esa localidad — la jerarquía normal comuna → localidad → POI
     // se retoma recién al cancelar/llegar (ver clearNavRoute).
-    state.nav.active = true;
+       state.nav.active = true;
     clearSublocalityMarkers();
+    clearPOIMarkers();
     renderNavDestinationMarker(place);
     rspStatus.style.display = 'none';
     renderRouteSummaryPanel();
