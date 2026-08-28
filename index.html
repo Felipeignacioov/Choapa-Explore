@@ -3167,17 +3167,19 @@ function renderPOIs(){
     : null;
 
   visible.forEach((place, i) => {
-    const cat = catById(place.category);
-    let colorVar = activeExpColor;
-    if (!colorVar && place.categoryPrimary){
-      const primaryExp = expById(place.categoryPrimary);
-      if (primaryExp) colorVar = getComputedStyle(document.documentElement).getPropertyValue(primaryExp.color.replace('var(','').replace(')','')).trim();
-    }
-    colorVar = colorVar || getComputedStyle(document.documentElement).getPropertyValue(cat.color.replace('var(','').replace(')','')).trim() || '#16B8C4';
+    // Ícono fijo por categoría principal de EXPERIENCIA (primaryExperienceTag,
+    // misma función ya usada en Mi Álbum) — nunca de catById/CATEGORIES (ese es
+    // el "tipo de lugar" interno, con íconos distintos a los reales de la app:
+    // de ahí salían el tenedor+cuchillo, la estrella o la montaña incorrectos).
+    // El ícono no cambia con el filtro activo; solo el color sí.
+    const primaryTag = primaryExperienceTag(place);
+    const colorVar = activeExpColor
+      || getComputedStyle(document.documentElement).getPropertyValue(primaryTag.color.replace('var(','').replace(')','')).trim()
+      || '#16B8C4';
     const el = document.createElement('div');
     el.className = 'poi-marker';
     el.style.setProperty('--enter-delay', Math.min(i * 22, 260) + 'ms');
-    el.innerHTML = `<div class="poi-visual">${poiSVG(colorVar, cat.iconKey)}</div>`;
+    el.innerHTML = `<div class="poi-visual">${poiSVG(colorVar, primaryTag.iconKey)}</div>`;
     el.addEventListener('click', (e) => { e.stopPropagation(); selectPlace(place, el); });
 
     const marker = new maplibregl.Marker({ element: el, anchor:'center' })
