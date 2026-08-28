@@ -190,7 +190,11 @@ img{-webkit-user-drag:none; user-select:none;}
   background:rgba(16,36,56,0.68); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
   border:1px solid var(--border-glass); box-shadow:var(--shadow-float);
   font-size:13px; font-weight:600; color:var(--text-secondary);
-  transition:background .16s cubic-bezier(.4,0,.2,1), color .16s ease, border-color .16s ease, transform .16s cubic-bezier(.34,1.56,.64,1), box-shadow .16s ease;
+  /* Color/fondo/borde ahora a 300ms (antes 160ms, casi instantáneo) para que el
+     cambio de tinte al elegir categoría se sienta como un fundido suave. La
+     transición de transform/box-shadow (feedback táctil al tocar) se mantiene
+     igual, sin tocar. */
+  transition:background .3s cubic-bezier(.4,0,.2,1), color .3s cubic-bezier(.4,0,.2,1), border-color .3s cubic-bezier(.4,0,.2,1), transform .16s cubic-bezier(.34,1.56,.64,1), box-shadow .16s ease;
   white-space:nowrap;
 }
 .chip .dot{width:6px; height:6px; border-radius:50%; background:currentColor; opacity:.85;}
@@ -471,7 +475,9 @@ img{-webkit-user-drag:none; user-select:none;}
   box-shadow:var(--shadow-float), inset 0 1px 0 rgba(255,255,255,0.1), 0 12px 30px rgba(2,8,15,0.38);
   border-radius:var(--radius-m);
   opacity:0; transform:translateY(-6px) scale(0.98); pointer-events:none;
-  transition:opacity .28s ease, transform .28s cubic-bezier(.2,.9,.28,1.1), border-color .2s ease;
+  /* border-color a 300ms — antes 200ms, el salto de un tono de categoría a
+     otro (asignado inline vía JS en updateZonePromptContent) se sentía brusco. */
+  transition:opacity .28s ease, transform .28s cubic-bezier(.2,.9,.28,1.1), border-color .3s cubic-bezier(.4,0,.2,1);
 }
 .zone-prompt.visible{opacity:1; transform:translateY(0) scale(1); pointer-events:auto;}
 /* Cuando el breadcrumb ("< Salamanca") está visible, el banner de categoría baja
@@ -485,6 +491,9 @@ img{-webkit-user-drag:none; user-select:none;}
 .zone-prompt .zp-title{font-family:var(--font-display); font-size:13px; font-weight:700; color:var(--text-primary);}
 .zone-prompt .zp-sub{font-size:11px; color:var(--text-secondary);}
 .zone-prompt .zp-icon, .zone-prompt .zp-text{transition:opacity .14s ease;}
+/* Color del ícono se asigna inline vía JS al cambiar de categoría — sin esta
+   transición el tinte saltaba de golpe junto con el borde de arriba. */
+.zone-prompt .zp-icon{transition:opacity .14s ease, color .3s cubic-bezier(.4,0,.2,1);}
 .zone-prompt.content-swap .zp-icon, .zone-prompt.content-swap .zp-text{opacity:0;}
 @media (min-width:640px){ .zone-prompt{max-width:608px; left:50%; transform:translateX(-50%) translateY(-6px) scale(0.98);} .zone-prompt.visible{transform:translateX(-50%) translateY(0) scale(1);} }
 
