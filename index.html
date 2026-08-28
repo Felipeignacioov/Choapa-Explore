@@ -4135,7 +4135,7 @@ function drawRouteOnMap(geometry){
     map.getSource('nav-route').setData(data);
   } else {
     map.addSource('nav-route', { type:'geojson', data });
-       map.addLayer({
+    map.addLayer({
       id:'nav-route-line-halo', type:'line', source:'nav-route',
       layout:{ 'line-cap':'round', 'line-join':'round' },
       paint:{
@@ -4144,6 +4144,18 @@ function drawRouteOnMap(geometry){
         // ahora interpolado por zoom, igual que ya hacen las calles del mapa base.
         'line-width': ['interpolate', ['linear'], ['zoom'], 10, 4.0, 13, 5.5, 16, 8.0, 18, 10.5],
         'line-blur':3,
+      },
+    });
+    // Contorno sólido y bien definido (sin blur) entre el halo difuso y el
+    // núcleo turquesa — le da a la línea sensación de "borde", distinto del
+    // glow ambiental del halo de arriba. Tono navy oscuro con un matiz de
+    // turquesa, cercano a --bg-primary, para no verse negro puro.
+    map.addLayer({
+      id:'nav-route-line-outline', type:'line', source:'nav-route',
+      layout:{ 'line-cap':'round', 'line-join':'round' },
+      paint:{
+        'line-color':'#0B1F2C', 'line-opacity':0.9,
+        'line-width': ['interpolate', ['linear'], ['zoom'], 10, 2.7, 13, 3.9, 16, 6.0, 18, 7.8],
       },
     });
     map.addLayer({
