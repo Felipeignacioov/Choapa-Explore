@@ -4076,7 +4076,11 @@ function clearNavDestinationMarker(){
 }
 
 function clearNavRoute(){
+  // nav-route-line-outline se agregó en el ajuste de contorno posterior y
+  // nunca se sumó aquí — era la capa huérfana que quedaba pegada en el mapa
+  // tras cancelar (el tono oscuro del contorno, no la línea turquesa normal).
   if (map.getLayer('nav-route-line')) map.removeLayer('nav-route-line');
+  if (map.getLayer('nav-route-line-outline')) map.removeLayer('nav-route-line-outline');
   if (map.getLayer('nav-route-line-halo')) map.removeLayer('nav-route-line-halo');
   if (map.getSource('nav-route')) map.removeSource('nav-route');
   clearNavConnector();
