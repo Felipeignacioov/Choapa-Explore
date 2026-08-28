@@ -5843,6 +5843,24 @@ function openLocalityAlbum(localityId){
   renderLocalityAlbum(localityId);
 }
 
+// Mapeo consistente "POI → categoría de experiencia real" para Mi Álbum, usado
+// en vez de catById()/CATEGORIES (ese es un sistema interno de "tipo de lugar",
+// nunca pensado para mostrarse como categoría — de ahí salían "Patrimonio",
+// "Vinos" o "Cielos", que no existen en las 8 categorías reales de la app).
+// Mismo criterio que ya usa selectPlace()/buildRecommendedCard() en el resto
+// de la app: prioridad a categoryPrimary, luego el primer experience tag.
+function primaryExperienceTag(place){
+  if (place.categoryPrimary){
+    const exp = expById(place.categoryPrimary);
+    if (exp) return exp;
+  }
+  if (place.experiences && place.experiences.length){
+    const exp = expById(place.experiences[0]);
+    if (exp) return exp;
+  }
+  return expById('todos');
+}
+
 function renderLocalityAlbum(localityId){
   const locality = LOCALITIES.find(l => l.id === localityId);
   if (!locality) return;
@@ -5874,25 +5892,26 @@ function renderLocalityAlbum(localityId){
     albumDetailGrid.appendChild(card);
   });
 
-  placesInLocality(locality).forEach(place => {
+    placesInLocality(locality).forEach(place => {
     const memory = memories[place.id];
-    const cat = catById(place.category);
+    const tag = primaryExperienceTag(place); // una de las 8 categorías reales — nunca CATEGORIES
     const card = document.createElement('div');
     if (memory){
       card.className = 'album-card unlocked';
       card.style.backgroundImage = `url(${memory.photoUrl})`;
       card.innerHTML = `<div class="ac-info"><div class="ac-name">${place.name}</div></div>`;
       card.addEventListener('click', () => openPlaceMemoryDetail(place));
-        } else {
+    } else {
       card.className = 'album-card locked';
-      // Tinte sutil de la categoría (mismo sistema de colores --cat-* que usa
-      // el resto de la app) sobre ícono, borde y fondo — da una pista de qué
-      // tipo de experiencia es, sin revelar nombre, foto ni ubicación.
-      const catColor = getComputedStyle(document.documentElement).getPropertyValue(cat.color.replace('var(','').replace(')','')).trim();
-      card.style.borderColor = `${catColor}35`;
-      card.style.background = `${catColor}0C`;
+      // Tinte sutil de la categoría real de experiencia (mismo sistema de
+      // colores --exp-* que usa el resto de la app) sobre ícono, borde y fondo
+      // — da una pista de qué tipo de experiencia es, sin revelar nombre, foto
+      // ni ubicación.
+      const tagColor = getComputedStyle(document.documentElement).getPropertyValue(tag.color.replace('var(','').replace(')','')).trim();
+      card.style.borderColor = `${tagColor}35`;
+      card.style.background = `${tagColor}0C`;
       card.innerHTML = `
-        <span class="lock-badge" style="color:${catColor}; border-color:${catColor}55;">${icon(cat.iconKey, 22)}</span>
+        <span class="lock-badge" style="color:${tagColor}; border-color:${tagColor}55;">${icon(tag.iconKey, 22)}</span>
         <span class="lock-label">Aún sin descubrir</span>`;
       card.addEventListener('click', () => { closeAlbum(); selectPlaceById(place.id); });
     }
