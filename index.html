@@ -1502,18 +1502,21 @@ img{-webkit-user-drag:none; user-select:none;}
 /* Botón de recentrar — mismo tratamiento visual que locate-btn/compass-btn.
    Solo visible cuando el seguimiento automático está pausado (el usuario
    interactuó manualmente con el mapa durante la navegación activa). */
+/* Fondo turquesa sólido (no oscuro con ícono turquesa, como el botón normal de
+   ubicación) — se lee como "acción de retomar navegación", no como el mismo
+   control de "Cerca de mí" duplicado. */
 .nav-recenter-btn{
   position:absolute; right:16px; z-index:22;
   bottom:calc(var(--nav-footprint) + 14px + 78px);
   width:38px; height:38px; border-radius:50%;
-  background:rgba(16,36,56,0.8); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
-  border:1px solid var(--border-glass); box-shadow:var(--shadow-float);
-  display:flex; align-items:center; justify-content:center; color:var(--turquoise-bright);
+  background:var(--turquoise); box-shadow:var(--shadow-float), 0 4px 14px rgba(22,184,196,0.35);
+  border:none;
+  display:flex; align-items:center; justify-content:center; color:#052024;
   opacity:0; transform:scale(0.7); pointer-events:none;
   transition:opacity .22s ease, transform .22s cubic-bezier(.34,1.56,.64,1), background .16s ease;
 }
 .nav-recenter-btn.visible{opacity:1; transform:scale(1); pointer-events:auto;}
-.nav-recenter-btn:active{transform:scale(0.88); background:rgba(95,225,232,0.16);}
+.nav-recenter-btn:active{transform:scale(0.88); background:var(--turquoise-bright);}
 @media (min-width:640px){ .nav-recenter-btn{right:calc(50% - 320px + 16px);} }
 
 /* Loading state */
@@ -1879,8 +1882,8 @@ img{-webkit-user-drag:none; user-select:none;}
   </div>
 
    <!-- ================= NAVEGACIÓN REAL — Fase 3: navegación activa ================= -->
-  <button class="nav-recenter-btn" id="navRecenterBtn" aria-label="Recentrar">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="m3 11 18-8-8 18-2-8-8-2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+   <button class="nav-recenter-btn" id="navRecenterBtn" aria-label="Recentrar navegación">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3 17 19 12 15.5 7 19Z" fill="currentColor" stroke="none"/></svg>
   </button>
   <div class="active-nav-hud" id="activeNavHud">
     <div class="anh-top">
@@ -4293,8 +4296,12 @@ function startActiveNavigation(){
   state.nav.followMode = true;
   document.getElementById('anhModeIcon').innerHTML = TRANSPORT_MODE_ICON_SVG[state.nav.mode] || '';
 
-  routeSummaryPanel.classList.remove('visible');
+   routeSummaryPanel.classList.remove('visible');
   activeNavHud.classList.add('visible');
+  // Se oculta el botón normal de "Cerca de mí" mientras dura la navegación
+  // activa — cumple una función similar a recenter y quedaban superpuestos.
+  // Fuera de este flujo, #btnCenterMe sigue funcionando exactamente igual.
+  document.getElementById('btnCenterMe').style.display = 'none';
 
   state.nav.watchId = navigator.geolocation.watchPosition(
     pos => onNavPositionUpdate({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
@@ -4353,8 +4360,9 @@ function finishNavigation(reason){
     navigator.geolocation.clearWatch(state.nav.watchId);
     state.nav.watchId = null;
   }
-  activeNavHud.classList.remove('visible');
+   activeNavHud.classList.remove('visible');
   navRecenterBtn.classList.remove('visible');
+  document.getElementById('btnCenterMe').style.display = '';
   state.nav.followMode = true; // reset — la próxima navegación empieza siempre en modo seguimiento
 
   if (reason === 'arrived'){
