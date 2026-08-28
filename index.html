@@ -5907,11 +5907,11 @@ function renderLocalityAlbum(localityId){
       // colores --exp-* que usa el resto de la app) sobre ícono, borde y fondo
       // — da una pista de qué tipo de experiencia es, sin revelar nombre, foto
       // ni ubicación.
-      const tagColor = getComputedStyle(document.documentElement).getPropertyValue(tag.color.replace('var(','').replace(')','')).trim();
-      card.style.borderColor = `${tagColor}35`;
-      card.style.background = `${tagColor}0C`;
+           const tagColor = getComputedStyle(document.documentElement).getPropertyValue(tag.color.replace('var(','').replace(')','')).trim();
+      card.style.borderColor = `${tagColor}55`;
+      card.style.background = `${tagColor}1C`;
       card.innerHTML = `
-        <span class="lock-badge" style="color:${tagColor}; border-color:${tagColor}55;">${icon(tag.iconKey, 22)}</span>
+        <span class="lock-badge" style="color:${tagColor}; border-color:${tagColor}80; background:${tagColor}22;">${icon(tag.iconKey, 22)}</span>
         <span class="lock-label">Aún sin descubrir</span>`;
       card.addEventListener('click', () => { closeAlbum(); selectPlaceById(place.id); });
     }
