@@ -1294,6 +1294,7 @@ img{-webkit-user-drag:none; user-select:none;}
 .album-progress .ap-fill{fill:none; stroke:var(--turquoise-bright); stroke-width:3; stroke-linecap:round; transition:stroke-dasharray .5s ease;}
 .album-progress .ap-text{font-size:11.5px; color:var(--text-secondary); font-weight:600;}
 .album-progress .ap-text b{color:var(--text-primary);}
+.album-detail-progress{font-size:11.5px; color:var(--text-secondary); font-weight:600; margin-bottom:14px;}
 
 /* Vista detalle de un capítulo — grilla de recuerdos */
 .album-detail-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
@@ -1817,7 +1818,8 @@ img{-webkit-user-drag:none; user-select:none;}
         <div class="album-chapters" id="albumChapters"></div>
       </div>
 
-      <div class="album-view" id="albumDetailView">
+            <div class="album-view" id="albumDetailView">
+        <div class="album-detail-progress" id="albumDetailProgress" style="display:none;"></div>
         <div class="album-detail-grid" id="albumDetailGrid"></div>
       </div>
     </div>
@@ -5844,8 +5846,14 @@ function openLocalityAlbum(localityId){
 function renderLocalityAlbum(localityId){
   const locality = LOCALITIES.find(l => l.id === localityId);
   if (!locality) return;
-  const memories = MemoryStore.getAll();
+    const memories = MemoryStore.getAll();
   albumDetailGrid.innerHTML = '';
+
+  const localityPlaces = placesInLocality(locality);
+  const discoveredInLocality = localityPlaces.filter(p => memories[p.id]).length;
+  const progressEl = document.getElementById('albumDetailProgress');
+  progressEl.style.display = 'block';
+  progressEl.textContent = `${discoveredInLocality}/${localityPlaces.length} en ${locality.name}`;
 
   const addTile = document.createElement('div');
   addTile.className = 'album-card add-tile';
@@ -5875,10 +5883,16 @@ function renderLocalityAlbum(localityId){
       card.style.backgroundImage = `url(${memory.photoUrl})`;
       card.innerHTML = `<div class="ac-info"><div class="ac-name">${place.name}</div></div>`;
       card.addEventListener('click', () => openPlaceMemoryDetail(place));
-    } else {
+        } else {
       card.className = 'album-card locked';
+      // Tinte sutil de la categoría (mismo sistema de colores --cat-* que usa
+      // el resto de la app) sobre ícono, borde y fondo — da una pista de qué
+      // tipo de experiencia es, sin revelar nombre, foto ni ubicación.
+      const catColor = getComputedStyle(document.documentElement).getPropertyValue(cat.color.replace('var(','').replace(')','')).trim();
+      card.style.borderColor = `${catColor}35`;
+      card.style.background = `${catColor}0C`;
       card.innerHTML = `
-        <span class="lock-badge">${icon(cat.iconKey, 22)}</span>
+        <span class="lock-badge" style="color:${catColor}; border-color:${catColor}55;">${icon(cat.iconKey, 22)}</span>
         <span class="lock-label">Aún sin descubrir</span>`;
       card.addEventListener('click', () => { closeAlbum(); selectPlaceById(place.id); });
     }
@@ -5896,6 +5910,7 @@ function openPersonalAlbum(){
 }
 
 function renderPersonalAlbum(){
+  document.getElementById('albumDetailProgress').style.display = 'none';
   albumDetailGrid.innerHTML = '';
 
   const addTile = document.createElement('div');
