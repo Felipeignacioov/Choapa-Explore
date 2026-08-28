@@ -1517,6 +1517,17 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 .nav-recenter-btn.visible{opacity:1; transform:scale(1); pointer-events:auto;}
 .nav-recenter-btn:active{transform:scale(0.88); background:var(--turquoise-bright);}
+
+/* Marcador de usuario durante navegación activa — más grande (34px vs 22px
+   normal), con volumen (gradiente) y pulso propio. Solo se aplica mientras dura
+   la navegación (ver setUserMarkerNavStyle); fuera de este flujo el marcador
+   sigue usando .user-dot tal cual, sin ningún cambio. */
+.nav-user-marker{width:34px; height:34px;}
+.nav-user-marker .halo{animation: nav-user-pulse 3.4s ease-in-out infinite; transform-origin:center;}
+@keyframes nav-user-pulse{
+  0%,100%{ opacity:0.10; r:11; }
+  50%{ opacity:0.22; r:12; }
+}
 @media (min-width:640px){ .nav-recenter-btn{right:calc(50% - 320px + 16px);} }
 
 /* Loading state */
@@ -2303,7 +2314,7 @@ const ZOOM_DETAIL = 12.4;        // desde aquí, se ven las experiencias (POIs) 
 let state = { activeExperience:'todos', selectedPlace:null, sheetExpanded:false, currentLocality:null, currentSublocality:null };
 // Estado del flujo de navegación real ("Cómo llegar") — deliberadamente
 // separado de `state` para no interferir con la lógica de exploración/mapa.
-state.nav = { active:false, mode:null, targetPlace:null, userCoords:null, routeGeoJSON:null, routeDuration:null, routeDistance:null, watchId:null, requestToken:0, destMarker:null };
+state.nav = { active:false, mode:null, targetPlace:null, userCoords:null, routeGeoJSON:null, routeDuration:null, routeDistance:null, watchId:null, requestToken:0, destMarker:null, heading:null, lastUserCoords:null };
 let markers = [];
 let localityMarkers = [];
 let sublocalityMarkers = [];
@@ -4258,6 +4269,53 @@ const ARRIVAL_RADIUS_M = 35;
 
 const navRecenterBtn = document.getElementById('navRecenterBtn');
 
+// Rumbo (bearing) entre dos coordenadas — fallback cuando el GPS no entrega
+// heading real. Fórmula estándar de navegación.
+function computeBearing(lat1, lng1, lat2, lng2){
+  const toRad = d => d * Math.PI / 180, toDeg = r => r * 180 / Math.PI;
+  const dLng = toRad(lng2 - lng1);
+  const y = Math.sin(dLng) * Math.cos(toRad(lat2));
+  const x = Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) - Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLng);
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+// Contenido interno (sin la etiqueta <svg> exterior) del marcador de usuario en
+// modo navegación — mismo patrón de radialGradient que localitySVG/navDestSVG.
+// El cono de dirección solo se dibuja si hay un heading válido (real o
+// calculado); si no, el marcador se muestra sin cono, nunca roto.
+function navUserInnerSVG(heading){
+  const color = '#5FE1E8';
+  const hasHeading = heading != null && !isNaN(heading);
+  return `
+    <defs>
+      <radialGradient id="navUserGrad" cx="35%" cy="30%" r="65%">
+        <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.6"/>
+        <stop offset="35%" stop-color="${color}" stop-opacity="1"/>
+        <stop offset="100%" stop-color="${color}" stop-opacity="0.85"/>
+      </radialGradient>
+    </defs>
+    <circle class="halo" cx="17" cy="17" r="11" fill="${color}" opacity="0.14"/>
+    ${hasHeading ? `<path d="M17 2 L22 12 L17 9 L12 12 Z" fill="${color}" opacity="0.9" transform="rotate(${heading} 17 17)"/>` : ''}
+    <circle cx="17" cy="17" r="7.5" fill="url(#navUserGrad)" stroke="#07131F" stroke-width="2"/>
+  `;
+}
+// Alterna el marcador de usuario (nodo SVG único, reutilizado por
+// placeUserMarker) entre su apariencia normal y la de navegación activa —
+// manipula directamente el nodo existente en vez de tocar userDotSVG()/
+// placeUserMarker(), así "Cerca de mí" queda intacto fuera de este flujo.
+function setUserMarkerNavStyle(active, heading){
+  if (!userMarker) return;
+  const el = userMarker.getElement();
+  if (active){
+    el.setAttribute('viewBox', '0 0 34 34');
+    el.setAttribute('class', 'nav-user-marker');
+    el.innerHTML = navUserInnerSVG(heading);
+  } else {
+    el.setAttribute('viewBox', '0 0 22 22');
+    el.setAttribute('class', 'user-dot');
+    el.innerHTML = `<circle class="ring" cx="11" cy="11" r="5" fill="none" stroke="#5FE1E8" stroke-width="2"/><circle cx="11" cy="11" r="5" fill="#5FE1E8" stroke="#07131F" stroke-width="2"/>`;
+  }
+}
+
 // Distingue un gesto real del usuario (e.originalEvent viene poblado con el
 // evento de mouse/touch) de un movimiento programático como el propio
 // easeTo() del seguimiento automático (originalEvent es undefined ahí) — así
@@ -4304,16 +4362,31 @@ function startActiveNavigation(){
   document.getElementById('btnCenterMe').style.display = 'none';
 
   state.nav.watchId = navigator.geolocation.watchPosition(
-    pos => onNavPositionUpdate({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+    pos => onNavPositionUpdate({ lat: pos.coords.latitude, lng: pos.coords.longitude }, pos.coords.heading),
     err => onNavPositionError(err),
     { enableHighAccuracy:true, maximumAge:2000, timeout:12000 }
   );
 }
 
-function onNavPositionUpdate(userCoords){
+function onNavPositionUpdate(userCoords, gpsHeading){
   document.getElementById('anhStatus').style.display = 'none';
   state.nav.userCoords = userCoords;
   placeUserMarker(userCoords.lat, userCoords.lng);
+
+  // Dirección: se prioriza el heading real del GPS; si no viene disponible, se
+  // calcula a partir del último tramo recorrido. Si el usuario no se movió lo
+  // suficiente (menos de 2m) para un cálculo confiable, se conserva el último
+  // rumbo conocido en vez de mostrar un cono errático.
+  if (gpsHeading != null && !isNaN(gpsHeading)){
+    state.nav.heading = gpsHeading;
+  } else if (state.nav.lastUserCoords){
+    const movedM = distanceKm(state.nav.lastUserCoords.lat, state.nav.lastUserCoords.lng, userCoords.lat, userCoords.lng) * 1000;
+    if (movedM > 2){
+      state.nav.heading = computeBearing(state.nav.lastUserCoords.lat, state.nav.lastUserCoords.lng, userCoords.lat, userCoords.lng);
+    }
+  }
+  state.nav.lastUserCoords = userCoords;
+  setUserMarkerNavStyle(true, state.nav.heading);
 
   const place = state.nav.targetPlace;
   const distToDestM = distanceKm(userCoords.lat, userCoords.lng, place.lat, place.lng) * 1000;
@@ -4360,9 +4433,12 @@ function finishNavigation(reason){
     navigator.geolocation.clearWatch(state.nav.watchId);
     state.nav.watchId = null;
   }
-   activeNavHud.classList.remove('visible');
+    activeNavHud.classList.remove('visible');
   navRecenterBtn.classList.remove('visible');
   document.getElementById('btnCenterMe').style.display = '';
+  setUserMarkerNavStyle(false);
+  state.nav.heading = null;
+  state.nav.lastUserCoords = null;
   state.nav.followMode = true; // reset — la próxima navegación empieza siempre en modo seguimiento
 
   if (reason === 'arrived'){
