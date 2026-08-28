@@ -299,8 +299,8 @@ img{-webkit-user-drag:none; user-select:none;}
   transform-origin: center;
 }
 @keyframes poi-ambient-pulse{
-  0%,100%{ opacity:0.09; r:8.6; }
-  50%{ opacity:0.2; r:9.0; }
+  0%,100%{ opacity:0.06; r:8.6; }
+  50%{ opacity:0.13; r:8.85; }
 }
 
 /* Etiqueta de nombre del POI — mismo tratamiento de pill que las etiquetas de
@@ -320,6 +320,12 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 .poi-marker.show-name .poi-name-label{
   opacity:1; transform:translateX(-50%) translateY(0) scale(1);
+}
+/* Igual que label-collapsed en comuna/localidad: cuando dos nombres de POI
+   colisionan, se oculta el de menor prioridad en vez de dejarlos superpuestos
+   e ilegibles. El punto sigue siendo visible y tocable — solo el texto cede. */
+.poi-marker.label-collapsed .poi-name-label{
+  opacity:0; pointer-events:none;
 }
 
 .nav-dest-marker{width:30px; height:30px; display:flex; align-items:center; justify-content:center;}
@@ -3124,7 +3130,7 @@ function poiSVG(color, iconKey, gradId){
   <svg viewBox="0 0 22 22">
     <defs>
       <radialGradient id="${gradId}" cx="35%" cy="30%" r="65%">
-        <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.5"/>
+        <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.3"/>
         <stop offset="35%" stop-color="${color}" stop-opacity="1"/>
         <stop offset="100%" stop-color="${color}" stop-opacity="0.85"/>
       </radialGradient>
@@ -3225,10 +3231,11 @@ function renderPOIs(){
     const marker = new maplibregl.Marker({ element: el, anchor:'center' })
       .setLngLat([place.lng, place.lat])
       .addTo(map);
-    marker._place = place;
+        marker._place = place;
     marker._el = el;
     markers.push(marker);
   });
+  scheduleCollisionCheck();
 }
 /* ---------- LOCALIDADES — Nivel 1 y 2 del sistema de exploración ---------- */
 function localitySVG(color, gradId){
@@ -3341,19 +3348,25 @@ function clearSublocalityMarkers(){
 // mapa. Solo se oculta el texto de la etiqueta — el punto sigue siendo tocable —
 // así que no toca la lógica de navegación ni de niveles, solo la lectura visual.
 function resolveLabelCollisions(){
-  const visible = [...localityMarkers, ...sublocalityMarkers]
+  const locVisible = [...localityMarkers, ...sublocalityMarkers]
     .filter(m => m._el && !m._el.classList.contains('hidden-level'));
+  // POIs entran a este mismo sistema de colisión, pero con la prioridad más
+  // baja (tier 2) — un nombre de comuna o localidad nunca cede espacio frente
+  // a un nombre de POI; los POIs solo compiten por espacio entre sí.
+  const poiVisible = markers.filter(m => m._el && m._el.classList.contains('show-name'));
+  const visible = [...locVisible, ...poiVisible];
   if (!visible.length) return;
 
   const center = map.getCenter();
   const ranked = visible.map(m => {
-    const loc = m._locality || m._sub;
-    return { m, isComuna: !!m._locality, dist: Math.hypot(loc.lat - center.lat, loc.lng - center.lng) };
-  }).sort((a, b) => (a.isComuna === b.isComuna) ? a.dist - b.dist : (a.isComuna ? -1 : 1));
+    const loc = m._locality || m._sub || m._place;
+    const tier = m._locality ? 0 : (m._sub ? 1 : 2);
+    return { m, tier, dist: Math.hypot(loc.lat - center.lat, loc.lng - center.lng) };
+  }).sort((a, b) => (a.tier === b.tier) ? a.dist - b.dist : a.tier - b.tier);
 
   const placed = [];
   ranked.forEach(({ m }) => {
-    const label = m._el.querySelector('.loc-label');
+    const label = m._el.querySelector('.loc-label') || m._el.querySelector('.poi-name-label');
     if (!label) return;
     const rect = label.getBoundingClientRect();
     const collides = placed.some(r =>
