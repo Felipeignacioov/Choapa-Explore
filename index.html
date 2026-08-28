@@ -254,6 +254,7 @@ img{-webkit-user-drag:none; user-select:none;}
    micro-interacción (aparición, selección) vive en .poi-visual, un hijo que no
    participa del posicionamiento geográfico. */
 .poi-marker{
+  position:relative;
   width:22px; height:22px; cursor:pointer;
   display:flex; align-items:center; justify-content:center;
   will-change:transform; /* promueve a su propia capa de GPU — evita el tirite del drop-shadow cuando MapLibre reposiciona rápido durante la corrección de bordes */
@@ -289,6 +290,36 @@ img{-webkit-user-drag:none; user-select:none;}
   0%{opacity:0.55; transform:scale(1);}
   70%{opacity:0; transform:scale(1.9);}
   100%{opacity:0; transform:scale(1.9);}
+}
+/* Pulso ambiental sutil del POI — separado de .poi-marker .halo (reservado para
+   el flash de selección al tocar) para no interferir con esa animación. Mismo
+   sistema (ciclo lento, opacidad + radio mínimo) ya usado en comuna/localidad. */
+.poi-marker .poi-ambient-halo{
+  animation: poi-ambient-pulse 4.2s ease-in-out infinite;
+  transform-origin: center;
+}
+@keyframes poi-ambient-pulse{
+  0%,100%{ opacity:0.09; r:8.6; }
+  50%{ opacity:0.2; r:9.0; }
+}
+
+/* Etiqueta de nombre del POI — mismo tratamiento de pill que las etiquetas de
+   comuna/localidad (.loc-label), tamaño de texto algo menor para diferenciar
+   jerárquicamente. Solo visible desde ZOOM_POI_NAME (clase .show-name). */
+.poi-marker .poi-name-label{
+  position:absolute; left:50%; bottom:100%;
+  transform:translateX(-50%) translateY(4px) scale(0.9);
+  margin-bottom:6px; padding:3px 9px; border-radius:var(--radius-pill);
+  background:rgba(9,20,32,0.86); border:1px solid rgba(180,200,220,0.10);
+  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  box-shadow:0 1px 0 rgba(255,255,255,0.04) inset, 0 6px 16px rgba(2,8,15,0.28);
+  font-family:var(--font-display); font-size:9.5px; font-weight:700; letter-spacing:0.15px;
+  color:var(--text-primary); white-space:nowrap;
+  opacity:0; pointer-events:none;
+  transition:opacity .22s ease, transform .22s ease;
+}
+.poi-marker.show-name .poi-name-label{
+  opacity:1; transform:translateX(-50%) translateY(0) scale(1);
 }
 
 .nav-dest-marker{width:30px; height:30px; display:flex; align-items:center; justify-content:center;}
@@ -2311,6 +2342,7 @@ const ZOOM_COMUNA_NEAR = 8.8;    // desde aquí, la comuna entra en estado "cerc
 const ZOOM_SUBLOCALITY_RING = 11.2; // desde aquí, el aro exterior de las localidades se hace visible
 const ZOOM_SUBLOCALITY = 10.0;   // desde aquí, se ven las localidades dentro de la comuna
 const ZOOM_DETAIL = 12.4;        // desde aquí, se ven las experiencias (POIs) individuales
+const ZOOM_POI_NAME = 13.2;      // desde aquí, se muestra el nombre del POI junto al marcador
 
 let state = { activeExperience:'todos', selectedPlace:null, sheetExpanded:false, currentLocality:null, currentSublocality:null };
 // Estado del flujo de navegación real ("Cómo llegar") — deliberadamente
@@ -3087,14 +3119,22 @@ function renderTerritoryFade(){
 }
 
 /* ---------- 5. POI MARKERS ---------- */
-function poiSVG(color, iconKey){
+function poiSVG(color, iconKey, gradId){
   return `
   <svg viewBox="0 0 22 22">
+    <defs>
+      <radialGradient id="${gradId}" cx="35%" cy="30%" r="65%">
+        <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.5"/>
+        <stop offset="35%" stop-color="${color}" stop-opacity="1"/>
+        <stop offset="100%" stop-color="${color}" stop-opacity="0.85"/>
+      </radialGradient>
+    </defs>
     <circle class="halo" cx="11" cy="11" r="9" fill="none" stroke="${color}" stroke-width="1.4"/>
     <circle class="poi-mood-halo" cx="11" cy="11" r="10.3" fill="var(--mood-glow, transparent)" opacity="0.15"/>
-    <circle cx="11" cy="11" r="8.6" fill="${color}" opacity="0.09"/>
-    <circle cx="11" cy="11" r="7.7" fill="#0D1F30" stroke="${color}" stroke-width="1.15" stroke-opacity="0.9"/>
-    <circle cx="9.2" cy="9" r="2.6" fill="rgba(255,255,255,0.045)"/>
+    <circle class="poi-ambient-halo" cx="11" cy="11" r="8.6" fill="${color}" opacity="0.09"/>
+    <circle cx="11" cy="11" r="7.7" fill="url(#${gradId})" stroke="${color}" stroke-width="1.15" stroke-opacity="0.9"/>
+    <circle cx="11" cy="11" r="6.3" fill="#0D1F30" opacity="0.6"/>
+    <circle cx="9.2" cy="9" r="2.6" fill="rgba(255,255,255,0.06)"/>
     ${iconGlyph(iconKey, 11, 11, 10, color)}
   </svg>`;
 }
@@ -3176,10 +3216,10 @@ function renderPOIs(){
     const colorVar = activeExpColor
       || getComputedStyle(document.documentElement).getPropertyValue(primaryTag.color.replace('var(','').replace(')','')).trim()
       || '#16B8C4';
-    const el = document.createElement('div');
-    el.className = 'poi-marker';
+        const el = document.createElement('div');
+    el.className = 'poi-marker' + (map.getZoom() >= ZOOM_POI_NAME ? ' show-name' : '');
     el.style.setProperty('--enter-delay', Math.min(i * 22, 260) + 'ms');
-    el.innerHTML = `<div class="poi-visual">${poiSVG(colorVar, primaryTag.iconKey)}</div>`;
+    el.innerHTML = `<div class="poi-visual">${poiSVG(colorVar, primaryTag.iconKey, `poi-grad-${place.id}`)}</div><div class="poi-name-label"><span>${place.name}</span></div>`;
     el.addEventListener('click', (e) => { e.stopPropagation(); selectPlace(place, el); });
 
     const marker = new maplibregl.Marker({ element: el, anchor:'center' })
@@ -3349,9 +3389,11 @@ function updateExplorationLevel(){
     el.classList.toggle('show-count', showCounts);
     el.classList.toggle('near', near);
   });
-  document.querySelectorAll('.locality-marker.sublocality').forEach(el => {
+    document.querySelectorAll('.locality-marker.sublocality').forEach(el => {
     el.classList.toggle('ring-near', ringNear);
   });
+  const showPoiNames = map.getZoom() >= ZOOM_POI_NAME;
+  document.querySelectorAll('.poi-marker').forEach(el => el.classList.toggle('show-name', showPoiNames));
 
   if (tier === lastTier) return; // sin cambio de nivel, no re-renderizamos
   lastTier = tier;
