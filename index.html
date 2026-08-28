@@ -3740,13 +3740,29 @@ function applyMoodAtmosphere(expId){
       }
     }, 110);
   }
+  // Degradado exterior (territory-fade-layer) — el canvas ya está generado UNA
+  // sola vez (renderTerritoryFade) y nunca se regenera acá. Solo se rota
+  // levemente su tono vía raster-hue-rotate (operación GPU barata sobre la
+  // textura ya existente) y se sube apenas la saturación — nunca se toca forma,
+  // bordes ni la estructura del degradado. Rotaciones pequeñas (6°-30°) para
+  // que la influencia sea casi imperceptible, no un cambio de color evidente.
+  const EXP_HUE_ROTATE = {
+    todos:0, cita:18, aventura:-12, naturaleza:-22, tranquilo:-8,
+    familia:6, adrenalina:-16, gastronomia:-20, noche:30,
+  };
+  if (map.getLayer('territory-fade-layer')){
+    map.setPaintProperty('territory-fade-layer', 'raster-hue-rotate-transition', { duration:300 });
+    map.setPaintProperty('territory-fade-layer', 'raster-saturation-transition', { duration:300 });
+    map.setPaintProperty('territory-fade-layer', 'raster-hue-rotate', active ? (EXP_HUE_ROTATE[expId] || 0) : 0);
+    map.setPaintProperty('territory-fade-layer', 'raster-saturation', active ? 0.15 : 0);
+  }
+
   // Halo exterior de los POIs — variable CSS global, así TODOS los marcadores ya
   // renderizados se actualizan al instante sin re-crear ni un solo pin. El
   // centro/ícono de cada POI sigue exactamente con su color de categoría/
   // experiencia de siempre (eso no se toca, es identidad de cada lugar).
   document.documentElement.style.setProperty('--mood-glow', active ? tint : 'transparent');
 }
-
 // Se revisa cada 3 minutos — suficiente para que la transición se sienta natural
 // sin recalcular en cada frame. Solo reaplica si el período realmente cambió
 // (evita reiniciar transiciones sin necesidad cada vez que corre el intervalo).
