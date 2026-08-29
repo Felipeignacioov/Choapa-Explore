@@ -2382,14 +2382,7 @@ const map = new maplibregl.Map({
   maxZoom:17,
   maxPitch:0,
   attributionControl:false,
-  // Causa raíz confirmada del "salto" de POIs: un gesto de pellizco con los
-  // dos dedos no perfectamente simétrico introducía una rotación accidental
-  // del mapa (aunque mínima), y dos POIs alejados entre sí describen un arco
-  // visible al rotar — se percibía como si se separaran/movieran entre sí,
-  // aunque su coordenada geográfica real nunca cambiaba. dragRotate:false
-  // desactiva la rotación por arrastre (botón derecho en desktop); el zoom
-  // normal no se toca en absoluto.
-  dragRotate:false,
+    dragRotate:true,
   pitchWithRotate:false,
   touchPitch:false,
   maxBounds: CHOAPA_SAFETY_BOUNDS,
@@ -2398,12 +2391,8 @@ const map = new maplibregl.Map({
   // muy fuerte (wrap-around horizontal del mundo).
   renderWorldCopies:false,
 });
-// Mismo fix: solo zoom, sin rotación por pellizco de dos dedos — antes
-// touchZoomRotate.enable() habilitaba zoom+rotación juntos, y un pellizco
-// asimétrico giraba el mapa sin que el usuario lo notara.
+// 1 dedo = pan · 2 dedos = pellizcar zoom + rotar, con inclinación natural
 map.touchZoomRotate.enable({ around:'center' });
-map.touchZoomRotate.disableRotation();
-
 // Compatibilidad con rotación/resize del dispositivo. MapLibre ya observa el
 // tamaño de su contenedor automáticamente, pero esto es una capa extra de
 // seguridad explícita, tal como pide el brief: fuerza un resize real después
@@ -2462,6 +2451,37 @@ map.on('load', () => {
 map.on('zoom', updateExplorationLevel);
 map.on('zoom', updateZonePrompt);
 map.on('zoomend', updateExplorationLevel);
+
+/* TEMPORAL — DEBUG: log crudo del transform real aplicado a 2 marcadores
+   específicos durante todo el gesto, vía requestAnimationFrame. Se activa con
+   los dedos sobre la pantalla (pointerdown) y se detiene al soltar
+   (pointerup/pointercancel) — mismo mecanismo que ya usa markInteractionStart/
+   End para userInteracting, reutilizado aquí solo para arrancar/parar el log.
+   Quitar este bloque completo una vez terminado el diagnóstico. */
+let debugLogRaf = null;
+function debugLogFrame(){
+  const names = ['Cielo Estrellado', 'Tarde en Familia'];
+  const found = names.map(name => {
+    const m = markers.find(mk => mk._place && mk._place.name === name);
+    return m ? `${name}: transform="${m.getElement().style.transform}"` : `${name}: (no visible)`;
+  });
+  console.log(
+    '[DEBUG raw]', 'zoom:', map.getZoom().toFixed(4),
+    'bearing:', map.getBearing().toFixed(4),
+    't:', performance.now().toFixed(1),
+    '|', found.join(' | ')
+  );
+  debugLogRaf = requestAnimationFrame(debugLogFrame);
+}
+mapCanvas.addEventListener('pointerdown', () => {
+  if (!debugLogRaf) debugLogRaf = requestAnimationFrame(debugLogFrame);
+}, { passive:true });
+window.addEventListener('pointerup', () => {
+  if (debugLogRaf){ cancelAnimationFrame(debugLogRaf); debugLogRaf = null; }
+}, { passive:true });
+window.addEventListener('pointercancel', () => {
+  if (debugLogRaf){ cancelAnimationFrame(debugLogRaf); debugLogRaf = null; }
+}, { passive:true });
 
 // Límite de navegación sin usar "maxBounds" nativo (ese choca con la inclinación/
 // rotación de cámara y puede congelar el mapa a mitad de un gesto). En su lugar,
