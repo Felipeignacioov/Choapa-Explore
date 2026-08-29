@@ -2848,7 +2848,7 @@ function renderTerrainDepth(){
   // Variación mínima (±2.5%) del radio — la comuna "respira" sin que se note
   // como una animación explícita.
     setInterval(() => {
-    if (mapIsAnimating || !map.getLayer('comuna-glow-layer')) return;
+    if (!map.getLayer('comuna-glow-layer')) return;
     const mult = 1 + Math.sin(performance.now() / 5200) * 0.025;
     map.setPaintProperty('comuna-glow-layer', 'circle-radius', [
       'interpolate', ['linear'], ['zoom'], 7, 28 * mult, 10, 65 * mult, 13, 120 * mult,
@@ -2882,8 +2882,8 @@ function renderTerrainDepth(){
     // todo congelado". Mismo mecanismo de setInterval+seno que ya usa el halo
     // del río, así que no introduce ningún patrón nuevo al proyecto.
     const WATER_BASE = '#0E3742';
-       setInterval(() => {
-      if (mapIsAnimating || !map.getLayer('water')) return;
+           setInterval(() => {
+      if (!map.getLayer('water')) return;
       const wobble = (Math.sin(performance.now() / 1650) + 1) / 2 * 0.025; // 0 → 2.5%
       map.setPaintProperty('water', 'fill-color', blendHex(WATER_BASE, '#FFFFFF', wobble));
     }, 240);
@@ -2965,8 +2965,8 @@ function renderTerrainDepth(){
         'circle-pitch-alignment':'map',
       },
     }, coastBeforeId);
-       setInterval(() => {
-      if (mapIsAnimating || !map.getLayer('losvilos-reflection-layer')) return;
+          setInterval(() => {
+      if (!map.getLayer('losvilos-reflection-layer')) return;
       const drift = Math.sin(performance.now() / 2800) * 14; // px, horizontal, muy lento
       map.setPaintProperty('losvilos-reflection-layer', 'circle-translate', [drift, 0]);
     }, 260);
@@ -3021,8 +3021,8 @@ function renderTerrainDepth(){
     });
     // Brillo ambiental muy lento (ciclo de ~7s) sobre el halo del río — se suma,
     // no reemplaza, al comportamiento de moveend/movestart de arriba.
-        setInterval(() => {
-      if (mapIsAnimating || !map.getLayer('rio-choapa-halo')) return;
+            setInterval(() => {
+      if (!map.getLayer('rio-choapa-halo')) return;
       const wobble = Math.sin(performance.now() / 3500) * 0.015;
       map.setPaintProperty('rio-choapa-halo', 'line-opacity', Math.max(0, riverHaloBase + wobble));
     }, 220);
