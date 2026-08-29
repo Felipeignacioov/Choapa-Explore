@@ -2451,38 +2451,6 @@ map.on('load', () => {
 map.on('zoom', updateExplorationLevel);
 map.on('zoom', updateZonePrompt);
 map.on('zoomend', updateExplorationLevel);
-
-/* TEMPORAL — DEBUG: log crudo del transform real aplicado a 2 marcadores
-   específicos durante todo el gesto, vía requestAnimationFrame. Se activa con
-   los dedos sobre la pantalla (pointerdown) y se detiene al soltar
-   (pointerup/pointercancel) — mismo mecanismo que ya usa markInteractionStart/
-   End para userInteracting, reutilizado aquí solo para arrancar/parar el log.
-   Quitar este bloque completo una vez terminado el diagnóstico. */
-let debugLogRaf = null;
-function debugLogFrame(){
-  const names = ['Cielo Estrellado', 'Tarde en Familia'];
-  const found = names.map(name => {
-    const m = markers.find(mk => mk._place && mk._place.name === name);
-    return m ? `${name}: transform="${m.getElement().style.transform}"` : `${name}: (no visible)`;
-  });
-  console.log(
-    '[DEBUG raw]', 'zoom:', map.getZoom().toFixed(4),
-    'bearing:', map.getBearing().toFixed(4),
-    't:', performance.now().toFixed(1),
-    '|', found.join(' | ')
-  );
-  debugLogRaf = requestAnimationFrame(debugLogFrame);
-}
-mapCanvas.addEventListener('pointerdown', () => {
-  if (!debugLogRaf) debugLogRaf = requestAnimationFrame(debugLogFrame);
-}, { passive:true });
-window.addEventListener('pointerup', () => {
-  if (debugLogRaf){ cancelAnimationFrame(debugLogRaf); debugLogRaf = null; }
-}, { passive:true });
-window.addEventListener('pointercancel', () => {
-  if (debugLogRaf){ cancelAnimationFrame(debugLogRaf); debugLogRaf = null; }
-}, { passive:true });
-
 // Límite de navegación sin usar "maxBounds" nativo (ese choca con la inclinación/
 // rotación de cámara y puede congelar el mapa a mitad de un gesto). En su lugar,
 // se corrige la posición al instante, de forma sincrónica y no animada, en cada
