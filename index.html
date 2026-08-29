@@ -3190,6 +3190,11 @@ function activeLocalityAliases(){
 }
 
 function renderPOIs(){
+  // TEMPORAL — DEBUG: registra cada ejecución de renderPOIs (que destruye y
+  // recrea todos los marcadores) para confirmar si se dispara varias veces
+  // durante un mismo gesto continuo de zoom. Quitar este console.log una vez
+  // confirmada o descartada la hipótesis.
+  console.log('[DEBUG renderPOIs]', 'zoom:', map.getZoom().toFixed(2), 'timestamp:', performance.now().toFixed(0));
   clearPOIMarkers();
 
   // Mientras hay una ruta de navegación activa, los POIs de categoría no deben
