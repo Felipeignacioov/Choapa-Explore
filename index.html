@@ -302,6 +302,11 @@ img{-webkit-user-drag:none; user-select:none;}
   0%,100%{ opacity:0.06; r:8.6; }
   50%{ opacity:0.13; r:8.85; }
 }
+/* TEMPORAL — DEBUG: apaga poi-breathe y poi-ambient-pulse por completo, para
+   confirmar si la sensación de "salto" desaparece con el punto totalmente
+   estático. Revertir (quitar este bloque) una vez confirmada la causa real. */
+.poi-visual{ animation:none !important; }
+.poi-marker .poi-ambient-halo{ animation:none !important; }
 
 /* Etiqueta de nombre del POI — mismo tratamiento de pill que las etiquetas de
    comuna/localidad (.loc-label), tamaño de texto algo menor para diferenciar
