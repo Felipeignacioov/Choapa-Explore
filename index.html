@@ -3384,6 +3384,10 @@ function resolveLabelCollisions(){
 }
 let collisionRaf = null;
 function scheduleCollisionCheck(){
+  // TEMPORAL — DEBUG: sistema de colisión de etiquetas desactivado por
+  // completo, para confirmar si es la causa del "salto" percibido de los POIs.
+  // Revertir (quitar este return) una vez confirmada la causa real.
+  return;
   if (collisionRaf) return;
   collisionRaf = requestAnimationFrame(() => { collisionRaf = null; resolveLabelCollisions(); });
 }
