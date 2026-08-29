@@ -302,11 +302,6 @@ img{-webkit-user-drag:none; user-select:none;}
   0%,100%{ opacity:0.06; r:8.6; }
   50%{ opacity:0.13; r:8.85; }
 }
-/* TEMPORAL — DEBUG: apaga poi-breathe y poi-ambient-pulse por completo, para
-   confirmar si la sensación de "salto" desaparece con el punto totalmente
-   estático. Revertir (quitar este bloque) una vez confirmada la causa real. */
-.poi-visual{ animation:none !important; }
-.poi-marker .poi-ambient-halo{ animation:none !important; }
 
 /* Etiqueta de nombre del POI — mismo tratamiento de pill que las etiquetas de
    comuna/localidad (.loc-label), tamaño de texto algo menor para diferenciar
@@ -3190,22 +3185,8 @@ function activeLocalityAliases(){
 }
 
 function renderPOIs(){
-  // TEMPORAL — DEBUG: registra cada ejecución de renderPOIs (que destruye y
-  // recrea todos los marcadores) para confirmar si se dispara varias veces
-  // durante un mismo gesto continuo de zoom. Quitar este console.log una vez
-  // confirmada o descartada la hipótesis.
-  console.log('[DEBUG renderPOIs]', 'zoom:', map.getZoom().toFixed(2), 'timestamp:', performance.now().toFixed(0));
-  clearPOIMarkers();
-
-  // Mientras hay una ruta de navegación activa, los POIs de categoría no deben
-  // mostrarse — mismo criterio y misma variable de estado (state.nav.active)
-  // que ya oculta los pines de localidad. El único POI visible en este modo es
-  // el marcador de destino forzado (renderNavDestinationMarker), que es
-  // independiente de este array de marcadores.
-  if (state.nav.active) return;
-
   // Nivel 3: solo se muestran POIs individuales cuando estamos en zoom de detalle
-  if (map.getZoom() < ZOOM_DETAIL) return;
+  if (map.getZoom() < ZOOM_DETAIL){ clearPOIMarkers(); return; }
 
   const aliases = activeLocalityAliases();
   const filtering = state.activeExperience !== 'todos';
@@ -3213,6 +3194,13 @@ function renderPOIs(){
     (!filtering || p.experiences.includes(state.activeExperience)) &&
     (!aliases || aliases.includes(p.locality))
   );
+
+  // Mientras hay una ruta de navegación activa, los POIs de categoría no deben
+  // mostrarse — mismo criterio y misma variable de estado (state.nav.active)
+  // que ya oculta los pines de localidad. El único POI visible en este modo es
+  // el marcador de destino forzado (renderNavDestinationMarker), que es
+  // independiente de este array de marcadores.
+  if (state.nav.active){ clearPOIMarkers(); return; }
 
   // Con un filtro de experiencia activo, los POIs visibles adoptan el color propio
   // de esa experiencia. Con "Todos": si el lugar tiene `categoryPrimary` (identidad
@@ -3223,29 +3211,51 @@ function renderPOIs(){
     ? getComputedStyle(document.documentElement).getPropertyValue(expById(state.activeExperience).color.replace('var(','').replace(')','')).trim()
     : null;
 
+  // Diffing por id — antes esta función destruía TODOS los marcadores
+  // existentes (clearPOIMarkers) y recreaba todo desde cero en cada llamada.
+  // Eso disparaba la animación de entrada (opacity:0→1, scale:0.4→1) en POIs
+  // que ya estaban visibles y no habían cambiado de posición, percibiéndose
+  // como un "salto" cada vez que el zoom cruzaba un umbral de tier — aunque la
+  // coordenada real nunca cambiaba. Ahora: los POIs que ya existían y siguen
+  // debiendo mostrarse se reutilizan tal cual (sin animación, sin remover/
+  // recrear); solo los realmente nuevos entran con su animación normal; solo
+  // los que ya no corresponden se remueven.
+  const existingById = new Map(markers.map(m => [m._place.id, m]));
+  const nextMarkers = [];
+
   visible.forEach((place, i) => {
-    // Ícono fijo por categoría principal de EXPERIENCIA (primaryExperienceTag,
-    // misma función ya usada en Mi Álbum) — nunca de catById/CATEGORIES (ese es
-    // el "tipo de lugar" interno, con íconos distintos a los reales de la app:
-    // de ahí salían el tenedor+cuchillo, la estrella o la montaña incorrectos).
-    // El ícono no cambia con el filtro activo; solo el color sí.
+    const existing = existingById.get(place.id);
+    if (existing){
+      // Ya estaba visible con este mismo id — se reutiliza sin tocar nada:
+      // sin remover, sin recrear, sin animación de entrada.
+      existingById.delete(place.id);
+      nextMarkers.push(existing);
+      return;
+    }
+
+    // Nuevo en este nivel de zoom/filtro — se crea con su animación normal.
     const primaryTag = primaryExperienceTag(place);
     const colorVar = activeExpColor
       || getComputedStyle(document.documentElement).getPropertyValue(primaryTag.color.replace('var(','').replace(')','')).trim()
       || '#16B8C4';
-           const el = document.createElement('div');
+    const el = document.createElement('div');
     el.className = 'poi-marker' + (map.getZoom() >= ZOOM_POI_NAME ? ' show-name' : '');
     el.style.setProperty('--enter-delay', Math.min(i * 22, 260) + 'ms');
-       el.innerHTML = `<div class="poi-visual">${poiSVG(colorVar, primaryTag.iconKey, `poi-grad-${place.id}`)}</div><div class="poi-name-label"><span>${place.name}</span></div>`;
+    el.innerHTML = `<div class="poi-visual">${poiSVG(colorVar, primaryTag.iconKey, `poi-grad-${place.id}`)}</div><div class="poi-name-label"><span>${place.name}</span></div>`;
     el.addEventListener('click', (e) => { e.stopPropagation(); selectPlace(place, el); });
 
     const marker = new maplibregl.Marker({ element: el, anchor:'center' })
       .setLngLat([place.lng, place.lat])
       .addTo(map);
-        marker._place = place;
+    marker._place = place;
     marker._el = el;
-    markers.push(marker);
+    nextMarkers.push(marker);
   });
+
+  // Lo que quedó en existingById ya no corresponde mostrarse — recién acá se remueve.
+  existingById.forEach(m => m.remove());
+
+  markers = nextMarkers;
   scheduleCollisionCheck();
 }
 /* ---------- LOCALIDADES — Nivel 1 y 2 del sistema de exploración ---------- */
@@ -3389,10 +3399,6 @@ function resolveLabelCollisions(){
 }
 let collisionRaf = null;
 function scheduleCollisionCheck(){
-  // TEMPORAL — DEBUG: sistema de colisión de etiquetas desactivado por
-  // completo, para confirmar si es la causa del "salto" percibido de los POIs.
-  // Revertir (quitar este return) una vez confirmada la causa real.
-  return;
   if (collisionRaf) return;
   collisionRaf = requestAnimationFrame(() => { collisionRaf = null; resolveLabelCollisions(); });
 }
