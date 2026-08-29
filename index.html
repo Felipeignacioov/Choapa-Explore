@@ -2391,16 +2391,10 @@ const map = new maplibregl.Map({
   // muy fuerte (wrap-around horizontal del mundo).
   renderWorldCopies:false,
 });
-// Causa raíz confirmada matemáticamente con datos reales: 'around:center'
-// forzaba que TODO pellizco de zoom pivotara siempre desde el centro exacto
-// del mapa, sin importar dónde estuvieran los dedos. Cualquier POI que no
-// estuviera justo en ese centro se desplazaba (más cuanto más lejos del
-// centro y más grande el salto de zoom) — y dos POIs a distintas distancias
-// del centro, en lados opuestos, divergían entre sí. Sin este parámetro,
-// MapLibre usa su comportamiento estándar (igual que Google Maps/Uber): el
-// zoom pivota desde donde están los dedos/el cursor, manteniendo estable lo
-// que el usuario está mirando.
-map.touchZoomRotate.enable();
+// Revertido: el parámetro 'around' solo afecta hacia dónde apunta el pellizco,
+// nunca desancla marcadores de su coordenada real — mi hipótesis anterior
+// estaba mal razonada (confirmado: el cambio no tuvo ningún efecto real).
+map.touchZoomRotate.enable({ around:'center' });
 // Compatibilidad con rotación/resize del dispositivo. MapLibre ya observa el
 // tamaño de su contenedor automáticamente, pero esto es una capa extra de
 // seguridad explícita, tal como pide el brief: fuerza un resize real después
@@ -2569,7 +2563,20 @@ function debugLogFrame(){
   const names = ['Cielo Estrellado', 'Tarde en Familia'];
   const found = names.map(name => {
     const m = markers.find(mk => mk._place && mk._place.name === name);
-    return m ? `${name}: transform="${m.getElement().style.transform}"` : `${name}: (no visible)`;
+    if (!m) return `${name}: (no visible)`;
+    // Posición REAL pintada en pantalla (extraída del transform del DOM) vs.
+    // posición ESPERADA según la fórmula de proyección de MapLibre para esa
+    // misma coordenada, en el mismo instante. Si difieren, es un bug de
+    // anclaje real y medible; si coinciden siempre, el punto está
+    // matemáticamente bien ubicado pase lo que pase visualmente.
+    const t = m.getElement().style.transform;
+    const match = t.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)\s*rotateX/);
+    const actualX = match ? parseFloat(match[1]) : NaN;
+    const actualY = match ? parseFloat(match[2]) : NaN;
+    const expected = map.project([m._place.lng, m._place.lat]);
+    const diffX = (actualX - expected.x).toFixed(2);
+    const diffY = (actualY - expected.y).toFixed(2);
+    return `${name}: actual(${actualX.toFixed(1)},${actualY.toFixed(1)}) esperado(${expected.x.toFixed(1)},${expected.y.toFixed(1)}) DIFF(${diffX},${diffY})`;
   });
   console.log(
     '[DEBUG raw]', 'zoom:', map.getZoom().toFixed(4),
