@@ -2552,6 +2552,35 @@ mapCanvas.addEventListener('pointerdown', markInteractionStart, { passive:true }
 window.addEventListener('pointerup', markInteractionEnd, { passive:true });
 window.addEventListener('pointercancel', markInteractionEnd, { passive:true });
 
+/* TEMPORAL — DEBUG: log crudo (transform real, zoom, bearing, timestamp) de 2
+   marcadores durante todo el gesto, vía requestAnimationFrame. Ubicado AQUÍ
+   (después de mapCanvas ya declarado) para evitar el error de la vez anterior.
+   Quitar este bloque completo una vez terminado el diagnóstico. */
+let debugLogRaf = null;
+function debugLogFrame(){
+  const names = ['Cielo Estrellado', 'Tarde en Familia'];
+  const found = names.map(name => {
+    const m = markers.find(mk => mk._place && mk._place.name === name);
+    return m ? `${name}: transform="${m.getElement().style.transform}"` : `${name}: (no visible)`;
+  });
+  console.log(
+    '[DEBUG raw]', 'zoom:', map.getZoom().toFixed(4),
+    'bearing:', map.getBearing().toFixed(4),
+    't:', performance.now().toFixed(1),
+    '|', found.join(' | ')
+  );
+  debugLogRaf = requestAnimationFrame(debugLogFrame);
+}
+mapCanvas.addEventListener('pointerdown', () => {
+  if (!debugLogRaf) debugLogRaf = requestAnimationFrame(debugLogFrame);
+}, { passive:true });
+window.addEventListener('pointerup', () => {
+  if (debugLogRaf){ cancelAnimationFrame(debugLogRaf); debugLogRaf = null; }
+}, { passive:true });
+window.addEventListener('pointercancel', () => {
+  if (debugLogRaf){ cancelAnimationFrame(debugLogRaf); debugLogRaf = null; }
+}, { passive:true });
+
 function tryElasticCorrection(){
   if (!mapReady || correctingBounds || userInteracting) return;
   const target = computeElasticCorrection();
