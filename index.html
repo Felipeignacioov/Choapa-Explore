@@ -2391,8 +2391,16 @@ const map = new maplibregl.Map({
   // muy fuerte (wrap-around horizontal del mundo).
   renderWorldCopies:false,
 });
-// 1 dedo = pan · 2 dedos = pellizcar zoom + rotar, con inclinación natural
-map.touchZoomRotate.enable({ around:'center' });
+// Causa raíz confirmada matemáticamente con datos reales: 'around:center'
+// forzaba que TODO pellizco de zoom pivotara siempre desde el centro exacto
+// del mapa, sin importar dónde estuvieran los dedos. Cualquier POI que no
+// estuviera justo en ese centro se desplazaba (más cuanto más lejos del
+// centro y más grande el salto de zoom) — y dos POIs a distintas distancias
+// del centro, en lados opuestos, divergían entre sí. Sin este parámetro,
+// MapLibre usa su comportamiento estándar (igual que Google Maps/Uber): el
+// zoom pivota desde donde están los dedos/el cursor, manteniendo estable lo
+// que el usuario está mirando.
+map.touchZoomRotate.enable();
 // Compatibilidad con rotación/resize del dispositivo. MapLibre ya observa el
 // tamaño de su contenedor automáticamente, pero esto es una capa extra de
 // seguridad explícita, tal como pide el brief: fuerza un resize real después
