@@ -2564,17 +2564,6 @@ function tryElasticCorrection(){
 }
 
 map.on('moveend', tryElasticCorrection);
-
-// Hipótesis a probar: los setInterval ambientales de más abajo (glow de
-// comunas, wobble del agua, reflejo de Los Vilos, halo del río) podrían
-// competir por el hilo principal justo durante un gesto de zoom — el momento
-// de mayor carga para MapLibre, que reposiciona cada marcador DOM de POI vía
-// JS en cada frame. Esta bandera pausa esos intervalos mientras el mapa se
-// está moviendo (zoom o pan, táctil o con mouse), para descartar o confirmar
-// que esa contención es la causa de la dispersión visual entre POIs cercanos.
-let mapIsAnimating = false;
-map.on('movestart', () => { mapIsAnimating = true; });
-map.on('moveend', () => { mapIsAnimating = false; });
 // La inclinación de cámara (pitch) está desactivada a nivel de configuración
 // del mapa (maxPitch:0, pitchWithRotate:false, touchPitch:false) — era la causa
 // raíz de que el mapa se congelara al combinarse con ciertos rangos de zoom.
