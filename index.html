@@ -2564,6 +2564,17 @@ function tryElasticCorrection(){
 }
 
 map.on('moveend', tryElasticCorrection);
+
+// Hipótesis a probar: los setInterval ambientales de más abajo (glow de
+// comunas, wobble del agua, reflejo de Los Vilos, halo del río) podrían
+// competir por el hilo principal justo durante un gesto de zoom — el momento
+// de mayor carga para MapLibre, que reposiciona cada marcador DOM de POI vía
+// JS en cada frame. Esta bandera pausa esos intervalos mientras el mapa se
+// está moviendo (zoom o pan, táctil o con mouse), para descartar o confirmar
+// que esa contención es la causa de la dispersión visual entre POIs cercanos.
+let mapIsAnimating = false;
+map.on('movestart', () => { mapIsAnimating = true; });
+map.on('moveend', () => { mapIsAnimating = false; });
 // La inclinación de cámara (pitch) está desactivada a nivel de configuración
 // del mapa (maxPitch:0, pitchWithRotate:false, touchPitch:false) — era la causa
 // raíz de que el mapa se congelara al combinarse con ciertos rangos de zoom.
@@ -2820,8 +2831,8 @@ function renderTerrainDepth(){
   });
   // Variación mínima (±2.5%) del radio — la comuna "respira" sin que se note
   // como una animación explícita.
-  setInterval(() => {
-    if (!map.getLayer('comuna-glow-layer')) return;
+    setInterval(() => {
+    if (mapIsAnimating || !map.getLayer('comuna-glow-layer')) return;
     const mult = 1 + Math.sin(performance.now() / 5200) * 0.025;
     map.setPaintProperty('comuna-glow-layer', 'circle-radius', [
       'interpolate', ['linear'], ['zoom'], 7, 28 * mult, 10, 65 * mult, 13, 120 * mult,
@@ -2855,8 +2866,8 @@ function renderTerrainDepth(){
     // todo congelado". Mismo mecanismo de setInterval+seno que ya usa el halo
     // del río, así que no introduce ningún patrón nuevo al proyecto.
     const WATER_BASE = '#0E3742';
-    setInterval(() => {
-      if (!map.getLayer('water')) return;
+       setInterval(() => {
+      if (mapIsAnimating || !map.getLayer('water')) return;
       const wobble = (Math.sin(performance.now() / 1650) + 1) / 2 * 0.025; // 0 → 2.5%
       map.setPaintProperty('water', 'fill-color', blendHex(WATER_BASE, '#FFFFFF', wobble));
     }, 240);
@@ -2938,8 +2949,8 @@ function renderTerrainDepth(){
         'circle-pitch-alignment':'map',
       },
     }, coastBeforeId);
-    setInterval(() => {
-      if (!map.getLayer('losvilos-reflection-layer')) return;
+       setInterval(() => {
+      if (mapIsAnimating || !map.getLayer('losvilos-reflection-layer')) return;
       const drift = Math.sin(performance.now() / 2800) * 14; // px, horizontal, muy lento
       map.setPaintProperty('losvilos-reflection-layer', 'circle-translate', [drift, 0]);
     }, 260);
@@ -2994,8 +3005,8 @@ function renderTerrainDepth(){
     });
     // Brillo ambiental muy lento (ciclo de ~7s) sobre el halo del río — se suma,
     // no reemplaza, al comportamiento de moveend/movestart de arriba.
-    setInterval(() => {
-      if (!map.getLayer('rio-choapa-halo')) return;
+        setInterval(() => {
+      if (mapIsAnimating || !map.getLayer('rio-choapa-halo')) return;
       const wobble = Math.sin(performance.now() / 3500) * 0.015;
       map.setPaintProperty('rio-choapa-halo', 'line-opacity', Math.max(0, riverHaloBase + wobble));
     }, 220);
