@@ -321,17 +321,7 @@ img{-webkit-user-drag:none; user-select:none;}
 .poi-marker.show-name .poi-name-label{
   opacity:1; transform:translateX(-50%) translateY(0) scale(1);
 }
-/* TEMPORAL — DEBUG: coordenadas reales del POI, para diagnosticar el bug de
-   posición. Quitar este bloque completo (y su contraparte en renderPOIs) una
-   vez confirmada y aplicada la causa real. */
-.poi-marker .poi-debug-coords{
-  position:absolute; left:50%; top:100%;
-  transform:translateX(-50%);
-  margin-top:3px; padding:1px 5px; border-radius:4px;
-  background:rgba(0,0,0,0.75); color:#FF5555;
-  font-family:var(--font-mono); font-size:8px; font-weight:600;
-  white-space:nowrap; pointer-events:none; z-index:5;
-}
+
 /* Igual que label-collapsed en comuna/localidad: cuando dos nombres de POI
    colisionan, se oculta el de menor prioridad en vez de dejarlos superpuestos
    e ilegibles. El punto sigue siendo visible y tocable — solo el texto cede. */
@@ -3236,9 +3226,7 @@ function renderPOIs(){
            const el = document.createElement('div');
     el.className = 'poi-marker' + (map.getZoom() >= ZOOM_POI_NAME ? ' show-name' : '');
     el.style.setProperty('--enter-delay', Math.min(i * 22, 260) + 'ms');
-    // TEMPORAL — DEBUG: texto rojo con lat/lng reales del dato, siempre visible
-    // (no depende de show-name) para comparar contra la posición en pantalla.
-    el.innerHTML = `<div class="poi-visual">${poiSVG(colorVar, primaryTag.iconKey, `poi-grad-${place.id}`)}</div><div class="poi-name-label"><span>${place.name}</span></div><div class="poi-debug-coords">${place.lat.toFixed(5)}, ${place.lng.toFixed(5)}</div>`;
+       el.innerHTML = `<div class="poi-visual">${poiSVG(colorVar, primaryTag.iconKey, `poi-grad-${place.id}`)}</div><div class="poi-name-label"><span>${place.name}</span></div>`;
     el.addEventListener('click', (e) => { e.stopPropagation(); selectPlace(place, el); });
 
     const marker = new maplibregl.Marker({ element: el, anchor:'center' })
