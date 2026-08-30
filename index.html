@@ -3254,7 +3254,7 @@ function poiSourceFeatures(){
 }
 
 function ensurePOINativeLayers(){
-  if (map.getSource('poi-source')) return;
+  if (map.getSource('poi-source')){ bindPOINativeClickHandlers(); return; }
   map.addSource('poi-source', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
   // Círculo de fondo — color dinámico por feature (categoría/filtro activo).
   // minzoom reemplaza el umbral ZOOM_DETAIL que antes se chequeaba a mano.
@@ -3293,9 +3293,30 @@ function ensurePOINativeLayers(){
       'text-color':'#F4F7FA',
       'text-halo-color':'rgba(9,20,32,0.86)',
       'text-halo-width':1.4,
-      'text-opacity': ['step', ['zoom'], 0, ZOOM_POI_NAME, 1],
+            'text-opacity': ['step', ['zoom'], 0, ZOOM_POI_NAME, 1],
     },
   });
+  bindPOINativeClickHandlers();
+}
+
+// ---------- Fase 2 de la migración: click nativo → ficha de detalle ----------
+function handlePOINativeClick(e){
+  if (!e.features || !e.features[0]) return;
+  const placeId = e.features[0].properties.id;
+  const place = DEMO_PLACES.find(p => p.id === placeId);
+  if (!place) return;
+  selectPlace(place, null); // sin elemento DOM — ver nota en selectPlace()
+}
+let poiNativeClickBound = false;
+function bindPOINativeClickHandlers(){
+  if (poiNativeClickBound) return;
+  poiNativeClickBound = true;
+  map.on('click', 'poi-icon-layer', (e) => { e.originalEvent.stopPropagation(); handlePOINativeClick(e); });
+  map.on('click', 'poi-circle-layer', (e) => { e.originalEvent.stopPropagation(); handlePOINativeClick(e); });
+  map.on('mouseenter', 'poi-icon-layer', () => { map.getCanvas().style.cursor = 'pointer'; });
+  map.on('mouseleave', 'poi-icon-layer', () => { map.getCanvas().style.cursor = ''; });
+  map.on('mouseenter', 'poi-circle-layer', () => { map.getCanvas().style.cursor = 'pointer'; });
+  map.on('mouseleave', 'poi-circle-layer', () => { map.getCanvas().style.cursor = ''; });
 }
 
 function renderPOIsNative(){
@@ -4116,17 +4137,21 @@ function compressImage(file, maxDim = 900, quality = 0.75){
 
 
 function selectPlace(place, el){
-  markers.forEach(m => m._el.classList.remove('selected'));
-  el.classList.add('selected');
+  // el es opcional: la capa nativa de POIs (Fase 2 de la migración) no tiene
+  // un elemento DOM real que marcar como .selected — ese mecanismo pertenece
+  // al sistema viejo de maplibregl.Marker, ya inerte para POIs desde Fase 1.
+  // El estado "seleccionado" visual sobre la capa nativa llega en la Fase 3.
+  if (el){
+    markers.forEach(m => m._el.classList.remove('selected'));
+    el.classList.add('selected');
+  }
   state.selectedPlace = place;
 
-  const cat = catById(place.category);
-  // La etiqueta de la ficha muestra la categoría PRINCIPAL de la experiencia
-  // (categoryPrimary) cuando el lugar la tiene — no el tipo de lugar. Los lugares
-  // que todavía no tienen categoryPrimary (los originales) siguen mostrando su
-  // tipo de lugar, exactamente igual que antes.
-  const primaryExp = place.categoryPrimary ? expById(place.categoryPrimary) : null;
-  const tagInfo = primaryExp || cat;
+  // Unificado a primaryExperienceTag() — misma fuente de verdad que ya usa el
+  // ícono/color en el mapa (Fase 1), corrigiendo la inconsistencia donde esta
+  // función tenía su propia lógica (catById + categoryPrimary a mano) que
+  // podía no coincidir con lo que se veía pintado en el mapa.
+  const tagInfo = primaryExperienceTag(place);
   const color = getComputedStyle(document.documentElement).getPropertyValue(tagInfo.color.replace('var(','').replace(')','')).trim();
 
  document.getElementById('poiDetailThumb').style.backgroundImage = `url(${place.image})`;
