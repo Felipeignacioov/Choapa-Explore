@@ -4226,6 +4226,7 @@ function selectPlace(place, el){
   // hacia arriba por el offset, sin acercarse, dando sensación de alejarse.
   // Ahora siempre acerca un poco más sobre el zoom actual, hacia el POI.
   map.easeTo({ center:[place.lng, place.lat], zoom: Math.max(map.getZoom() + 1.1, 15.5), duration:550, offset:[0, -130] });
+}
 
 document.getElementById('poiDetailSave').addEventListener('click', (e) => {
   e.stopPropagation();
