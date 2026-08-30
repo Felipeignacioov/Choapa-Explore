@@ -2443,6 +2443,7 @@ map.on('load', () => {
   setTimeout(() => document.getElementById('mapLoading').style.display='none', 400);
  tintMapLayers();
   renderTerrainDepth();
+  registerPOIIconImages(); // Fase 1 — íconos SDF de POI, se registran una sola vez
  currentDayPeriod = getDayPeriod();
   applyMoodAtmosphere('todos'); // sin categoría activa: --mood-glow queda 'transparent', sin halo extra
   setInterval(updateDayPeriod, 3 * 60 * 1000);
@@ -2553,48 +2554,6 @@ function markInteractionEnd(){
 mapCanvas.addEventListener('pointerdown', markInteractionStart, { passive:true });
 window.addEventListener('pointerup', markInteractionEnd, { passive:true });
 window.addEventListener('pointercancel', markInteractionEnd, { passive:true });
-
-/* TEMPORAL — DEBUG: log crudo (transform real, zoom, bearing, timestamp) de 2
-   marcadores durante todo el gesto, vía requestAnimationFrame. Ubicado AQUÍ
-   (después de mapCanvas ya declarado) para evitar el error de la vez anterior.
-   Quitar este bloque completo una vez terminado el diagnóstico. */
-let debugLogRaf = null;
-function debugLogFrame(){
-  const names = ['Cielo Estrellado', 'Tarde en Familia'];
-  const found = names.map(name => {
-    const m = markers.find(mk => mk._place && mk._place.name === name);
-    if (!m) return `${name}: (no visible)`;
-    // Posición REAL pintada en pantalla (extraída del transform del DOM) vs.
-    // posición ESPERADA según la fórmula de proyección de MapLibre para esa
-    // misma coordenada, en el mismo instante. Si difieren, es un bug de
-    // anclaje real y medible; si coinciden siempre, el punto está
-    // matemáticamente bien ubicado pase lo que pase visualmente.
-    const t = m.getElement().style.transform;
-    const match = t.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)\s*rotateX/);
-    const actualX = match ? parseFloat(match[1]) : NaN;
-    const actualY = match ? parseFloat(match[2]) : NaN;
-    const expected = map.project([m._place.lng, m._place.lat]);
-    const diffX = (actualX - expected.x).toFixed(2);
-    const diffY = (actualY - expected.y).toFixed(2);
-    return `${name}: actual(${actualX.toFixed(1)},${actualY.toFixed(1)}) esperado(${expected.x.toFixed(1)},${expected.y.toFixed(1)}) DIFF(${diffX},${diffY})`;
-  });
-  console.log(
-    '[DEBUG raw]', 'zoom:', map.getZoom().toFixed(4),
-    'bearing:', map.getBearing().toFixed(4),
-    't:', performance.now().toFixed(1),
-    '|', found.join(' | ')
-  );
-  debugLogRaf = requestAnimationFrame(debugLogFrame);
-}
-mapCanvas.addEventListener('pointerdown', () => {
-  if (!debugLogRaf) debugLogRaf = requestAnimationFrame(debugLogFrame);
-}, { passive:true });
-window.addEventListener('pointerup', () => {
-  if (debugLogRaf){ cancelAnimationFrame(debugLogRaf); debugLogRaf = null; }
-}, { passive:true });
-window.addEventListener('pointercancel', () => {
-  if (debugLogRaf){ cancelAnimationFrame(debugLogRaf); debugLogRaf = null; }
-}, { passive:true });
 
 function tryElasticCorrection(){
   if (!mapReady || correctingBounds || userInteracting) return;
@@ -3213,6 +3172,143 @@ function navDestSVG(color, iconKey, gradId){
     ${iconGlyph(iconKey, 11, 11, 12, color, 2.0)}
   </svg>`;
 }
+/* ---------- MIGRACIÓN DE POIs A CAPA NATIVA — Fase 1 ---------- */
+// Flag de control: true = capa nativa (fuente GeoJSON + capas symbol/circle)
+// activa; el sistema de maplibregl.Marker de más abajo queda inerte (no se
+// borra, no se ejecuta) mientras se valida esta fase. Revertir a false
+// restaura el comportamiento anterior sin tocar nada más.
+const POI_NATIVE_LAYER_ENABLED = true;
+
+// Dibuja un ícono de experiencia en un canvas offscreen para registrarlo como
+// imagen SDF — no es un SDF verdadero (eso requeriría generar una distancia
+// real al borde), es una máscara de alfa simple marcada como sdf:true, atajo
+// habitual para íconos de línea a este tamaño. Se recolorea en vivo vía
+// icon-color en la capa, sin regenerar nada por cambio de categoría/filtro.
+function buildIconCanvas(iconKey, sizePx = 64){
+  const canvas = document.createElement('canvas');
+  canvas.width = sizePx; canvas.height = sizePx;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(sizePx / 24, sizePx / 24);
+  ctx.strokeStyle = '#000'; ctx.fillStyle = '#000';
+  ctx.lineWidth = 1.9; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const raw = ICON_PATHS[iconKey] || '';
+  const pathRe = /<path\s+d="([^"]+)"([^>]*)\/?>/g;
+  let m;
+  while ((m = pathRe.exec(raw))){
+    const d = m[1], attrs = m[2];
+    const p = new Path2D(d);
+    if (/fill="currentColor"/.test(attrs) && /stroke="none"/.test(attrs)) ctx.fill(p);
+    else ctx.stroke(p);
+  }
+  const circleRe = /<circle\s+cx="([-\d.]+)"\s+cy="([-\d.]+)"\s+r="([-\d.]+)"([^>]*)\/?>/g;
+  while ((m = circleRe.exec(raw))){
+    const cx = parseFloat(m[1]), cy = parseFloat(m[2]), r = parseFloat(m[3]), attrs = m[4];
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    if (/fill="currentColor"/.test(attrs)) ctx.fill(); else ctx.stroke();
+  }
+  return ctx.getImageData(0, 0, sizePx, sizePx);
+}
+function registerPOIIconImages(){
+  const keys = [...new Set(EXPERIENCE_TAGS.map(e => e.iconKey))];
+  keys.forEach(key => {
+    const imgId = `poi-icon-${key}`;
+    if (map.hasImage(imgId)) return;
+    map.addImage(imgId, buildIconCanvas(key), { sdf:true });
+  });
+}
+
+// Reutiliza el mismo stack de fuente que ya usa el estilo base del mapa (para
+// que los glifos de texto carguen correctamente contra ese mismo estilo), en
+// vez de asumir una fuente que podría no estar disponible en este mapa.
+function getStyleTextFont(){
+  const layers = map.getStyle().layers || [];
+  const withFont = layers.find(l => l.layout && l.layout['text-font']);
+  return (withFont && withFont.layout['text-font']) || ['Noto Sans Regular'];
+}
+
+// Mismo cálculo de "quién es visible y de qué color" que ya usaba renderPOIs()
+// — solo cambia el destino final (features de un GeoJSON en vez de elementos
+// DOM). Nada de la lógica de filtro/localidad se toca.
+function poiSourceFeatures(){
+  const aliases = activeLocalityAliases();
+  const filtering = state.activeExperience !== 'todos';
+  const visible = DEMO_PLACES.filter(p =>
+    (!filtering || p.experiences.includes(state.activeExperience)) &&
+    (!aliases || aliases.includes(p.locality))
+  );
+  const activeExpColor = filtering
+    ? getComputedStyle(document.documentElement).getPropertyValue(expById(state.activeExperience).color.replace('var(','').replace(')','')).trim()
+    : null;
+  return visible.map(place => {
+    const primaryTag = primaryExperienceTag(place);
+    const displayColor = activeExpColor
+      || getComputedStyle(document.documentElement).getPropertyValue(primaryTag.color.replace('var(','').replace(')','')).trim()
+      || '#16B8C4';
+    return {
+      type:'Feature',
+      properties:{ id:place.id, name:place.name, icon:`poi-icon-${primaryTag.iconKey}`, displayColor },
+      geometry:{ type:'Point', coordinates:[place.lng, place.lat] },
+    };
+  });
+}
+
+function ensurePOINativeLayers(){
+  if (map.getSource('poi-source')) return;
+  map.addSource('poi-source', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
+  // Círculo de fondo — color dinámico por feature (categoría/filtro activo).
+  // minzoom reemplaza el umbral ZOOM_DETAIL que antes se chequeaba a mano.
+  map.addLayer({
+    id:'poi-circle-layer', type:'circle', source:'poi-source',
+    minzoom: ZOOM_DETAIL,
+    paint:{
+      'circle-radius':9,
+      'circle-color':['get','displayColor'],
+      'circle-opacity':0.95,
+      'circle-stroke-color':'#0D1F30',
+      'circle-stroke-width':1.2,
+    },
+  });
+  // Ícono + nombre en la misma capa symbol. text-opacity con 'step' reemplaza
+  // la clase .show-name; text-allow-overlap:false + text-optional:true
+  // reemplaza el sistema manual de colisión (resolveLabelCollisions) para POIs.
+  map.addLayer({
+    id:'poi-icon-layer', type:'symbol', source:'poi-source',
+    minzoom: ZOOM_DETAIL,
+    layout:{
+      'icon-image':['get','icon'],
+      'icon-size':0.32,
+      'icon-allow-overlap':true,
+      'icon-ignore-placement':true,
+      'text-field':['get','name'],
+      'text-font': getStyleTextFont(),
+      'text-size':10,
+      'text-offset':[0, -1.6],
+      'text-anchor':'bottom',
+      'text-allow-overlap':false,
+      'text-optional':true,
+    },
+    paint:{
+      'icon-color':'#0D1F30',
+      'text-color':'#F4F7FA',
+      'text-halo-color':'rgba(9,20,32,0.86)',
+      'text-halo-width':1.4,
+      'text-opacity': ['step', ['zoom'], 0, ZOOM_POI_NAME, 1],
+    },
+  });
+}
+
+function renderPOIsNative(){
+  ensurePOINativeLayers();
+  const src = map.getSource('poi-source');
+  // Mismo criterio que antes: sin nada durante navegación activa.
+  if (state.nav.active){
+    src.setData({ type:'FeatureCollection', features:[] });
+    return;
+  }
+  src.setData({ type:'FeatureCollection', features: poiSourceFeatures() });
+}
+
 function clearPOIMarkers(){
   markers.forEach(m => m.remove());
   markers = [];
@@ -3227,9 +3323,14 @@ function activeLocalityAliases(){
 }
 
 function renderPOIs(){
+  // ---------- Fase 1 de la migración de POIs a capa nativa ----------
+  // Mientras POI_NATIVE_LAYER_ENABLED sea true, todo el resto de esta función
+  // (el sistema de maplibregl.Marker por POI) queda inerte — no se borra, para
+  // poder revertir con un solo cambio de flag, pero no se ejecuta.
+  if (POI_NATIVE_LAYER_ENABLED){ renderPOIsNative(); return; }
+
   // Nivel 3: solo se muestran POIs individuales cuando estamos en zoom de detalle
   if (map.getZoom() < ZOOM_DETAIL){ clearPOIMarkers(); return; }
-
   const aliases = activeLocalityAliases();
   const filtering = state.activeExperience !== 'todos';
   const visible = DEMO_PLACES.filter(p =>
