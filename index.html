@@ -3292,13 +3292,34 @@ function ensurePOINativeLayers(){
   // original escalaba todo el SVG junto, pero replicar eso en capas nativas
   // exigiría animar radios de dos capas sincronizadas; se deja como
   // simplificación deliberada, ajustable si se nota rígido en la prueba.
-  map.addLayer({
+   map.addLayer({
     id:'poi-inner-disc-layer', type:'circle', source:'poi-source',
     minzoom: ZOOM_DETAIL,
     paint:{
       'circle-radius':7.4,
       'circle-color':'#0D1F30',
       'circle-opacity':0.6,
+    },
+  });
+  // Punto de brillo — réplica del highlight blanco del diseño original
+  // (<circle cx="9.2" cy="9" r="2.6" fill="rgba(255,255,255,0.06)"/>, offset
+  // hacia la esquina superior-izquierda del centro, misma dirección que el
+  // radialGradient cx="35%" cy="30%" del gradiente principal). circle-translate
+  // es un desplazamiento en píxeles a nivel de capa (no por-feature) — mismo
+  // desplazamiento fijo para todos los POIs, igual que el gradiente original
+  // siempre "iluminaba" desde la misma esquina en cada marcador. Opacidad más
+  // alta que el 0.06 original porque acá no hay gradiente radial de fondo
+  // dándole ya un brillo propio a esa zona — sin esto, el highlight sería
+  // invisible sobre un círculo de color plano.
+  map.addLayer({
+    id:'poi-highlight-layer', type:'circle', source:'poi-source',
+    minzoom: ZOOM_DETAIL,
+    paint:{
+      'circle-radius':2.6,
+      'circle-color':'#FFFFFF',
+      'circle-opacity':0.35,
+      'circle-translate':[-2.1, -2.3],
+      'circle-translate-anchor':'viewport',
     },
   });
   // Ícono + nombre en la misma capa symbol. text-opacity con 'step' reemplaza
