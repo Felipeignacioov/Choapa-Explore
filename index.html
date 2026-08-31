@@ -3319,6 +3319,65 @@ function bindPOINativeClickHandlers(){
   map.on('mouseleave', 'poi-circle-layer', () => { map.getCanvas().style.cursor = ''; });
 }
 
+/* ---------- Fase 3 de la migración: estado "seleccionado" (capa nativa) ----------
+   Segunda fuente/capa GeoJSON, separada de poi-source, solo con el POI activo —
+   mismo patrón que la fuente `poi-selected` de ChoapaGo. Se crea DESPUÉS de las
+   capas normales, así MapLibre siempre la dibuja encima. El pulso continuo que
+   tenía .selected .halo (animation infinita) se deja para la Fase 5 — acá el
+   estado queda como tamaño mayor + halo fijo, sin animación. */
+function computePOIDisplayColor(place){
+  const filtering = state.activeExperience !== 'todos';
+  const activeExpColor = filtering
+    ? getComputedStyle(document.documentElement).getPropertyValue(expById(state.activeExperience).color.replace('var(','').replace(')','')).trim()
+    : null;
+  const primaryTag = primaryExperienceTag(place);
+  return activeExpColor
+    || getComputedStyle(document.documentElement).getPropertyValue(primaryTag.color.replace('var(','').replace(')','')).trim()
+    || '#16B8C4';
+}
+
+function ensurePOISelectedLayer(){
+  if (map.getSource('poi-selected-source')) return;
+  map.addSource('poi-selected-source', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
+  map.addLayer({
+    id:'poi-selected-glow-layer', type:'circle', source:'poi-selected-source',
+    paint:{ 'circle-radius':18, 'circle-color':['get','displayColor'], 'circle-opacity':0.22, 'circle-blur':1 },
+  });
+  map.addLayer({
+    id:'poi-selected-bg-layer', type:'circle', source:'poi-selected-source',
+    paint:{
+      'circle-radius':14, 'circle-color':['get','displayColor'], 'circle-opacity':1,
+      'circle-stroke-color':'#0D1F30', 'circle-stroke-width':1.6,
+    },
+  });
+  map.addLayer({
+    id:'poi-selected-icon-layer', type:'symbol', source:'poi-selected-source',
+    layout:{ 'icon-image':['get','icon'], 'icon-size':0.496, 'icon-allow-overlap':true, 'icon-ignore-placement':true },
+    paint:{ 'icon-color':'#0D1F30' },
+  });
+}
+
+// place=null limpia la selección. Un solo feature a la vez: setData() reemplaza
+// todo el FeatureCollection, así que elegir un POI nuevo deselecciona el anterior
+// automáticamente, sin lógica adicional.
+function updateSelectedPOILayer(place){
+  ensurePOISelectedLayer();
+  const src = map.getSource('poi-selected-source');
+  if (!place){
+    src.setData({ type:'FeatureCollection', features:[] });
+    return;
+  }
+  const primaryTag = primaryExperienceTag(place);
+  src.setData({
+    type:'FeatureCollection',
+    features:[{
+      type:'Feature',
+      properties:{ id:place.id, icon:`poi-icon-${primaryTag.iconKey}`, displayColor: computePOIDisplayColor(place) },
+      geometry:{ type:'Point', coordinates:[place.lng, place.lat] },
+    }],
+  });
+}
+
 function renderPOIsNative(){
   ensurePOINativeLayers();
   const src = map.getSource('poi-source');
@@ -4145,7 +4204,8 @@ function selectPlace(place, el){
     markers.forEach(m => m._el.classList.remove('selected'));
     el.classList.add('selected');
   }
-  state.selectedPlace = place;
+    state.selectedPlace = place;
+  updateSelectedPOILayer(place); // Fase 3 — refleja el estado "seleccionado" en la capa nativa
 
   // Unificado a primaryExperienceTag() — misma fuente de verdad que ya usa el
   // ícono/color en el mapa (Fase 1), corrigiendo la inconsistencia donde esta
@@ -5148,6 +5208,7 @@ document.getElementById('poiDetailClose').addEventListener('click', (e) => {
   document.getElementById('poiDetail').classList.remove('visible');
   markers.forEach(m => m._el.classList.remove('selected'));
   state.selectedPlace = null;
+  updateSelectedPOILayer(null); // Fase 3 — limpia el estado "seleccionado" nativo
   syncSheetPillVisibility();
 });
 
@@ -5264,9 +5325,10 @@ function setActiveExperience(id){
   renderPOIs();
   renderPlacesRail();
   // si el lugar seleccionado ya no pertenece a esta experiencia, cerramos su panel
-  if (state.selectedPlace && id !== 'todos' && !state.selectedPlace.experiences.includes(id)){
+   if (state.selectedPlace && id !== 'todos' && !state.selectedPlace.experiences.includes(id)){
     document.getElementById('poiDetail').classList.remove('visible');
     state.selectedPlace = null;
+    updateSelectedPOILayer(null); // Fase 3 — limpia el estado "seleccionado" nativo
   }
 }
 
