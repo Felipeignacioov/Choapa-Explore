@@ -3272,7 +3272,7 @@ function ensurePOINativeLayers(){
       'circle-blur':1,
     },
   });
-  map.addLayer({
+    map.addLayer({
     id:'poi-circle-layer', type:'circle', source:'poi-source',
     minzoom: ZOOM_DETAIL,
     paint:{
@@ -3281,6 +3281,24 @@ function ensurePOINativeLayers(){
       'circle-opacity':0.95,
       'circle-stroke-color':'#0D1F30',
       'circle-stroke-width':1.2,
+    },
+  });
+  // Disco oscuro interior — réplica del <circle r="6.3" fill="#0D1F30"
+  // opacity="0.6"> del diseño original (poiSVG). Misma proporción: 6.3/7.7 del
+  // radio original ≈ 82% → sobre el radio 9 de poi-circle-layer, 7.4. Se dibuja
+  // encima del círculo de color y debajo del ícono, dándole al centro esa
+  // sensación de "hundimiento"/profundidad que tenía el diseño con Marker HTML.
+  // No participa de la respiración de la Fase 5a (queda fijo) — el diseño
+  // original escalaba todo el SVG junto, pero replicar eso en capas nativas
+  // exigiría animar radios de dos capas sincronizadas; se deja como
+  // simplificación deliberada, ajustable si se nota rígido en la prueba.
+  map.addLayer({
+    id:'poi-inner-disc-layer', type:'circle', source:'poi-source',
+    minzoom: ZOOM_DETAIL,
+    paint:{
+      'circle-radius':7.4,
+      'circle-color':'#0D1F30',
+      'circle-opacity':0.6,
     },
   });
   // Ícono + nombre en la misma capa symbol. text-opacity con 'step' reemplaza
