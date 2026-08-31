@@ -2443,7 +2443,8 @@ map.on('load', () => {
   setTimeout(() => document.getElementById('mapLoading').style.display='none', 400);
  tintMapLayers();
   renderTerrainDepth();
-  registerPOIIconImages(); // Fase 1 — íconos SDF de POI, se registran una sola vez
+   registerPOIIconImages(); // Fase 1 — íconos SDF de POI, se registran una sola vez
+  startPOIBreathingAnimation(); // Fase 5a — respiración del círculo de POIs
  currentDayPeriod = getDayPeriod();
   applyMoodAtmosphere('todos'); // sin categoría activa: --mood-glow queda 'transparent', sin halo extra
   setInterval(updateDayPeriod, 3 * 60 * 1000);
@@ -3296,7 +3297,24 @@ function ensurePOINativeLayers(){
             'text-opacity': ['step', ['zoom'], 0, ZOOM_POI_NAME, 1],
     },
   });
-  bindPOINativeClickHandlers();
+    bindPOINativeClickHandlers();
+}
+
+// ---------- Fase 5a de la migración: respiración del círculo de POIs ----------
+// Mismo mecanismo que ya usa comuna-glow-layer/rio-choapa-halo/losvilos-reflection:
+// setInterval (~250ms) + setPaintProperty, nunca requestAnimationFrame. Aplica
+// parejo a TODOS los POIs visibles a la vez (circle-radius es una propiedad de
+// capa, no por-feature) — incluido el POI seleccionado, que de todas formas
+// queda tapado por su propio ícono más grande de poi-selected-bg-layer (Fase 3).
+// Réplica del ciclo original .poi-breathe (4.4s, radio +3.5% y vuelta, nunca
+// por debajo del radio base) — no una respiración simétrica hacia ambos lados.
+const POI_BREATHE_BASE_RADIUS = 9;
+function startPOIBreathingAnimation(){
+  setInterval(() => {
+    if (!map.getLayer('poi-circle-layer')) return;
+    const wobble = (Math.sin(performance.now() / 700) + 1) / 2; // 0 → 1, ciclo ~4.4s
+    map.setPaintProperty('poi-circle-layer', 'circle-radius', POI_BREATHE_BASE_RADIUS + wobble * (POI_BREATHE_BASE_RADIUS * 0.035));
+  }, 250);
 }
 
 // ---------- Fase 2 de la migración: click nativo → ficha de detalle ----------
