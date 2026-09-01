@@ -2443,8 +2443,9 @@ map.on('load', () => {
   setTimeout(() => document.getElementById('mapLoading').style.display='none', 400);
  tintMapLayers();
   renderTerrainDepth();
-   registerPOIIconImages(); // Fase 1 — íconos SDF de POI, se registran una sola vez
-  startPOIBreathingAnimation(); // Fase 5a — respiración del círculo de POIs
+      registerPOIIconImages(); // Fase 1 — íconos SDF de POI, se registran una sola vez
+  registerPOIBackgroundImages(); // Fondo con gradiente/volumen de POI, una imagen por categoría
+  startPOIBreathingAnimation(); // Fase 5a — respiración del fondo de POIs
  currentDayPeriod = getDayPeriod();
   applyMoodAtmosphere('todos'); // sin categoría activa: --mood-glow queda 'transparent', sin halo extra
   setInterval(updateDayPeriod, 3 * 60 * 1000);
@@ -3219,6 +3220,75 @@ function registerPOIIconImages(){
   });
 }
 
+// Convierte un hex ("#2DD4A7") a rgba() con la opacidad dada — necesario para
+// el stop exterior del gradiente (el original usaba stop-opacity 0.86, algo
+// que un <canvas> gradient solo puede lograr con un color rgba explícito).
+function poiColorToRgba(hex, alpha){
+  const n = parseInt(hex.slice(1), 16);
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// Fondo con volumen del POI — réplica del gradiente radial + borde + disco
+// interior oscuro que tenía el poiSVG() original (Marker HTML), ahora horneado
+// en un <canvas> para poder registrarse como imagen nativa vía map.addImage().
+// Mismas proporciones relativas que el diseño viejo (highlight arriba-izquierda,
+// stop de color al 35%, borde propio, disco interior al 82% del radio) — se
+// genera UNA sola vez por categoría, nunca por feature.
+function buildPOIBackgroundCanvas(colorHex, sizePx = 96){
+  const canvas = document.createElement('canvas');
+  canvas.width = sizePx; canvas.height = sizePx;
+  const ctx = canvas.getContext('2d');
+  const cx = sizePx / 2, cy = sizePx / 2;
+  const r = sizePx * 0.35;
+
+  const grad = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.35, r * 0.1, cx, cy, r);
+  grad.addColorStop(0, 'rgba(255,255,255,0.38)');
+  grad.addColorStop(0.35, colorHex);
+  grad.addColorStop(1, poiColorToRgba(colorHex, 0.86));
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  ctx.lineWidth = sizePx * 0.045;
+  ctx.strokeStyle = colorHex;
+  ctx.globalAlpha = 0.9;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // Disco interior oscuro — misma proporción que el poi-inner-disc-layer
+  // que reemplaza (82% del radio principal).
+  ctx.globalAlpha = 0.55;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.82, 0, Math.PI * 2);
+  ctx.fillStyle = '#0D1F30';
+  ctx.fill();
+
+  // Highlight superior-izquierdo — mismo rincón que el cx="35%" cy="30%" del
+  // radialGradient original.
+  ctx.globalAlpha = 0.2;
+  ctx.beginPath();
+  ctx.arc(cx - r * 0.35, cy - r * 0.4, r * 0.32, 0, Math.PI * 2);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  return ctx.getImageData(0, 0, sizePx, sizePx);
+}
+
+// Una imagen por cada una de las 8 categorías reales — nunca por color
+// arbitrario, así todas comparten exactamente el mismo tratamiento visual.
+function registerPOIBackgroundImages(){
+  EXPERIENCE_TAGS.filter(e => e.id !== 'todos').forEach(exp => {
+    const imgId = `poi-bg-${exp.id}`;
+    if (map.hasImage(imgId)) return;
+    const color = getComputedStyle(document.documentElement).getPropertyValue(exp.color.replace('var(','').replace(')','')).trim();
+    map.addImage(imgId, buildPOIBackgroundCanvas(color));
+  });
+}
+
 // Reutiliza el mismo stack de fuente que ya usa el estilo base del mapa (para
 // que los glifos de texto carguen correctamente contra ese mismo estilo), en
 // vez de asumir una fuente que podría no estar disponible en este mapa.
@@ -3241,14 +3311,17 @@ function poiSourceFeatures(){
   const activeExpColor = filtering
     ? getComputedStyle(document.documentElement).getPropertyValue(expById(state.activeExperience).color.replace('var(','').replace(')','')).trim()
     : null;
-  return visible.map(place => {
+   return visible.map(place => {
     const primaryTag = primaryExperienceTag(place);
+    // Misma regla que displayColor: con filtro activo, el fondo usa la
+    // categoría del filtro; si no, la categoría propia del lugar.
+    const bgExpId = filtering ? state.activeExperience : primaryTag.id;
     const displayColor = activeExpColor
       || getComputedStyle(document.documentElement).getPropertyValue(primaryTag.color.replace('var(','').replace(')','')).trim()
       || '#16B8C4';
     return {
       type:'Feature',
-      properties:{ id:place.id, name:place.name, icon:`poi-icon-${primaryTag.iconKey}`, displayColor },
+      properties:{ id:place.id, name:place.name, icon:`poi-icon-${primaryTag.iconKey}`, bgIcon:`poi-bg-${bgExpId}`, displayColor },
       geometry:{ type:'Point', coordinates:[place.lng, place.lat] },
     };
   });
@@ -3257,69 +3330,37 @@ function poiSourceFeatures(){
 function ensurePOINativeLayers(){
   if (map.getSource('poi-source')){ bindPOINativeClickHandlers(); return; }
   map.addSource('poi-source', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
-  // Círculo de fondo — color dinámico por feature (categoría/filtro activo).
-  // minzoom reemplaza el umbral ZOOM_DETAIL que antes se chequeaba a mano.
-    // Halo ambiental — réplica de .poi-ambient-halo (opacidad 0.06→0.13, radio
-  // 8.6→8.85, ciclo ~4.2s). Se agrega ANTES que poi-circle-layer para quedar
-  // dibujado debajo — mismo patrón que comuna-glow-layer/valley-breath-layer.
+  // Halo ambiental — réplica de .poi-ambient-halo. Se agrega ANTES que
+  // poi-bg-layer para quedar dibujado debajo — mismo patrón que
+  // comuna-glow-layer/valley-breath-layer. Radio/opacidad subidos levemente
+  // (9.4 / 0.12 base, antes 8.6 / 0.09) — con el nuevo fondo de gradiente,
+  // más compacto que el círculo plano anterior, el halo necesitaba algo más
+  // de presencia para seguir notándose.
   map.addLayer({
     id:'poi-ambient-halo-layer', type:'circle', source:'poi-source',
     minzoom: ZOOM_DETAIL,
     paint:{
-      'circle-radius':8.6,
+      'circle-radius':9.4,
       'circle-color':['get','displayColor'],
-      'circle-opacity':0.09,
+      'circle-opacity':0.12,
       'circle-blur':1,
     },
   });
-    map.addLayer({
-    id:'poi-circle-layer', type:'circle', source:'poi-source',
-    minzoom: ZOOM_DETAIL,
-    paint:{
-      'circle-radius':9,
-      'circle-color':['get','displayColor'],
-      'circle-opacity':0.95,
-      'circle-stroke-color':'#0D1F30',
-      'circle-stroke-width':1.2,
-    },
-  });
-  // Disco oscuro interior — réplica del <circle r="6.3" fill="#0D1F30"
-  // opacity="0.6"> del diseño original (poiSVG). Misma proporción: 6.3/7.7 del
-  // radio original ≈ 82% → sobre el radio 9 de poi-circle-layer, 7.4. Se dibuja
-  // encima del círculo de color y debajo del ícono, dándole al centro esa
-  // sensación de "hundimiento"/profundidad que tenía el diseño con Marker HTML.
-  // No participa de la respiración de la Fase 5a (queda fijo) — el diseño
-  // original escalaba todo el SVG junto, pero replicar eso en capas nativas
-  // exigiría animar radios de dos capas sincronizadas; se deja como
-  // simplificación deliberada, ajustable si se nota rígido en la prueba.
-   map.addLayer({
-    id:'poi-inner-disc-layer', type:'circle', source:'poi-source',
-    minzoom: ZOOM_DETAIL,
-    paint:{
-      'circle-radius':7.4,
-      'circle-color':'#0D1F30',
-      'circle-opacity':0.6,
-    },
-  });
-  // Punto de brillo — réplica del highlight blanco del diseño original
-  // (<circle cx="9.2" cy="9" r="2.6" fill="rgba(255,255,255,0.06)"/>, offset
-  // hacia la esquina superior-izquierda del centro, misma dirección que el
-  // radialGradient cx="35%" cy="30%" del gradiente principal). circle-translate
-  // es un desplazamiento en píxeles a nivel de capa (no por-feature) — mismo
-  // desplazamiento fijo para todos los POIs, igual que el gradiente original
-  // siempre "iluminaba" desde la misma esquina en cada marcador. Opacidad más
-  // alta que el 0.06 original porque acá no hay gradiente radial de fondo
-  // dándole ya un brillo propio a esa zona — sin esto, el highlight sería
-  // invisible sobre un círculo de color plano.
+  // Fondo con volumen — imagen pre-renderizada por categoría (una sola vez,
+  // ver registerPOIBackgroundImages()): gradiente radial con highlight
+  // superior-izquierdo, borde propio y disco interior oscuro ya incluidos en
+  // la misma imagen. Reemplaza los 3 círculos planos que existían antes
+  // (poi-circle-layer + poi-inner-disc-layer + poi-highlight-layer) — el color
+  // ya viene "horneado" en la imagen correspondiente a bgIcon, así que esta
+  // capa no necesita ninguna propiedad de color.
   map.addLayer({
-    id:'poi-highlight-layer', type:'circle', source:'poi-source',
+    id:'poi-bg-layer', type:'symbol', source:'poi-source',
     minzoom: ZOOM_DETAIL,
-    paint:{
-      'circle-radius':2.6,
-      'circle-color':'#FFFFFF',
-      'circle-opacity':0.35,
-      'circle-translate':[-2.1, -2.3],
-      'circle-translate-anchor':'viewport',
+    layout:{
+      'icon-image':['get','bgIcon'],
+      'icon-size':0.24,
+      'icon-allow-overlap':true,
+      'icon-ignore-placement':true,
     },
   });
   // Ícono + nombre en la misma capa symbol. text-opacity con 'step' reemplaza
@@ -3360,13 +3401,15 @@ function ensurePOINativeLayers(){
 // queda tapado por su propio ícono más grande de poi-selected-bg-layer (Fase 3).
 // Réplica del ciclo original .poi-breathe (4.4s, radio +3.5% y vuelta, nunca
 // por debajo del radio base) — no una respiración simétrica hacia ambos lados.
-const POI_BREATHE_BASE_RADIUS = 9;
-const POI_HALO_BASE_RADIUS = 8.6;
+const POI_BREATHE_BASE_ICON_SIZE = 0.24;
+const POI_HALO_BASE_RADIUS = 9.4;
 function startPOIBreathingAnimation(){
   setInterval(() => {
-    if (!map.getLayer('poi-circle-layer')) return;
+    if (!map.getLayer('poi-bg-layer')) return;
     const wobble = (Math.sin(performance.now() / 700) + 1) / 2; // 0 → 1, ciclo ~4.4s
-    map.setPaintProperty('poi-circle-layer', 'circle-radius', POI_BREATHE_BASE_RADIUS + wobble * (POI_BREATHE_BASE_RADIUS * 0.035));
+    // icon-size es propiedad de layout, no de paint — a diferencia de
+    // circle-radius del círculo plano que reemplaza.
+    map.setLayoutProperty('poi-bg-layer', 'icon-size', POI_BREATHE_BASE_ICON_SIZE + wobble * (POI_BREATHE_BASE_ICON_SIZE * 0.035));
 
     if (map.getLayer('poi-ambient-halo-layer')){
       // Ciclo propio ~4.2s (divisor distinto), a propósito desfasado del de
@@ -3374,7 +3417,7 @@ function startPOIBreathingAnimation(){
       // y .poi-ambient-pulse (4.2s) nunca laten exactamente sincronizados.
       const haloWobble = (Math.sin(performance.now() / 668) + 1) / 2; // 0 → 1, ciclo ~4.2s
       map.setPaintProperty('poi-ambient-halo-layer', 'circle-radius', POI_HALO_BASE_RADIUS + haloWobble * (POI_HALO_BASE_RADIUS * 0.03));
-      map.setPaintProperty('poi-ambient-halo-layer', 'circle-opacity', 0.06 + haloWobble * 0.07);
+      map.setPaintProperty('poi-ambient-halo-layer', 'circle-opacity', 0.09 + haloWobble * 0.07);
     }
   }, 250);
 }
