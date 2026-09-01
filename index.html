@@ -3308,7 +3308,10 @@ function registerPOIBackgroundImages(){
 // 9-slice (content + stretchX/stretchY) para que MapLibre pueda estirarla
 // horizontalmente según el largo del nombre sin deformar las puntas
 // redondeadas — eso es lo que habilita usarla con icon-text-fit.
-const POI_LABEL_BG_W = 64, POI_LABEL_BG_H = 30, POI_LABEL_BG_RADIUS = 15;
+// Reducidas ~0.7x sobre el tamaño anterior (64/30/15) — la placa se sentía
+// desproporcionada frente al ícono de categoría en dispositivo real. RADIUS se
+// mantiene como H/2 exacto para conservar la forma de píldora perfecta.
+const POI_LABEL_BG_W = 46, POI_LABEL_BG_H = 21, POI_LABEL_BG_RADIUS = 10.5;
 function buildPOILabelBackgroundCanvas(){
   const canvas = document.createElement('canvas');
   canvas.width = POI_LABEL_BG_W; canvas.height = POI_LABEL_BG_H;
@@ -3330,8 +3333,11 @@ function buildPOILabelBackgroundCanvas(){
 }
 function registerPOILabelBackgroundImage(){
   if (map.hasImage('poi-label-bg')) return;
-  map.addImage('poi-label-bg', buildPOILabelBackgroundCanvas(), {
-    content:[POI_LABEL_BG_RADIUS, 6, POI_LABEL_BG_W - POI_LABEL_BG_RADIUS, POI_LABEL_BG_H - 6],
+   map.addImage('poi-label-bg', buildPOILabelBackgroundCanvas(), {
+    // Margen vertical del área de contenido escalado igual que el resto (6 → 4,
+    // mismo ratio ~0.7) — así el texto sigue con el mismo respiro relativo
+    // dentro de la placa, ahora más chica.
+    content:[POI_LABEL_BG_RADIUS, 4, POI_LABEL_BG_W - POI_LABEL_BG_RADIUS, POI_LABEL_BG_H - 4],
     stretchX:[[POI_LABEL_BG_RADIUS, POI_LABEL_BG_W - POI_LABEL_BG_RADIUS]],
     stretchY:[[0, POI_LABEL_BG_H]],
   });
@@ -3442,15 +3448,20 @@ function ensurePOINativeLayers(){
     id:'poi-label-layer', type:'symbol', source:'poi-source',
     minzoom: ZOOM_DETAIL,
     layout:{
-      'icon-image':'poi-label-bg',
+           'icon-image':'poi-label-bg',
       'icon-text-fit':'both',
-      'icon-text-fit-padding':[3, 9, 3, 9],
+      // Padding y tamaño de texto reducidos en conjunto (~30-35%) junto con la
+      // placa — la etiqueta debe leerse subordinada al ícono de categoría, no
+      // competir visualmente con él.
+      'icon-text-fit-padding':[2, 6, 2, 6],
       'icon-anchor':'bottom',
       'icon-allow-overlap':false,
       'text-field':['get','name'],
       'text-font': getBoldStyleTextFont(),
-      'text-size':10.5,
-      'text-offset':[0, -1.35],
+      'text-size':7.5,
+      // Acercado proporcionalmente a la placa más chica — antes -1.35 dejaba
+      // la etiqueta "flotando" lejos del ícono una vez reducida.
+      'text-offset':[0, -1.05],
       'text-anchor':'bottom',
       'text-allow-overlap':false,
       'text-optional':true,
