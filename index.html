@@ -3382,8 +3382,13 @@ function ensurePOINativeLayers(){
       'text-allow-overlap':false,
       'text-optional':true,
     },
-    paint:{
-      'icon-color':'#0D1F30',
+       paint:{
+      // Antes fijo en oscuro (#0D1F30) — quedaba invisible sobre el disco
+      // interior oscuro del nuevo fondo con gradiente (mismo color de fondo
+      // que de ícono = sin contraste). Ahora usa el color propio de cada POI,
+      // igual que hacía el poiSVG() original (glifo coloreado sobre disco
+      // oscuro, no al revés).
+      'icon-color':['get','displayColor'],
       'text-color':'#F4F7FA',
       'text-halo-color':'rgba(9,20,32,0.86)',
       'text-halo-width':1.4,
