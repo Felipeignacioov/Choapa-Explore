@@ -3478,10 +3478,13 @@ function ensurePOISelectedLayer(){
       'circle-stroke-color':'#0D1F30', 'circle-stroke-width':1.6,
     },
   });
-  map.addLayer({
+   map.addLayer({
     id:'poi-selected-icon-layer', type:'symbol', source:'poi-selected-source',
     layout:{ 'icon-image':['get','icon'], 'icon-size':0.496, 'icon-allow-overlap':true, 'icon-ignore-placement':true },
-    paint:{ 'icon-color':'#0D1F30' },
+    // Mismo fix que poi-icon-layer: el glifo debe ir coloreado con el color
+    // propio del POI, no en oscuro fijo — sin esto queda invisible sobre el
+    // fondo oscuro del estado seleccionado.
+    paint:{ 'icon-color':['get','displayColor'] },
   });
 }
 
