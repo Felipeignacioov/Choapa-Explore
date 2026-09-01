@@ -2443,8 +2443,9 @@ map.on('load', () => {
   setTimeout(() => document.getElementById('mapLoading').style.display='none', 400);
  tintMapLayers();
   renderTerrainDepth();
-      registerPOIIconImages(); // Fase 1 — íconos SDF de POI, se registran una sola vez
+        registerPOIIconImages(); // Fase 1 — íconos SDF de POI, se registran una sola vez
   registerPOIBackgroundImages(); // Fondo con gradiente/volumen de POI, una imagen por categoría
+  registerPOILabelBackgroundImage(); // Placa de fondo (pill) para el nombre del POI
   startPOIBreathingAnimation(); // Fase 5a — respiración del fondo de POIs
  currentDayPeriod = getDayPeriod();
   applyMoodAtmosphere('todos'); // sin categoría activa: --mood-glow queda 'transparent', sin halo extra
@@ -3300,6 +3301,52 @@ function registerPOIBackgroundImages(){
   });
 }
 
+// Fondo tipo "pill" para las etiquetas de nombre de POI — reemplaza el
+// text-halo (contorno ajustado a las letras) por una placa sólida y
+// redondeada, en espíritu igual al viejo .poi-name-label (fondo
+// rgba(9,20,32,0.86) + borde sutil). Se genera UNA sola vez, con metadata de
+// 9-slice (content + stretchX/stretchY) para que MapLibre pueda estirarla
+// horizontalmente según el largo del nombre sin deformar las puntas
+// redondeadas — eso es lo que habilita usarla con icon-text-fit.
+const POI_LABEL_BG_W = 64, POI_LABEL_BG_H = 30, POI_LABEL_BG_RADIUS = 15;
+function buildPOILabelBackgroundCanvas(){
+  const canvas = document.createElement('canvas');
+  canvas.width = POI_LABEL_BG_W; canvas.height = POI_LABEL_BG_H;
+  const ctx = canvas.getContext('2d');
+  const r = POI_LABEL_BG_RADIUS;
+  ctx.beginPath();
+  ctx.moveTo(r, 0);
+  ctx.arcTo(POI_LABEL_BG_W, 0, POI_LABEL_BG_W, POI_LABEL_BG_H, r);
+  ctx.arcTo(POI_LABEL_BG_W, POI_LABEL_BG_H, 0, POI_LABEL_BG_H, r);
+  ctx.arcTo(0, POI_LABEL_BG_H, 0, 0, r);
+  ctx.arcTo(0, 0, POI_LABEL_BG_W, 0, r);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(9,20,32,0.88)';
+  ctx.fill();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(180,200,220,0.16)';
+  ctx.stroke();
+  return ctx.getImageData(0, 0, POI_LABEL_BG_W, POI_LABEL_BG_H);
+}
+function registerPOILabelBackgroundImage(){
+  if (map.hasImage('poi-label-bg')) return;
+  map.addImage('poi-label-bg', buildPOILabelBackgroundCanvas(), {
+    content:[POI_LABEL_BG_RADIUS, 6, POI_LABEL_BG_W - POI_LABEL_BG_RADIUS, POI_LABEL_BG_H - 6],
+    stretchX:[[POI_LABEL_BG_RADIUS, POI_LABEL_BG_W - POI_LABEL_BG_RADIUS]],
+    stretchY:[[0, POI_LABEL_BG_H]],
+  });
+}
+
+// Variante en negrita del stack de fuente que ya usa el resto del mapa
+// (getStyleTextFont() toma el mismo stack verificado que usan las etiquetas de
+// calles/lugares del estilo base) — swap "Regular"→"Bold" es la convención
+// estándar de los paquetes de glifos de OpenMapTiles. Si tu mapa base no
+// tuviera esa variante, el texto simplemente no se pintaría — en ese caso
+// dímelo y volvemos a getStyleTextFont() tal cual.
+function getBoldStyleTextFont(){
+  return getStyleTextFont().map(f => f.replace('Regular', 'Bold'));
+}
+
 // Reutiliza el mismo stack de fuente que ya usa el estilo base del mapa (para
 // que los glifos de texto carguen correctamente contra ese mismo estilo), en
 // vez de asumir una fuente que podría no estar disponible en este mapa.
@@ -3347,29 +3394,24 @@ function ensurePOINativeLayers(){
   // (9.4 / 0.12 base, antes 8.6 / 0.09) — con el nuevo fondo de gradiente,
   // más compacto que el círculo plano anterior, el halo necesitaba algo más
   // de presencia para seguir notándose.
-  map.addLayer({
+   map.addLayer({
     id:'poi-ambient-halo-layer', type:'circle', source:'poi-source',
     minzoom: ZOOM_DETAIL,
     paint:{
-      'circle-radius':9.4,
+      'circle-radius':7.6,
       'circle-color':['get','displayColor'],
       'circle-opacity':0.12,
       'circle-blur':1,
     },
   });
-  // Fondo con volumen — imagen pre-renderizada por categoría (una sola vez,
-  // ver registerPOIBackgroundImages()): gradiente radial con highlight
-  // superior-izquierdo, borde propio y disco interior oscuro ya incluidos en
-  // la misma imagen. Reemplaza los 3 círculos planos que existían antes
-  // (poi-circle-layer + poi-inner-disc-layer + poi-highlight-layer) — el color
-  // ya viene "horneado" en la imagen correspondiente a bgIcon, así que esta
-  // capa no necesita ninguna propiedad de color.
   map.addLayer({
     id:'poi-bg-layer', type:'symbol', source:'poi-source',
     minzoom: ZOOM_DETAIL,
     layout:{
       'icon-image':['get','bgIcon'],
-      'icon-size':0.30,
+      // -20% respecto al ajuste anterior (0.30 → 0.24): "un poco más chico,
+      // pero no tanto", según tu feedback.
+      'icon-size':0.24,
       'icon-allow-overlap':true,
       'icon-ignore-placement':true,
     },
@@ -3377,33 +3419,47 @@ function ensurePOINativeLayers(){
   // Ícono + nombre en la misma capa symbol. text-opacity con 'step' reemplaza
   // la clase .show-name; text-allow-overlap:false + text-optional:true
   // reemplaza el sistema manual de colisión (resolveLabelCollisions) para POIs.
-  map.addLayer({
+    map.addLayer({
     id:'poi-icon-layer', type:'symbol', source:'poi-source',
     minzoom: ZOOM_DETAIL,
     layout:{
       'icon-image':['get','icon'],
-      'icon-size':0.32,
+      // -20% respecto al valor anterior (0.32 → 0.26), mismo factor que el
+      // fondo (ver poi-bg-layer) para no alterar la proporción glifo/círculo
+      // ya corregida.
+      'icon-size':0.26,
       'icon-allow-overlap':true,
       'icon-ignore-placement':true,
+    },
+    paint:{
+      'icon-color':['get','displayColor'],
+    },
+  });
+  // Nombre del POI — placa sólida vía icon-text-fit, en capa separada del
+  // ícono para poder posicionarla (text-offset) de forma independiente, igual
+  // que hacía .poi-name-label en el diseño con Marker HTML.
+  map.addLayer({
+    id:'poi-label-layer', type:'symbol', source:'poi-source',
+    minzoom: ZOOM_DETAIL,
+    layout:{
+      'icon-image':'poi-label-bg',
+      'icon-text-fit':'both',
+      'icon-text-fit-padding':[3, 9, 3, 9],
+      'icon-anchor':'bottom',
+      'icon-allow-overlap':false,
       'text-field':['get','name'],
-      'text-font': getStyleTextFont(),
-      'text-size':10,
-      'text-offset':[0, -1.6],
+      'text-font': getBoldStyleTextFont(),
+      'text-size':10.5,
+      'text-offset':[0, -1.35],
       'text-anchor':'bottom',
       'text-allow-overlap':false,
       'text-optional':true,
+      'icon-optional':true,
     },
-       paint:{
-      // Antes fijo en oscuro (#0D1F30) — quedaba invisible sobre el disco
-      // interior oscuro del nuevo fondo con gradiente (mismo color de fondo
-      // que de ícono = sin contraste). Ahora usa el color propio de cada POI,
-      // igual que hacía el poiSVG() original (glifo coloreado sobre disco
-      // oscuro, no al revés).
-      'icon-color':['get','displayColor'],
+    paint:{
       'text-color':'#F4F7FA',
-      'text-halo-color':'rgba(9,20,32,0.86)',
-      'text-halo-width':1.4,
-            'text-opacity': ['step', ['zoom'], 0, ZOOM_POI_NAME, 1],
+      'icon-opacity': ['step', ['zoom'], 0, ZOOM_POI_NAME, 1],
+      'text-opacity': ['step', ['zoom'], 0, ZOOM_POI_NAME, 1],
     },
   });
     bindPOINativeClickHandlers();
@@ -3417,8 +3473,8 @@ function ensurePOINativeLayers(){
 // queda tapado por su propio ícono más grande de poi-selected-bg-layer (Fase 3).
 // Réplica del ciclo original .poi-breathe (4.4s, radio +3.5% y vuelta, nunca
 // por debajo del radio base) — no una respiración simétrica hacia ambos lados.
-const POI_BREATHE_BASE_ICON_SIZE = 0.30;
-const POI_HALO_BASE_RADIUS = 9.4;
+const POI_BREATHE_BASE_ICON_SIZE = 0.24;
+const POI_HALO_BASE_RADIUS = 7.6;
 function startPOIBreathingAnimation(){
   setInterval(() => {
     if (!map.getLayer('poi-bg-layer')) return;
