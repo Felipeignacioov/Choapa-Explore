@@ -3190,7 +3190,18 @@ function buildIconCanvas(iconKey, sizePx = 64){
   const canvas = document.createElement('canvas');
   canvas.width = sizePx; canvas.height = sizePx;
   const ctx = canvas.getContext('2d');
-  ctx.scale(sizePx / 24, sizePx / 24);
+  // Antes el glifo se estiraba para ocupar el lienzo completo (sin margen),
+  // por eso se veía más grande que el círculo de fondo y cualquier trazo no
+  // perfectamente centrado en su viewBox de 24 unidades (ej. el tenedor de
+  // "Gastronomía") quedaba visiblemente corrido. Ahora se dibuja dentro de una
+  // "caja" más chica y centrada — mismo recurso que usaba iconGlyph() en el
+  // diseño original (box=10 dentro de un marcador de 22px, ratio ≈0.45) — así
+  // el ícono siempre queda con margen respecto al borde del círculo.
+  const ICON_BOX_RATIO = 0.6;
+  const iconScale = (sizePx * ICON_BOX_RATIO) / 24;
+  const iconOffset = (sizePx - 24 * iconScale) / 2;
+  ctx.translate(iconOffset, iconOffset);
+  ctx.scale(iconScale, iconScale);
   ctx.strokeStyle = '#000'; ctx.fillStyle = '#000';
   ctx.lineWidth = 1.9; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   const raw = ICON_PATHS[iconKey] || '';
@@ -3358,7 +3369,7 @@ function ensurePOINativeLayers(){
     minzoom: ZOOM_DETAIL,
     layout:{
       'icon-image':['get','bgIcon'],
-      'icon-size':0.24,
+      'icon-size':0.30,
       'icon-allow-overlap':true,
       'icon-ignore-placement':true,
     },
@@ -3406,7 +3417,7 @@ function ensurePOINativeLayers(){
 // queda tapado por su propio ícono más grande de poi-selected-bg-layer (Fase 3).
 // Réplica del ciclo original .poi-breathe (4.4s, radio +3.5% y vuelta, nunca
 // por debajo del radio base) — no una respiración simétrica hacia ambos lados.
-const POI_BREATHE_BASE_ICON_SIZE = 0.24;
+const POI_BREATHE_BASE_ICON_SIZE = 0.30;
 const POI_HALO_BASE_RADIUS = 9.4;
 function startPOIBreathingAnimation(){
   setInterval(() => {
