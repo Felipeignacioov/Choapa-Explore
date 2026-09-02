@@ -4511,11 +4511,24 @@ function selectPlace(place, el){
   sheetPill.classList.add('hidden');
   document.getElementById('poiDetail').classList.add('visible');
 
-   // Antes Math.max(zoom actual, 10.5) casi nunca acercaba (ya se estaba en un
+      // Antes Math.max(zoom actual, 10.5) casi nunca acercaba (ya se estaba en un
   // zoom mayor a ese piso para ver POIs) — la cámara solo centraba y corría
   // hacia arriba por el offset, sin acercarse, dando sensación de alejarse.
   // Ahora siempre acerca un poco más sobre el zoom actual, hacia el POI.
-  map.easeTo({ center:[place.lng, place.lat], zoom: Math.max(map.getZoom() + 1.1, 15.5), duration:550, offset:[0, -130] });
+  //
+  // El offset ya no intenta "dejar el POI visible en el espacio libre" — la
+  // ficha (.poi-card, max-height:82vh) ocupa casi toda la pantalla al abrirse,
+  // así que ese objetivo nunca se cumplía de verdad. Ahora el objetivo es
+  // otro: acercar el pin al borde superior de la pantalla, justo por encima
+  // de donde nace el panel (que sube desde abajo), para que se sienta como
+  // que la ficha "salió" de ese punto del mapa en vez de que el mapa se haya
+  // alejado del POI. Se calcula en base a window.innerHeight (no un número
+  // fijo) para que esa posición relativa se mantenga consistente en distintos
+  // tamaños de pantalla — mismo criterio que ya usa el resto de la app con
+  // --safe-top/--nav-footprint.
+  const topAnchorY = window.innerHeight * 0.13; // ~13% desde arriba: aire respecto al header, cerca del borde donde nace la ficha
+  const selectOffsetY = topAnchorY - window.innerHeight / 2;
+  map.easeTo({ center:[place.lng, place.lat], zoom: Math.max(map.getZoom() + 1.1, 15.5), duration:550, offset:[0, selectOffsetY] });
 }
 
 document.getElementById('poiDetailSave').addEventListener('click', (e) => {
