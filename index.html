@@ -3566,15 +3566,26 @@ function computePOIDisplayColor(place){
 function ensurePOISelectedLayer(){
   if (map.getSource('poi-selected-source')) return;
   map.addSource('poi-selected-source', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
+  // Antes un glow de color sólido a 0.22 de opacidad — se sentía como un flash
+  // llamativo. Ahora, mismo espíritu que poi-ambient-halo-layer del estado
+  // normal: una indicación de "esto está activo", no un relleno. Radio
+  // reducido levemente para que acompañe sin dominar.
   map.addLayer({
     id:'poi-selected-glow-layer', type:'circle', source:'poi-selected-source',
-    paint:{ 'circle-radius':18, 'circle-color':['get','displayColor'], 'circle-opacity':0.22, 'circle-blur':1 },
+    paint:{ 'circle-radius':16, 'circle-color':['get','displayColor'], 'circle-opacity':0.14, 'circle-blur':1.1 },
   });
+  // Antes relleno sólido con displayColor a opacidad 1 — el mismo color que
+  // el ícono encima, por eso el glifo quedaba tapado/invisible ("brillo de
+  // color sólido"). Ahora: fondo oscuro (mismo #0D1F30 del disco interior del
+  // estado normal, misma familia visual) + un borde/acento en el color de
+  // categoría — el color sigue identificando la categoría, pero como contorno
+  // elegante, no como relleno saturado. El ícono (icon-color:displayColor,
+  // sin cambios) ahora sí contrasta con claridad contra el fondo oscuro.
   map.addLayer({
     id:'poi-selected-bg-layer', type:'circle', source:'poi-selected-source',
     paint:{
-      'circle-radius':14, 'circle-color':['get','displayColor'], 'circle-opacity':1,
-      'circle-stroke-color':'#0D1F30', 'circle-stroke-width':1.6,
+      'circle-radius':14, 'circle-color':'#0D1F30', 'circle-opacity':0.9,
+      'circle-stroke-color':['get','displayColor'], 'circle-stroke-width':2, 'circle-stroke-opacity':0.85,
     },
   });
    map.addLayer({
