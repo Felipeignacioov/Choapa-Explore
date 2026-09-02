@@ -4504,20 +4504,33 @@ function selectPlace(place, el){
   const memoryBtn = document.getElementById('poiDetailMemoryBtn');
   memoryBtn.classList.toggle('saved', !!MemoryStore.get(place.id));
 
-  document.getElementById('poiDetailDemoNote').textContent = place.isDemo ? '● Lugar de ejemplo — datos reales próximamente' : '';
+   document.getElementById('poiDetailDemoNote').textContent = place.isDemo ? '● Lugar de ejemplo — datos reales próximamente' : '';
 
-  // Con la ficha abierta no hace falta la píldora de "¿Qué hacer hoy?" — se oculta
-  // mientras se está mirando esta experiencia (se restaura al cerrar la ficha).
-  sheetPill.classList.add('hidden');
-  document.getElementById('poiDetail').classList.add('visible');
+  // Acercamiento intencional hacia el POI tocado — confirmación visual de
+  // "esto es lo que elegiste" antes de que la ficha tape el mapa. No es el
+  // reencuadre que había antes (aquel perseguía dejar el POI en un borde
+  // específico de la pantalla, algo que dejó de tener sentido cuando la ficha
+  // cubre casi toda la pantalla de todas formas) — acá el único objetivo es el
+  // gesto de acercarse a mirarlo mejor: centrado, sin offset, sin intentar
+  // esconder el POI en ninguna zona particular.
+  const POI_SELECT_ZOOM_DURATION = 480;
+  map.easeTo({
+    center:[place.lng, place.lat],
+    zoom: Math.max(map.getZoom() + 0.6, 14.5),
+    duration: POI_SELECT_ZOOM_DURATION,
+    easing:t => 1 - Math.pow(1 - t, 3),
+  });
 
-        // Antes había un easeTo() acá que reencuadraba el mapa (pan + zoom) al
-  // seleccionar un POI. Como la ficha (.poi-card, max-height:82vh) cubre casi
-  // toda la pantalla casi de inmediato, ese movimiento de cámara no cumplía
-  // ningún propósito — solo se percibía como una sacudida injustificada justo
-  // antes de que la ficha tapara el mapa de todas formas. Ahora el mapa queda
-  // completamente quieto al seleccionar: solo la ficha se anima (sube/aparece
-  // vía su propia transición CSS), la cámara no se mueve en absoluto.
+  // La ficha se abre cuando el acercamiento está por terminar (85% de su
+  // duración) — nunca en paralelo con el inicio del easeTo(), para que la
+  // secuencia se lea como "toco → el mapa se acerca → se abre la ficha", en
+  // vez de dos animaciones compitiendo a la vez. Con la ficha abierta no hace
+  // falta la píldora de "¿Qué hacer hoy?" — se oculta en el mismo momento (se
+  // restaura al cerrar la ficha).
+  setTimeout(() => {
+    sheetPill.classList.add('hidden');
+    document.getElementById('poiDetail').classList.add('visible');
+  }, POI_SELECT_ZOOM_DURATION * 0.85);
 }
 
 document.getElementById('poiDetailSave').addEventListener('click', (e) => {
