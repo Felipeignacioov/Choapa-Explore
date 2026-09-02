@@ -3461,7 +3461,10 @@ function ensurePOINativeLayers(){
       'text-size':7.5,
       // Acercado proporcionalmente a la placa más chica — antes -1.35 dejaba
       // la etiqueta "flotando" lejos del ícono una vez reducida.
-      'text-offset':[0, -1.05],
+            // Más separación vertical respecto al ícono (~38% más negativo que
+      // antes) — la placa quedaba casi pegada al círculo de categoría, sin
+      // leerse como un elemento flotante independiente.
+      'text-offset':[0, -1.45],
       'text-anchor':'bottom',
       'text-allow-overlap':false,
       'text-optional':true,
