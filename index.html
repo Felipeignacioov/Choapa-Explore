@@ -3461,10 +3461,10 @@ function ensurePOINativeLayers(){
       'text-size':7.5,
       // Acercado proporcionalmente a la placa más chica — antes -1.35 dejaba
       // la etiqueta "flotando" lejos del ícono una vez reducida.
-            // Más separación vertical respecto al ícono (~38% más negativo que
-      // antes) — la placa quedaba casi pegada al círculo de categoría, sin
-      // leerse como un elemento flotante independiente.
-      'text-offset':[0, -1.45],
+                 // Ajuste fino adicional (~18% más negativo sobre -1.45) — la placa
+      // todavía quedaba casi tocando el ícono en varios casos ("Mirador del
+      // Valle", "Descenso Extremo"). Solo posición, mismo tamaño de siempre.
+      'text-offset':[0, -1.71],
       'text-anchor':'bottom',
       'text-allow-overlap':false,
       'text-optional':true,
