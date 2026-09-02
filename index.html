@@ -3254,35 +3254,47 @@ function buildPOIBackgroundCanvas(colorHex, sizePx = 96){
   const cx = sizePx / 2, cy = sizePx / 2;
   const r = sizePx * 0.35;
 
+  // Color "enriquecido" — mezcla el color puro de categoría con el navy de
+  // fondo de la app (mismo blendHex() que ya usa la atmósfera día/noche), solo
+  // para esta imagen — no toca las variables --exp-* globales, así que chips,
+  // badges y el resto de la interfaz siguen con el color vibrante de siempre.
+  // Baja saturación/luminosidad sin perder identidad de color, evitando el
+  // efecto "caramelo" del tono puro al 100%.
+  const richColor = blendHex(colorHex, '#07131F', 0.22);
+
   const grad = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.35, r * 0.1, cx, cy, r);
-  grad.addColorStop(0, 'rgba(255,255,255,0.38)');
-  grad.addColorStop(0.35, colorHex);
-  grad.addColorStop(1, poiColorToRgba(colorHex, 0.86));
+  // Highlight muy atenuado (antes 0.38 de opacidad) — un matiz de luz apenas
+  // perceptible, no un brillo evidente tipo "burbuja de plástico".
+  grad.addColorStop(0, 'rgba(255,255,255,0.12)');
+  grad.addColorStop(0.35, richColor);
+  grad.addColorStop(1, poiColorToRgba(richColor, 0.92));
 
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fillStyle = grad;
   ctx.fill();
 
-  ctx.lineWidth = sizePx * 0.045;
-  ctx.strokeStyle = colorHex;
-  ctx.globalAlpha = 0.9;
+  // Borde casi invisible — solo define el contorno del círculo, ya no compite
+  // en brillo con el color principal (antes: color puro al 90% de opacidad).
+  ctx.lineWidth = sizePx * 0.03;
+  ctx.strokeStyle = blendHex(colorHex, '#07131F', 0.4);
+  ctx.globalAlpha = 0.45;
   ctx.stroke();
   ctx.globalAlpha = 1;
 
-  // Disco interior oscuro — misma proporción que el poi-inner-disc-layer
-  // que reemplaza (82% del radio principal).
+  // Disco interior oscuro — sin cambios, sigue dando la sensación de
+  // "hundimiento" en el centro (82% del radio principal).
   ctx.globalAlpha = 0.55;
   ctx.beginPath();
   ctx.arc(cx, cy, r * 0.82, 0, Math.PI * 2);
   ctx.fillStyle = '#0D1F30';
   ctx.fill();
 
-  // Highlight superior-izquierdo — mismo rincón que el cx="35%" cy="30%" del
-  // radialGradient original.
-  ctx.globalAlpha = 0.2;
+  // Highlight superior-izquierdo — antes un brillo evidente (opacidad 0.2,
+  // radio 0.32r); ahora un matiz casi imperceptible, apenas sugiere volumen.
+  ctx.globalAlpha = 0.08;
   ctx.beginPath();
-  ctx.arc(cx - r * 0.35, cy - r * 0.4, r * 0.32, 0, Math.PI * 2);
+  ctx.arc(cx - r * 0.3, cy - r * 0.35, r * 0.22, 0, Math.PI * 2);
   ctx.fillStyle = '#FFFFFF';
   ctx.fill();
   ctx.globalAlpha = 1;
@@ -3400,14 +3412,21 @@ function ensurePOINativeLayers(){
   // (9.4 / 0.12 base, antes 8.6 / 0.09) — con el nuevo fondo de gradiente,
   // más compacto que el círculo plano anterior, el halo necesitaba algo más
   // de presencia para seguir notándose.
-   map.addLayer({
+    // Antes un halo del color de categoría (glow tipo neón, se leía como luz
+  // encendida). Ahora una sombra oscura, ligeramente desplazada hacia abajo —
+  // ancla el ícono al mapa como un objeto con volumen real, en vez de simular
+  // luz propia. circle-translate-anchor:'viewport' mantiene la sombra siempre
+  // "hacia abajo en pantalla", sin importar la rotación (bearing) del mapa.
+  map.addLayer({
     id:'poi-ambient-halo-layer', type:'circle', source:'poi-source',
     minzoom: ZOOM_DETAIL,
     paint:{
-      'circle-radius':7.6,
-      'circle-color':['get','displayColor'],
-      'circle-opacity':0.12,
-      'circle-blur':1,
+      'circle-radius':7.2,
+      'circle-color':'#020609',
+      'circle-opacity':0.30,
+      'circle-blur':1.3,
+      'circle-translate':[0, 2],
+      'circle-translate-anchor':'viewport',
     },
   });
   map.addLayer({
@@ -3487,7 +3506,7 @@ function ensurePOINativeLayers(){
 // Réplica del ciclo original .poi-breathe (4.4s, radio +3.5% y vuelta, nunca
 // por debajo del radio base) — no una respiración simétrica hacia ambos lados.
 const POI_BREATHE_BASE_ICON_SIZE = 0.24;
-const POI_HALO_BASE_RADIUS = 7.6;
+const POI_HALO_BASE_RADIUS = 7.2;
 function startPOIBreathingAnimation(){
   setInterval(() => {
     if (!map.getLayer('poi-bg-layer')) return;
@@ -3498,15 +3517,15 @@ function startPOIBreathingAnimation(){
 
     if (map.getLayer('poi-ambient-halo-layer')){
       // Ciclo propio ~4.2s (divisor distinto), a propósito desfasado del de
-      // arriba — igual que en el marcador original, donde .poi-breathe (4.4s)
-      // y .poi-ambient-pulse (4.2s) nunca laten exactamente sincronizados.
+      // arriba. Ahora es una sombra, no un glow — la respiración se reduce a
+      // un parpadeo casi imperceptible (antes variaba opacidad ±0.07; ahora
+      // ±0.025) en vez de un pulso de brillo evidente.
       const haloWobble = (Math.sin(performance.now() / 668) + 1) / 2; // 0 → 1, ciclo ~4.2s
       map.setPaintProperty('poi-ambient-halo-layer', 'circle-radius', POI_HALO_BASE_RADIUS + haloWobble * (POI_HALO_BASE_RADIUS * 0.03));
-      map.setPaintProperty('poi-ambient-halo-layer', 'circle-opacity', 0.09 + haloWobble * 0.07);
+      map.setPaintProperty('poi-ambient-halo-layer', 'circle-opacity', 0.28 + haloWobble * 0.025);
     }
   }, 250);
 }
-
 // ---------- Fase 2 de la migración: click nativo → ficha de detalle ----------
 function handlePOINativeClick(e){
   if (!e.features || !e.features[0]) return;
