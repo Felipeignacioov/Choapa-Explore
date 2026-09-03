@@ -2730,16 +2730,25 @@ function tintMapLayers(){
         map.setPaintProperty(l.id, 'line-opacity', 0.34);
         map.setPaintProperty(l.id, 'line-width', ['interpolate', ['linear'], ['zoom'], 10, 0.6, 13, 1.0, 16, 1.5, 18, 1.9]);
       }
-     // Nombres de calles — más discretos y solo desde un zoom cercano, para que
+         // Color compartido para "información de referencia" del mapa base —
+      // nombres de calle y localidades sin curar (Cancha Brava, El Boldo...).
+      // Misma familia que el azul-slate de las calles (roadColor(), ya
+      // declarado más arriba en esta misma iteración) con un tinte muy sutil
+      // hacia el cian de marca (--turquoise-bright) — un "susurro" de ese
+      // color, no un brillo. Se comparte entre highway_name y place_village
+      // para que ambos se sientan del mismo sistema visual.
+      const MAP_REFERENCE_TEXT_COLOR = blendHex(roadColor(0.3), '#5FE1E8', 0.14);
+
+      // Nombres de calles — más discretos y solo desde un zoom cercano, para que
       // nunca compitan con los POIs (que recién aparecen a ese mismo nivel).
       if (l.type === 'symbol' && l.id.indexOf('highway_name') === 0){
-        map.setPaintProperty(l.id, 'text-opacity', 0.4);
+        map.setPaintProperty(l.id, 'text-opacity', 0.46);
+        map.setPaintProperty(l.id, 'text-color', MAP_REFERENCE_TEXT_COLOR);
         map.setPaintProperty(l.id, 'text-halo-color', 'rgba(11,23,38,0.8)');
         map.setPaintProperty(l.id, 'text-halo-width', 0.8);
-        map.setLayoutProperty(l.id, 'text-size', 9);
+        map.setLayoutProperty(l.id, 'text-size', 9.5);
         map.setLayerZoomRange(l.id, 13, 24);
       }
-
      // Nombres geográficos del estilo base (ciudades, pueblos, aldeas...): no se
       // ocultan por completo, se recuperan como contexto cartográfico — pero con
       // densidad controlada y SIN aspecto de POI (nada de halo pesado, tamaño
@@ -2761,16 +2770,22 @@ function tintMapLayers(){
       // 2) Aldeas/caseríos/barrios — no aportan nada en la vista general (saturarían
       //    el mapa), así que empiezan invisibles y solo aparecen, muy tenues, al
       //    acercarse más allá de donde ya se ven las localidades propias.
-              if (l.type === 'symbol' && /^place_(village|hamlet|suburb|neighbourhood|locality|isolated_dwelling)/.test(l.id)){
+                            if (l.type === 'symbol' && /^place_(village|hamlet|suburb|neighbourhood|locality|isolated_dwelling)/.test(l.id)){
+        // Antes gris neutro genérico (#384658) casi invisible (opacidad
+        // máxima 0.09) — desconectado del resto del sistema visual. Ahora
+        // usa el mismo color compartido que highway_name (MAP_REFERENCE_TEXT_COLOR)
+        // y una opacidad/tamaño más presentes, pero siguen muy por debajo de
+        // las etiquetas de POI/localidad curada — información de referencia,
+        // no protagonista.
         map.setPaintProperty(l.id, 'text-opacity', [
           'interpolate', ['linear'], ['zoom'],
           10.5, 0,
-          13, 0.09,
+          13, 0.2,
         ]);
-        map.setPaintProperty(l.id, 'text-color', '#384658');
+        map.setPaintProperty(l.id, 'text-color', MAP_REFERENCE_TEXT_COLOR);
         map.setPaintProperty(l.id, 'text-halo-color', 'rgba(11,23,38,0.6)');
         map.setPaintProperty(l.id, 'text-halo-width', 0.9);
-        map.setLayoutProperty(l.id, 'text-size', 8.5);
+        map.setLayoutProperty(l.id, 'text-size', 9.2);
       }
       // Íconos/etiquetas de POI genéricos de OpenStreetMap (comercios, servicios
       // sin curar) — el mapa debe sentirse como el escenario de las experiencias
