@@ -2730,14 +2730,22 @@ function tintMapLayers(){
         map.setPaintProperty(l.id, 'line-opacity', 0.34);
         map.setPaintProperty(l.id, 'line-width', ['interpolate', ['linear'], ['zoom'], 10, 0.6, 13, 1.0, 16, 1.5, 18, 1.9]);
       }
-         // Color compartido para "información de referencia" del mapa base —
+             // Color compartido para "información de referencia" del mapa base —
       // nombres de calle y localidades sin curar (Cancha Brava, El Boldo...).
       // Misma familia que el azul-slate de las calles (roadColor(), ya
-      // declarado más arriba en esta misma iteración) con un tinte muy sutil
-      // hacia el cian de marca (--turquoise-bright) — un "susurro" de ese
-      // color, no un brillo. Se comparte entre highway_name y place_village
-      // para que ambos se sientan del mismo sistema visual.
-      const MAP_REFERENCE_TEXT_COLOR = blendHex(roadColor(0.3), '#5FE1E8', 0.14);
+      // declarado más arriba en esta misma iteración), ahora con un tinte
+      // mucho más notorio hacia el cian de marca (antes 0.14, casi
+      // imperceptible — subido a 0.38 para que el tinte turquesa realmente se
+      // lea como parte del sistema de color de la app). Se comparte entre
+      // highway_name y place_village para que ambos se sientan del mismo
+      // sistema visual.
+      const MAP_REFERENCE_TEXT_COLOR = blendHex(roadColor(0.3), '#5FE1E8', 0.38);
+      // PRUEBA: variante Bold del stack de fuente que ya usa el mapa. Riesgo
+      // conocido — si el servidor de glyphs de OpenFreemap no tiene esa
+      // variante, el texto de estas dos capas desaparece por completo. Si eso
+      // pasa (o si se siente que compite demasiado con las etiquetas de POI),
+      // reemplazar esta línea por getStyleTextFont() y no tocar nada más.
+           const MAP_REFERENCE_TEXT_FONT = getStyleTextFont();
 
       // Nombres de calles — más discretos y solo desde un zoom cercano, para que
       // nunca compitan con los POIs (que recién aparecen a ese mismo nivel).
@@ -2747,6 +2755,7 @@ function tintMapLayers(){
         map.setPaintProperty(l.id, 'text-halo-color', 'rgba(11,23,38,0.8)');
         map.setPaintProperty(l.id, 'text-halo-width', 0.8);
         map.setLayoutProperty(l.id, 'text-size', 9.5);
+        map.setLayoutProperty(l.id, 'text-font', MAP_REFERENCE_TEXT_FONT);
         map.setLayerZoomRange(l.id, 13, 24);
       }
      // Nombres geográficos del estilo base (ciudades, pueblos, aldeas...): no se
@@ -2770,22 +2779,24 @@ function tintMapLayers(){
       // 2) Aldeas/caseríos/barrios — no aportan nada en la vista general (saturarían
       //    el mapa), así que empiezan invisibles y solo aparecen, muy tenues, al
       //    acercarse más allá de donde ya se ven las localidades propias.
-                            if (l.type === 'symbol' && /^place_(village|hamlet|suburb|neighbourhood|locality|isolated_dwelling)/.test(l.id)){
-        // Antes gris neutro genérico (#384658) casi invisible (opacidad
-        // máxima 0.09) — desconectado del resto del sistema visual. Ahora
-        // usa el mismo color compartido que highway_name (MAP_REFERENCE_TEXT_COLOR)
-        // y una opacidad/tamaño más presentes, pero siguen muy por debajo de
-        // las etiquetas de POI/localidad curada — información de referencia,
-        // no protagonista.
+                                         if (l.type === 'symbol' && /^place_(village|hamlet|suburb|neighbourhood|locality|isolated_dwelling)/.test(l.id)){
+        // Antes se quedaba plano en 0.2 desde zoom 13 en adelante — subido a
+        // un máximo de 0.48, con un stop intermedio en zoom 16 para que siga
+        // ganando presencia al acercarse, en vez de estancarse. Sigue por
+        // debajo de las etiquetas de POI/localidad curada (esas usan opacidad
+        // 1 vía text-opacity 'step'), pero ahora sí debería notarse como
+        // cambio real, no como el gris genérico de antes.
         map.setPaintProperty(l.id, 'text-opacity', [
           'interpolate', ['linear'], ['zoom'],
           10.5, 0,
-          13, 0.2,
+          13, 0.3,
+          16, 0.48,
         ]);
         map.setPaintProperty(l.id, 'text-color', MAP_REFERENCE_TEXT_COLOR);
         map.setPaintProperty(l.id, 'text-halo-color', 'rgba(11,23,38,0.6)');
         map.setPaintProperty(l.id, 'text-halo-width', 0.9);
         map.setLayoutProperty(l.id, 'text-size', 9.2);
+        map.setLayoutProperty(l.id, 'text-font', MAP_REFERENCE_TEXT_FONT);
       }
       // Íconos/etiquetas de POI genéricos de OpenStreetMap (comercios, servicios
       // sin curar) — el mapa debe sentirse como el escenario de las experiencias
