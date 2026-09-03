@@ -2766,10 +2766,15 @@ function tintMapLayers(){
       // 1) Ciudades/pueblos/capitales — visibles desde bien alejado (ej. Combarbalá),
       //    siempre discretos, apenas un poco más nítidos al acercarse.
       if (l.type === 'symbol' && /^place_(city|town|state|country)/.test(l.id)){
-        map.setPaintProperty(l.id, 'text-opacity', [
+                map.setPaintProperty(l.id, 'text-opacity', [
           'interpolate', ['linear'], ['zoom'],
-          7, 0.30,
-          11, 0.5,
+          10.5, 0,
+          // Tope subido ~20% (0.48 → 0.58) — con el fix de place_other las
+          // etiquetas ya aparecían, pero quedaban casi perdidas contra el
+          // fondo. El stop intermedio (13) sube proporcionalmente para
+          // mantener la misma curva de progresión.
+          13, 0.36,
+          16, 0.58,
         ]);
         map.setPaintProperty(l.id, 'text-color', '#6C8AA3');
         map.setPaintProperty(l.id, 'text-halo-color', 'rgba(11,23,38,0.65)');
