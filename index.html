@@ -2779,7 +2779,16 @@ function tintMapLayers(){
       // 2) Aldeas/caseríos/barrios — no aportan nada en la vista general (saturarían
       //    el mapa), así que empiezan invisibles y solo aparecen, muy tenues, al
       //    acercarse más allá de donde ya se ven las localidades propias.
-                                         if (l.type === 'symbol' && /^place_(village|hamlet|suburb|neighbourhood|locality|isolated_dwelling)/.test(l.id)){
+                                                       // "place_other" es el id real (no "place_hamlet"/"place_neighbourhood"/
+        // etc.) que usa este estilo para agrupar hamlet+isolated_dwelling+
+        // neighbourhood en una sola capa — el regex anterior probaba contra
+        // el id de la capa, no contra la propiedad `class` de cada feature,
+        // así que nunca hacía match con "place_other" y esas etiquetas
+        // (El Boldo, Villa El Faro, Cancha Brava, El Queñe Norte — todas caen
+        // ahí) quedaban completamente fuera de este bloque. "locality" se
+        // retira del regex: no existe ninguna capa con esa clase en este
+        // estilo, era una condición sin efecto.
+        if (l.type === 'symbol' && (l.id === 'place_other' || /^place_(village|suburb)/.test(l.id))){
         // Antes se quedaba plano en 0.2 desde zoom 13 en adelante — subido a
         // un máximo de 0.48, con un stop intermedio en zoom 16 para que siga
         // ganando presencia al acercarse, en vez de estancarse. Sigue por
