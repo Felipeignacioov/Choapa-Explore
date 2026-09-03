@@ -599,28 +599,31 @@ img{-webkit-user-drag:none; user-select:none;}
 /* Mismo espacio/rol que .sheet-pill (misma posición bottom), pero un panel
    compacto con muestra de experiencias en vez de solo un texto+chevron.
    Mismo lenguaje visual que el resto de la app: superficie con blur, borde
-   sutil, radius-l, shadow-modal — nada nuevo inventado. */
+   sutil, radius-l, shadow-modal — nada nuevo inventado.
+   Dimensiones compactadas (~19% menos de altura total) tras el primer feedback
+   visual: mismo título, mismas 3 tarjetas, mismo botón — solo más chicos en
+   conjunto, para que el mapa recupere protagonismo detrás del panel. */
 .comuna-panel{
   position:absolute; left:16px; right:16px; z-index:19;
   bottom:calc(var(--nav-footprint) + var(--pill-gap));
   background:rgba(16,36,56,0.82); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
   border:1px solid var(--border-glass); box-shadow:var(--shadow-modal);
   border-radius:var(--radius-l);
-  padding:14px 0 16px;
+  padding:10px 0 12px;
   transition:opacity .24s ease, transform .24s cubic-bezier(.2,.9,.28,1.1);
 }
 .comuna-panel.hidden{opacity:0; transform:translateY(10px) scale(0.97); pointer-events:none;}
 .comuna-panel-header{
   display:flex; align-items:center; justify-content:space-between; gap:10px;
-  padding:0 16px 12px;
+  padding:0 14px 8px;
 }
 .comuna-panel-title{
-  font-family:var(--font-display); font-size:15px; font-weight:700; color:var(--text-primary);
+  font-family:var(--font-display); font-size:13.5px; font-weight:700; color:var(--text-primary);
   display:flex; align-items:center; gap:6px;
 }
-.comuna-panel-title svg{color:var(--turquoise-bright); flex-shrink:0;}
+.comuna-panel-title svg{color:var(--turquoise-bright); flex-shrink:0; width:14px; height:14px;}
 .comuna-panel-close{
-  width:26px; height:26px; border-radius:50%; flex-shrink:0;
+  width:24px; height:24px; border-radius:50%; flex-shrink:0;
   background:rgba(255,255,255,0.06); border:1px solid var(--border-glass);
   display:flex; align-items:center; justify-content:center; color:var(--text-secondary);
   transition:transform .16s cubic-bezier(.34,1.56,.64,1);
@@ -628,43 +631,43 @@ img{-webkit-user-drag:none; user-select:none;}
 .comuna-panel-close:active{transform:scale(0.88);}
 
 .comuna-panel-rail{
-  display:flex; gap:10px; overflow-x:auto; scrollbar-width:none;
-  padding:0 16px;
+  display:flex; gap:9px; overflow-x:auto; scrollbar-width:none;
+  padding:0 14px;
 }
 .comuna-panel-rail::-webkit-scrollbar{display:none;}
 .comuna-mini-card{
-  flex-shrink:0; width:132px; border-radius:var(--radius-m); overflow:hidden;
+  flex-shrink:0; width:118px; border-radius:var(--radius-m); overflow:hidden;
   background:var(--surface); border:1px solid var(--border-glass);
   box-shadow:var(--shadow-card);
   transition:transform .16s cubic-bezier(.34,1.56,.64,1);
 }
 .comuna-mini-card:active{transform:scale(0.96);}
 .comuna-mini-card .cmc-photo{
-  position:relative; height:78px; width:100%;
+  position:relative; height:56px; width:100%;
   background:var(--surface-elevated) center/cover no-repeat;
 }
 .comuna-mini-card .cmc-photo::after{
   content:''; position:absolute; inset:0;
   background:linear-gradient(to bottom, rgba(7,19,31,0) 55%, rgba(7,19,31,0.55) 100%);
 }
-.comuna-mini-card .cmc-info{padding:8px 10px 10px;}
+.comuna-mini-card .cmc-info{padding:6px 9px 8px;}
 .comuna-mini-card .cmc-name{
-  font-size:12px; font-weight:700; color:var(--text-primary);
-  line-height:1.25; margin-bottom:4px;
+  font-size:11px; font-weight:700; color:var(--text-primary);
+  line-height:1.2; margin-bottom:3px;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 .comuna-mini-card .cmc-tag{
   display:inline-flex; align-items:center; gap:4px;
-  font-size:9.5px; font-weight:600;
+  font-size:9px; font-weight:600;
 }
 .comuna-mini-card .cmc-tag .dot{width:4px; height:4px; border-radius:50%; background:currentColor;}
 
 .comuna-panel-more{
-  width:calc(100% - 32px); margin:12px 16px 0;
+  width:calc(100% - 28px); margin:9px 14px 0;
   display:flex; align-items:center; justify-content:center; gap:6px;
-  padding:10px; border-radius:var(--radius-m);
+  padding:8px; border-radius:var(--radius-m);
   background:rgba(255,255,255,0.05); border:1px solid var(--border-glass);
-  color:var(--turquoise-bright); font-size:12.5px; font-weight:700;
+  color:var(--turquoise-bright); font-size:11.5px; font-weight:700;
   transition:transform .16s cubic-bezier(.34,1.56,.64,1), background .16s ease;
 }
 .comuna-panel-more:active{transform:scale(0.98); background:rgba(255,255,255,0.08);}
