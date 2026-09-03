@@ -5836,6 +5836,10 @@ function setActiveExperience(id){
   searchInput.placeholder = SEARCH_PLACEHOLDERS[id] || SEARCH_PLACEHOLDERS.todos;
   renderPOIs();
   renderPlacesRail();
+  // Fase 4 — si ya hay una comuna seleccionada, el panel "En [Comuna]" debe
+  // reflejar el nuevo filtro de inmediato, no recién la próxima vez que se
+  // vuelva a entrar a esa comuna.
+  if (state.currentLocality) renderComunaPanelRail(state.currentLocality);
   // si el lugar seleccionado ya no pertenece a esta experiencia, cerramos su panel
    if (state.selectedPlace && id !== 'todos' && !state.selectedPlace.experiences.includes(id)){
     document.getElementById('poiDetail').classList.remove('visible');
@@ -6351,6 +6355,15 @@ comunaPanelPill.addEventListener('click', expandComunaPanel);
 // categoría) — nunca se deja un cupo vacío solo por falta de diversidad.
 function curateComunaPanelPlaces(locality){
   const places = placesInLocality(locality);
+
+  // Fase 4 — con un chip de categoría activo, la variedad de la Fase 3 ya no
+  // aplica (las 3 serían de la misma categoría de todas formas): se filtra
+  // directo por comuna+categoría y se muestran hasta 3, sin rellenar con
+  // lugares que no cumplan el filtro si hay menos de 3 disponibles.
+  if (state.activeExperience !== 'todos'){
+    return places.filter(p => p.experiences.includes(state.activeExperience)).slice(0, 3);
+  }
+
   const usedCategories = new Set();
   const picks = [];
 
