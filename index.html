@@ -6342,9 +6342,40 @@ comunaPanelPill.addEventListener('click', expandComunaPanel);
 /* ---------- PANEL "EN [COMUNA]" — Fase 2: conexión real ----------
    Datos aún simples (primeros 3 lugares de la comuna) — la selección por
    variedad de categoría es la Fase 3, no se adelanta acá. */
+// Selección por variedad: hasta 3 lugares de categorías distintas entre sí
+// (misma fuente de verdad que ya usa el ícono/color en el mapa —
+// primaryExperienceTag(), no CATEGORIES). Primera pasada: un lugar por cada
+// categoría nueva que aparece, en el orden de placesInLocality(). Si la comuna
+// no tiene 3 categorías distintas disponibles, una segunda pasada completa los
+// cupos restantes con cualquier otro lugar no elegido aún (puede repetir
+// categoría) — nunca se deja un cupo vacío solo por falta de diversidad.
+function curateComunaPanelPlaces(locality){
+  const places = placesInLocality(locality);
+  const usedCategories = new Set();
+  const picks = [];
+
+  places.forEach(place => {
+    if (picks.length >= 3) return;
+    const tag = primaryExperienceTag(place);
+    if (!usedCategories.has(tag.id)){
+      usedCategories.add(tag.id);
+      picks.push(place);
+    }
+  });
+
+  if (picks.length < 3){
+    places.forEach(place => {
+      if (picks.length >= 3) return;
+      if (!picks.includes(place)) picks.push(place);
+    });
+  }
+
+  return picks;
+}
+
 function renderComunaPanelRail(locality){
   const rail = document.getElementById('comunaPanelRail');
-  const places = placesInLocality(locality).slice(0, 3);
+  const places = curateComunaPanelPlaces(locality);
   rail.innerHTML = places.map(place => {
     const tag = primaryExperienceTag(place);
     const color = getComputedStyle(document.documentElement).getPropertyValue(tag.color.replace('var(','').replace(')','')).trim();
