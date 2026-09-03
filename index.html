@@ -2684,19 +2684,26 @@ function tintMapLayers(){
         map.setPaintProperty(l.id, 'line-opacity', 0.58);
         map.setPaintProperty(l.id, 'line-width', ROAD_WIDTH_BY_CLASS);
       }
-      if (l.type === 'line' && l.id === 'highway_major_casing'){
-        // Casing = borde oscuro detrás del inner, un poco más ancho — antes
-        // tenía EXACTAMENTE el mismo grosor/color que el inner, por eso
-        // quedaba invisible y la calle se veía plana, sin relieve.
-        map.setPaintProperty(l.id, 'line-color', roadColor(0.6));
-        map.setPaintProperty(l.id, 'line-opacity', 0.4);
+           if (l.type === 'line' && l.id === 'highway_major_casing'){
+        // Casing = borde detrás del inner. Antes la diferencia con el inner
+        // era casi solo de ancho (roadColor(0.6) vs roadColor(0.05), con
+        // opacidad baja en ambos) — el ojo lo leía como "línea borrosa de
+        // doble grosor", no como un borde definido. Ahora el color se acerca
+        // mucho más al navy de fondo (0.8, contra el 0.05 del inner: ~4x más
+        // mezcla) y la opacidad sube un poco — el contraste, no el ancho, es
+        // lo que ahora comunica "esto tiene relieve".
+        map.setPaintProperty(l.id, 'line-color', roadColor(0.8));
+        map.setPaintProperty(l.id, 'line-opacity', 0.5);
         map.setPaintProperty(l.id, 'line-width', ['+', ROAD_WIDTH_BY_CLASS, 1.1]);
       }
       if (l.type === 'line' && l.id === 'highway_major_subtle'){
-        // Solo visible en zoom 6-11 (antes de que existan casing/inner) — a
-        // ese nivel de zoom distinguir clase no aporta, se mantiene un tono.
-        map.setPaintProperty(l.id, 'line-color', roadColor(0.15));
-        map.setPaintProperty(l.id, 'line-opacity', 0.4);
+        // Único tramo visible en la vista de comunas (zoom 6-11, antes de que
+        // existan casing/inner) — antes casi se perdía contra el fondo. Más
+        // clara y más opaca para que la ruta que conecta las comunas se
+        // perciba con claridad a nivel regional, sin llegar a competir con
+        // los pines de comuna/localidad (que siguen siendo el protagonista).
+        map.setPaintProperty(l.id, 'line-color', roadColor(0.02));
+        map.setPaintProperty(l.id, 'line-opacity', 0.62);
       }
       if (l.type === 'line' && l.id === 'highway_motorway_inner'){
         // Motorway: el nivel más prominente, por encima de trunk/primary.
@@ -2705,8 +2712,10 @@ function tintMapLayers(){
         map.setPaintProperty(l.id, 'line-width', ['interpolate', ['linear'], ['zoom'], 6, 1.6, 12, 3.6, 16, 7.4, 20, 11]);
       }
       if (l.type === 'line' && l.id === 'highway_motorway_casing'){
-        map.setPaintProperty(l.id, 'line-color', roadColor(0.5));
-        map.setPaintProperty(l.id, 'line-opacity', 0.48);
+        // Mismo criterio que highway_major_casing: contraste de color, no
+        // solo de ancho.
+        map.setPaintProperty(l.id, 'line-color', roadColor(0.75));
+        map.setPaintProperty(l.id, 'line-opacity', 0.55);
         map.setPaintProperty(l.id, 'line-width', ['interpolate', ['linear'], ['zoom'], 6, 2.6, 12, 4.8, 16, 9.0, 20, 13]);
       }
       if (l.type === 'line' && l.id === 'highway_motorway_subtle'){
