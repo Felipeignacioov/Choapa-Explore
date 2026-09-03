@@ -102,9 +102,14 @@ img{-webkit-user-drag:none; user-select:none;}
   position:absolute; inset:0; pointer-events:none; z-index:1;
   background:
     linear-gradient(to bottom, rgba(7,19,31,0.82) 0%, rgba(7,19,31,0.0) 18%, rgba(7,19,31,0.0) 68%, rgba(7,19,31,0.7) 100%),
-    radial-gradient(ellipse at center, rgba(7,19,31,0) 58%, rgba(7,19,31,0.32) 100%);
+    /* Viñeteado de esquinas — ya existía pero era casi imperceptible (radio de
+       inicio muy pegado al borde, opacidad máxima muy baja). Arrancado antes
+       (52% en vez de 58%) y con más presencia en el borde (0.4 en vez de
+       0.32) para que el centro (donde están los POIs) quede como foco natural
+       sin que se note como un filtro obvio — sigue siendo transparente en
+       más de la mitad central de la pantalla. */
+    radial-gradient(ellipse at center, rgba(7,19,31,0) 52%, rgba(7,19,31,0.4) 100%);
 }
-
 /* ---------------- HEADER ---------------- */
 .top-ui{
   position:absolute; top:0; left:0; right:0; z-index:10;
