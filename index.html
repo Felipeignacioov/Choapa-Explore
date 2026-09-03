@@ -700,12 +700,6 @@ img{-webkit-user-drag:none; user-select:none;}
 
 @media (min-width:640px){ .comuna-panel{max-width:608px; left:50%; transform:translateX(-50%);} .comuna-panel.hidden{transform:translateX(-50%) translateY(10px) scale(0.97);} }
 
-/* FASE 1 — TEMPORAL, solo para revisar el panel nuevo en el navegador.
-   Se retira en la Fase 2, cuando enterLocality/exitLocality controlen de
-   verdad cuál de los dos paneles se muestra (nunca ambos a la vez). No toca
-   ninguna propiedad de .sheet-pill en sí — solo la oculta de forma temporal. */
-#sheetPill{ display:none !important; }
-
 .sheet-handle-area{padding:10px 0 4px; display:flex; justify-content:center; flex-shrink:0; cursor:grab;}
 .sheet-handle{
   width:46px; height:4px; border-radius:var(--radius-pill);
@@ -1866,7 +1860,7 @@ img{-webkit-user-drag:none; user-select:none;}
 
   <!-- PANEL "EN [COMUNA]" — Fase 1: estructura estática, datos de prueba.
        Aún no conectado a enterLocality/exitLocality (llega en la Fase 2). -->
-  <div class="comuna-panel" id="comunaPanel">
+    <div class="comuna-panel hidden" id="comunaPanel">
     <div class="comuna-panel-header">
       <div class="comuna-panel-title">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12Z"/><circle cx="12" cy="9" r="2.4"/></svg>
@@ -4243,6 +4237,7 @@ function enterLocality(locality, { fly }){
   updateZonePrompt();
   updateSheetHero();
   updateLosVilosReflection();
+  showComunaPanel(locality); // Fase 2 — reemplaza a #sheetPill mientras haya comuna seleccionada
   const hasSublocalities = (SUBLOCALITIES[locality.id] || []).length > 0;
   if (fly){
     // Con Nivel 2 cargado: nos quedamos a media distancia para ver la zona de
@@ -4270,6 +4265,7 @@ function exitLocality({ fly }){
   updateZonePrompt();
   updateSheetHero();
   updateLosVilosReflection();
+  hideComunaPanel(); // Fase 2 — devuelve #sheetPill a su comportamiento normal
   clearSublocalityMarkers();
   if (fly){
     // Mismo padding EXACTO que fitBoundsOptions en la inicialización del mapa
@@ -6342,6 +6338,41 @@ function expandComunaPanel(){
 }
 document.getElementById('comunaPanelClose').addEventListener('click', minimizeComunaPanel);
 comunaPanelPill.addEventListener('click', expandComunaPanel);
+
+/* ---------- PANEL "EN [COMUNA]" — Fase 2: conexión real ----------
+   Datos aún simples (primeros 3 lugares de la comuna) — la selección por
+   variedad de categoría es la Fase 3, no se adelanta acá. */
+function renderComunaPanelRail(locality){
+  const rail = document.getElementById('comunaPanelRail');
+  const places = placesInLocality(locality).slice(0, 3);
+  rail.innerHTML = places.map(place => {
+    const tag = primaryExperienceTag(place);
+    const color = getComputedStyle(document.documentElement).getPropertyValue(tag.color.replace('var(','').replace(')','')).trim();
+    return `
+      <div class="comuna-mini-card" data-place-id="${place.id}">
+        <div class="cmc-photo" style="background-image:url(${place.image})"></div>
+        <div class="cmc-info">
+          <div class="cmc-name">${place.name}</div>
+          <span class="cmc-tag" style="color:${color}"><span class="dot"></span>${tag.label}</span>
+        </div>
+      </div>`;
+  }).join('');
+  rail.querySelectorAll('.comuna-mini-card').forEach(card => {
+    card.addEventListener('click', () => selectPlaceById(card.dataset.placeId));
+  });
+}
+function showComunaPanel(locality){
+  document.getElementById('comunaPanelTitle').textContent = `En ${locality.name}`;
+  renderComunaPanelRail(locality);
+  expandComunaPanel(); // siempre arranca expandido al entrar a una comuna nueva
+  comunaPanel.classList.remove('hidden');
+  sheetPill.classList.add('hidden');
+}
+function hideComunaPanel(){
+  comunaPanel.classList.add('hidden');
+  comunaPanelPill.classList.add('hidden');
+  syncSheetPillVisibility(); // restaura la píldora normal según el estado real del sheet
+}
 
 // Tocar el botón del mapa, o tocar el mapa mismo (la franja visible arriba de la
 // sheet), cierra la sheet abierta/expandida — la misma intención en ambos casos:
