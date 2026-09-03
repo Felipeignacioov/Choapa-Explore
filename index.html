@@ -672,6 +672,32 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 .comuna-panel-more:active{transform:scale(0.98); background:rgba(255,255,255,0.08);}
 
+/* Píldora minimizada del panel "En [Comuna]" — mismo lenguaje visual que
+   .sheet-pill (misma superficie/blur/radius/shadow), pero es un elemento
+   propio e independiente: nunca comparte estado ni lógica con #sheetPill,
+   que sigue siendo exclusivo del escenario sin comuna seleccionada. */
+.comuna-panel-pill{
+  position:absolute; left:16px; right:16px; z-index:19;
+  bottom:calc(var(--nav-footprint) + var(--pill-gap));
+  height:var(--pill-height);
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:0 18px;
+  background:rgba(16,36,56,0.74); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  border:1px solid var(--border-glass); box-shadow:var(--shadow-float);
+  border-radius:var(--radius-pill);
+  transition:opacity .24s ease, transform .24s cubic-bezier(.2,.9,.28,1.1);
+}
+.comuna-panel-pill.hidden{opacity:0; transform:translateY(10px) scale(0.97); pointer-events:none;}
+.comuna-panel-pill:active{transform:scale(0.97);}
+.comuna-panel-pill .pill-text{
+  display:flex; align-items:center; gap:8px;
+  font-family:var(--font-display); font-size:13.5px; font-weight:700; color:var(--text-primary);
+}
+.comuna-panel-pill .pill-text svg{color:var(--turquoise-bright); flex-shrink:0;}
+.comuna-panel-pill .pill-chevron{color:var(--turquoise-bright); flex-shrink:0;}
+
+@media (min-width:640px){ .comuna-panel-pill{max-width:608px; left:50%; transform:translateX(-50%);} .comuna-panel-pill.hidden{transform:translateX(-50%) translateY(10px) scale(0.97);} }
+
 @media (min-width:640px){ .comuna-panel{max-width:608px; left:50%; transform:translateX(-50%);} .comuna-panel.hidden{transform:translateX(-50%) translateY(10px) scale(0.97);} }
 
 /* FASE 1 — TEMPORAL, solo para revisar el panel nuevo en el navegador.
@@ -1846,8 +1872,8 @@ img{-webkit-user-drag:none; user-select:none;}
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12Z"/><circle cx="12" cy="9" r="2.4"/></svg>
         <span id="comunaPanelTitle">En Salamanca</span>
       </div>
-      <button class="comuna-panel-close" id="comunaPanelClose" aria-label="Cerrar">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <button class="comuna-panel-close" id="comunaPanelClose" aria-label="Minimizar">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
       </button>
     </div>
     <div class="comuna-panel-rail" id="comunaPanelRail">
@@ -1873,11 +1899,22 @@ img{-webkit-user-drag:none; user-select:none;}
         </div>
       </div>
     </div>
-    <button class="comuna-panel-more" id="comunaPanelMore">
+        <button class="comuna-panel-more" id="comunaPanelMore">
       Ver más experiencias
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="m9 18 6-6-6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
   </div>
+
+  <!-- Píldora minimizada del panel "En [Comuna]" — estado colapsado,
+       independiente de #sheetPill. Oculta por defecto (misma clase .hidden
+       que ya usa .sheet-pill); el JS alterna cuál de los dos se muestra. -->
+  <button class="comuna-panel-pill hidden" id="comunaPanelPill">
+    <span class="pill-text">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12Z"/><circle cx="12" cy="9" r="2.4"/></svg>
+      <span id="comunaPanelPillTitle">En Salamanca</span>
+    </span>
+    <svg class="pill-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="m6 15 6-6 6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
 
   <!-- BOTTOM SHEET -->
   <div class="sheet collapsed" id="sheet">
@@ -6283,6 +6320,28 @@ renderExploreMoreRail();
 renderCollectionsRail();
 renderClosingFeature();
 sheetPill.addEventListener('click', expandSheet);
+
+/* ---------- PANEL "EN [COMUNA]" — minimizar/expandir (Fase 1, ajuste) ----------
+   Independiente de sheetPill/sheet: alterna únicamente entre .comuna-panel
+   (expandido) y .comuna-panel-pill (colapsado) — nunca toca la lógica de
+   #sheetPill/#sheet, que sigue siendo exclusiva del escenario sin comuna. */
+const comunaPanel = document.getElementById('comunaPanel');
+const comunaPanelPill = document.getElementById('comunaPanelPill');
+function minimizeComunaPanel(){
+  comunaPanel.classList.add('hidden');
+  // El título de la píldora hereda el texto que ya esté puesto en el panel
+  // expandido (ej. "En Salamanca") — así nunca puede desincronizarse, sin
+  // depender de qué función haya sido la última en fijarlo.
+  document.getElementById('comunaPanelPillTitle').textContent =
+    document.getElementById('comunaPanelTitle').textContent;
+  comunaPanelPill.classList.remove('hidden');
+}
+function expandComunaPanel(){
+  comunaPanelPill.classList.add('hidden');
+  comunaPanel.classList.remove('hidden');
+}
+document.getElementById('comunaPanelClose').addEventListener('click', minimizeComunaPanel);
+comunaPanelPill.addEventListener('click', expandComunaPanel);
 
 // Tocar el botón del mapa, o tocar el mapa mismo (la franja visible arriba de la
 // sheet), cierra la sheet abierta/expandida — la misma intención en ambos casos:
