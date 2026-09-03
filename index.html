@@ -595,6 +595,88 @@ img{-webkit-user-drag:none; user-select:none;}
 
 @media (min-width:640px){ .sheet-pill{max-width:608px; left:50%; transform:translateX(-50%);} .sheet-pill.hidden{transform:translateX(-50%) translateY(10px) scale(0.97);} }
 
+/* ---------------- PANEL "EN [COMUNA]" — Fase 1 ---------------- */
+/* Mismo espacio/rol que .sheet-pill (misma posición bottom), pero un panel
+   compacto con muestra de experiencias en vez de solo un texto+chevron.
+   Mismo lenguaje visual que el resto de la app: superficie con blur, borde
+   sutil, radius-l, shadow-modal — nada nuevo inventado. */
+.comuna-panel{
+  position:absolute; left:16px; right:16px; z-index:19;
+  bottom:calc(var(--nav-footprint) + var(--pill-gap));
+  background:rgba(16,36,56,0.82); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  border:1px solid var(--border-glass); box-shadow:var(--shadow-modal);
+  border-radius:var(--radius-l);
+  padding:14px 0 16px;
+  transition:opacity .24s ease, transform .24s cubic-bezier(.2,.9,.28,1.1);
+}
+.comuna-panel.hidden{opacity:0; transform:translateY(10px) scale(0.97); pointer-events:none;}
+.comuna-panel-header{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:0 16px 12px;
+}
+.comuna-panel-title{
+  font-family:var(--font-display); font-size:15px; font-weight:700; color:var(--text-primary);
+  display:flex; align-items:center; gap:6px;
+}
+.comuna-panel-title svg{color:var(--turquoise-bright); flex-shrink:0;}
+.comuna-panel-close{
+  width:26px; height:26px; border-radius:50%; flex-shrink:0;
+  background:rgba(255,255,255,0.06); border:1px solid var(--border-glass);
+  display:flex; align-items:center; justify-content:center; color:var(--text-secondary);
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1);
+}
+.comuna-panel-close:active{transform:scale(0.88);}
+
+.comuna-panel-rail{
+  display:flex; gap:10px; overflow-x:auto; scrollbar-width:none;
+  padding:0 16px;
+}
+.comuna-panel-rail::-webkit-scrollbar{display:none;}
+.comuna-mini-card{
+  flex-shrink:0; width:132px; border-radius:var(--radius-m); overflow:hidden;
+  background:var(--surface); border:1px solid var(--border-glass);
+  box-shadow:var(--shadow-card);
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1);
+}
+.comuna-mini-card:active{transform:scale(0.96);}
+.comuna-mini-card .cmc-photo{
+  position:relative; height:78px; width:100%;
+  background:var(--surface-elevated) center/cover no-repeat;
+}
+.comuna-mini-card .cmc-photo::after{
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(to bottom, rgba(7,19,31,0) 55%, rgba(7,19,31,0.55) 100%);
+}
+.comuna-mini-card .cmc-info{padding:8px 10px 10px;}
+.comuna-mini-card .cmc-name{
+  font-size:12px; font-weight:700; color:var(--text-primary);
+  line-height:1.25; margin-bottom:4px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.comuna-mini-card .cmc-tag{
+  display:inline-flex; align-items:center; gap:4px;
+  font-size:9.5px; font-weight:600;
+}
+.comuna-mini-card .cmc-tag .dot{width:4px; height:4px; border-radius:50%; background:currentColor;}
+
+.comuna-panel-more{
+  width:calc(100% - 32px); margin:12px 16px 0;
+  display:flex; align-items:center; justify-content:center; gap:6px;
+  padding:10px; border-radius:var(--radius-m);
+  background:rgba(255,255,255,0.05); border:1px solid var(--border-glass);
+  color:var(--turquoise-bright); font-size:12.5px; font-weight:700;
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1), background .16s ease;
+}
+.comuna-panel-more:active{transform:scale(0.98); background:rgba(255,255,255,0.08);}
+
+@media (min-width:640px){ .comuna-panel{max-width:608px; left:50%; transform:translateX(-50%);} .comuna-panel.hidden{transform:translateX(-50%) translateY(10px) scale(0.97);} }
+
+/* FASE 1 — TEMPORAL, solo para revisar el panel nuevo en el navegador.
+   Se retira en la Fase 2, cuando enterLocality/exitLocality controlen de
+   verdad cuál de los dos paneles se muestra (nunca ambos a la vez). No toca
+   ninguna propiedad de .sheet-pill en sí — solo la oculta de forma temporal. */
+#sheetPill{ display:none !important; }
+
 .sheet-handle-area{padding:10px 0 4px; display:flex; justify-content:center; flex-shrink:0; cursor:grab;}
 .sheet-handle{
   width:46px; height:4px; border-radius:var(--radius-pill);
@@ -1747,11 +1829,52 @@ img{-webkit-user-drag:none; user-select:none;}
     </div>
   </div>
 
-  <!-- PÍLDORA "¿QUÉ HACER HOY?" — estado por defecto -->
+    <!-- PÍLDORA "¿QUÉ HACER HOY?" — estado por defecto -->
   <button class="sheet-pill" id="sheetPill">
     <span class="pill-text"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="none"><path d="M12 2.5c.7 4 2.4 6.9 5.9 9.5-3.5 2.6-5.2 5.5-5.9 9.5-.7-4-2.4-6.9-5.9-9.5 3.5-2.6 5.2-5.5 5.9-9.5Z" fill="var(--turquoise-bright)"/></svg> ¿Qué hacer hoy en el Choapa?</span>
     <svg class="pill-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="m6 15 6-6 6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </button>
+
+  <!-- PANEL "EN [COMUNA]" — Fase 1: estructura estática, datos de prueba.
+       Aún no conectado a enterLocality/exitLocality (llega en la Fase 2). -->
+  <div class="comuna-panel" id="comunaPanel">
+    <div class="comuna-panel-header">
+      <div class="comuna-panel-title">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12Z"/><circle cx="12" cy="9" r="2.4"/></svg>
+        <span id="comunaPanelTitle">En Salamanca</span>
+      </div>
+      <button class="comuna-panel-close" id="comunaPanelClose" aria-label="Cerrar">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="comuna-panel-rail" id="comunaPanelRail">
+      <div class="comuna-mini-card">
+        <div class="cmc-photo" style="background-image:url(https://images.unsplash.com/photo-1454391304352-2bf4678b1a7a?w=300&q=60)"></div>
+        <div class="cmc-info">
+          <div class="cmc-name">Cerro Chico</div>
+          <span class="cmc-tag" style="color:#E8C24D"><span class="dot"></span>Aventura</span>
+        </div>
+      </div>
+      <div class="comuna-mini-card">
+        <div class="cmc-photo" style="background-image:url(https://images.unsplash.com/photo-1600891964092-4316c288032e?w=300&q=60)"></div>
+        <div class="cmc-info">
+          <div class="cmc-name">Mesa del Valle</div>
+          <span class="cmc-tag" style="color:#C99A52"><span class="dot"></span>Gastronomía</span>
+        </div>
+      </div>
+      <div class="comuna-mini-card">
+        <div class="cmc-photo" style="background-image:url(https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=300&q=60)"></div>
+        <div class="cmc-info">
+          <div class="cmc-name">Cielo Estrellado</div>
+          <span class="cmc-tag" style="color:#8B7CF0"><span class="dot"></span>Noche</span>
+        </div>
+      </div>
+    </div>
+    <button class="comuna-panel-more" id="comunaPanelMore">
+      Ver más experiencias
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="m9 18 6-6-6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
 
   <!-- BOTTOM SHEET -->
   <div class="sheet collapsed" id="sheet">
