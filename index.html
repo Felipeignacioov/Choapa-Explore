@@ -6389,8 +6389,15 @@ function curateComunaPanelPlaces(locality){
 function renderComunaPanelRail(locality){
   const rail = document.getElementById('comunaPanelRail');
   const places = curateComunaPanelPlaces(locality);
+  // Con un filtro activo, la etiqueta debe reflejar ESE filtro (mismo criterio
+  // que ya usa el color de los POIs en el mapa vía activeExpColor) — no la
+  // categoría propia del lugar. Sin esto, un lugar que ofrece "Cita" pero cuya
+  // categoría principal es otra (ej. "Gastronomía") pasaba el filtro
+  // correctamente pero mostraba una etiqueta distinta a la que el usuario
+  // acababa de elegir, dando la falsa impresión de que el filtro no funcionaba.
+  const filterTag = state.activeExperience !== 'todos' ? expById(state.activeExperience) : null;
   rail.innerHTML = places.map(place => {
-    const tag = primaryExperienceTag(place);
+    const tag = filterTag || primaryExperienceTag(place);
     const color = getComputedStyle(document.documentElement).getPropertyValue(tag.color.replace('var(','').replace(')','')).trim();
     return `
       <div class="comuna-mini-card" data-place-id="${place.id}">
