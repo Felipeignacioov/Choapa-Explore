@@ -2830,15 +2830,32 @@ function tintMapLayers(){
       // Paleta: azul-slate mezclado con el navy de fondo de la app
       // (blendHex, misma función que ya usa el ciclo día/noche) en vez de gris
       // neutro genérico — más afinidad con el resto del sistema de color.
-      const ROAD_BASE = '#5C7A88';
+           const ROAD_BASE = '#5C7A88';
       const roadColor = amount => blendHex(ROAD_BASE, '#0B1726', amount);
-      const ROAD_WIDTH_TRUNK     = ['interpolate', ['linear'], ['zoom'], 8, 1.7, 12, 3.0, 16, 6.0, 18, 8.2];
-      const ROAD_WIDTH_SECONDARY = ['interpolate', ['linear'], ['zoom'], 8, 1.1, 12, 1.9, 16, 3.8, 18, 5.2];
-      const ROAD_WIDTH_TERTIARY  = ['interpolate', ['linear'], ['zoom'], 8, 0.6, 12, 1.1, 16, 2.3, 18, 3.1];
-      const ROAD_WIDTH_BY_CLASS = ['match', ['get','class'],
-        ['trunk','primary'], ROAD_WIDTH_TRUNK,
-        'secondary', ROAD_WIDTH_SECONDARY,
-        ROAD_WIDTH_TERTIARY, // default — tertiary y cualquier clase no listada
+      // FIX — MapLibre exige que un ['interpolate', ..., ['zoom'], ...] sea la
+      // expresión MÁS EXTERNA (o el valor directo de un step/interpolate de
+      // nivel superior); nunca puede quedar anidado dentro de otra expresión.
+      // La versión anterior violaba esa regla dos veces: metía 3 interpolate
+      // de zoom como ramas de un ['match', ['get','class'], ...] (ya inválido
+      // por sí solo — de ahí el error también en highway_major_inner), y
+      // encima envolvía eso en ['+', ..., 1.1] para el casing (inválido de
+      // nuevo). La corrección invierte el orden: interpolate de zoom por
+      // fuera, match por clase en el VALOR de cada parada — ahí el match no
+      // contiene ningún interpolate de zoom, así que es válido. Mismos
+      // valores de grosor de siempre (los del casing = los del inner + 1.1,
+      // ya sumados a mano en cada parada, en vez de sumarlos en tiempo de
+      // evaluación) — la jerarquía por clase no cambia en nada.
+      const ROAD_WIDTH_BY_CLASS = ['interpolate', ['linear'], ['zoom'],
+        8,  ['match', ['get','class'], ['trunk','primary'], 1.7, 'secondary', 1.1, 0.6],
+        12, ['match', ['get','class'], ['trunk','primary'], 3.0, 'secondary', 1.9, 1.1],
+        16, ['match', ['get','class'], ['trunk','primary'], 6.0, 'secondary', 3.8, 2.3],
+        18, ['match', ['get','class'], ['trunk','primary'], 8.2, 'secondary', 5.2, 3.1],
+      ];
+      const ROAD_WIDTH_BY_CLASS_CASING = ['interpolate', ['linear'], ['zoom'],
+        8,  ['match', ['get','class'], ['trunk','primary'], 2.8, 'secondary', 2.2, 1.7],
+        12, ['match', ['get','class'], ['trunk','primary'], 4.1, 'secondary', 3.0, 2.2],
+        16, ['match', ['get','class'], ['trunk','primary'], 7.1, 'secondary', 4.9, 3.4],
+        18, ['match', ['get','class'], ['trunk','primary'], 9.3, 'secondary', 6.3, 4.2],
       ];
 
       if (l.type === 'line' && l.id === 'highway_major_inner'){
@@ -2856,7 +2873,7 @@ function tintMapLayers(){
         // lo que ahora comunica "esto tiene relieve".
         map.setPaintProperty(l.id, 'line-color', roadColor(0.8));
         map.setPaintProperty(l.id, 'line-opacity', 0.5);
-        map.setPaintProperty(l.id, 'line-width', ['+', ROAD_WIDTH_BY_CLASS, 1.1]);
+        map.setPaintProperty(l.id, 'line-width', ROAD_WIDTH_BY_CLASS_CASING);
       }
       if (l.type === 'line' && l.id === 'highway_major_subtle'){
         // Único tramo visible en la vista de comunas (zoom 6-11, antes de que
@@ -6374,11 +6391,31 @@ document.getElementById('comunaPanelMore').addEventListener('click', () => {
     hideComunaPanel();
   } else {
     // Carga progresiva — misma función de curaduría (curateComunaPanelPlaces),
-    // ahora con un límite mayor.
+    // ahora con un límite mayor. prevCount se guarda ANTES de actualizar el
+    // contador, para saber después cuál fue la primera tarjeta realmente nueva.
+    const prevCount = comunaPanelVisibleCount;
     comunaPanelVisibleCount = Math.min(comunaPanelVisibleCount + COMUNA_PANEL_PAGE_SIZE, total);
     renderComunaPanelRail(locality);
+    // Fix: el rail funcionaba correctamente (confirmado en consola), pero las
+    // tarjetas nuevas se agregaban fuera del área visible del scroll
+    // horizontal — el clic no daba ninguna señal perceptible. Se hace scroll
+    // suave hasta la primera tarjeta nueva, así el usuario ve de inmediato
+    // que su acción cargó contenido.
+    scrollComunaPanelRailToNewCards(prevCount);
   }
 });
+
+// Desplaza el rail horizontal del panel hasta la primera tarjeta que no
+// existía antes del clic (índice = prevCount, 0-based). inline:'center' la
+// deja bien visible sin necesidad de que el usuario haga scroll manual;
+// block:'nearest' evita que scrollIntoView intente mover verticalmente la
+// página completa (el rail solo scrollea en horizontal).
+function scrollComunaPanelRailToNewCards(prevCount){
+  const rail = document.getElementById('comunaPanelRail');
+  const cards = rail.querySelectorAll('.comuna-mini-card');
+  const target = cards[prevCount] || cards[cards.length - 1];
+  if (target) target.scrollIntoView({ behavior:'smooth', inline:'center', block:'nearest' });
+}
 
 /* ---------- PANEL "EN [COMUNA]" — Fase 2: conexión real ----------
    Datos aún simples (primeros 3 lugares de la comuna) — la selección por
