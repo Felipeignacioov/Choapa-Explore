@@ -4381,7 +4381,12 @@ let zonePromptContentKey = '';
 function updateZonePrompt(){
   const filtering = state.activeExperience !== 'todos';
   const atDetail = map.getZoom() >= ZOOM_DETAIL;
-  const show = filtering && !atDetail;
+  // Con una comuna ya seleccionada, el panel "En [Comuna]" (Fases 1-4) ya
+  // resuelve exactamente lo que esta tarjeta invita a hacer ("explora una
+  // zona/localidad para ver experiencias") — mostrarla ahí es redundante y le
+  // quita espacio al mapa. Se oculta específicamente en ese escenario; en
+  // vista general (sin comuna), sigue apareciendo exactamente igual que antes.
+  const show = filtering && !atDetail && !state.currentLocality;
 
   if (!show){
     zonePrompt.classList.remove('visible');
