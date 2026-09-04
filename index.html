@@ -5841,10 +5841,15 @@ function setActiveExperience(id){
   searchInput.placeholder = SEARCH_PLACEHOLDERS[id] || SEARCH_PLACEHOLDERS.todos;
   renderPOIs();
   renderPlacesRail();
-  // Fase 4 — si ya hay una comuna seleccionada, el panel "En [Comuna]" debe
+   // Fase 4 — si ya hay una comuna seleccionada, el panel "En [Comuna]" debe
   // reflejar el nuevo filtro de inmediato, no recién la próxima vez que se
-  // vuelva a entrar a esa comuna.
-  if (state.currentLocality) renderComunaPanelRail(state.currentLocality);
+  // vuelva a entrar a esa comuna. Fase 5 — el conteo de paginación también se
+  // reinicia: la lista expandida bajo el filtro viejo no tiene sentido para
+  // el filtro nuevo (universos de experiencias distintos).
+  if (state.currentLocality){
+    comunaPanelVisibleCount = 3;
+    renderComunaPanelRail(state.currentLocality);
+  }
   // si el lugar seleccionado ya no pertenece a esta experiencia, cerramos su panel
    if (state.selectedPlace && id !== 'todos' && !state.selectedPlace.experiences.includes(id)){
     document.getElementById('poiDetail').classList.remove('visible');
@@ -6348,6 +6353,33 @@ function expandComunaPanel(){
 document.getElementById('comunaPanelClose').addEventListener('click', minimizeComunaPanel);
 comunaPanelPill.addEventListener('click', expandComunaPanel);
 
+// Fase 5 — un solo listener para las dos funciones del botón (carga
+// progresiva / "seguir explorando"), decidido en el momento del clic según el
+// estado actual — así no hace falta reasignar el listener cada vez que
+// renderComunaPanelRail() reescribe el innerHTML del botón.
+document.getElementById('comunaPanelMore').addEventListener('click', () => {
+  const locality = state.currentLocality;
+  if (!locality) return; // salvaguarda — no debería ocurrir con el botón visible
+
+  const total = comunaPanelTotalAvailable(locality);
+  if (comunaPanelVisibleCount >= total){
+    // "Seguir explorando [Comuna]" — pasa a la exploración geográfica
+    // tradicional. No hace falta mover la cámara ni tocar localidades: al
+    // entrar a la comuna (enterLocality) el mapa YA voló a un zoom que
+    // muestra las sub-localidades por debajo del panel — este botón solo
+    // retira el panel de encima, dejando esos pines (ya existentes) listos
+    // para tocar. Reutiliza hideComunaPanel() tal cual (misma función que ya
+    // usa exitLocality), sin tocar state.currentLocality — seguimos "dentro"
+    // de la comuna, solo cambia el modo de descubrimiento.
+    hideComunaPanel();
+  } else {
+    // Carga progresiva — misma función de curaduría (curateComunaPanelPlaces),
+    // ahora con un límite mayor.
+    comunaPanelVisibleCount = Math.min(comunaPanelVisibleCount + COMUNA_PANEL_PAGE_SIZE, total);
+    renderComunaPanelRail(locality);
+  }
+});
+
 /* ---------- PANEL "EN [COMUNA]" — Fase 2: conexión real ----------
    Datos aún simples (primeros 3 lugares de la comuna) — la selección por
    variedad de categoría es la Fase 3, no se adelanta acá. */
@@ -6358,22 +6390,29 @@ comunaPanelPill.addEventListener('click', expandComunaPanel);
 // no tiene 3 categorías distintas disponibles, una segunda pasada completa los
 // cupos restantes con cualquier otro lugar no elegido aún (puede repetir
 // categoría) — nunca se deja un cupo vacío solo por falta de diversidad.
-function curateComunaPanelPlaces(locality){
+// Fase 5 — límite ahora variable (antes fijo en 3): la llamada original sin
+// segundo argumento (Fase 3/4, panel recién abierto) sigue devolviendo 3
+// exactamente igual que antes. "Ver más experiencias" reutiliza esta MISMA
+// función con un límite mayor, así el criterio de selección (variedad de
+// categoría en "Todos", filtro estricto con categoría activa) es idéntico
+// tanto para las 3 tarjetas iniciales como para la lista expandida — nunca
+// hay dos lógicas de curaduría distintas conviviendo.
+function curateComunaPanelPlaces(locality, limit = 3){
   const places = placesInLocality(locality);
 
   // Fase 4 — con un chip de categoría activo, la variedad de la Fase 3 ya no
-  // aplica (las 3 serían de la misma categoría de todas formas): se filtra
-  // directo por comuna+categoría y se muestran hasta 3, sin rellenar con
-  // lugares que no cumplan el filtro si hay menos de 3 disponibles.
+  // aplica (todas serían de la misma categoría de todas formas): se filtra
+  // directo por comuna+categoría, sin rellenar con lugares que no cumplan el
+  // filtro si hay menos disponibles que el límite pedido.
   if (state.activeExperience !== 'todos'){
-    return places.filter(p => p.experiences.includes(state.activeExperience)).slice(0, 3);
+    return places.filter(p => p.experiences.includes(state.activeExperience)).slice(0, limit);
   }
 
   const usedCategories = new Set();
   const picks = [];
 
   places.forEach(place => {
-    if (picks.length >= 3) return;
+    if (picks.length >= limit) return;
     const tag = primaryExperienceTag(place);
     if (!usedCategories.has(tag.id)){
       usedCategories.add(tag.id);
@@ -6381,9 +6420,9 @@ function curateComunaPanelPlaces(locality){
     }
   });
 
-  if (picks.length < 3){
+  if (picks.length < limit){
     places.forEach(place => {
-      if (picks.length >= 3) return;
+      if (picks.length >= limit) return;
       if (!picks.includes(place)) picks.push(place);
     });
   }
@@ -6391,9 +6430,25 @@ function curateComunaPanelPlaces(locality){
   return picks;
 }
 
+// Cuántas experiencias existen en total bajo el filtro actual — necesario
+// para saber cuándo ya no queda nada más que cargar ("fin de la lista").
+function comunaPanelTotalAvailable(locality){
+  const places = placesInLocality(locality);
+  return state.activeExperience !== 'todos'
+    ? places.filter(p => p.experiences.includes(state.activeExperience)).length
+    : places.length;
+}
+
+// Estado de paginación del panel — cuántas tarjetas se muestran ahora mismo.
+// Se resetea a 3 cada vez que se entra a una comuna nueva o cambia el filtro
+// (ver showComunaPanel y setActiveExperience), para que la carga progresiva
+// siempre arranque desde el mismo punto conocido.
+let comunaPanelVisibleCount = 3;
+const COMUNA_PANEL_PAGE_SIZE = 4;
+
 function renderComunaPanelRail(locality){
   const rail = document.getElementById('comunaPanelRail');
-  const places = curateComunaPanelPlaces(locality);
+  const places = curateComunaPanelPlaces(locality, comunaPanelVisibleCount);
   // Con un filtro activo, la etiqueta debe reflejar ESE filtro (mismo criterio
   // que ya usa el color de los POIs en el mapa vía activeExpColor) — no la
   // categoría propia del lugar. Sin esto, un lugar que ofrece "Cita" pero cuya
@@ -6416,9 +6471,26 @@ function renderComunaPanelRail(locality){
   rail.querySelectorAll('.comuna-mini-card').forEach(card => {
     card.addEventListener('click', () => selectPlaceById(card.dataset.placeId));
   });
+  updateComunaPanelMoreButton(locality, places.length);
+}
+
+// Fase 5 — el botón "Ver más experiencias" cambia de texto/función según si
+// ya se llegó al final de la lista bajo el filtro actual. shownCount puede
+// ser menor que comunaPanelVisibleCount si la comuna+filtro tiene menos
+// experiencias que las pedidas (ej. solo 2 disponibles) — se compara contra
+// eso, no contra el contador interno, para detectar el final con precisión.
+function updateComunaPanelMoreButton(locality, shownCount){
+  const btn = document.getElementById('comunaPanelMore');
+  const total = comunaPanelTotalAvailable(locality);
+  const atEnd = shownCount >= total;
+  const chevron = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="m9 18 6-6-6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  btn.innerHTML = atEnd
+    ? `Seguir explorando ${locality.name} ${chevron}`
+    : `Ver más experiencias ${chevron}`;
 }
 function showComunaPanel(locality){
   document.getElementById('comunaPanelTitle').textContent = `En ${locality.name}`;
+  comunaPanelVisibleCount = 3; // Fase 5 — cada comuna nueva arranca desde el conteo base
   renderComunaPanelRail(locality);
   expandComunaPanel(); // siempre arranca expandido al entrar a una comuna nueva
   comunaPanel.classList.remove('hidden');
