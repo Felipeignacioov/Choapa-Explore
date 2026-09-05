@@ -4388,7 +4388,6 @@ function enterLocality(locality, { fly }){
   updateZonePrompt();
   updateSheetHero();
   updateLosVilosReflection();
-  showComunaPanel(locality); // Fase 2 — reemplaza a #sheetPill mientras haya comuna seleccionada
   const hasSublocalities = (SUBLOCALITIES[locality.id] || []).length > 0;
   if (fly){
     // Con Nivel 2 cargado: nos quedamos a media distancia para ver la zona de
@@ -4405,6 +4404,22 @@ function enterLocality(locality, { fly }){
     } else {
       map.flyTo({ center:[locality.lng, locality.lat], zoom, duration:1400, curve:1.3, easing:t => t*(2-t) });
     }
+    // El panel "En [Comuna]" aparece recién cuando el vuelo de cámara termina
+    // — antes se disparaba en paralelo con el propio flyTo, compitiendo
+    // visualmente con la llegada del mapa. 'moveend' marca el fin real de esta
+    // animación (no un tiempo estimado a mano), así que la secuencia queda
+    // sincronizada incluso si la duración del vuelo cambia por comuna
+    // (COMUNA_FLIGHT). Guard por si el usuario toca otra comuna antes de que
+    // este vuelo termine: solo se muestra el panel de la comuna que sigue
+    // siendo la actual al momento de asentarse la cámara.
+    map.once('moveend', () => {
+      if (state.currentLocality === locality) showComunaPanel(locality);
+    });
+  } else {
+    // Sin vuelo de cámara (el usuario llegó pellizcando el zoom, o es una
+    // corrección automática de nivel) no hay ninguna animación que esperar —
+    // el panel aparece de inmediato, igual que siempre.
+    showComunaPanel(locality);
   }
   renderPOIs();
   updateExplorationBreadcrumb();
