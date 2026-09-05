@@ -5949,10 +5949,11 @@ function setActiveExperience(id){
   // el filtro nuevo (universos de experiencias distintos).
     if (state.currentLocality){
     comunaPanelVisibleCount = 3;
-       const list = document.getElementById('comunaPanelList');
+           const list = document.getElementById('comunaPanelList');
     list.innerHTML = '';
-    document.getElementById('comunaPanelListWrap').classList.remove('expanded'); // la lista bajo el filtro viejo no aplica al nuevo
+    list.classList.remove('expanded'); // la lista bajo el filtro viejo no aplica al nuevo
     document.getElementById('comunaPanelRail').classList.remove('rail-hidden'); // nuevo filtro: vuelve al estado inicial (rail)
+    document.getElementById('comunaPanelMore').classList.remove('at-bottom'); // el glow del filtro anterior no debe sobrevivir
     renderComunaPanelRail(state.currentLocality);
   }
   // si el lugar seleccionado ya no pertenece a esta experiencia, cerramos su panel
@@ -6480,12 +6481,15 @@ document.getElementById('comunaPanelMore').addEventListener('click', () => {
   const locality = state.currentLocality;
   if (!locality) return; // salvaguarda — no debería ocurrir con el botón visible
 
-  const total = comunaPanelTotalAvailable(locality);
+    const total = comunaPanelTotalAvailable(locality);
   if (comunaPanelVisibleCount >= total){
     // "Seguir explorando [Comuna]" — pasa a la exploración geográfica
-    // tradicional. Comportamiento sin cambios: retira el panel, deja las
-    // sub-localidades del mapa listas para tocar.
-    hideComunaPanel();
+    // tradicional, pero el panel no debe perderse: se minimiza al mismo
+    // estado de píldora colapsada que ya usa el botón "−" (minimizeComunaPanel),
+    // dejando las sub-localidades del mapa visibles y libres para tocar, sin
+    // descartar el panel de descubrimiento — el usuario puede reabrirlo
+    // tocando la píldora "En [Comuna]" si quiere seguir viendo la lista.
+    minimizeComunaPanel();
   } else {
     // Carga progresiva — misma función de curaduría (curateComunaPanelPlaces),
     // ahora con un límite mayor. A partir de este primer clic, el rail
@@ -6646,10 +6650,11 @@ function updateComunaPanelMoreButton(locality, shownCount){
 function showComunaPanel(locality){
   document.getElementById('comunaPanelTitle').textContent = `En ${locality.name}`;
   comunaPanelVisibleCount = 3; // Fase 5 — cada comuna nueva arranca desde el conteo base
-   const list = document.getElementById('comunaPanelList');
+    const list = document.getElementById('comunaPanelList');
   list.innerHTML = '';
   document.getElementById('comunaPanelListWrap').classList.remove('expanded'); // la lista vertical de la comuna anterior no debe sobrevivir
   document.getElementById('comunaPanelRail').classList.remove('rail-hidden'); // vuelve a mostrarse: comuna nueva, estado inicial
+  document.getElementById('comunaPanelMore').classList.remove('at-bottom'); // el glow de la lista anterior no debe sobrevivir
   renderComunaPanelRail(locality);
   expandComunaPanel(); // siempre arranca expandido al entrar a una comuna nueva
   comunaPanel.classList.remove('hidden');
