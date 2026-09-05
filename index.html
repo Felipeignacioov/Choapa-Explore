@@ -6467,12 +6467,24 @@ comunaPanelPill.addEventListener('click', expandComunaPanel);
 // cumpliría con exactitud.
 const comunaPanelListEl = document.getElementById('comunaPanelList');
 const comunaPanelMoreBtn = document.getElementById('comunaPanelMore');
+const comunaPanelListWrapEl = document.getElementById('comunaPanelListWrap');
 function updateComunaPanelScrollHighlight(){
+  // Guarda contra un evento 'scroll' asíncrono/tardío: al vaciar la lista
+  // (list.innerHTML='') mientras estaba scrolleada al fondo, el navegador
+  // clampa scrollTop a 0 y dispara 'scroll' en una tarea aparte — después de
+  // que el reset síncrono ya quitó 'at-bottom'. Ese evento fantasma, evaluado
+  // sobre una lista vacía, siempre da "0 + 0 >= 0 - 2" (verdadero) y volvía a
+  // encender el glow por error. Mientras la lista no esté realmente expandida
+  // (contenido real visible), cualquier scroll — fantasma o no — se trata como
+  // "no está al fondo".
+  if (!comunaPanelListWrapEl.classList.contains('expanded')){
+    comunaPanelMoreBtn.classList.remove('at-bottom');
+    return;
+  }
   const atBottom = comunaPanelListEl.scrollTop + comunaPanelListEl.clientHeight >= comunaPanelListEl.scrollHeight - 2;
   comunaPanelMoreBtn.classList.toggle('at-bottom', atBottom);
 }
 comunaPanelListEl.addEventListener('scroll', updateComunaPanelScrollHighlight, { passive:true });
-
 // Fase 5 — un solo listener para las dos funciones del botón (carga
 // progresiva / "seguir explorando"), decidido en el momento del clic según el
 // estado actual — así no hace falta reasignar el listener cada vez que
