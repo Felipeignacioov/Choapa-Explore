@@ -617,12 +617,40 @@ img{-webkit-user-drag:none; user-select:none;}
      depende de que cada eslabón tenga una altura resuelta en píxeles reales,
      y sin un `height` explícito en ningún ancestro, el navegador terminaba
      sin generar overflow de verdad — el panel solo recortaba contenido con
-     su propio overflow:hidden, sin dejar nada que scrollear. El botón queda
-     "sticky" de forma mucho más simple: la lista tiene su PROPIO max-height +
+     su propio overflow:hidden, sin dejar nada que scrollear.     El botón queda "sticky" de forma mucho más simple: la lista tiene su PROPIO max-height +
      overflow-y:auto (ver .comuna-panel-list más abajo), así que su caja
      siempre mide lo mismo (260px) sin importar cuánto se haya scrolleado
      adentro — el botón, como hermano normal justo después en el documento,
      queda siempre visible inmediatamente debajo, sin necesidad de flex. */
+}
+/* Entrada del panel al seleccionar una comuna — breve y elegante, no un salto
+   brusco. Clase aparte de .hidden (toggleada por JS en showComunaPanel) para
+   no depender de esa transición genérica (compartida con minimizar/expandir):
+   una animación de teclado (keyframes) sobre las MISMAS propiedades siempre
+   gana sobre una transition concurrente, así que no hay conflicto ni doble
+   movimiento — solo se ve una entrada, más intencional que el fade genérico. */
+@keyframes comuna-panel-enter{
+  from{ opacity:0; transform:translateY(14px) scale(0.98); }
+  to{ opacity:1; transform:translateY(0) scale(1); }
+}
+.comuna-panel.entering{
+  animation: comuna-panel-enter .34s cubic-bezier(.2,.9,.28,1.05) backwards;
+}
+/* Respiración ambiental — mismo criterio de sutileza que startPOIBreathingAnimation
+   (ciclo ~4.4s, variación mínima, nunca percibido como parpadeo). Vive en un
+   pseudo-elemento propio (no en la opacity del panel mismo) para no competir
+   con la transición de mostrar/ocultar — un halo casi imperceptible detrás del
+   contenido, nunca un elemento que se pueda tocar (pointer-events:none, mismo
+   motivo que el viñeteado del mapa). */
+.comuna-panel::before{
+  content:''; position:absolute; inset:0; border-radius:inherit;
+  background:radial-gradient(ellipse at 25% 0%, rgba(95,225,232,0.05), transparent 65%);
+  pointer-events:none;
+  animation: comuna-panel-breathe 4.4s ease-in-out infinite;
+}
+@keyframes comuna-panel-breathe{
+  0%,100%{ opacity:0.4; }
+  50%{ opacity:0.85; }
 }
 .comuna-panel.hidden{opacity:0; transform:translateY(10px) scale(0.97); pointer-events:none;}
 .comuna-panel-header{
@@ -651,20 +679,33 @@ img{-webkit-user-drag:none; user-select:none;}
   display:grid; grid-template-columns:repeat(3, 1fr); gap:7px;
   padding:0 12px;
 }
-/* Al expandir "Ver más experiencias", el rail cede el lugar por completo a la
-   lista vertical — nunca coexisten mostrando contenido a la vez. */
 .comuna-panel-rail.rail-hidden{display:none;}
 .comuna-mini-card{
   min-width:0; border-radius:var(--radius-m); overflow:hidden;
   background:var(--surface); border:1px solid var(--border-glass);
   box-shadow:var(--shadow-card);
-  transition:transform .16s cubic-bezier(.34,1.56,.64,1);
+  /* Sin curva elástica y más corto (antes 160ms + rebote) — respuesta
+     instantánea y controlada, no un botón de videojuego. */
+  transition:transform .12s ease-out;
 }
-.comuna-mini-card:active{transform:scale(0.96);}
+.comuna-mini-card:active{transform:scale(0.97);}
+/* Ken Burns extremadamente lento — solo transform (GPU), nunca dimensiones
+   reales. .comuna-mini-card recorta con overflow:hidden, así que el ligero
+   sobre-encuadre del zoom nunca se asoma fuera de la tarjeta. Duración y fase
+   distintas por tarjeta (delay negativo = arranca a mitad de ciclo) para que
+   las 3 respiren de forma orgánica, nunca sincronizadas como un solo bloque. */
 .comuna-mini-card .cmc-photo{
   position:relative; height:46px; width:100%;
   background:var(--surface-elevated) center/cover no-repeat;
+  animation: comuna-cmc-kenburns 19s ease-in-out infinite;
+  will-change:transform;
 }
+@keyframes comuna-cmc-kenburns{
+  0%,100%{ transform:scale(1) translate(0,0); }
+  50%{ transform:scale(1.018) translate(-1%,-0.6%); }
+}
+.comuna-mini-card:nth-child(2) .cmc-photo{ animation-duration:22s; animation-delay:-7s; }
+.comuna-mini-card:nth-child(3) .cmc-photo{ animation-duration:17s; animation-delay:-12s; }
 .comuna-mini-card .cmc-photo::after{
   content:''; position:absolute; inset:0;
   background:linear-gradient(to bottom, rgba(7,19,31,0) 55%, rgba(7,19,31,0.55) 100%);
@@ -690,9 +731,11 @@ img{-webkit-user-drag:none; user-select:none;}
   padding:7px; border-radius:var(--radius-m);
   background:rgba(255,255,255,0.05); border:1px solid var(--border-glass);
   color:var(--turquoise-bright); font-size:11.5px; font-weight:700;
-  transition:transform .16s cubic-bezier(.34,1.56,.64,1), background .16s ease;
+  /* Curva controlada, sin rebote — misma sobriedad que el resto de las
+     microinteracciones de este bloque. */
+  transition:transform .14s ease-out, background .18s ease, opacity .14s ease;
 }
-.comuna-panel-more:active{transform:scale(0.98); background:rgba(255,255,255,0.08);}
+.comuna-panel-more:active{transform:scale(0.98); background:rgba(255,255,255,0.08); opacity:0.88;}
 /* Se activa cuando el scroll de la lista llega al fondo — invitación discreta
    a seguir tocando el botón, no un destello. Mismo tono turquesa de marca que
    ya usa el resto de la interfaz, en dosis baja (glow suave + borde apenas
@@ -6680,10 +6723,20 @@ function showComunaPanel(locality){
   document.getElementById('comunaPanelListWrap').classList.remove('expanded'); // la lista vertical de la comuna anterior no debe sobrevivir
   document.getElementById('comunaPanelRail').classList.remove('rail-hidden'); // vuelve a mostrarse: comuna nueva, estado inicial
   document.getElementById('comunaPanelMore').classList.remove('at-bottom'); // el glow de la lista anterior no debe sobrevivir
-  renderComunaPanelRail(locality);
+   renderComunaPanelRail(locality);
   expandComunaPanel(); // siempre arranca expandido al entrar a una comuna nueva
   comunaPanel.classList.remove('hidden');
   sheetPill.classList.add('hidden');
+
+  // Animación de entrada (comuna-panel-enter) — se retira la clase al
+  // terminar para que la próxima comuna pueda volver a dispararla; sin este
+  // reset, re-agregar la misma clase ya presente no reinicia el keyframe.
+  comunaPanel.classList.remove('entering');
+  void comunaPanel.offsetWidth; // fuerza reflow — garantiza que el navegador note el remove antes del add
+  comunaPanel.classList.add('entering');
+  comunaPanel.addEventListener('animationend', () => {
+    comunaPanel.classList.remove('entering');
+  }, { once:true });
 }
 function hideComunaPanel(){
   comunaPanel.classList.add('hidden');
