@@ -686,7 +686,16 @@ img{-webkit-user-drag:none; user-select:none;}
   transition:transform .16s cubic-bezier(.34,1.56,.64,1), background .16s ease;
 }
 .comuna-panel-more:active{transform:scale(0.98); background:rgba(255,255,255,0.08);}
-
+/* Se activa cuando el scroll de la lista llega al fondo — invitación discreta
+   a seguir tocando el botón, no un destello. Mismo tono turquesa de marca que
+   ya usa el resto de la interfaz, en dosis baja (glow suave + borde apenas
+   más presente), coherente con el criterio de sobriedad ya aplicado en POIs. */
+.comuna-panel-more.at-bottom{
+  background:rgba(95,225,232,0.1);
+  border-color:rgba(95,225,232,0.4);
+  box-shadow:0 0 0 1px rgba(95,225,232,0.12), 0 4px 14px rgba(95,225,232,0.18);
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1), background .3s ease, border-color .3s ease, box-shadow .3s ease;
+}
 /* Lista vertical de experiencias — aparece al tocar "Ver más experiencias".
    A diferencia de .comuna-panel-rail (scroll horizontal, nunca se toca), esta
    lista crece hacia abajo y se recorre con scroll vertical.
@@ -6449,6 +6458,20 @@ function expandComunaPanel(){
 document.getElementById('comunaPanelClose').addEventListener('click', minimizeComunaPanel);
 comunaPanelPill.addEventListener('click', expandComunaPanel);
 
+// Brillo sutil del botón al llegar al fondo del scroll de la lista — se
+// repite cada vez que el usuario toca fondo, y se retira apenas vuelve a
+// scrollear hacia arriba. Tolerancia de 2px porque scrollTop/scrollHeight
+// rara vez calzan en un valor exacto de píxeles (zoom del navegador,
+// redondeos de subpíxel, etc.) — sin margen, la condición casi nunca se
+// cumpliría con exactitud.
+const comunaPanelListEl = document.getElementById('comunaPanelList');
+const comunaPanelMoreBtn = document.getElementById('comunaPanelMore');
+function updateComunaPanelScrollHighlight(){
+  const atBottom = comunaPanelListEl.scrollTop + comunaPanelListEl.clientHeight >= comunaPanelListEl.scrollHeight - 2;
+  comunaPanelMoreBtn.classList.toggle('at-bottom', atBottom);
+}
+comunaPanelListEl.addEventListener('scroll', updateComunaPanelScrollHighlight, { passive:true });
+
 // Fase 5 — un solo listener para las dos funciones del botón (carga
 // progresiva / "seguir explorando"), decidido en el momento del clic según el
 // estado actual — así no hace falta reasignar el listener cada vez que
@@ -6503,9 +6526,13 @@ function renderComunaPanelFullList(locality){
    list.querySelectorAll('.comuna-list-item').forEach(row => {
     row.addEventListener('click', () => selectPlaceById(row.dataset.placeId));
   });
-  document.getElementById('comunaPanelListWrap').classList.toggle('expanded', all.length > 0);
+   document.getElementById('comunaPanelListWrap').classList.toggle('expanded', all.length > 0);
 
   updateComunaPanelMoreButton(locality, all.length);
+  // Contenido recién cargado — se recalcula el estado real del scroll en vez
+  // de arrastrar el brillo de la carga anterior (ej. si antes se tocó fondo y
+  // ahora hay más filas debajo, ya no corresponde seguir iluminado).
+  updateComunaPanelScrollHighlight();
 }
 
 /* ---------- PANEL "EN [COMUNA]" — Fase 2: conexión real ----------
