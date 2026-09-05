@@ -607,7 +607,12 @@ img{-webkit-user-drag:none; user-select:none;}
   position:absolute; left:16px; right:16px; z-index:19;
   bottom:calc(var(--nav-footprint) + var(--pill-gap));
   background:rgba(16,36,56,0.82); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
-  border:1px solid var(--border-glass); box-shadow:var(--shadow-modal);
+  border:1px solid var(--border-glass);
+  /* Sombra de elevación propia, más ancha/difusa que --shadow-modal — hace que
+     el panel se lea como una capa flotando sobre el mapa, no pegada a él. Se
+     conserva el inset highlight sutil de --shadow-modal (borde superior con
+     luz) sumándolo a mano, en vez de solo agregar una sombra por encima. */
+  box-shadow:0 22px 46px rgba(2,8,15,0.5), 0 6px 16px rgba(2,8,15,0.32), inset 0 1px 0 rgba(255,255,255,0.05);
   border-radius:var(--radius-l);
   padding:8px 0 9px;
   transition:opacity .24s ease, transform .24s cubic-bezier(.2,.9,.28,1.1);
@@ -664,10 +669,14 @@ img{-webkit-user-drag:none; user-select:none;}
 .comuna-panel-title svg{color:var(--turquoise-bright); flex-shrink:0; width:14px; height:14px;}
 .comuna-panel-close{
   width:24px; height:24px; border-radius:50%; flex-shrink:0;
-  background:rgba(255,255,255,0.06); border:1px solid var(--border-glass);
+  /* Mismo tratamiento que .locate-btn/.map-controls: superficie con blur +
+     borde-glass + sombra float, en vez de un gris plano sin definición. */
+  background:rgba(16,36,56,0.66); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  border:1px solid var(--border-glass); box-shadow:var(--shadow-float);
   display:flex; align-items:center; justify-content:center; color:var(--text-secondary);
-  transition:transform .16s cubic-bezier(.34,1.56,.64,1);
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1), background .16s ease, color .16s ease;
 }
+.comuna-panel-close:active{background:rgba(95,225,232,0.14); color:var(--turquoise-bright);}
 .comuna-panel-close:active{transform:scale(0.88);}
 
 /* Grid fijo de 3 columnas — esta vista siempre muestra exactamente 3
@@ -699,6 +708,11 @@ img{-webkit-user-drag:none; user-select:none;}
   background:var(--surface-elevated) center/cover no-repeat;
   animation: comuna-cmc-kenburns 19s ease-in-out infinite;
   will-change:transform;
+  /* Contorno muy tenue — mismo criterio de sutileza que el borde de los POI
+     (stroke-opacity baja, nunca un borde brillante o grueso). box-shadow
+     inset en vez de border real: así no compite con el border-radius heredado
+     de .comuna-mini-card ni desplaza el layout por un pixel extra de caja. */
+  box-shadow:inset 0 0 0 1px rgba(180,200,220,0.14);
 }
 @keyframes comuna-cmc-kenburns{
   0%,100%{ transform:scale(1) translate(0,0); }
@@ -729,7 +743,10 @@ img{-webkit-user-drag:none; user-select:none;}
   width:calc(100% - 24px); margin:7px 12px 0;
   display:flex; align-items:center; justify-content:center; gap:6px;
   padding:7px; border-radius:var(--radius-m);
-  background:rgba(255,255,255,0.05); border:1px solid var(--border-glass);
+  /* Gradiente sutil (mismo espíritu que .exp-card/.today-card) en vez de un
+     plano rgba uniforme — un poco de profundidad sin subir la opacidad general. */
+  background:linear-gradient(160deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.035) 100%);
+  border:1px solid var(--border-glass);
   color:var(--turquoise-bright); font-size:11.5px; font-weight:700;
   /* Curva controlada, sin rebote — misma sobriedad que el resto de las
      microinteracciones de este bloque. */
