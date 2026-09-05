@@ -611,23 +611,23 @@ img{-webkit-user-drag:none; user-select:none;}
   border-radius:var(--radius-l);
   padding:10px 0 12px;
   transition:opacity .24s ease, transform .24s cubic-bezier(.2,.9,.28,1.1);
-  /* Columna flex con techo de altura — así el header, el rail y el botón
-     nunca se comprimen (flex-shrink:0 en cada uno) y solo el wrapper de la
-     lista (único hijo sin flex-shrink:0) cede espacio y activa su propio
-     scroll interno cuando el contenido no cabe. El botón queda "anclado" al
-     fondo del panel por pura disposición de flexbox — nunca vive dentro del
-     área que scrollea, así que jamás hace falta bajar para encontrarlo. Si
-     el contenido es corto, el panel simplemente no llega a esta altura
-     máxima (max-height no fuerza tamaño, solo lo limita).*/
-  display:flex; flex-direction:column;
-  max-height:min(66vh, 480px);
-  overflow:hidden;
+  /* Layout de bloque normal, sin flex. El intento anterior (columna flex +
+     max-height + overflow:hidden en el panel, altura del wrapper resuelta
+     vía flex-grow + height:100% del hijo) rompía el scroll: esa cadena
+     depende de que cada eslabón tenga una altura resuelta en píxeles reales,
+     y sin un `height` explícito en ningún ancestro, el navegador terminaba
+     sin generar overflow de verdad — el panel solo recortaba contenido con
+     su propio overflow:hidden, sin dejar nada que scrollear. El botón queda
+     "sticky" de forma mucho más simple: la lista tiene su PROPIO max-height +
+     overflow-y:auto (ver .comuna-panel-list más abajo), así que su caja
+     siempre mide lo mismo (260px) sin importar cuánto se haya scrolleado
+     adentro — el botón, como hermano normal justo después en el documento,
+     queda siempre visible inmediatamente debajo, sin necesidad de flex. */
 }
 .comuna-panel.hidden{opacity:0; transform:translateY(10px) scale(0.97); pointer-events:none;}
 .comuna-panel-header{
   display:flex; align-items:center; justify-content:space-between; gap:10px;
   padding:0 14px 8px;
-  flex-shrink:0;
 }
 .comuna-panel-title{
   font-family:var(--font-display); font-size:13.5px; font-weight:700; color:var(--text-primary);
@@ -645,7 +645,6 @@ img{-webkit-user-drag:none; user-select:none;}
 .comuna-panel-rail{
   display:flex; gap:9px; overflow-x:auto; scrollbar-width:none;
   padding:0 14px;
-  flex-shrink:0;
 }
 .comuna-panel-rail::-webkit-scrollbar{display:none;}
 /* Al expandir "Ver más experiencias", el rail cede el lugar por completo a la
@@ -685,7 +684,6 @@ img{-webkit-user-drag:none; user-select:none;}
   background:rgba(255,255,255,0.05); border:1px solid var(--border-glass);
   color:var(--turquoise-bright); font-size:11.5px; font-weight:700;
   transition:transform .16s cubic-bezier(.34,1.56,.64,1), background .16s ease;
-  flex-shrink:0; /* nunca se comprime — siempre visible al fondo del panel */
 }
 .comuna-panel-more:active{transform:scale(0.98); background:rgba(255,255,255,0.08);}
 
@@ -693,26 +691,25 @@ img{-webkit-user-drag:none; user-select:none;}
    A diferencia de .comuna-panel-rail (scroll horizontal, nunca se toca), esta
    lista crece hacia abajo y se recorre con scroll vertical.
 
-   El WRAPPER (no la lista) es quien colapsa/expande y quien lleva el fade:
-   un pseudo-elemento ::after solo funciona como "desvanecido fijo" si vive en
-   un ancestro que NO tiene overflow-y:auto — puesto directamente en el
-   contenedor que scrollea, el pseudo-elemento se desplazaría junto con el
-   contenido como una fila más, perdiendo el efecto. Con el wrapper quieto y
-   la lista (su único hijo) scrolleando adentro, el degradado queda siempre
-   anclado al borde inferior visible, sin importar cuánto se haya scrolleado. */
+   .comuna-panel-list-wrap es SOLO el ancla de posición del fade — no tiene
+   tamaño propio (nada de max-height/overflow acá), así que su caja se ajusta
+   exactamente al tamaño real de .comuna-panel-list (su único hijo). Eso es lo
+   que permite que el ::after (bottom:0 del wrapper) quede siempre alineado con
+   el borde inferior REAL de la lista, sea cual sea su alto.
+
+   El max-height + overflow-y:auto — es decir, el scroll de verdad — vive
+   directamente en .comuna-panel-list, sin ninguna cadena de flex/porcentajes
+   de por medio: la caja de la lista mide 260px fijos apenas se expande,
+   scrollea puertas adentro, y nunca depende de que un ancestro tenga una
+   altura resuelta en píxeles para funcionar. */
 .comuna-panel-list-wrap{
   position:relative;
-  max-height:0; opacity:0; overflow:hidden;
-  min-height:0;
-  transition:max-height .32s cubic-bezier(.2,.9,.28,1.1), opacity .24s ease, margin .32s ease;
-}
-.comuna-panel-list-wrap.expanded{
-  max-height:260px; opacity:1; margin-top:9px;
-  flex:1 1 auto; /* dentro del panel flex, cede/gana espacio — el único hijo que lo hace */
 }
 /* Degradado sutil hacia el tono del panel — sugiere continuidad sin tapar la
    lectura de la última tarjeta visible. Solo aparece cuando la lista está
-   expandida; pointer-events:none para no interceptar taps sobre la última fila. */
+   expandida; pointer-events:none para no interceptar taps ni bloquear el
+   scroll de lo que hay debajo (mismo motivo por el que el viñeteado del mapa
+   necesita pointer-events:none). */
 .comuna-panel-list-wrap.expanded::after{
   content:''; position:absolute; left:0; right:0; bottom:0; height:26px;
   background:linear-gradient(to bottom, rgba(16,36,56,0), rgba(16,36,56,0.94));
@@ -720,8 +717,13 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 .comuna-panel-list{
   display:flex; flex-direction:column; gap:8px;
-  height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch;
-  padding:1px 14px 3px;
+  max-height:0; opacity:0; overflow:hidden;
+  padding:0 14px;
+  transition:max-height .32s cubic-bezier(.2,.9,.28,1.1), opacity .24s ease, margin .32s ease;
+}
+.comuna-panel-list-wrap.expanded .comuna-panel-list{
+  max-height:260px; overflow-y:auto; -webkit-overflow-scrolling:touch;
+  opacity:1; margin-top:9px; padding:1px 14px 3px;
 }
 .comuna-list-item{
   flex-shrink:0; display:flex; align-items:center; gap:10px;
