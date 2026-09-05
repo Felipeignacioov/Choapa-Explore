@@ -672,6 +672,40 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 .comuna-panel-more:active{transform:scale(0.98); background:rgba(255,255,255,0.08);}
 
+/* Lista vertical de experiencias adicionales — aparece al tocar "Ver más
+   experiencias". A diferencia de .comuna-panel-rail (scroll horizontal, las
+   3 tarjetas iniciales, nunca se toca), esta lista crece hacia abajo y se
+   recorre con scroll vertical: cada carga adicional agrega más filas al
+   final de esta misma lista, nunca tarjetas nuevas de lado a lado. */
+.comuna-panel-list{
+  display:flex; flex-direction:column; gap:8px;
+  max-height:0; opacity:0; overflow:hidden;
+  padding:0 14px;
+  transition:max-height .32s cubic-bezier(.2,.9,.28,1.1), opacity .24s ease, margin .32s ease;
+}
+.comuna-panel-list.expanded{
+  max-height:260px; overflow-y:auto; -webkit-overflow-scrolling:touch;
+  opacity:1; margin-top:9px; padding:1px 14px 3px;
+}
+.comuna-list-item{
+  flex-shrink:0; display:flex; align-items:center; gap:10px;
+  padding:7px; border-radius:var(--radius-m);
+  background:var(--surface); border:1px solid var(--border-glass);
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1);
+}
+.comuna-list-item:active{transform:scale(0.98);}
+.comuna-list-item .cli-photo{
+  width:48px; height:48px; border-radius:var(--radius-s); flex-shrink:0;
+  background:var(--surface-elevated) center/cover no-repeat;
+}
+.comuna-list-item .cli-info{display:flex; flex-direction:column; gap:3px; min-width:0;}
+.comuna-list-item .cli-name{
+  font-size:12px; font-weight:700; color:var(--text-primary);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.comuna-list-item .cli-tag{display:inline-flex; align-items:center; gap:4px; font-size:9.5px; font-weight:600;}
+.comuna-list-item .cli-tag .dot{width:4px; height:4px; border-radius:50%; background:currentColor;}
+
 /* Píldora minimizada del panel "En [Comuna]" — mismo lenguaje visual que
    .sheet-pill (misma superficie/blur/radius/shadow), pero es un elemento
    propio e independiente: nunca comparte estado ni lógica con #sheetPill,
@@ -1892,7 +1926,8 @@ img{-webkit-user-drag:none; user-select:none;}
           <span class="cmc-tag" style="color:#8B7CF0"><span class="dot"></span>Noche</span>
         </div>
       </div>
-    </div>
+        </div>
+    <div class="comuna-panel-list" id="comunaPanelList"></div>
         <button class="comuna-panel-more" id="comunaPanelMore">
       Ver más experiencias
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="m9 18 6-6-6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -5863,8 +5898,11 @@ function setActiveExperience(id){
   // vuelva a entrar a esa comuna. Fase 5 — el conteo de paginación también se
   // reinicia: la lista expandida bajo el filtro viejo no tiene sentido para
   // el filtro nuevo (universos de experiencias distintos).
-  if (state.currentLocality){
+   if (state.currentLocality){
     comunaPanelVisibleCount = 3;
+    const list = document.getElementById('comunaPanelList');
+    list.innerHTML = '';
+    list.classList.remove('expanded'); // la lista bajo el filtro viejo no aplica al nuevo
     renderComunaPanelRail(state.currentLocality);
   }
   // si el lugar seleccionado ya no pertenece a esta experiencia, cerramos su panel
@@ -6381,40 +6419,54 @@ document.getElementById('comunaPanelMore').addEventListener('click', () => {
   const total = comunaPanelTotalAvailable(locality);
   if (comunaPanelVisibleCount >= total){
     // "Seguir explorando [Comuna]" — pasa a la exploración geográfica
-    // tradicional. No hace falta mover la cámara ni tocar localidades: al
-    // entrar a la comuna (enterLocality) el mapa YA voló a un zoom que
-    // muestra las sub-localidades por debajo del panel — este botón solo
-    // retira el panel de encima, dejando esos pines (ya existentes) listos
-    // para tocar. Reutiliza hideComunaPanel() tal cual (misma función que ya
-    // usa exitLocality), sin tocar state.currentLocality — seguimos "dentro"
-    // de la comuna, solo cambia el modo de descubrimiento.
+    // tradicional. Comportamiento sin cambios: retira el panel, deja las
+    // sub-localidades del mapa listas para tocar.
     hideComunaPanel();
   } else {
     // Carga progresiva — misma función de curaduría (curateComunaPanelPlaces),
-    // ahora con un límite mayor. prevCount se guarda ANTES de actualizar el
-    // contador, para saber después cuál fue la primera tarjeta realmente nueva.
-    const prevCount = comunaPanelVisibleCount;
+    // ahora con un límite mayor. El rail horizontal de 3 tarjetas NUNCA se
+    // re-renderiza acá: los ítems nuevos se agregan como filas de una lista
+    // vertical debajo del rail, que crece hacia abajo y se recorre con scroll
+    // vertical — no como tarjetas nuevas de lado a lado.
     comunaPanelVisibleCount = Math.min(comunaPanelVisibleCount + COMUNA_PANEL_PAGE_SIZE, total);
-    renderComunaPanelRail(locality);
-    // Fix: el rail funcionaba correctamente (confirmado en consola), pero las
-    // tarjetas nuevas se agregaban fuera del área visible del scroll
-    // horizontal — el clic no daba ninguna señal perceptible. Se hace scroll
-    // suave hasta la primera tarjeta nueva, así el usuario ve de inmediato
-    // que su acción cargó contenido.
-    scrollComunaPanelRailToNewCards(prevCount);
+    renderComunaPanelExtraList(locality);
   }
 });
 
-// Desplaza el rail horizontal del panel hasta la primera tarjeta que no
-// existía antes del clic (índice = prevCount, 0-based). inline:'center' la
-// deja bien visible sin necesidad de que el usuario haga scroll manual;
-// block:'nearest' evita que scrollIntoView intente mover verticalmente la
-// página completa (el rail solo scrollea en horizontal).
-function scrollComunaPanelRailToNewCards(prevCount){
-  const rail = document.getElementById('comunaPanelRail');
-  const cards = rail.querySelectorAll('.comuna-mini-card');
-  const target = cards[prevCount] || cards[cards.length - 1];
-  if (target) target.scrollIntoView({ behavior:'smooth', inline:'center', block:'nearest' });
+// Lista vertical de experiencias adicionales — todo lo que hay más allá de
+// las 3 tarjetas iniciales del rail (ese rail nunca se toca ni se re-renderiza
+// acá). Misma fuente de datos y mismo criterio de filtrado que el rail
+// (curateComunaPanelPlaces) — sólo cambia la presentación: filas apiladas que
+// se recorren con scroll vertical, no tarjetas horizontales nuevas.
+// curateComunaPanelPlaces(locality, N) es un prefijo estable de
+// curateComunaPanelPlaces(locality, M) para N<=M (ambas pasadas internas son
+// secuenciales y nunca reordenan lo ya elegido), así que .slice(3) sobre el
+// resultado con el límite actual siempre da exactamente los ítems nuevos, sin
+// repetir ni reordenar los 3 del rail.
+function renderComunaPanelExtraList(locality){
+  const list = document.getElementById('comunaPanelList');
+  const all = curateComunaPanelPlaces(locality, comunaPanelVisibleCount);
+  const extra = all.slice(3);
+  const filterTag = state.activeExperience !== 'todos' ? expById(state.activeExperience) : null;
+
+  list.innerHTML = extra.map(place => {
+    const tag = filterTag || primaryExperienceTag(place);
+    const color = getComputedStyle(document.documentElement).getPropertyValue(tag.color.replace('var(','').replace(')','')).trim();
+    return `
+      <div class="comuna-list-item" data-place-id="${place.id}">
+        <div class="cli-photo" style="background-image:url(${place.image})"></div>
+        <div class="cli-info">
+          <div class="cli-name">${place.name}</div>
+          <span class="cli-tag" style="color:${color}"><span class="dot"></span>${tag.label}</span>
+        </div>
+      </div>`;
+  }).join('');
+  list.querySelectorAll('.comuna-list-item').forEach(row => {
+    row.addEventListener('click', () => selectPlaceById(row.dataset.placeId));
+  });
+  list.classList.toggle('expanded', extra.length > 0);
+
+  updateComunaPanelMoreButton(locality, all.length);
 }
 
 /* ---------- PANEL "EN [COMUNA]" — Fase 2: conexión real ----------
@@ -6528,6 +6580,9 @@ function updateComunaPanelMoreButton(locality, shownCount){
 function showComunaPanel(locality){
   document.getElementById('comunaPanelTitle').textContent = `En ${locality.name}`;
   comunaPanelVisibleCount = 3; // Fase 5 — cada comuna nueva arranca desde el conteo base
+  const list = document.getElementById('comunaPanelList');
+  list.innerHTML = '';
+  list.classList.remove('expanded'); // la lista vertical de la comuna anterior no debe sobrevivir
   renderComunaPanelRail(locality);
   expandComunaPanel(); // siempre arranca expandido al entrar a una comuna nueva
   comunaPanel.classList.remove('hidden');
