@@ -5949,9 +5949,15 @@ function setActiveExperience(id){
   // el filtro nuevo (universos de experiencias distintos).
     if (state.currentLocality){
     comunaPanelVisibleCount = 3;
-           const list = document.getElementById('comunaPanelList');
+              const list = document.getElementById('comunaPanelList');
     list.innerHTML = '';
-    list.classList.remove('expanded'); // la lista bajo el filtro viejo no aplica al nuevo
+    // 'expanded' vive en el WRAPPER (comunaPanelListWrap), no en la lista —
+    // quitarla de 'list' no tenía ningún efecto real. Sin esto, el wrapper
+    // seguía marcado como expandido, y el guard de updateComunaPanelScrollHighlight
+    // (que depende de esa misma clase para saber si debe ignorar eventos de
+    // scroll fantasma) nunca se activaba acá — dejando la puerta abierta al
+    // mismo bug del reset tardío ya corregido para el cambio de comuna.
+    document.getElementById('comunaPanelListWrap').classList.remove('expanded'); // la lista bajo el filtro viejo no aplica al nuevo
     document.getElementById('comunaPanelRail').classList.remove('rail-hidden'); // nuevo filtro: vuelve al estado inicial (rail)
     document.getElementById('comunaPanelMore').classList.remove('at-bottom'); // el glow del filtro anterior no debe sobrevivir
     renderComunaPanelRail(state.currentLocality);
