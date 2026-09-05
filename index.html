@@ -635,6 +635,9 @@ img{-webkit-user-drag:none; user-select:none;}
   padding:0 14px;
 }
 .comuna-panel-rail::-webkit-scrollbar{display:none;}
+/* Al expandir "Ver más experiencias", el rail cede el lugar por completo a la
+   lista vertical — nunca coexisten mostrando contenido a la vez. */
+.comuna-panel-rail.rail-hidden{display:none;}
 .comuna-mini-card{
   flex-shrink:0; width:118px; border-radius:var(--radius-m); overflow:hidden;
   background:var(--surface); border:1px solid var(--border-glass);
@@ -5898,11 +5901,12 @@ function setActiveExperience(id){
   // vuelva a entrar a esa comuna. Fase 5 — el conteo de paginación también se
   // reinicia: la lista expandida bajo el filtro viejo no tiene sentido para
   // el filtro nuevo (universos de experiencias distintos).
-   if (state.currentLocality){
+    if (state.currentLocality){
     comunaPanelVisibleCount = 3;
     const list = document.getElementById('comunaPanelList');
     list.innerHTML = '';
     list.classList.remove('expanded'); // la lista bajo el filtro viejo no aplica al nuevo
+    document.getElementById('comunaPanelRail').classList.remove('rail-hidden'); // nuevo filtro: vuelve al estado inicial (rail)
     renderComunaPanelRail(state.currentLocality);
   }
   // si el lugar seleccionado ya no pertenece a esta experiencia, cerramos su panel
@@ -6424,32 +6428,30 @@ document.getElementById('comunaPanelMore').addEventListener('click', () => {
     hideComunaPanel();
   } else {
     // Carga progresiva — misma función de curaduría (curateComunaPanelPlaces),
-    // ahora con un límite mayor. El rail horizontal de 3 tarjetas NUNCA se
-    // re-renderiza acá: los ítems nuevos se agregan como filas de una lista
-    // vertical debajo del rail, que crece hacia abajo y se recorre con scroll
-    // vertical — no como tarjetas nuevas de lado a lado.
+    // ahora con un límite mayor. A partir de este primer clic, el rail
+    // horizontal de 3 tarjetas se retira por completo y la lista vertical pasa
+    // a ser la única superficie visible, mostrando TODO desde el principio
+    // (incluidas esas 3) — nunca coexisten rail y lista al mismo tiempo.
     comunaPanelVisibleCount = Math.min(comunaPanelVisibleCount + COMUNA_PANEL_PAGE_SIZE, total);
-    renderComunaPanelExtraList(locality);
+    renderComunaPanelFullList(locality);
   }
 });
 
-// Lista vertical de experiencias adicionales — todo lo que hay más allá de
-// las 3 tarjetas iniciales del rail (ese rail nunca se toca ni se re-renderiza
-// acá). Misma fuente de datos y mismo criterio de filtrado que el rail
-// (curateComunaPanelPlaces) — sólo cambia la presentación: filas apiladas que
-// se recorren con scroll vertical, no tarjetas horizontales nuevas.
-// curateComunaPanelPlaces(locality, N) es un prefijo estable de
-// curateComunaPanelPlaces(locality, M) para N<=M (ambas pasadas internas son
-// secuenciales y nunca reordenan lo ya elegido), así que .slice(3) sobre el
-// resultado con el límite actual siempre da exactamente los ítems nuevos, sin
-// repetir ni reordenar los 3 del rail.
-function renderComunaPanelExtraList(locality){
+// Lista vertical única — reemplaza por completo al rail horizontal en cuanto
+// se toca "Ver más experiencias" (ver toggle de comunaPanelRail.rail-hidden
+// más abajo). Misma fuente de datos y mismo criterio de filtrado que el rail
+// (curateComunaPanelPlaces), ahora SIN el .slice(3): como el rail ya no está
+// visible, la lista debe mostrar todo desde el índice 0, incluidas las 3
+// experiencias que antes vivían solo en el rail — así nunca hay duplicación
+// ni un hueco al principio de la lista.
+function renderComunaPanelFullList(locality){
+  document.getElementById('comunaPanelRail').classList.add('rail-hidden');
+
   const list = document.getElementById('comunaPanelList');
   const all = curateComunaPanelPlaces(locality, comunaPanelVisibleCount);
-  const extra = all.slice(3);
   const filterTag = state.activeExperience !== 'todos' ? expById(state.activeExperience) : null;
 
-  list.innerHTML = extra.map(place => {
+  list.innerHTML = all.map(place => {
     const tag = filterTag || primaryExperienceTag(place);
     const color = getComputedStyle(document.documentElement).getPropertyValue(tag.color.replace('var(','').replace(')','')).trim();
     return `
@@ -6464,7 +6466,7 @@ function renderComunaPanelExtraList(locality){
   list.querySelectorAll('.comuna-list-item').forEach(row => {
     row.addEventListener('click', () => selectPlaceById(row.dataset.placeId));
   });
-  list.classList.toggle('expanded', extra.length > 0);
+  list.classList.toggle('expanded', all.length > 0);
 
   updateComunaPanelMoreButton(locality, all.length);
 }
@@ -6583,6 +6585,7 @@ function showComunaPanel(locality){
   const list = document.getElementById('comunaPanelList');
   list.innerHTML = '';
   list.classList.remove('expanded'); // la lista vertical de la comuna anterior no debe sobrevivir
+  document.getElementById('comunaPanelRail').classList.remove('rail-hidden'); // vuelve a mostrarse: comuna nueva, estado inicial
   renderComunaPanelRail(locality);
   expandComunaPanel(); // siempre arranca expandido al entrar a una comuna nueva
   comunaPanel.classList.remove('hidden');
