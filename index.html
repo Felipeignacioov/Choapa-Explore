@@ -609,7 +609,7 @@ img{-webkit-user-drag:none; user-select:none;}
   background:rgba(16,36,56,0.82); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
   border:1px solid var(--border-glass); box-shadow:var(--shadow-modal);
   border-radius:var(--radius-l);
-  padding:10px 0 12px;
+  padding:8px 0 9px;
   transition:opacity .24s ease, transform .24s cubic-bezier(.2,.9,.28,1.1);
   /* Layout de bloque normal, sin flex. El intento anterior (columna flex +
      max-height + overflow:hidden en el panel, altura del wrapper resuelta
@@ -627,7 +627,7 @@ img{-webkit-user-drag:none; user-select:none;}
 .comuna-panel.hidden{opacity:0; transform:translateY(10px) scale(0.97); pointer-events:none;}
 .comuna-panel-header{
   display:flex; align-items:center; justify-content:space-between; gap:10px;
-  padding:0 14px 8px;
+  padding:0 12px 6px;
 }
 .comuna-panel-title{
   font-family:var(--font-display); font-size:13.5px; font-weight:700; color:var(--text-primary);
@@ -642,34 +642,41 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 .comuna-panel-close:active{transform:scale(0.88);}
 
+/* Grid fijo de 3 columnas — esta vista siempre muestra exactamente 3
+   experiencias, nunca más, así que no debe comportarse como un carrusel
+   deslizable. 1fr por columna reparte el ancho disponible en partes iguales,
+   así las 3 caben completas dentro de la pantalla sin ninguna cortada en el
+   borde, sin necesidad de gesto de scroll. */
 .comuna-panel-rail{
-  display:flex; gap:9px; overflow-x:auto; scrollbar-width:none;
-  padding:0 14px;
+  display:grid; grid-template-columns:repeat(3, 1fr); gap:7px;
+  padding:0 12px;
 }
-.comuna-panel-rail::-webkit-scrollbar{display:none;}
 /* Al expandir "Ver más experiencias", el rail cede el lugar por completo a la
    lista vertical — nunca coexisten mostrando contenido a la vez. */
 .comuna-panel-rail.rail-hidden{display:none;}
 .comuna-mini-card{
-  flex-shrink:0; width:118px; border-radius:var(--radius-m); overflow:hidden;
+  min-width:0; border-radius:var(--radius-m); overflow:hidden;
   background:var(--surface); border:1px solid var(--border-glass);
   box-shadow:var(--shadow-card);
   transition:transform .16s cubic-bezier(.34,1.56,.64,1);
 }
 .comuna-mini-card:active{transform:scale(0.96);}
 .comuna-mini-card .cmc-photo{
-  position:relative; height:56px; width:100%;
+  position:relative; height:46px; width:100%;
   background:var(--surface-elevated) center/cover no-repeat;
 }
 .comuna-mini-card .cmc-photo::after{
   content:''; position:absolute; inset:0;
   background:linear-gradient(to bottom, rgba(7,19,31,0) 55%, rgba(7,19,31,0.55) 100%);
 }
-.comuna-mini-card .cmc-info{padding:6px 9px 8px;}
+.comuna-mini-card .cmc-info{padding:5px 7px 6px;}
 .comuna-mini-card .cmc-name{
-  font-size:11px; font-weight:700; color:var(--text-primary);
-  line-height:1.2; margin-bottom:3px;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  font-size:10.5px; font-weight:700; color:var(--text-primary);
+  line-height:1.22; margin-bottom:3px;
+  /* 2 líneas antes de truncar — antes 1 sola línea con ellipsis perdía más
+     información al reducir el ancho de la tarjeta. */
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  overflow:hidden;
 }
 .comuna-mini-card .cmc-tag{
   display:inline-flex; align-items:center; gap:4px;
@@ -678,9 +685,9 @@ img{-webkit-user-drag:none; user-select:none;}
 .comuna-mini-card .cmc-tag .dot{width:4px; height:4px; border-radius:50%; background:currentColor;}
 
 .comuna-panel-more{
-  width:calc(100% - 28px); margin:9px 14px 0;
+  width:calc(100% - 24px); margin:7px 12px 0;
   display:flex; align-items:center; justify-content:center; gap:6px;
-  padding:8px; border-radius:var(--radius-m);
+  padding:7px; border-radius:var(--radius-m);
   background:rgba(255,255,255,0.05); border:1px solid var(--border-glass);
   color:var(--turquoise-bright); font-size:11.5px; font-weight:700;
   transition:transform .16s cubic-bezier(.34,1.56,.64,1), background .16s ease;
