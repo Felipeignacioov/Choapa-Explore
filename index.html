@@ -2830,18 +2830,19 @@ function computeElasticCorrection(){
   const viewLng = b.getEast() - b.getWest();
   const viewLat = b.getNorth() - b.getSouth();
 
-  // Tolerancia extra SOLO para decidir cuándo se dispara la corrección en la
-  // vista de spawn/general (zoom bajo) — ~20% del ancho de la franja elástica
-  // ya existente entre CHOAPA_BOUNDS y CHOAPA_MAX_BOUNDS (~0.26-0.29° por
-  // lado), así que 0.055° de margen extra antes de que aparezca la
-  // resistencia. El DESTINO final de la corrección (más abajo) sigue usando
+    // Tolerancia extra SOLO para decidir cuándo se dispara la corrección en la
+  // vista de spawn/general (zoom bajo). Base original: ~20% del ancho de la
+  // franja elástica ya existente entre CHOAPA_BOUNDS y CHOAPA_MAX_BOUNDS
+  // (~0.26-0.29° por lado) = 0.055°. Ajuste posterior: +15% adicional sobre
+  // ese margen (0.055 * 1.15 ≈ 0.063°) — mismo mecanismo, solo el valor crece.
+  // El DESTINO final de la corrección (más abajo) sigue usando
   // minLng/maxLng/minLat/maxLat exactos, sin tocar — los límites visuales
   // máximos no cambian en absoluto, solo el punto en que se empieza a sentir
   // la resistencia. A zoom de comuna/localidad (ZOOM_SUBLOCALITY o más) el
   // viewport ya es mucho más chico que CHOAPA_MAX_BOUNDS, así que esta
   // tolerancia no debería llegar a activarse ahí de todas formas — se acota
   // explícitamente igual, para no depender de eso.
-  const SPAWN_TRIGGER_SLACK = map.getZoom() < ZOOM_SUBLOCALITY ? 0.055 : 0;
+  const SPAWN_TRIGGER_SLACK = map.getZoom() < ZOOM_SUBLOCALITY ? 0.063 : 0;
 
   let newLng = center.lng, newLat = center.lat;
 
