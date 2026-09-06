@@ -2866,6 +2866,15 @@ function computeElasticCorrection(){
 const mapCanvas = map.getCanvasContainer();
 let userInteracting = false;
 let correctingBounds = false;
+// Descarta UNA sola evaluación de tryElasticCorrection — se usa exclusivamente
+// para el 'moveend' que cierra un vuelo de cámara propio ya calculado para
+// terminar en una posición segura (ej. exitLocality hacia CHOAPA_BOUNDS). Sin
+// esto, ese mismo 'moveend' (escuchado globalmente por el sistema de
+// elasticidad) podía interpretar el viewport resultante como "fuera de los
+// límites elásticos" y disparar una segunda corrección encima de un destino
+// que ya era correcto por diseño — el doble movimiento reportado al salir de
+// una comuna. No cambia ningún valor ni criterio de la elasticidad en sí.
+let suppressElasticCorrectionOnce = false;
 
 function markInteractionStart(){
   userInteracting = true;
@@ -2880,6 +2889,10 @@ window.addEventListener('pointerup', markInteractionEnd, { passive:true });
 window.addEventListener('pointercancel', markInteractionEnd, { passive:true });
 
 function tryElasticCorrection(){
+  if (suppressElasticCorrectionOnce){
+    suppressElasticCorrectionOnce = false;
+    return;
+  }
   if (!mapReady || correctingBounds || userInteracting) return;
   const target = computeElasticCorrection();
   if (!target) return;
@@ -4456,12 +4469,13 @@ function exitLocality({ fly }){
   updateZonePrompt();
   updateSheetHero();
   updateLosVilosReflection();
-  hideComunaPanel(); // Fase 2 — devuelve #sheetPill a su comportamiento normal
+   hideComunaPanel(); // Fase 2 — devuelve #sheetPill a su comportamiento normal
   clearSublocalityMarkers();
   if (fly){
     // Mismo padding EXACTO que fitBoundsOptions en la inicialización del mapa
     // (bottom:246, no 280) — antes esa diferencia hacía que el zoom/centro final
     // no coincidiera con el spawn real, percibiéndose como un segundo reacomodo.
+    suppressElasticCorrectionOnce = true; // ver declaración junto a correctingBounds
     map.fitBounds(CHOAPA_BOUNDS, { padding:{ top:220, bottom:246, left:40, right:40 }, duration:1200 });
   }
   updateExplorationBreadcrumb();
