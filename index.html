@@ -217,7 +217,11 @@ img{-webkit-user-drag:none; user-select:none;}
   display:flex; flex-direction:column; gap:1px;
   background:rgba(16,36,56,0.66); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
   border:1px solid var(--border-glass); border-radius:var(--radius-s);
-  box-shadow:var(--shadow-float);
+  /* Elevación reforzada, misma filosofía de capas que .comuna-panel (sombra
+     ancha/difusa + una más ceñida), en dosis proporcional a un control chico
+     — no se toca --shadow-float (variable compartida por buscador/chips/etc.),
+     solo se suma un valor propio para este elemento. */
+  box-shadow:var(--shadow-float), 0 10px 22px rgba(2,8,15,0.34);
   overflow:hidden;
 }
 .map-controls button{
@@ -232,7 +236,11 @@ img{-webkit-user-drag:none; user-select:none;}
   display:flex; align-items:center; justify-content:center;
   width:34px; height:34px;
   background:rgba(16,36,56,0.66); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
-  border:1px solid var(--border-glass); box-shadow:var(--shadow-float); border-radius:50%;
+  border:1px solid var(--border-glass);
+  /* Misma elevación reforzada que .map-controls — consistencia entre ambos
+     grupos de controles flotantes del mapa. */
+  box-shadow:var(--shadow-float), 0 10px 22px rgba(2,8,15,0.34);
+  border-radius:50%;
   color:var(--turquoise-bright);
   transition:transform .16s cubic-bezier(.34,1.56,.64,1), background .16s ease, bottom .38s cubic-bezier(.32,.9,.34,1);
 }
