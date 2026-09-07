@@ -3526,12 +3526,23 @@ function renderTerritoryFade(){
   const rxMax = rxOuter + sealMargin;
   const ryMax = ryOuter + sealMargin;
 
-  const FADE_BASE  = '#0B1726';
+    const FADE_BASE  = '#0B1726';
   const FADE_OCEAN = '#0A2530'; // oeste — profundidad marina
   const FADE_LAND  = '#171009'; // resto — continuidad terrestre, cálido y contenido
-  const MAX_OPACITY = 0.94;
-  const SEAL_OPACITY = 0.95;
-  const ease = t => t * t;
+  // Antes: opacidad partida en dos tramos (ease-in cuadrático 0→1, luego casi
+  // plano 1→2) — con MAX_OPACITY=0.94 alcanzado justo al llegar al límite
+  // elástico (t=1), casi toda la transición quedaba comprimida en ese punto,
+  // leyéndose como un borde evidente en vez de un desvanecimiento orgánico.
+  // Ahora: una única curva continua (smootherstep — arranca y termina con
+  // pendiente cero, sin ningún quiebre) repartida sobre TODO el trayecto
+  // 0→2 (desde el borde real del territorio hasta el sello lejano) — el
+  // contraste se pierde de forma amplia y gradual en vez de concentrarse
+  // cerca del límite de navegación. Puramente visual: no cambia la posición
+  // ni el tamaño de ninguna región, solo cómo se reparte la opacidad sobre
+  // la misma geometría de siempre.
+  const FADE_FINAL_OPACITY = 0.95;
+  const smootherstep = u => { const c = Math.min(Math.max(u, 0), 1); return c*c*c*(c*(c*6-15)+10); };
+  const ease = t => t * t; // se conserva solo para el tinte de color (ver tintAmount), sin cambios ahí
 
   // rx(t)/ry(t): misma familia de elipses de antes (inner→outer en t:[0,1],
   // outer→sello en t:[1,2]) — solo que ahora se evalúa por píxel, no por anillo.
@@ -3567,8 +3578,12 @@ function renderTerritoryFade(){
     for (let px = 0; px < SIZE; px++){
       const lng = center[0] - rxMax + (px / (SIZE-1)) * 2 * rxMax;
       const dx = lng - center[0], dy = lat - center[1];
-      const t = solveT(dx, dy);
-      const opacity = t <= 1 ? ease(t) * MAX_OPACITY : MAX_OPACITY + (SEAL_OPACITY - MAX_OPACITY) * (t - 1);
+           const t = solveT(dx, dy);
+      // Curva continua sobre todo el rango [0,2] — sin el quiebre que existía
+      // en t=1 (límite elástico). El mismo punto que antes ya estaba casi
+      // opaco ahora está aproximadamente a mitad de camino de su
+      // desvanecimiento, continuando suave hacia afuera.
+      const opacity = smootherstep(t / 2) * FADE_FINAL_OPACITY;
       const westWeight = Math.max(0, -Math.cos(Math.atan2(dy, dx))); // 1 en oeste puro, 0 en el resto
       const tintAmount = ease(Math.min(t, 1)) * 0.5;
       const tr = landRGB.r + (oceanRGB.r - landRGB.r) * westWeight;
