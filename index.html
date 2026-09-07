@@ -2964,38 +2964,45 @@ mapCanvas.addEventListener('pointerdown', markInteractionStart, { passive:true }
 window.addEventListener('pointerup', markInteractionEnd, { passive:true });
 window.addEventListener('pointercancel', markInteractionEnd, { passive:true });
 
+let elasticCallCounter = 0; // contador único — no se resetea nunca durante la sesión
 function tryElasticCorrection(){
   // ---- LOGGING TEMPORAL DE DIAGNÓSTICO — quitar después de investigar ----
-  console.log('[elastic] tryElasticCorrection() llamada', {
+  const callId = ++elasticCallCounter;
+  console.log(`[elastic] #${callId} tryElasticCorrection() llamada`, {
     ownCorrectionMoveendPending, suppressElasticCorrectionOnce, mapReady, correctingBounds, userInteracting,
   });
+  console.trace(`[elastic] #${callId} stack de invocación`);
   // ---- FIN LOGGING TEMPORAL ----
   // Se evalúa PRIMERO, antes que cualquier otra condición: si este moveend es
   // el que cierra nuestra propia animación de corrección, se ignora por
   // completo — sin importar si correctingBounds ya fue reseteado de vuelta a
   // false por un toque nuevo del usuario mientras la animación seguía en
   // curso (ver comentario junto a la declaración de la bandera).
-  if (ownCorrectionMoveendPending){
+    if (ownCorrectionMoveendPending){
     ownCorrectionMoveendPending = false;
-    console.log('[elastic] moveend propio ignorado (correción encadenada evitada)');
+    console.log(`[elastic] #${callId} moveend propio ignorado (corrección encadenada evitada)`);
     return;
   }
   if (suppressElasticCorrectionOnce){
     suppressElasticCorrectionOnce = false;
+    console.log(`[elastic] #${callId} suprimida por suppressElasticCorrectionOnce`);
     return;
   }
-  if (!mapReady || correctingBounds || userInteracting) return;
+  if (!mapReady || correctingBounds || userInteracting){
+    console.log(`[elastic] #${callId} bloqueada por guard`, { mapReady, correctingBounds, userInteracting });
+    return;
+  }
   const target = computeElasticCorrection();
   if (!target){
-    console.log('[elastic] sin corrección necesaria (target null)');
+    console.log(`[elastic] #${callId} sin corrección necesaria (target null)`);
     return;
   }
-  console.log('[elastic] DISPARANDO corrección hacia', target);
+  console.log(`[elastic] #${callId} DISPARANDO corrección hacia`, target);
   correctingBounds = true;
   ownCorrectionMoveendPending = true;
   map.easeTo({ center:target, duration:480, easing:t => 1 - Math.pow(1 - t, 3) });
   map.once('moveend', () => {
-    console.log('[elastic] corrección terminada, correctingBounds=false');
+    console.log(`[elastic] #${callId} corrección terminada, correctingBounds=false`);
     correctingBounds = false;
     ownCorrectionMoveendPending = false; // normalmente ya consumida arriba; esto es solo red de seguridad
   });
