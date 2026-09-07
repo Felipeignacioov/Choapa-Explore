@@ -2844,27 +2844,41 @@ function computeElasticCorrection(){
   // explícitamente igual, para no depender de eso.
    const SPAWN_TRIGGER_SLACK = map.getZoom() < ZOOM_SUBLOCALITY ? 0.063 : 0;
 
-  let newLng = center.lng, newLat = center.lat;
+   let newLng = center.lng, newLat = center.lat;
 
-  // Bug preexistente encontrado y corregido: existía una rama previa
-  // "if (viewLng >= (maxLng - minLng)) newLng = centro exacto de la caja" que
-  // no comprobaba si la posición actual estaba fuera de límites — solo si el
-  // viewport visible (según el zoom) era igual o más ancho/alto que
-  // CHOAPA_MAX_BOUNDS. En la vista de spawn, con pantallas verticales, esa
-  // condición se cumplía casi siempre, forzando un recentrado hacia el centro
-  // de la caja en cualquier moveend, incluso moviéndose dentro de límites
-  // normales. El propio comentario original de esta función ya documentaba
-  // que esta rama "ya no hace falta" (el Pointer Events de abajo cancela
-  // cualquier corrección al tocar la pantalla, y la corrección por borde de
-  // abajo es segura incluso con viewport más grande que la caja) pero nunca
-  // se había eliminado. Se retira: solo queda la corrección por borde.
-  if (b.getWest() < minLng - SPAWN_TRIGGER_SLACK){
+  // Historial de esta función, para que quede claro por qué se ve así:
+  // 1) Versión original: "if (viewLng >= (maxLng - minLng)) centrar" —
+  //    disparaba SOLO por el tamaño del viewport (zoom), sin comprobar si la
+  //    posición real estaba fuera de límites. Bug: recentrado dentro de la
+  //    zona normal, en cualquier moveend a zoom bajo. Se eliminó.
+  // 2) Con esa rama fuera, quedó solo la corrección por borde (else if, un
+  //    borde a la vez). Bug nuevo: cuando el viewport SÍ es más ancho/alto
+  //    que CHOAPA_MAX_BOUNDS (posible en spawn, sobre todo con
+  //    SPAWN_TRIGGER_SLACK sumando margen), es geométricamente imposible que
+  //    ambos bordes de un eje queden dentro de rango a la vez — corregir un
+  //    borde empuja inevitablemente al otro fuera de rango, y viceversa en el
+  //    siguiente moveend: rebote infinito entre las dos ramas.
+  // 3) Fix actual: se comprueba primero si AMBOS bordes de un eje están fuera
+  //    de rango simultáneamente — solo en ese caso (la situación
+  //    geométricamente irresoluble por borde) se centra. Si solo un borde
+  //    está fuera, se corrige ese único borde como siempre. Esto conserva la
+  //    corrección de la sesión anterior (nunca dispara solo por el zoom, sin
+  //    haber salido de límites) y resuelve el rebote (cuando de verdad no
+  //    hay forma de que ambos bordes quepan, centrar es la única corrección
+  //    estable — deja de oscilar porque no vuelve a intentar un solo borde).
+  const lngBothOut = (b.getWest() < minLng - SPAWN_TRIGGER_SLACK) && (b.getEast() > maxLng + SPAWN_TRIGGER_SLACK);
+  if (lngBothOut){
+    newLng = (minLng + maxLng) / 2;
+  } else if (b.getWest() < minLng - SPAWN_TRIGGER_SLACK){
     newLng = center.lng + (minLng - b.getWest());
   } else if (b.getEast() > maxLng + SPAWN_TRIGGER_SLACK){
     newLng = center.lng + (maxLng - b.getEast());
   }
 
-  if (b.getSouth() < minLat - SPAWN_TRIGGER_SLACK){
+  const latBothOut = (b.getSouth() < minLat - SPAWN_TRIGGER_SLACK) && (b.getNorth() > maxLat + SPAWN_TRIGGER_SLACK);
+  if (latBothOut){
+    newLat = (minLat + maxLat) / 2;
+  } else if (b.getSouth() < minLat - SPAWN_TRIGGER_SLACK){
     newLat = center.lat + (minLat - b.getSouth());
   } else if (b.getNorth() > maxLat + SPAWN_TRIGGER_SLACK){
     newLat = center.lat + (maxLat - b.getNorth());
