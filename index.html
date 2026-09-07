@@ -2937,6 +2937,20 @@ let correctingBounds = false;
 // que ya era correcto por diseño — el doble movimiento reportado al salir de
 // una comuna. No cambia ningún valor ni criterio de la elasticidad en sí.
 let suppressElasticCorrectionOnce = false;
+// Independiente de correctingBounds (que markInteractionStart puede resetear
+// de inmediato ante un toque nuevo, por diseño — eso no se toca). Esta
+// bandera existe para un problema distinto: si el usuario suelta y vuelve a
+// tocar el mapa MIENTRAS la animación de nuestra propia corrección (480ms)
+// sigue en curso, correctingBounds se resetea por ese nuevo toque, pero la
+// animación de corrección sigue corriendo de fondo — y al terminar, dispara
+// su propio 'moveend'. Sin esta bandera, ese 'moveend' (que es un efecto
+// secundario de NUESTRA propia animación, no una interacción nueva del
+// usuario) volvía a pasar todas las validaciones y disparaba otra corrección
+// encima — el ciclo de rebote reportado. Se marca en true al lanzar la
+// animación y se consume en la primera llamada a tryElasticCorrection que
+// siga, sin importar el estado de correctingBounds/userInteracting en ese
+// momento.
+let ownCorrectionMoveendPending = false;
 
 function markInteractionStart(){
   userInteracting = true;
@@ -2953,9 +2967,19 @@ window.addEventListener('pointercancel', markInteractionEnd, { passive:true });
 function tryElasticCorrection(){
   // ---- LOGGING TEMPORAL DE DIAGNÓSTICO — quitar después de investigar ----
   console.log('[elastic] tryElasticCorrection() llamada', {
-    suppressElasticCorrectionOnce, mapReady, correctingBounds, userInteracting,
+    ownCorrectionMoveendPending, suppressElasticCorrectionOnce, mapReady, correctingBounds, userInteracting,
   });
   // ---- FIN LOGGING TEMPORAL ----
+  // Se evalúa PRIMERO, antes que cualquier otra condición: si este moveend es
+  // el que cierra nuestra propia animación de corrección, se ignora por
+  // completo — sin importar si correctingBounds ya fue reseteado de vuelta a
+  // false por un toque nuevo del usuario mientras la animación seguía en
+  // curso (ver comentario junto a la declaración de la bandera).
+  if (ownCorrectionMoveendPending){
+    ownCorrectionMoveendPending = false;
+    console.log('[elastic] moveend propio ignorado (correción encadenada evitada)');
+    return;
+  }
   if (suppressElasticCorrectionOnce){
     suppressElasticCorrectionOnce = false;
     return;
@@ -2968,10 +2992,12 @@ function tryElasticCorrection(){
   }
   console.log('[elastic] DISPARANDO corrección hacia', target);
   correctingBounds = true;
+  ownCorrectionMoveendPending = true;
   map.easeTo({ center:target, duration:480, easing:t => 1 - Math.pow(1 - t, 3) });
   map.once('moveend', () => {
     console.log('[elastic] corrección terminada, correctingBounds=false');
     correctingBounds = false;
+    ownCorrectionMoveendPending = false; // normalmente ya consumida arriba; esto es solo red de seguridad
   });
 }
 
