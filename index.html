@@ -2705,9 +2705,15 @@ const CHOAPA_SAFETY_BOUNDS = [
 const map = new maplibregl.Map({
   container:'map',
   style:'https://tiles.openfreemap.org/styles/dark',
- bounds: CHOAPA_BOUNDS,
-   // Un poco más al norte que el punto medio anterior (258).
-  fitBoundsOptions:{ padding:{ top:220, bottom:246, left:40, right:40 } },
+  bounds: CHOAPA_BOUNDS,
+   // Padding vertical igualado (antes top:220/bottom:246, asimétrico) — esa
+  // diferencia desplazaba el centro real del spawn unos grados hacia el sur
+  // respecto al centro geográfico de CHOAPA_BOUNDS, dejando menos margen
+  // libre hacia el sur que hacia el norte antes de sentir el elasticado.
+  // Con padding simétrico, el spawn queda geométricamente centrado, y el
+  // slack simétrico (SPAWN_TRIGGER_SLACK_LAT) ahora sí actúa igual en ambas
+  // direcciones como estaba pensado. left/right no se tocan.
+  fitBoundsOptions:{ padding:{ top:233, bottom:233, left:40, right:40 } },
  minZoom:7.6,
   maxZoom:17,
   maxPitch:0,
@@ -4515,11 +4521,11 @@ function exitLocality({ fly }){
    hideComunaPanel(); // Fase 2 — devuelve #sheetPill a su comportamiento normal
   clearSublocalityMarkers();
   if (fly){
-    // Mismo padding EXACTO que fitBoundsOptions en la inicialización del mapa
-    // (bottom:246, no 280) — antes esa diferencia hacía que el zoom/centro final
-    // no coincidiera con el spawn real, percibiéndose como un segundo reacomodo.
-    suppressElasticCorrectionOnce = true; // ver declaración junto a correctingBounds
-    map.fitBounds(CHOAPA_BOUNDS, { padding:{ top:220, bottom:246, left:40, right:40 }, duration:1200 });
+       // Mismo padding EXACTO que fitBoundsOptions en la inicialización del mapa
+    // (ahora top:233/bottom:233, igualado) — debe coincidir siempre con el
+    // valor de arriba, o el zoom/centro final no coincide con el spawn real,
+    // percibiéndose como un segundo reacomodo.
+    map.fitBounds(CHOAPA_BOUNDS, { padding:{ top:233, bottom:233, left:40, right:40 }, duration:1200 });
   }
   updateExplorationBreadcrumb();
   renderPlacesRail();
