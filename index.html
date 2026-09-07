@@ -2768,7 +2768,17 @@ window.addEventListener('orientationchange', () => setTimeout(requestViewportCha
 let mapReady = false;
 
 map.on('load', () => {
-  map.once('moveend', () => { mapReady = true; });
+  map.once('moveend', () => {
+    mapReady = true;
+    // Fase 1 de la migración a bounds nativos: se prueba setMaxBounds()
+    // en paralelo al sistema artesanal existente (tryElasticCorrection),
+    // que sigue activo sin cambios por ahora. El mapa ya tenía maxBounds
+    // configurado en el constructor (CHOAPA_SAFETY_BOUNDS, un margen extra
+    // de 1.5° como red de seguridad dura) — esta llamada lo endurece al
+    // límite real (CHOAPA_MAX_BOUNDS), que es el comportamiento nativo que
+    // se quiere validar: detener el arrastre justo en el borde, sin rebote.
+    map.setMaxBounds(CHOAPA_MAX_BOUNDS);
+  });
   document.getElementById('mapLoading').style.opacity = '0';
   setTimeout(() => document.getElementById('mapLoading').style.display='none', 400);
  tintMapLayers();
