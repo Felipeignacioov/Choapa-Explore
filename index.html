@@ -2814,87 +2814,14 @@ map.on('zoomend', updateExplorationLevel);
 // (enterLocality, exitLocality, etc.): ningún destino de la app cae nunca fuera
 // de estos límites, así que esta corrección nunca interfiere con la navegación
 // existente — solo actúa cuando de verdad hace falta.
-// ---------- Elasticidad territorial unificada ----------
-// Margen FIJO en grados (no depende del zoom ni del tamaño de pantalla) — el
-// mismo "colchón" de respiración alrededor del territorio real, siempre. Reusa
-// CHOAPA_MAX_BOUNDS (ya reducido ~35% respecto al original, sesión anterior) en
-// vez de calcular un % del viewport: eso es lo que causaba sentirse "encerrado"
-// muy acercado (margen chico en grados a zoom alto) y tirones muy alejado
-// (margen inestable cuando el viewport es más grande que el propio territorio).
-// Con un margen fijo, la elasticidad se siente idéntica sin importar el zoom:
-// llegás al borde real del Choapa, y desde ahí — siempre desde ahí — empieza a
-// estirarse un poco antes de volver.
-// Corrección uniforme en los 4 ejes. Cuando la pantalla es más ancha/alta que la
-// propia caja elástica (caso frecuente en celulares en vertical para el eje
-// norte-sur), YA NO se deja ese eje completamente libre — eso era exactamente
-// la causa de que la elasticidad se sintiera "solo hacia la costa": el eje
-// vertical caía en ese caso casi siempre y quedaba sin ningún límite. Ahora ese
-// caso cae a una corrección por centro, así todo eje tiene siempre algún tipo
-// de resistencia — los 4 lados quedan simétricos de verdad.
-// Mismo método de corrección (por borde de pantalla) en los 4 lados, sin
-// excepción. Antes existía una rama alternativa ("por centro", mucho más
-// permisiva) que se activaba cuando el viewport no cabía dentro de la caja
-// elástica — y en un celular vertical, eso pasaba casi siempre en el eje
-// norte-sur (la pantalla muestra más territorio vertical que horizontal a un
-// mismo zoom), nunca en este-oeste. Esa rama ya no hace falta: el sistema de
-// Pointer Events (más abajo) ya cancela cualquier corrección en el instante en
-// que el usuario vuelve a tocar la pantalla, así que aplicar siempre la
-// corrección por borde es seguro incluso cuando el viewport es más grande que
-// la caja — en ese caso simplemente se acerca lo más posible al límite excedido,
-// que es exactamente el comportamiento elástico esperado.
-function computeElasticCorrection(){
-  const b = map.getBounds();
-  const center = map.getCenter();
-  const [[minLng, minLat], [maxLng, maxLat]] = CHOAPA_MAX_BOUNDS;
-   const viewLng = b.getEast() - b.getWest();
-  const viewLat = b.getNorth() - b.getSouth();
-    // Tolerancia extra SOLO para decidir cuándo se dispara la corrección en la
-  // vista de spawn/general (zoom bajo). Base original: ~20% del ancho de la
-  // franja elástica ya existente entre CHOAPA_BOUNDS y CHOAPA_MAX_BOUNDS
-  // (~0.26-0.29° por lado) = 0.055°. Ajuste posterior: +15% adicional sobre
-  // ese margen (0.055 * 1.15 ≈ 0.063°) — mismo mecanismo, solo el valor crece.
-  // El DESTINO final de la corrección (más abajo) sigue usando
-  // minLng/maxLng/minLat/maxLat exactos, sin tocar — los límites visuales
-  // máximos no cambian en absoluto, solo el punto en que se empieza a sentir
-  // la resistencia. A zoom de comuna/localidad (ZOOM_SUBLOCALITY o más) el
-  // viewport ya es mucho más chico que CHOAPA_MAX_BOUNDS, así que esta
-  // tolerancia no debería llegar a activarse ahí de todas formas — se acota
-  // explícitamente igual, para no depender de eso.
-       // Slack separado por eje — mismo criterio de siempre (solo aplica en la
-  // vista de spawn/general, zoom < ZOOM_SUBLOCALITY), pero ahora con un valor
-  // mayor en latitud (norte-sur) que en longitud (este-oeste), a pedido:
-  // este-oeste ya se sentía bien y queda intacto (0.063, igual que antes);
-  // norte-sur sube ~35% (0.063 → 0.085) para dar más margen libre en esa
-  // dirección específica antes de que aparezca cualquier resistencia.
-  const SPAWN_TRIGGER_SLACK_LNG = map.getZoom() < ZOOM_SUBLOCALITY ? 0.063 : 0;
-  const SPAWN_TRIGGER_SLACK_LAT = map.getZoom() < ZOOM_SUBLOCALITY ? 0.085 : 0;
+// ---------- Límites de navegación ----------
+// Antes: sistema artesanal de "elasticidad" (corrección manual en cada
+// moveend, comparando el viewport contra CHOAPA_MAX_BOUNDS). Se reemplazó por
+// map.setMaxBounds(CHOAPA_MAX_BOUNDS) — límite nativo de MapLibre, que frena
+// el arrastre directamente en el borde durante el propio gesto (incluido
+// fling), sin necesidad de corregir después ni de lógica propia que mantener.
+// Ver el setMaxBounds() en el callback de mapReady, más arriba.
 
-  let newLng = center.lng, newLat = center.lat;
-
-  if (viewLng >= (maxLng - minLng)){
-    newLng = (minLng + maxLng) / 2;
-  } else if (b.getWest() < minLng - SPAWN_TRIGGER_SLACK_LNG){
-    newLng = center.lng + (minLng - b.getWest());
-  } else if (b.getEast() > maxLng + SPAWN_TRIGGER_SLACK_LNG){
-    newLng = center.lng + (maxLng - b.getEast());
-  }
-
-  if (viewLat >= (maxLat - minLat)){
-    newLat = (minLat + maxLat) / 2;
-  } else if (b.getSouth() < minLat - SPAWN_TRIGGER_SLACK_LAT){
-    newLat = center.lat + (minLat - b.getSouth());
-  } else if (b.getNorth() > maxLat + SPAWN_TRIGGER_SLACK_LAT){
-    newLat = center.lat + (maxLat - b.getNorth());
-  }
-
-  // Tolerancia ~0.0005° (medio metro) — sin esto, easeTo casi nunca deja el
-  // centro en el punto EXACTO calculado (coma flotante), así que la corrección
-  // se volvía a disparar sobre sí misma en un bucle infinito de correcciones
-  // microscópicas — eso era el tirite continuo después de volver del borde.
-  const EPS = 0.0005;
-  if (Math.abs(newLng - center.lng) < EPS && Math.abs(newLat - center.lat) < EPS) return null;
-  return [newLng, newLat];
-}
 
 // Única fuente de verdad para "¿el usuario tiene el dedo puesto?": Pointer Events
 // directo sobre el canvas del mapa, en vez de los pares dragstart/dragend y
@@ -2904,34 +2831,12 @@ function computeElasticCorrection(){
 // siempre se empareja correctamente por diseño de la propia API del navegador.
 const mapCanvas = map.getCanvasContainer();
 let userInteracting = false;
-let correctingBounds = false;
-// Descarta UNA sola evaluación de tryElasticCorrection — se usa exclusivamente
-// para el 'moveend' que cierra un vuelo de cámara propio ya calculado para
-// terminar en una posición segura (ej. exitLocality hacia CHOAPA_BOUNDS). Sin
-// esto, ese mismo 'moveend' (escuchado globalmente por el sistema de
-// elasticidad) podía interpretar el viewport resultante como "fuera de los
-// límites elásticos" y disparar una segunda corrección encima de un destino
-// que ya era correcto por diseño — el doble movimiento reportado al salir de
-// una comuna. No cambia ningún valor ni criterio de la elasticidad en sí.
-let suppressElasticCorrectionOnce = false;
-// Independiente de correctingBounds (que markInteractionStart puede resetear
-// de inmediato ante un toque nuevo, por diseño — eso no se toca). Esta
-// bandera existe para un problema distinto: si el usuario suelta y vuelve a
-// tocar el mapa MIENTRAS la animación de nuestra propia corrección (480ms)
-// sigue en curso, correctingBounds se resetea por ese nuevo toque, pero la
-// animación de corrección sigue corriendo de fondo — y al terminar, dispara
-// su propio 'moveend'. Sin esta bandera, ese 'moveend' (que es un efecto
-// secundario de NUESTRA propia animación, no una interacción nueva del
-// usuario) volvía a pasar todas las validaciones y disparaba otra corrección
-// encima — el ciclo de rebote reportado. Se marca en true al lanzar la
-// animación y se consume en la primera llamada a tryElasticCorrection que
-// siga, sin importar el estado de correctingBounds/userInteracting en ese
-// momento.
-let ownCorrectionMoveendPending = false;
 
+// userInteracting sigue en uso: solo pospone el resize del viewport mientras
+// dura un gesto (ver requestViewportChange/handleViewportChange más abajo) —
+// eso no es parte del sistema de elasticado artesanal y se mantiene intacto.
 function markInteractionStart(){
   userInteracting = true;
-  correctingBounds = false; // cede el control de inmediato — nunca pelea contra el nuevo gesto
 }
 function markInteractionEnd(){
   userInteracting = false;
@@ -2940,21 +2845,6 @@ function markInteractionEnd(){
 mapCanvas.addEventListener('pointerdown', markInteractionStart, { passive:true });
 window.addEventListener('pointerup', markInteractionEnd, { passive:true });
 window.addEventListener('pointercancel', markInteractionEnd, { passive:true });
-
-function tryElasticCorrection(){
-  if (suppressElasticCorrectionOnce){
-    suppressElasticCorrectionOnce = false;
-    return;
-  }
-  if (!mapReady || correctingBounds || userInteracting) return;
-  const target = computeElasticCorrection();
-  if (!target) return;
-  correctingBounds = true;
-  map.easeTo({ center:target, duration:480, easing:t => 1 - Math.pow(1 - t, 3) });
-  map.once('moveend', () => { correctingBounds = false; });
-}
-
-map.on('moveend', tryElasticCorrection);
 // La inclinación de cámara (pitch) está desactivada a nivel de configuración
 // del mapa (maxPitch:0, pitchWithRotate:false, touchPitch:false) — era la causa
 // raíz de que el mapa se congelara al combinarse con ciertos rangos de zoom.
@@ -4525,10 +4415,13 @@ function exitLocality({ fly }){
    hideComunaPanel(); // Fase 2 — devuelve #sheetPill a su comportamiento normal
   clearSublocalityMarkers();
   if (fly){
-    // Mismo padding EXACTO que fitBoundsOptions en la inicialización del mapa
+       // Mismo padding EXACTO que fitBoundsOptions en la inicialización del mapa
     // (bottom:246, no 280) — antes esa diferencia hacía que el zoom/centro final
     // no coincidiera con el spawn real, percibiéndose como un segundo reacomodo.
-    suppressElasticCorrectionOnce = true; // ver declaración junto a correctingBounds
+    // El doble movimiento que este flag evitaba era un conflicto con el
+    // sistema artesanal de elasticado (tryElasticCorrection, ya eliminado en
+    // favor de setMaxBounds nativo) — sin ese sistema corriendo, ya no hay
+    // ninguna corrección propia con la que este fitBounds pueda chocar.
     map.fitBounds(CHOAPA_BOUNDS, { padding:{ top:220, bottom:246, left:40, right:40 }, duration:1200 });
   }
   updateExplorationBreadcrumb();
