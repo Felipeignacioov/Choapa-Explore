@@ -2827,22 +2827,8 @@ function computeElasticCorrection(){
   const b = map.getBounds();
   const center = map.getCenter();
   const [[minLng, minLat], [maxLng, maxLat]] = CHOAPA_MAX_BOUNDS;
-  const viewLng = b.getEast() - b.getWest();
+   const viewLng = b.getEast() - b.getWest();
   const viewLat = b.getNorth() - b.getSouth();
-  // ---- LOGGING TEMPORAL DE DIAGNÓSTICO — quitar después de investigar ----
-  console.log('[elastic] ---- evaluando ----', {
-    zoom: map.getZoom().toFixed(2),
-    viewLng: viewLng.toFixed(4),
-    'maxLng-minLng': (maxLng - minLng).toFixed(4),
-    viewLat: viewLat.toFixed(4),
-    'maxLat-minLat': (maxLat - minLat).toFixed(4),
-    getWest: b.getWest().toFixed(4),
-    getEast: b.getEast().toFixed(4),
-    getSouth: b.getSouth().toFixed(4),
-    getNorth: b.getNorth().toFixed(4),
-  });
-  // ---- FIN LOGGING TEMPORAL (parte 1/2 — la parte 2 va después de SPAWN_TRIGGER_SLACK) ----
-
     // Tolerancia extra SOLO para decidir cuándo se dispara la corrección en la
   // vista de spawn/general (zoom bajo). Base original: ~20% del ancho de la
   // franja elástica ya existente entre CHOAPA_BOUNDS y CHOAPA_MAX_BOUNDS
@@ -2855,45 +2841,11 @@ function computeElasticCorrection(){
   // viewport ya es mucho más chico que CHOAPA_MAX_BOUNDS, así que esta
   // tolerancia no debería llegar a activarse ahí de todas formas — se acota
   // explícitamente igual, para no depender de eso.
-   const SPAWN_TRIGGER_SLACK = map.getZoom() < ZOOM_SUBLOCALITY ? 0.063 : 0;
+     const SPAWN_TRIGGER_SLACK = map.getZoom() < ZOOM_SUBLOCALITY ? 0.063 : 0;
 
-   let newLng = center.lng, newLat = center.lat;
+  let newLng = center.lng, newLat = center.lat;
 
-  // Historial de esta función, para que quede claro por qué se ve así:
-  // 1) Versión original: "if (viewLng >= (maxLng - minLng)) centrar" —
-  //    disparaba SOLO por el tamaño del viewport (zoom), sin comprobar si la
-  //    posición real estaba fuera de límites. Bug: recentrado dentro de la
-  //    zona normal, en cualquier moveend a zoom bajo. Se eliminó.
-  // 2) Con esa rama fuera, quedó solo la corrección por borde (else if, un
-  //    borde a la vez). Bug nuevo: cuando el viewport SÍ es más ancho/alto
-  //    que CHOAPA_MAX_BOUNDS (posible en spawn, sobre todo con
-  //    SPAWN_TRIGGER_SLACK sumando margen), es geométricamente imposible que
-  //    ambos bordes de un eje queden dentro de rango a la vez — corregir un
-  //    borde empuja inevitablemente al otro fuera de rango, y viceversa en el
-  //    siguiente moveend: rebote infinito entre las dos ramas.
-  // 3) Fix actual: se comprueba primero si AMBOS bordes de un eje están fuera
-  //    de rango simultáneamente — solo en ese caso (la situación
-  //    geométricamente irresoluble por borde) se centra. Si solo un borde
-  //    está fuera, se corrige ese único borde como siempre. Esto conserva la
-  //    corrección de la sesión anterior (nunca dispara solo por el zoom, sin
-  //    haber salido de límites) y resuelve el rebote (cuando de verdad no
-  //    hay forma de que ambos bordes quepan, centrar es la única corrección
-  //    estable — deja de oscilar porque no vuelve a intentar un solo borde).
-   // ---- LOGGING TEMPORAL DE DIAGNÓSTICO (parte 2/2) — quitar después de investigar ----
-  console.log('[elastic] umbrales/resultado', {
-    SPAWN_TRIGGER_SLACK,
-    'minLng-SLACK': (minLng - SPAWN_TRIGGER_SLACK).toFixed(4),
-    'maxLng+SLACK': (maxLng + SPAWN_TRIGGER_SLACK).toFixed(4),
-    'minLat-SLACK': (minLat - SPAWN_TRIGGER_SLACK).toFixed(4),
-    'maxLat+SLACK': (maxLat + SPAWN_TRIGGER_SLACK).toFixed(4),
-    westOut: b.getWest() < minLng - SPAWN_TRIGGER_SLACK,
-    eastOut: b.getEast() > maxLng + SPAWN_TRIGGER_SLACK,
-    southOut: b.getSouth() < minLat - SPAWN_TRIGGER_SLACK,
-    northOut: b.getNorth() > maxLat + SPAWN_TRIGGER_SLACK,
-  });
-  // ---- FIN LOGGING TEMPORAL ----
-  const lngBothOut = (b.getWest() < minLng - SPAWN_TRIGGER_SLACK) && (b.getEast() > maxLng + SPAWN_TRIGGER_SLACK);
-  if (lngBothOut){
+  if (viewLng >= (maxLng - minLng)){
     newLng = (minLng + maxLng) / 2;
   } else if (b.getWest() < minLng - SPAWN_TRIGGER_SLACK){
     newLng = center.lng + (minLng - b.getWest());
@@ -2901,8 +2853,7 @@ function computeElasticCorrection(){
     newLng = center.lng + (maxLng - b.getEast());
   }
 
-  const latBothOut = (b.getSouth() < minLat - SPAWN_TRIGGER_SLACK) && (b.getNorth() > maxLat + SPAWN_TRIGGER_SLACK);
-  if (latBothOut){
+  if (viewLat >= (maxLat - minLat)){
     newLat = (minLat + maxLat) / 2;
   } else if (b.getSouth() < minLat - SPAWN_TRIGGER_SLACK){
     newLat = center.lat + (minLat - b.getSouth());
@@ -2964,48 +2915,17 @@ mapCanvas.addEventListener('pointerdown', markInteractionStart, { passive:true }
 window.addEventListener('pointerup', markInteractionEnd, { passive:true });
 window.addEventListener('pointercancel', markInteractionEnd, { passive:true });
 
-let elasticCallCounter = 0; // contador único — no se resetea nunca durante la sesión
 function tryElasticCorrection(){
-  // ---- LOGGING TEMPORAL DE DIAGNÓSTICO — quitar después de investigar ----
-  const callId = ++elasticCallCounter;
-  console.log(`[elastic] #${callId} tryElasticCorrection() llamada`, {
-    ownCorrectionMoveendPending, suppressElasticCorrectionOnce, mapReady, correctingBounds, userInteracting,
-  });
-  console.trace(`[elastic] #${callId} stack de invocación`);
-  // ---- FIN LOGGING TEMPORAL ----
-  // Se evalúa PRIMERO, antes que cualquier otra condición: si este moveend es
-  // el que cierra nuestra propia animación de corrección, se ignora por
-  // completo — sin importar si correctingBounds ya fue reseteado de vuelta a
-  // false por un toque nuevo del usuario mientras la animación seguía en
-  // curso (ver comentario junto a la declaración de la bandera).
-    if (ownCorrectionMoveendPending){
-    ownCorrectionMoveendPending = false;
-    console.log(`[elastic] #${callId} moveend propio ignorado (corrección encadenada evitada)`);
-    return;
-  }
   if (suppressElasticCorrectionOnce){
     suppressElasticCorrectionOnce = false;
-    console.log(`[elastic] #${callId} suprimida por suppressElasticCorrectionOnce`);
     return;
   }
-  if (!mapReady || correctingBounds || userInteracting){
-    console.log(`[elastic] #${callId} bloqueada por guard`, { mapReady, correctingBounds, userInteracting });
-    return;
-  }
+  if (!mapReady || correctingBounds || userInteracting) return;
   const target = computeElasticCorrection();
-  if (!target){
-    console.log(`[elastic] #${callId} sin corrección necesaria (target null)`);
-    return;
-  }
-  console.log(`[elastic] #${callId} DISPARANDO corrección hacia`, target);
+  if (!target) return;
   correctingBounds = true;
-  ownCorrectionMoveendPending = true;
   map.easeTo({ center:target, duration:480, easing:t => 1 - Math.pow(1 - t, 3) });
-  map.once('moveend', () => {
-    console.log(`[elastic] #${callId} corrección terminada, correctingBounds=false`);
-    correctingBounds = false;
-    ownCorrectionMoveendPending = false; // normalmente ya consumida arriba; esto es solo red de seguridad
-  });
+  map.once('moveend', () => { correctingBounds = false; });
 }
 
 map.on('moveend', tryElasticCorrection);
