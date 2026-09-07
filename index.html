@@ -2654,8 +2654,17 @@ const CHOAPA_BOUNDS = [
   [-70.45, -31.05], // noreste
 ];
 const CHOAPA_MAX_BOUNDS = [
-  [-72.04, -32.41], // suroeste + margen — reducido ~35% (antes -72.20,-32.55)
-  [-70.19, -30.79], // noreste + margen — reducido ~35% (antes -70.05,-30.65)
+  // Agrandado de forma pareja en los 4 lados (sesión de ajuste de margen de
+  // spawn) para que ningún eje del viewport en la vista de spawn
+  // (viewLng≈1.77, viewLat≈1.81-1.82, medidos en sesión anterior) iguale o
+  // supere el tamaño de la caja — antes viewLat (1.82) ya superaba el alto
+  // de la caja (1.62), lo que hacía que el margen libre norte-sur se sintiera
+  // mucho más apretado que este-oeste. Nuevo tamaño: ~2.30 de ancho x ~2.35
+  // de alto (antes 1.85 x 1.62), dejando ambos ejes del viewport claramente
+  // por debajo con margen de sobra. Solo son estos 2 pares de coordenadas —
+  // ninguna lógica de corrección fue tocada.
+  [-72.265, -32.775], // suroeste + margen
+  [-69.965, -30.425], // noreste + margen
 ];
 
 // Navegación real — OpenRouteService. Key gratuita, visible client-side por
