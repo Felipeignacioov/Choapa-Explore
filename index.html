@@ -2706,14 +2706,14 @@ const map = new maplibregl.Map({
   container:'map',
   style:'https://tiles.openfreemap.org/styles/dark',
   bounds: CHOAPA_BOUNDS,
-   // Padding vertical igualado (antes top:220/bottom:246, asimétrico) — esa
-  // diferencia desplazaba el centro real del spawn unos grados hacia el sur
-  // respecto al centro geográfico de CHOAPA_BOUNDS, dejando menos margen
-  // libre hacia el sur que hacia el norte antes de sentir el elasticado.
-  // Con padding simétrico, el spawn queda geométricamente centrado, y el
-  // slack simétrico (SPAWN_TRIGGER_SLACK_LAT) ahora sí actúa igual en ambas
-  // direcciones como estaba pensado. left/right no se tocan.
-  fitBoundsOptions:{ padding:{ top:233, bottom:233, left:40, right:40 } },
+   // Padding reducido (antes top:233/bottom:233) — un valor más chico hace que
+  // CHOAPA_BOUNDS ocupe más pantalla al calcularse el zoom inicial, dando la
+  // sensación de spawnear con un poco de zoom-in. NO se toca minZoom/maxZoom
+  // (el tope de alejamiento sigue siendo exactamente el mismo) ni ningún
+  // bound — es solo el punto de partida del zoom, el usuario sigue pudiendo
+  // alejar hasta donde ya podía antes. Se mantiene simétrico (top=bottom) por
+  // el mismo motivo que antes: centrado geográfico real.
+  fitBoundsOptions:{ padding:{ top:180, bottom:180, left:40, right:40 } },
  minZoom:7.6,
   maxZoom:17,
   maxPitch:0,
@@ -4520,11 +4520,11 @@ function exitLocality({ fly }){
    hideComunaPanel(); // Fase 2 — devuelve #sheetPill a su comportamiento normal
   clearSublocalityMarkers();
   if (fly){
-       // Mismo padding EXACTO que fitBoundsOptions en la inicialización del mapa
-    // (ahora top:233/bottom:233, igualado) — debe coincidir siempre con el
+           // Mismo padding EXACTO que fitBoundsOptions en la inicialización del mapa
+    // (ahora top:180/bottom:180, igualado) — debe coincidir siempre con el
     // valor de arriba, o el zoom/centro final no coincide con el spawn real,
     // percibiéndose como un segundo reacomodo.
-    map.fitBounds(CHOAPA_BOUNDS, { padding:{ top:233, bottom:233, left:40, right:40 }, duration:1200 });
+    map.fitBounds(CHOAPA_BOUNDS, { padding:{ top:180, bottom:180, left:40, right:40 }, duration:1200 });
   }
   updateExplorationBreadcrumb();
   renderPlacesRail();
