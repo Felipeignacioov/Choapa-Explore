@@ -2829,6 +2829,19 @@ function computeElasticCorrection(){
   const [[minLng, minLat], [maxLng, maxLat]] = CHOAPA_MAX_BOUNDS;
   const viewLng = b.getEast() - b.getWest();
   const viewLat = b.getNorth() - b.getSouth();
+  // ---- LOGGING TEMPORAL DE DIAGNÓSTICO — quitar después de investigar ----
+  console.log('[elastic] ---- evaluando ----', {
+    zoom: map.getZoom().toFixed(2),
+    viewLng: viewLng.toFixed(4),
+    'maxLng-minLng': (maxLng - minLng).toFixed(4),
+    viewLat: viewLat.toFixed(4),
+    'maxLat-minLat': (maxLat - minLat).toFixed(4),
+    getWest: b.getWest().toFixed(4),
+    getEast: b.getEast().toFixed(4),
+    getSouth: b.getSouth().toFixed(4),
+    getNorth: b.getNorth().toFixed(4),
+  });
+  // ---- FIN LOGGING TEMPORAL (parte 1/2 — la parte 2 va después de SPAWN_TRIGGER_SLACK) ----
 
     // Tolerancia extra SOLO para decidir cuándo se dispara la corrección en la
   // vista de spawn/general (zoom bajo). Base original: ~20% del ancho de la
@@ -2866,6 +2879,19 @@ function computeElasticCorrection(){
   //    haber salido de límites) y resuelve el rebote (cuando de verdad no
   //    hay forma de que ambos bordes quepan, centrar es la única corrección
   //    estable — deja de oscilar porque no vuelve a intentar un solo borde).
+   // ---- LOGGING TEMPORAL DE DIAGNÓSTICO (parte 2/2) — quitar después de investigar ----
+  console.log('[elastic] umbrales/resultado', {
+    SPAWN_TRIGGER_SLACK,
+    'minLng-SLACK': (minLng - SPAWN_TRIGGER_SLACK).toFixed(4),
+    'maxLng+SLACK': (maxLng + SPAWN_TRIGGER_SLACK).toFixed(4),
+    'minLat-SLACK': (minLat - SPAWN_TRIGGER_SLACK).toFixed(4),
+    'maxLat+SLACK': (maxLat + SPAWN_TRIGGER_SLACK).toFixed(4),
+    westOut: b.getWest() < minLng - SPAWN_TRIGGER_SLACK,
+    eastOut: b.getEast() > maxLng + SPAWN_TRIGGER_SLACK,
+    southOut: b.getSouth() < minLat - SPAWN_TRIGGER_SLACK,
+    northOut: b.getNorth() > maxLat + SPAWN_TRIGGER_SLACK,
+  });
+  // ---- FIN LOGGING TEMPORAL ----
   const lngBothOut = (b.getWest() < minLng - SPAWN_TRIGGER_SLACK) && (b.getEast() > maxLng + SPAWN_TRIGGER_SLACK);
   if (lngBothOut){
     newLng = (minLng + maxLng) / 2;
@@ -2925,16 +2951,28 @@ window.addEventListener('pointerup', markInteractionEnd, { passive:true });
 window.addEventListener('pointercancel', markInteractionEnd, { passive:true });
 
 function tryElasticCorrection(){
+  // ---- LOGGING TEMPORAL DE DIAGNÓSTICO — quitar después de investigar ----
+  console.log('[elastic] tryElasticCorrection() llamada', {
+    suppressElasticCorrectionOnce, mapReady, correctingBounds, userInteracting,
+  });
+  // ---- FIN LOGGING TEMPORAL ----
   if (suppressElasticCorrectionOnce){
     suppressElasticCorrectionOnce = false;
     return;
   }
   if (!mapReady || correctingBounds || userInteracting) return;
   const target = computeElasticCorrection();
-  if (!target) return;
+  if (!target){
+    console.log('[elastic] sin corrección necesaria (target null)');
+    return;
+  }
+  console.log('[elastic] DISPARANDO corrección hacia', target);
   correctingBounds = true;
   map.easeTo({ center:target, duration:480, easing:t => 1 - Math.pow(1 - t, 3) });
-  map.once('moveend', () => { correctingBounds = false; });
+  map.once('moveend', () => {
+    console.log('[elastic] corrección terminada, correctingBounds=false');
+    correctingBounds = false;
+  });
 }
 
 map.on('moveend', tryElasticCorrection);
