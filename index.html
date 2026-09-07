@@ -2862,8 +2862,12 @@ function computeElasticCorrection(){
   // este-oeste ya se sentía bien y queda intacto (0.063, igual que antes);
   // norte-sur sube ~35% (0.063 → 0.085) para dar más margen libre en esa
   // dirección específica antes de que aparezca cualquier resistencia.
-  const SPAWN_TRIGGER_SLACK_LNG = map.getZoom() < ZOOM_SUBLOCALITY ? 0.063 : 0;
-  const SPAWN_TRIGGER_SLACK_LAT = map.getZoom() < ZOOM_SUBLOCALITY ? 0.085 : 0;
+   const SPAWN_TRIGGER_SLACK_LNG = map.getZoom() < ZOOM_SUBLOCALITY ? 0.063 : 0;
+  // +20% sobre el valor anterior (0.085 → 0.102) — más margen de movimiento
+  // libre norte-sur antes de que se dispare el recentrado. Cambio puramente
+  // de comportamiento: no toca CHOAPA_MAX_BOUNDS ni ningún valor visual, solo
+  // el punto en el que empieza a sentirse la resistencia.
+  const SPAWN_TRIGGER_SLACK_LAT = map.getZoom() < ZOOM_SUBLOCALITY ? 0.102 : 0;
 
   let newLng = center.lng, newLat = center.lat;
 
