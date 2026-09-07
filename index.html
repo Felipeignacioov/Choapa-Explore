@@ -2850,23 +2850,30 @@ function computeElasticCorrection(){
   // viewport ya es mucho más chico que CHOAPA_MAX_BOUNDS, así que esta
   // tolerancia no debería llegar a activarse ahí de todas formas — se acota
   // explícitamente igual, para no depender de eso.
-     const SPAWN_TRIGGER_SLACK = map.getZoom() < ZOOM_SUBLOCALITY ? 0.063 : 0;
+       // Slack separado por eje — mismo criterio de siempre (solo aplica en la
+  // vista de spawn/general, zoom < ZOOM_SUBLOCALITY), pero ahora con un valor
+  // mayor en latitud (norte-sur) que en longitud (este-oeste), a pedido:
+  // este-oeste ya se sentía bien y queda intacto (0.063, igual que antes);
+  // norte-sur sube ~35% (0.063 → 0.085) para dar más margen libre en esa
+  // dirección específica antes de que aparezca cualquier resistencia.
+  const SPAWN_TRIGGER_SLACK_LNG = map.getZoom() < ZOOM_SUBLOCALITY ? 0.063 : 0;
+  const SPAWN_TRIGGER_SLACK_LAT = map.getZoom() < ZOOM_SUBLOCALITY ? 0.085 : 0;
 
   let newLng = center.lng, newLat = center.lat;
 
   if (viewLng >= (maxLng - minLng)){
     newLng = (minLng + maxLng) / 2;
-  } else if (b.getWest() < minLng - SPAWN_TRIGGER_SLACK){
+  } else if (b.getWest() < minLng - SPAWN_TRIGGER_SLACK_LNG){
     newLng = center.lng + (minLng - b.getWest());
-  } else if (b.getEast() > maxLng + SPAWN_TRIGGER_SLACK){
+  } else if (b.getEast() > maxLng + SPAWN_TRIGGER_SLACK_LNG){
     newLng = center.lng + (maxLng - b.getEast());
   }
 
   if (viewLat >= (maxLat - minLat)){
     newLat = (minLat + maxLat) / 2;
-  } else if (b.getSouth() < minLat - SPAWN_TRIGGER_SLACK){
+  } else if (b.getSouth() < minLat - SPAWN_TRIGGER_SLACK_LAT){
     newLat = center.lat + (minLat - b.getSouth());
-  } else if (b.getNorth() > maxLat + SPAWN_TRIGGER_SLACK){
+  } else if (b.getNorth() > maxLat + SPAWN_TRIGGER_SLACK_LAT){
     newLat = center.lat + (maxLat - b.getNorth());
   }
 
