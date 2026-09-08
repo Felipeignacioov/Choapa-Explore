@@ -1739,6 +1739,12 @@ img{-webkit-user-drag:none; user-select:none;}
   margin-bottom:12px;
 }
 .rsp-header-title{font-family:var(--font-display); font-size:12.5px; font-weight:700; color:var(--text-secondary);}
+.rsp-dest{display:flex; align-items:center; gap:9px; margin-bottom:12px;}
+.rsp-dest-icon{
+  width:26px; height:26px; border-radius:50%; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+}
+.rsp-dest-name{font-family:var(--font-display); font-size:14.5px; font-weight:700; color:var(--text-primary); letter-spacing:-0.1px;}
 .rsp-cancel{
   width:26px; height:26px; border-radius:50%; flex-shrink:0;
   background:rgba(16,36,56,0.72); border:1px solid var(--border-glass);
@@ -1789,6 +1795,12 @@ img{-webkit-user-drag:none; user-select:none;}
   transition:transform .38s cubic-bezier(.2,.9,.28,1.14), opacity .26s ease;
 }
 .active-nav-hud.visible{transform:translateY(0) scale(1); opacity:1; pointer-events:auto;}
+.anh-dest{display:flex; align-items:center; gap:7px; margin-bottom:10px;}
+.anh-dest-icon{
+  width:20px; height:20px; border-radius:50%; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+}
+.anh-dest-name{font-family:var(--font-display); font-size:12.5px; font-weight:700; color:var(--text-primary);}
 .anh-top{display:flex; align-items:center; gap:12px;}
 .anh-mode-icon{
   width:34px; height:34px; border-radius:50%; flex-shrink:0;
@@ -2232,11 +2244,15 @@ img{-webkit-user-drag:none; user-select:none;}
 
   <!-- ================= NAVEGACIÓN REAL — Fase 2: resumen de ruta ================= -->
       <div class="route-summary-panel" id="routeSummaryPanel">
-    <div class="rsp-header">
+        <div class="rsp-header">
       <span class="rsp-header-title">Tu ruta</span>
       <button class="rsp-cancel" id="rspCancel" aria-label="Cancelar navegación">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       </button>
+    </div>
+    <div class="rsp-dest" id="rspDest">
+      <span class="rsp-dest-icon" id="rspDestIcon"></span>
+      <span class="rsp-dest-name" id="rspDestName">—</span>
     </div>
     <div class="rsp-modes" id="rspModes"></div>
     <div class="rsp-main">
@@ -2256,7 +2272,11 @@ img{-webkit-user-drag:none; user-select:none;}
    <button class="nav-recenter-btn" id="navRecenterBtn" aria-label="Recentrar navegación">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3 17 19 12 15.5 7 19Z" fill="currentColor" stroke="none"/></svg>
   </button>
-  <div class="active-nav-hud" id="activeNavHud">
+   <div class="active-nav-hud" id="activeNavHud">
+    <div class="anh-dest" id="anhDest">
+      <span class="anh-dest-icon" id="anhDestIcon"></span>
+      <span class="anh-dest-name" id="anhDestName">—</span>
+    </div>
     <div class="anh-top">
       <span class="anh-mode-icon" id="anhModeIcon"></span>
       <div class="anh-info">
@@ -5345,6 +5365,20 @@ function formatRouteDistance(meters){
 }
 
 function renderRouteSummaryPanel(){
+  // Header — misma fuente de ícono/color que ya usa el pin de destino en el
+  // mapa (renderNavDestinationMarker: primaryExperienceTag + computePOIDisplayColor),
+  // nunca se recalcula por separado.
+  const destPlace = state.nav.targetPlace;
+  if (destPlace){
+    const destTag = primaryExperienceTag(destPlace);
+    const destColor = computePOIDisplayColor(destPlace);
+    const destIconEl = document.getElementById('rspDestIcon');
+    destIconEl.innerHTML = icon(destTag.iconKey, 13);
+    destIconEl.style.color = destColor;
+    destIconEl.style.background = `${destColor}22`;
+    document.getElementById('rspDestName').textContent = destPlace.name;
+  }
+
   const rspModes = document.getElementById('rspModes');
   rspModes.innerHTML = '';
   Object.keys(ORS_PROFILE_LABELS).forEach(mode => {
@@ -5544,9 +5578,23 @@ function startActiveNavigation(){
   // Velocidad promedio real, derivada de la respuesta de ORS ya obtenida en
   // la Fase 2 (distancia/duración totales) — nunca se vuelve a llamar a ORS
   // durante la navegación activa.
-  state.nav.speedMps = state.nav.routeDistance / state.nav.routeDuration;
+    state.nav.speedMps = state.nav.routeDistance / state.nav.routeDuration;
   state.nav.followMode = true;
   document.getElementById('anhModeIcon').innerHTML = TRANSPORT_MODE_ICON_SVG[state.nav.mode] || '';
+
+  // Nombre + ícono de categoría del destino — mismo criterio que el header de
+  // "Tu ruta" arriba. El destino no cambia durante la navegación activa, así
+  // que se fija una sola vez al arrancar, no en cada actualización de posición.
+  const navDestPlace = state.nav.targetPlace;
+  if (navDestPlace){
+    const navDestTag = primaryExperienceTag(navDestPlace);
+    const navDestColor = computePOIDisplayColor(navDestPlace);
+    const anhDestIconEl = document.getElementById('anhDestIcon');
+    anhDestIconEl.innerHTML = icon(navDestTag.iconKey, 12);
+    anhDestIconEl.style.color = navDestColor;
+    anhDestIconEl.style.background = `${navDestColor}22`;
+    document.getElementById('anhDestName').textContent = navDestPlace.name;
+  }
 
    routeSummaryPanel.classList.remove('visible');
   activeNavHud.classList.add('visible');
