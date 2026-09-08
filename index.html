@@ -5613,7 +5613,13 @@ function setUserMarkerNavStyle(active, heading){
 // easeTo() del seguimiento automático (originalEvent es undefined ahí) — así
 // este listener nunca confunde su propia animación con una interacción manual.
 function handleManualMapInteraction(e){
-  if (!state.nav.active || !state.nav.followMode) return;
+  // state.nav.active se pone en true desde la etapa "Tu ruta" (antes de "Ir
+  // ahora" — se usa para ocultar POIs/localidades, sin relación con si el GPS
+  // ya está siguiendo al usuario). state.nav.watchId, en cambio, solo tiene
+  // valor mientras startActiveNavigation() está corriendo de verdad — es la
+  // señal correcta de "estoy en navegación activa", sin la cual el botón
+  // podía quedar visible ya en la etapa de preparación de ruta.
+  if (state.nav.watchId == null || !state.nav.followMode) return;
   if (!e.originalEvent) return; // gesto programático (nuestro propio easeTo) — se ignora
   state.nav.followMode = false;
   navRecenterBtn.classList.add('visible');
