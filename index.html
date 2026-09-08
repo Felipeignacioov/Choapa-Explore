@@ -4537,6 +4537,7 @@ function enterLocality(locality, { fly }){
 function exitLocality({ fly }){
   state.currentLocality = null;
   state.currentSublocality = null;
+  comunaPanelAutoMinimized = false;
   updateZonePrompt();
   updateSheetHero();
   updateLosVilosReflection();
@@ -4553,9 +4554,20 @@ function exitLocality({ fly }){
   renderPlacesRail();
 }
 
+// Fase — el panel "En [Comuna]" no debe competir con los POIs de la
+// localidad ni con el flujo de ruta hacia ellos. Se minimiza automáticamente
+// al entrar a una localidad (Nivel 2) y se restaura al salir — SOLO si fue
+// este sistema el que lo minimizó. Si el usuario ya lo había minimizado a
+// mano a nivel comuna, esa elección se respeta y no se toca al salir.
+let comunaPanelAutoMinimized = false;
+
 // Nivel 2 → Nivel 3: vuelo más cercano, aquí sí queremos ver el detalle del pueblo.
 function enterSublocality(sub, { fly }){
   state.currentSublocality = sub;
+  if (!comunaPanel.classList.contains('hidden')){
+    minimizeComunaPanel();
+    comunaPanelAutoMinimized = true;
+  }
   if (fly){
     map.flyTo({ center:[sub.lng, sub.lat], zoom:13.5, duration:1300, curve:1.3, easing:t => t*(2-t) });
   }
@@ -4566,6 +4578,10 @@ function enterSublocality(sub, { fly }){
 
 function exitSublocality({ fly }){
   state.currentSublocality = null;
+  if (comunaPanelAutoMinimized){
+    expandComunaPanel();
+    comunaPanelAutoMinimized = false;
+  }
   if (fly && state.currentLocality){
     map.flyTo({ center:[state.currentLocality.lng, state.currentLocality.lat], zoom:10.6, duration:1100, curve:1.3, easing:t => t*(2-t) });
   }
