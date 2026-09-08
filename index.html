@@ -1787,7 +1787,11 @@ img{-webkit-user-drag:none; user-select:none;}
 /* ---------------- NAVEGACIÓN REAL — HUD de navegación activa (Fase 3) ---------------- */
 .active-nav-hud{
   position:absolute; left:16px; right:16px; z-index:22;
-  bottom:calc(var(--nav-footprint) + 14px);
+  /* Antes 14px — 4px más alto que el bottom de .comuna-panel-pill
+     (nav-footprint + 10px), dejaba un borde del panel minimizado asomando y
+     clickeable debajo. Ahora queda por debajo de ese valor, cubriéndolo
+     por completo con margen de sobra. */
+  bottom:calc(var(--nav-footprint) + 8px);
   background:var(--surface-elevated); border:1px solid var(--border-glass);
   border-radius:var(--radius-l); padding:14px 16px calc(14px + var(--safe-bottom));
   box-shadow:var(--shadow-modal), inset 0 1px 0 rgba(255,255,255,0.06);
@@ -1833,7 +1837,12 @@ img{-webkit-user-drag:none; user-select:none;}
    control de "Cerca de mí" duplicado. */
 .nav-recenter-btn{
   position:absolute; right:16px; z-index:22;
-  bottom:calc(var(--nav-footprint) + 14px + 78px);
+  /* Antes +78px, calibrado para la altura del HUD sin la fila de nombre del
+     destino. Esa fila (agregada en el cambio anterior) sumó ~30px de alto al
+     HUD, y con el ajuste del punto 1 (bottom -6px) el HUD también se corrió
+     hacia abajo — sin este ajuste el botón quedaba parcialmente tapado detrás
+     de la tarjeta. +96px deja el botón completamente libre por encima. */
+  bottom:calc(var(--nav-footprint) + 14px + 96px);
   width:38px; height:38px; border-radius:50%;
   background:var(--turquoise); box-shadow:var(--shadow-float), 0 4px 14px rgba(22,184,196,0.35);
   border:none;
