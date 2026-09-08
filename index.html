@@ -1722,7 +1722,10 @@ img{-webkit-user-drag:none; user-select:none;}
 /* ---------------- NAVEGACIÓN REAL — resumen de ruta (Fase 2) ---------------- */
 .route-summary-panel{
   position:absolute; left:16px; right:16px; z-index:22;
-  bottom:calc(var(--nav-footprint) + 14px);
+  /* Antes 14px — 4px más alto que el bottom de .comuna-panel-pill
+     (nav-footprint + 10px), dejaba un borde del panel minimizado asomando y
+     clickeable debajo. Mismo ajuste ya aplicado a .active-nav-hud. */
+  bottom:calc(var(--nav-footprint) + 8px);
   background:var(--surface-elevated); border:1px solid var(--border-glass);
   border-radius:var(--radius-l); padding:14px 16px calc(14px + var(--safe-bottom));
   box-shadow:var(--shadow-modal), inset 0 1px 0 rgba(255,255,255,0.06);
