@@ -1147,7 +1147,11 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 .poi-card.visible{
   transform:translateY(0) scale(1); opacity:1; pointer-events:auto;
-  bottom:calc(var(--nav-footprint) + 14px);
+  /* Antes 14px — 4px más alto que el bottom de .comuna-panel-pill
+     (nav-footprint + 10px), dejaba un borde del panel minimizado asomando y
+     clickeable debajo. Mismo ajuste ya aplicado a .route-summary-panel y
+     .active-nav-hud. */
+  bottom:calc(var(--nav-footprint) + 8px);
 }
 
 .poi-card .photo{
