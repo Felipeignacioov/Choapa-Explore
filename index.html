@@ -6927,7 +6927,19 @@ function showComunaPanel(locality){
   document.getElementById('comunaPanelListWrap').classList.remove('expanded'); // la lista vertical de la comuna anterior no debe sobrevivir
   document.getElementById('comunaPanelRail').classList.remove('rail-hidden'); // vuelve a mostrarse: comuna nueva, estado inicial
   document.getElementById('comunaPanelMore').classList.remove('at-bottom'); // el glow de la lista anterior no debe sobrevivir
-   renderComunaPanelRail(locality);
+     renderComunaPanelRail(locality);
+
+  // Con una ruta/navegación activa, el panel nunca debe aparecer expandido —
+  // mismo criterio que ya protege a exitSublocality() dentro de la misma
+  // comuna. Sin esta guarda, salir de la comuna por completo (zoom out a
+  // vista Choapa) y reentrar — a la misma comuna o a otra — disparaba este
+  // mismo showComunaPanel() sin chequear state.nav.active, haciendo
+  // reaparecer el panel completo por encima de la tarjeta de ruta.
+  if (state.nav.active){
+    minimizeComunaPanel();
+    return;
+  }
+
   expandComunaPanel(); // siempre arranca expandido al entrar a una comuna nueva
   comunaPanel.classList.remove('hidden');
   sheetPill.classList.add('hidden');
