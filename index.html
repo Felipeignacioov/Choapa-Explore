@@ -5333,8 +5333,44 @@ function clearNavConnector(){
   if (map.getSource('nav-connector')) map.removeSource('nav-connector');
 }
 
+// Suaviza el trazado dibujado — algoritmo de Chaikin (recorte de esquinas):
+// en cada iteración, cada segmento se reemplaza por 2 puntos nuevos (al 25%
+// y 75% de su longitud), redondeando progresivamente cada quiebre. A
+// diferencia de un spline, nunca overshootea — el resultado queda siempre
+// contenido dentro de los puntos originales, así que redondea los quiebres
+// existentes sin inventar curvas que el camino real no tiene. El primer y
+// último punto se preservan EXACTOS — son el punto de conexión real con
+// origen/destino. Es puramente un efecto de dibujo: nunca toca
+// state.nav.routeGeoJSON (la fuente real que usan distancia/tiempo y el
+// recorte del tramo restante en navegación activa) — esos valores quedan
+// exactamente igual, solo cambia cómo se ve la línea ya calculada.
+function smoothRouteCoordinates(coords, iterations = 2){
+  if (!coords || coords.length < 3) return coords;
+  let pts = coords;
+  for (let iter = 0; iter < iterations; iter++){
+    const smoothed = [pts[0]];
+    for (let i = 0; i < pts.length - 1; i++){
+      const p0 = pts[i], p1 = pts[i + 1];
+      smoothed.push(
+        [p0[0] + (p1[0] - p0[0]) * 0.25, p0[1] + (p1[1] - p0[1]) * 0.25],
+        [p0[0] + (p1[0] - p0[0]) * 0.75, p0[1] + (p1[1] - p0[1]) * 0.75]
+      );
+    }
+    smoothed.push(pts[pts.length - 1]);
+    pts = smoothed;
+  }
+  return pts;
+}
+
+// Se llama desde AMBOS estados del flujo (calculateAndShowRoute en "Tu ruta",
+// y onNavPositionUpdate en cada actualización de navegación activa) — al
+// vivir el suavizado acá, en el único punto donde se dibuja la línea, los dos
+// estados quedan automáticamente idénticos sin duplicar lógica.
 function drawRouteOnMap(geometry){
-  const data = { type:'Feature', geometry, properties:{} };
+  const smoothedCoords = geometry.type === 'LineString'
+    ? smoothRouteCoordinates(geometry.coordinates)
+    : geometry.coordinates;
+  const data = { type:'Feature', geometry:{ ...geometry, coordinates: smoothedCoords }, properties:{} };
   if (map.getSource('nav-route')){
     map.getSource('nav-route').setData(data);
   } else {
