@@ -3578,12 +3578,20 @@ function renderTerritoryFade(){
     for (let px = 0; px < SIZE; px++){
       const lng = center[0] - rxMax + (px / (SIZE-1)) * 2 * rxMax;
       const dx = lng - center[0], dy = lat - center[1];
-           const t = solveT(dx, dy);
+                 const t = solveT(dx, dy);
       // Curva continua sobre todo el rango [0,2] — sin el quiebre que existía
       // en t=1 (límite elástico). El mismo punto que antes ya estaba casi
       // opaco ahora está aproximadamente a mitad de camino de su
       // desvanecimiento, continuando suave hacia afuera.
-      const opacity = smootherstep(t / 2) * FADE_FINAL_OPACITY;
+      // FADE_START_ADVANCE comprime la curva hacia el origen (t más chico
+      // llega antes al mismo nivel de opacidad) — el degradado empieza a
+      // notarse ~23% más cerca del centro del mapa, sin mover el punto final
+      // donde el territorio ya queda prácticamente opaco (t=2 sigue dando
+      // FADE_FINAL_OPACITY, igual que antes). No toca la geometría de la
+      // elipse ni ningún valor de bounds/elasticidad — puramente la curva de
+      // opacidad.
+      const FADE_START_ADVANCE = 1.23;
+      const opacity = smootherstep(Math.min(t * FADE_START_ADVANCE, 2) / 2) * FADE_FINAL_OPACITY;
       const westWeight = Math.max(0, -Math.cos(Math.atan2(dy, dx))); // 1 en oeste puro, 0 en el resto
       const tintAmount = ease(Math.min(t, 1)) * 0.5;
       const tr = landRGB.r + (oceanRGB.r - landRGB.r) * westWeight;
