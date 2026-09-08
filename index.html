@@ -4598,7 +4598,12 @@ function enterSublocality(sub, { fly }){
 
 function exitSublocality({ fly }){
   state.currentSublocality = null;
-  if (comunaPanelAutoMinimized){
+  // El panel solo se restaura si el usuario también salió del flujo de ruta —
+  // sin esta guarda, un simple cruce de umbral de zoom durante la navegación
+  // activa (el encuadre panorámico al calcular la ruta, o el acercamiento al
+  // presionar "Ir ahora") disparaba este mismo evento y hacía reaparecer el
+  // panel completo por encima de la tarjeta de ruta.
+  if (comunaPanelAutoMinimized && !state.nav.active){
     expandComunaPanel();
     comunaPanelAutoMinimized = false;
   }
@@ -5258,9 +5263,17 @@ function clearNavRoute(){
   // exploración: si el zoom no cambió durante la navegación,
   // updateExplorationLevel() no haría nada por sí sola, y las localidades no
   // volverían a aparecer al cancelar.
-    lastTier = null;
+     lastTier = null;
   updateExplorationLevel();
   if (state.selectedPlace) updateSelectedPOILayer(state.selectedPlace); // restaura el pin nativo al salir del modo ruta
+  // Restaura el panel "En [Comuna]" si el flujo de ruta termina y el usuario
+  // YA había salido de la sub-localidad durante la navegación (por un cruce
+  // de zoom con la ruta activa) — ese exitSublocality() no pudo restaurarlo
+  // en su momento por la guarda de arriba.
+  if (comunaPanelAutoMinimized && !state.currentSublocality){
+    expandComunaPanel();
+    comunaPanelAutoMinimized = false;
+  }
 }
 
 async function fetchRoute(mode, from, to){
