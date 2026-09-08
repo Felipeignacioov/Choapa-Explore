@@ -5190,11 +5190,11 @@ function navDestinationColor(place){
 }
 function renderNavDestinationMarker(place){
   clearNavDestinationMarker();
-  const cat = catById(place.category);
-  const color = navDestinationColor(place);
+  const primaryTag = primaryExperienceTag(place);
+  const color = computePOIDisplayColor(place);
   const el = document.createElement('div');
   el.className = 'nav-dest-marker';
-  el.innerHTML = navDestSVG(color, cat.iconKey, `nav-dest-grad-${place.id}`);
+  el.innerHTML = navDestSVG(color, primaryTag.iconKey, `nav-dest-grad-${place.id}`);
   state.nav.destMarker = new maplibregl.Marker({ element: el, anchor:'center' })
     .setLngLat([place.lng, place.lat])
     .addTo(map);
@@ -5222,8 +5222,9 @@ function clearNavRoute(){
   // exploración: si el zoom no cambió durante la navegación,
   // updateExplorationLevel() no haría nada por sí sola, y las localidades no
   // volverían a aparecer al cancelar.
-  lastTier = null;
+    lastTier = null;
   updateExplorationLevel();
+  if (state.selectedPlace) updateSelectedPOILayer(state.selectedPlace); // restaura el pin nativo al salir del modo ruta
 }
 
 async function fetchRoute(mode, from, to){
@@ -5378,9 +5379,10 @@ async function calculateAndShowRoute(mode){
     // y el POI de destino se fuerza a mostrarse aunque el usuario no haya
     // "entrado" a esa localidad — la jerarquía normal comuna → localidad → POI
     // se retoma recién al cancelar/llegar (ver clearNavRoute).
-       state.nav.active = true;
+             state.nav.active = true;
     clearSublocalityMarkers();
     clearPOIMarkers();
+    updateSelectedPOILayer(null); // evita el pin nativo duplicado detrás del marcador de destino
     renderNavDestinationMarker(place);
     rspStatus.style.display = 'none';
     renderRouteSummaryPanel();
