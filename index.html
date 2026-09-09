@@ -2719,7 +2719,7 @@ const ZOOM_POI_NAME = 13.2;      // desde aquí, se muestra el nombre del POI ju
 let state = { activeExperience:'todos', selectedPlace:null, sheetExpanded:false, currentLocality:null, currentSublocality:null };
 // Estado del flujo de navegación real ("Cómo llegar") — deliberadamente
 // separado de `state` para no interferir con la lógica de exploración/mapa.
-state.nav = { active:false, mode:null, targetPlace:null, userCoords:null, routeGeoJSON:null, routeDuration:null, routeDistance:null, watchId:null, requestToken:0, destMarker:null, heading:null, lastUserCoords:null, offRouteRecalculating:false, lastRecalcAttempt:0 };
+state.nav = { active:false, mode:null, targetPlace:null, userCoords:null, routeGeoJSON:null, routeDuration:null, routeDistance:null, watchId:null, requestToken:0, destMarker:null, heading:null, lastUserCoords:null, offRouteRecalculating:false, lastRecalcAttempt:0, displayLngLat:null, displayHeading:null, animRaf:null, animFrom:null, animTo:null, animFromHeading:null, animToHeading:null, animStart:0, animDuration:1500, lastFixTime:0 };
 let markers = [];
 let localityMarkers = [];
 let sublocalityMarkers = [];
@@ -5637,12 +5637,77 @@ function setUserMarkerNavStyle(active, heading){
 // la cámara sin moverse dejaba el marcador "pegado" al ángulo viejo.
 function updateNavUserMarkerRotation(){
   if (state.nav.watchId == null) return; // solo aplica durante navegación activa real
-  const screenHeading = state.nav.heading != null
-    ? (state.nav.heading - map.getBearing() + 360) % 360
+  // displayHeading es el ángulo geográfico YA interpolado visualmente (ver
+  // startNavMarkerAnimation) — si existe, se usa en vez del heading crudo,
+  // así rotar la cámara a mitad de una animación en curso recalcula sobre lo
+  // que se está mostrando en ese instante, no sobre el destino todavía no
+  // alcanzado.
+  const headingSrc = state.nav.displayHeading != null ? state.nav.displayHeading : state.nav.heading;
+  const screenHeading = headingSrc != null
+    ? (headingSrc - map.getBearing() + 360) % 360
     : null;
   setUserMarkerNavStyle(true, screenHeading);
 }
 map.on('rotate', updateNavUserMarkerRotation);
+
+// ---------- Interpolación visual del marcador entre fixes de GPS ----------
+// Los fixes de watchPosition llegan cada 1-3s — sin esto el marcador "salta"
+// de un punto al siguiente. Es puramente un efecto de dibujo vía
+// requestAnimationFrame: la posición REAL (state.nav.userCoords) y el
+// heading REAL (state.nav.heading) nunca se tocan acá — arribo, recálculo de
+// ruta y HUD siguen leyendo esos valores crudos, sin ver la interpolación.
+const MARKER_ANIM_MIN_DURATION = 700;
+const MARKER_ANIM_MAX_DURATION = 3000;
+const MARKER_ANIM_FALLBACK_DURATION = 1500; // sin un intervalo previo confiable entre fixes
+
+function lerp(a, b, t){ return a + (b - a) * t; }
+// Interpola un ángulo por el camino más corto (ej. 350°→10° debe pasar por
+// 360°/0°, no retroceder los 340° largos) — evita que el marcador gire "para
+// el lado equivocado" durante la animación.
+function angleLerpShortest(a, b, t){
+  const diff = ((b - a + 540) % 360) - 180;
+  return (a + diff * t + 360) % 360;
+}
+
+function startNavMarkerAnimation(toLat, toLng, toHeadingRaw){
+  const now = performance.now();
+  // Duración = tiempo real transcurrido desde el fix anterior, acotado a un
+  // rango razonable — así la animación termina justo cuando llega el
+  // próximo dato real, sin adelantarse ni dejar al marcador esperando quieto.
+  let duration = state.nav.lastFixTime ? now - state.nav.lastFixTime : MARKER_ANIM_FALLBACK_DURATION;
+  if (!duration || isNaN(duration)) duration = MARKER_ANIM_FALLBACK_DURATION;
+  duration = Math.min(Math.max(duration, MARKER_ANIM_MIN_DURATION), MARKER_ANIM_MAX_DURATION);
+  state.nav.lastFixTime = now;
+
+  state.nav.animFrom = state.nav.displayLngLat;
+  state.nav.animTo = [toLng, toLat];
+  state.nav.animFromHeading = state.nav.displayHeading != null ? state.nav.displayHeading : (toHeadingRaw != null ? toHeadingRaw : 0);
+  state.nav.animToHeading = toHeadingRaw != null ? toHeadingRaw : state.nav.animFromHeading;
+  state.nav.animStart = now;
+  state.nav.animDuration = duration;
+
+  if (state.nav.animRaf) cancelAnimationFrame(state.nav.animRaf);
+  navMarkerAnimStep();
+}
+
+function navMarkerAnimStep(){
+  const now = performance.now();
+  const t = Math.min(Math.max((now - state.nav.animStart) / state.nav.animDuration, 0), 1);
+  const lng = lerp(state.nav.animFrom[0], state.nav.animTo[0], t);
+  const lat = lerp(state.nav.animFrom[1], state.nav.animTo[1], t);
+  const heading = angleLerpShortest(state.nav.animFromHeading, state.nav.animToHeading, t);
+
+  state.nav.displayLngLat = [lng, lat];
+  state.nav.displayHeading = heading;
+  if (userMarker) userMarker.setLngLat([lng, lat]);
+  updateNavUserMarkerRotation();
+
+  if (t < 1){
+    state.nav.animRaf = requestAnimationFrame(navMarkerAnimStep);
+  } else {
+    state.nav.animRaf = null;
+  }
+}
 
 // Distingue un gesto real del usuario (e.originalEvent viene poblado con el
 // evento de mouse/touch) de un movimiento programático como el propio
@@ -5718,13 +5783,14 @@ function startActiveNavigation(){
 
 function onNavPositionUpdate(userCoords, gpsHeading){
   document.getElementById('anhStatus').style.display = 'none';
-  state.nav.userCoords = userCoords;
-  placeUserMarker(userCoords.lat, userCoords.lng);
+   state.nav.userCoords = userCoords;
 
   // Dirección: se prioriza el heading real del GPS; si no viene disponible, se
   // calcula a partir del último tramo recorrido. Si el usuario no se movió lo
   // suficiente (menos de 2m) para un cálculo confiable, se conserva el último
-  // rumbo conocido en vez de mostrar un cono errático.
+  // rumbo conocido en vez de mostrar un cono errático. Este cálculo sigue
+  // siendo el dato REAL — la interpolación visual se aplica después, nunca
+  // sobre este valor.
   if (gpsHeading != null && !isNaN(gpsHeading)){
     state.nav.heading = gpsHeading;
   } else if (state.nav.lastUserCoords){
@@ -5733,8 +5799,22 @@ function onNavPositionUpdate(userCoords, gpsHeading){
       state.nav.heading = computeBearing(state.nav.lastUserCoords.lat, state.nav.lastUserCoords.lng, userCoords.lat, userCoords.lng);
     }
   }
-   state.nav.lastUserCoords = userCoords;
-  updateNavUserMarkerRotation();
+  state.nav.lastUserCoords = userCoords;
+
+  // Primer fix de la sesión: el marcador todavía no existe o no hay ninguna
+  // posición mostrada previa que animar desde ella — se coloca directo, sin
+  // interpolación (no hay salto que suavizar en el punto de partida). Desde
+  // el segundo fix en adelante, cada actualización se desliza suavemente
+  // desde la posición mostrada actual hasta la nueva (startNavMarkerAnimation).
+  if (!userMarker || !state.nav.displayLngLat){
+    placeUserMarker(userCoords.lat, userCoords.lng);
+    state.nav.displayLngLat = [userCoords.lng, userCoords.lat];
+    state.nav.displayHeading = state.nav.heading;
+    state.nav.lastFixTime = performance.now();
+    updateNavUserMarkerRotation();
+  } else {
+    startNavMarkerAnimation(userCoords.lat, userCoords.lng, state.nav.heading);
+  }
   const place = state.nav.targetPlace;
   const distToDestM = distanceKm(userCoords.lat, userCoords.lng, place.lat, place.lng) * 1000;
   if (distToDestM <= ARRIVAL_RADIUS_M){
@@ -5835,10 +5915,14 @@ function finishNavigation(reason){
     activeNavHud.classList.remove('visible');
   navRecenterBtn.classList.remove('visible');
   document.getElementById('btnCenterMe').style.display = '';
-  setUserMarkerNavStyle(false);
+    setUserMarkerNavStyle(false);
   state.nav.heading = null;
   state.nav.lastUserCoords = null;
   state.nav.followMode = true; // reset — la próxima navegación empieza siempre en modo seguimiento
+  if (state.nav.animRaf) cancelAnimationFrame(state.nav.animRaf);
+  state.nav.animRaf = null;
+  state.nav.displayLngLat = null;
+  state.nav.displayHeading = null;
 
   if (reason === 'arrived'){
     document.getElementById('arrivalToastSub').textContent = state.nav.targetPlace ? state.nav.targetPlace.name : '';
