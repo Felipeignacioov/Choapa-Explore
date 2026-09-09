@@ -5615,6 +5615,24 @@ function setUserMarkerNavStyle(active, heading){
   }
 }
 
+// state.nav.heading es un rumbo geográfico real (0° = norte, sentido
+// horario) — nunca debe dibujarse tal cual sobre la pantalla, porque "arriba
+// en pantalla" solo coincide con el norte cuando el mapa tiene bearing 0. Si
+// el usuario rotó la cámara manualmente, hay que restar ese bearing para
+// obtener el ángulo correcto en pantalla — sin esto, el marcador apunta
+// desalineado en la medida exacta en que el mapa esté rotado. Se llama tanto
+// en cada fix de GPS (heading nuevo) como en cada rotación del mapa (bearing
+// nuevo, mismo heading) — antes solo se redibujaba con el GPS, así que girar
+// la cámara sin moverse dejaba el marcador "pegado" al ángulo viejo.
+function updateNavUserMarkerRotation(){
+  if (state.nav.watchId == null) return; // solo aplica durante navegación activa real
+  const screenHeading = state.nav.heading != null
+    ? (state.nav.heading - map.getBearing() + 360) % 360
+    : null;
+  setUserMarkerNavStyle(true, screenHeading);
+}
+map.on('rotate', updateNavUserMarkerRotation);
+
 // Distingue un gesto real del usuario (e.originalEvent viene poblado con el
 // evento de mouse/touch) de un movimiento programático como el propio
 // easeTo() del seguimiento automático (originalEvent es undefined ahí) — así
@@ -5704,9 +5722,8 @@ function onNavPositionUpdate(userCoords, gpsHeading){
       state.nav.heading = computeBearing(state.nav.lastUserCoords.lat, state.nav.lastUserCoords.lng, userCoords.lat, userCoords.lng);
     }
   }
-  state.nav.lastUserCoords = userCoords;
-  setUserMarkerNavStyle(true, state.nav.heading);
-
+   state.nav.lastUserCoords = userCoords;
+  updateNavUserMarkerRotation();
   const place = state.nav.targetPlace;
   const distToDestM = distanceKm(userCoords.lat, userCoords.lng, place.lat, place.lng) * 1000;
   if (distToDestM <= ARRIVAL_RADIUS_M){
