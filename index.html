@@ -2719,7 +2719,7 @@ const ZOOM_POI_NAME = 13.2;      // desde aquí, se muestra el nombre del POI ju
 let state = { activeExperience:'todos', selectedPlace:null, sheetExpanded:false, currentLocality:null, currentSublocality:null };
 // Estado del flujo de navegación real ("Cómo llegar") — deliberadamente
 // separado de `state` para no interferir con la lógica de exploración/mapa.
-state.nav = { active:false, mode:null, targetPlace:null, userCoords:null, routeGeoJSON:null, routeDuration:null, routeDistance:null, watchId:null, requestToken:0, destMarker:null, heading:null, lastUserCoords:null };
+state.nav = { active:false, mode:null, targetPlace:null, userCoords:null, routeGeoJSON:null, routeDuration:null, routeDistance:null, watchId:null, requestToken:0, destMarker:null, heading:null, lastUserCoords:null, offRouteRecalculating:false, lastRecalcAttempt:0 };
 let markers = [];
 let localityMarkers = [];
 let sublocalityMarkers = [];
@@ -5558,6 +5558,13 @@ function lineLengthMeters(coords){
 const activeNavHud = document.getElementById('activeNavHud');
 const arrivalToast = document.getElementById('arrivalToast');
 const ARRIVAL_RADIUS_M = 35;
+// No existía un umbral discreto de "desvío" — drawNavConnector() siempre
+// dibujaba la línea punteada, sin importar la distancia real (se estira o
+// encoge, pero nunca hay un punto de corte). Se introduce este umbral
+// específicamente para decidir cuándo vale la pena pedir una ruta nueva —
+// mayor que ARRIVAL_RADIUS_M para no confundir "casi llegué" con "me desvié".
+const OFF_ROUTE_THRESHOLD_M = 45;
+const OFF_ROUTE_RECALC_COOLDOWN_MS = 8000;
 
 const navRecenterBtn = document.getElementById('navRecenterBtn');
 
@@ -5707,7 +5714,7 @@ function onNavPositionUpdate(userCoords, gpsHeading){
     return;
   }
 
-   const coords = state.nav.routeGeoJSON.coordinates;
+     const coords = state.nav.routeGeoJSON.coordinates;
   const nearest = nearestPointOnLine(coords, [userCoords.lng, userCoords.lat]);
   const remaining = trimRouteFromPoint(coords, nearest);
   drawRouteOnMap({ type:'LineString', coordinates: remaining }); // reutiliza la función existente de Fase 2, sin tocarla
@@ -5715,6 +5722,16 @@ function onNavPositionUpdate(userCoords, gpsHeading){
   // recortada), no la original — así siempre conecta con el tramo de ruta que
   // realmente sigue visible en pantalla.
   drawNavConnector([userCoords.lng, userCoords.lat], remaining[0]);
+
+  // Desvío real (más allá del umbral) + fuera del cooldown + sin otro
+  // recálculo ya en curso → se pide una ruta nueva desde la posición actual.
+  // No bloquea el dibujo de arriba (el conector punteado se ve normal
+  // mientras la respuesta de ORS está en camino) — solo dispara la petición.
+  const offRouteDistM = distanceKm(userCoords.lat, userCoords.lng, nearest.point[1], nearest.point[0]) * 1000;
+  const cooldownElapsed = Date.now() - state.nav.lastRecalcAttempt > OFF_ROUTE_RECALC_COOLDOWN_MS;
+  if (offRouteDistM > OFF_ROUTE_THRESHOLD_M && !state.nav.offRouteRecalculating && cooldownElapsed){
+    recalculateRouteFromOffRoute();
+  }
 
    const remainingM = lineLengthMeters(remaining);
   const remainingS = state.nav.speedMps > 0 ? remainingM / state.nav.speedMps : 0;
@@ -5728,6 +5745,44 @@ function onNavPositionUpdate(userCoords, gpsHeading){
   // modifica la elasticidad/bounds/moveend del mapa en modo exploración normal.
   if (state.nav.followMode){
     map.easeTo({ center:[userCoords.lng, userCoords.lat], zoom: Math.max(map.getZoom(), 15.5), duration:700 });
+  }
+}
+
+// Pide una ruta nueva desde la posición ACTUAL del usuario hasta el mismo
+// destino — mismo fetchRoute() de siempre, mismo mode de transporte activo.
+// Reemplaza state.nav.routeGeoJSON completo (así el próximo tick de
+// onNavPositionUpdate ya calcula "restante" contra el camino nuevo) y
+// redibuja con drawRouteOnMap() — el suavizado Chaikin se aplica automático,
+// es el mismo punto de dibujo de siempre. clearNavConnector() en vez de
+// volver a dibujar el conector: la ruta nueva arranca justo en la posición
+// del usuario, no debería quedar ningún tramo punteado que conectar todavía
+// — el próximo tick lo vuelve a evaluar con normalidad si hiciera falta.
+async function recalculateRouteFromOffRoute(){
+  const place = state.nav.targetPlace;
+  const userCoords = state.nav.userCoords;
+  if (!place || !userCoords || !state.nav.mode) return;
+
+  state.nav.offRouteRecalculating = true;
+  state.nav.lastRecalcAttempt = Date.now();
+  try{
+    const route = await fetchRoute(state.nav.mode, userCoords, place);
+    if (!route) return; // descartada por una petición más nueva (mismo requestToken de fetchRoute)
+    state.nav.routeGeoJSON = route.geometry;
+    state.nav.routeDuration = route.durationS;
+    state.nav.routeDistance = route.distanceM;
+    state.nav.speedMps = route.distanceM / route.durationS; // el HUD usa esta velocidad para el ETA de los siguientes ticks
+    drawRouteOnMap(route.geometry);
+    clearNavConnector();
+    document.getElementById('anhEta').textContent = formatDuration(route.durationS);
+    document.getElementById('anhDist').textContent = formatRouteDistance(route.distanceM);
+  } catch(err){
+    console.error('No se pudo recalcular la ruta tras desvío', err);
+    // Sin cambios visuales al fallar — la ruta/conector anteriores se quedan
+    // como estaban; el cooldown ya se marcó arriba, así que no reintenta en
+    // bucle inmediato, solo vuelve a intentar en el próximo desvío detectado
+    // después de que pase el cooldown.
+  } finally {
+    state.nav.offRouteRecalculating = false;
   }
 }
 
