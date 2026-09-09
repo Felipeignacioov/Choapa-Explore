@@ -2723,6 +2723,52 @@ const ZOOM_SUBLOCALITY = 10.0;   // desde aquí, se ven las localidades dentro d
 const ZOOM_DETAIL = 12.4;        // desde aquí, se ven las experiencias (POIs) individuales
 const ZOOM_POI_NAME = 13.2;      // desde aquí, se muestra el nombre del POI junto al marcador
 
+/* ---------- CARTOGRAFÍA EN MODO NAVEGACIÓN — refuerzo de comunas/relieve ----------
+   Reutiliza las MISMAS capas nativas que ya estiliza tintMapLayers()/
+   renderTerrainDepth() (place_city/town/state/country, hillshade-subtle) — no
+   se crea ningún sistema de etiquetas ni de relieve paralelo. Las curvas
+   "normal" son EXACTAMENTE las que ya existían (solo extraídas a constante
+   para poder alternar); las "nav" solo suben la opacidad/tamaño/exageración,
+   más notorio en los zoom bajos típicos de una ruta larga entre comunas. Se
+   activa/desactiva únicamente en los 2 puntos donde cambia state.nav.active
+   (inicio y fin del flujo de ruta) — el mapa de exploración normal nunca las
+   toca.
+   ------------------------------------------------------------------------ */
+const COMMUNE_LABEL_OPACITY_NORMAL = ['interpolate', ['linear'], ['zoom'], 10.5, 0, 13, 0.40, 16, 0.64];
+const COMMUNE_LABEL_OPACITY_NAV    = ['interpolate', ['linear'], ['zoom'], 7, 0.40, 10.5, 0.48, 13, 0.62, 16, 0.8];
+const COMMUNE_LABEL_SIZE_NORMAL = 10;
+const COMMUNE_LABEL_SIZE_NAV = 11.5;
+const HILLSHADE_EXAGGERATION_NORMAL = ['interpolate', ['linear'], ['zoom'], 8, 0.34, 14, 0.30, 16, 0.20, 17.5, 0.14];
+const HILLSHADE_EXAGGERATION_NAV    = ['interpolate', ['linear'], ['zoom'], 8, 0.46, 14, 0.40, 16, 0.26, 17.5, 0.18];
+let NAV_COMMUNE_LABEL_LAYER_IDS = []; // se completa dentro de tintMapLayers()
+let navCartographyBoosted = false;
+
+function applyNavCartographyBoost(){
+  if (navCartographyBoosted) return;
+  navCartographyBoosted = true;
+  NAV_COMMUNE_LABEL_LAYER_IDS.forEach(id => {
+    if (!map.getLayer(id)) return;
+    map.setPaintProperty(id, 'text-opacity-transition', { duration:500 });
+    map.setPaintProperty(id, 'text-opacity', COMMUNE_LABEL_OPACITY_NAV);
+    map.setLayoutProperty(id, 'text-size', COMMUNE_LABEL_SIZE_NAV);
+  });
+  if (map.getLayer('hillshade-subtle')){
+    map.setPaintProperty('hillshade-subtle', 'hillshade-exaggeration', HILLSHADE_EXAGGERATION_NAV);
+  }
+}
+function restoreNormalCartography(){
+  if (!navCartographyBoosted) return;
+  navCartographyBoosted = false;
+  NAV_COMMUNE_LABEL_LAYER_IDS.forEach(id => {
+    if (!map.getLayer(id)) return;
+    map.setPaintProperty(id, 'text-opacity', COMMUNE_LABEL_OPACITY_NORMAL);
+    map.setLayoutProperty(id, 'text-size', COMMUNE_LABEL_SIZE_NORMAL);
+  });
+  if (map.getLayer('hillshade-subtle')){
+    map.setPaintProperty('hillshade-subtle', 'hillshade-exaggeration', HILLSHADE_EXAGGERATION_NORMAL);
+  }
+}
+
 let state = { activeExperience:'todos', selectedPlace:null, sheetExpanded:false, currentLocality:null, currentSublocality:null };
 // Estado del flujo de navegación real ("Cómo llegar") — deliberadamente
 // separado de `state` para no interferir con la lógica de exploración/mapa.
@@ -3206,18 +3252,13 @@ function tintMapLayers(){
       //
       // 1) Ciudades/pueblos/capitales — visibles desde bien alejado (ej. Combarbalá),
       //    siempre discretos, apenas un poco más nítidos al acercarse.
-      if (l.type === 'symbol' && /^place_(city|town|state|country)/.test(l.id)){
-                       map.setPaintProperty(l.id, 'text-opacity', [
-          'interpolate', ['linear'], ['zoom'],
-          10.5, 0,
-          // +10% adicional sobre el ajuste anterior (0.58 → 0.64).
-          13, 0.40,
-          16, 0.64,
-        ]);
+           if (l.type === 'symbol' && /^place_(city|town|state|country)/.test(l.id)){
+        NAV_COMMUNE_LABEL_LAYER_IDS.push(l.id); // registrado para el refuerzo de modo navegación
+        map.setPaintProperty(l.id, 'text-opacity', COMMUNE_LABEL_OPACITY_NORMAL);
         map.setPaintProperty(l.id, 'text-color', '#6C8AA3');
         map.setPaintProperty(l.id, 'text-halo-color', 'rgba(11,23,38,0.65)');
         map.setPaintProperty(l.id, 'text-halo-width', 1);
-        map.setLayoutProperty(l.id, 'text-size', 10);
+        map.setLayoutProperty(l.id, 'text-size', COMMUNE_LABEL_SIZE_NORMAL);
       }
       // 2) Aldeas/caseríos/barrios — no aportan nada en la vista general (saturarían
       //    el mapa), así que empiezan invisibles y solo aparecen, muy tenues, al
@@ -3295,7 +3336,7 @@ function renderTerrainDepth(){
       // hace ese pixelado más notorio cuanto más cerca), se reduce el contraste
       // del relieve a partir de zoom 14 — disimula la falta de resolución real
       // sin inventar detalle que no existe.
-      'hillshade-exaggeration': ['interpolate', ['linear'], ['zoom'], 8, 0.34, 14, 0.30, 16, 0.20, 17.5, 0.14],
+            'hillshade-exaggeration': HILLSHADE_EXAGGERATION_NORMAL,
       // El accent-color se separa levemente del shadow-color (antes eran
       // idénticos) — dos tonos de sombra en vez de uno solo suman una capa extra
       // de definición en las zonas bajas sin oscurecer más el conjunto.
@@ -5293,9 +5334,10 @@ function clearNavRoute(){
   if (map.getLayer('nav-route-line-halo')) map.removeLayer('nav-route-line-halo');
   if (map.getSource('nav-route')) map.removeSource('nav-route');
   clearNavConnector();
-  routeSummaryPanel.classList.remove('visible');
+   routeSummaryPanel.classList.remove('visible');
   clearNavDestinationMarker();
   state.nav.active = false;
+  restoreNormalCartography();
   state.nav.routeGeoJSON = null;
   state.nav.routeDuration = null;
   state.nav.routeDistance = null;
@@ -5529,7 +5571,8 @@ async function calculateAndShowRoute(mode){
     // y el POI de destino se fuerza a mostrarse aunque el usuario no haya
     // "entrado" a esa localidad — la jerarquía normal comuna → localidad → POI
     // se retoma recién al cancelar/llegar (ver clearNavRoute).
-             state.nav.active = true;
+        state.nav.active = true;
+    applyNavCartographyBoost(); // refuerzo de comunas/relieve — solo mientras dura el flujo de ruta
     clearSublocalityMarkers();
     clearPOIMarkers();
     updateSelectedPOILayer(null); // evita el pin nativo duplicado detrás del marcador de destino
