@@ -5438,6 +5438,17 @@ function formatDuration(seconds){
 function formatRouteDistance(meters){
   return meters < 1000 ? `${Math.round(meters)} m` : `${(meters/1000).toFixed(1)} km`;
 }
+// Hora estimada de llegada — siempre en horario de Santiago de Chile
+// (America/Santiago), sin importar la zona horaria del dispositivo.
+// remainingSeconds es el tiempo restante REAL de la ruta (mismo dato que ya
+// alimenta #anhEta), calculado desde el momento exacto en que se llama —
+// nunca un valor fijo guardado al iniciar la navegación.
+function formatArrivalTime(remainingSeconds){
+  const arrival = new Date(Date.now() + remainingSeconds * 1000);
+  return new Intl.DateTimeFormat('es-CL', {
+    hour:'2-digit', minute:'2-digit', hour12:false, timeZone:'America/Santiago',
+  }).format(arrival);
+}
 
 function renderRouteSummaryPanel(){
   // Header — misma fuente de ícono/color que ya usa el pin de destino en el
@@ -5843,8 +5854,8 @@ function onNavPositionUpdate(userCoords, gpsHeading){
 
    const remainingM = lineLengthMeters(remaining);
   const remainingS = state.nav.speedMps > 0 ? remainingM / state.nav.speedMps : 0;
-  document.getElementById('anhEta').textContent = formatDuration(remainingS);
-  document.getElementById('anhDist').textContent = formatRouteDistance(remainingM);
+    document.getElementById('anhEta').textContent = formatDuration(remainingS);
+  document.getElementById('anhDist').textContent = `${formatRouteDistance(remainingM)} · Llegas a las ${formatArrivalTime(remainingS)}`;
 
   // Cámara siguiendo al usuario — solo si el modo seguimiento sigue activo. Si
   // el usuario interactuó manualmente (zoom/pan), se respeta su posición hasta
@@ -5881,8 +5892,8 @@ async function recalculateRouteFromOffRoute(){
     state.nav.speedMps = route.distanceM / route.durationS; // el HUD usa esta velocidad para el ETA de los siguientes ticks
     drawRouteOnMap(route.geometry);
     clearNavConnector();
-    document.getElementById('anhEta').textContent = formatDuration(route.durationS);
-    document.getElementById('anhDist').textContent = formatRouteDistance(route.distanceM);
+       document.getElementById('anhEta').textContent = formatDuration(route.durationS);
+    document.getElementById('anhDist').textContent = `${formatRouteDistance(route.distanceM)} · Llegas a las ${formatArrivalTime(route.durationS)}`;
   } catch(err){
     console.error('No se pudo recalcular la ruta tras desvío', err);
     // Sin cambios visuales al fallar — la ruta/conector anteriores se quedan
