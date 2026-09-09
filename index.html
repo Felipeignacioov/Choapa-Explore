@@ -4655,6 +4655,17 @@ function updateExplorationBreadcrumb(){
 // Retrocede un nivel a la vez: si hay sub-localidad activa, vuelve a la comuna;
 // si no, vuelve de la comuna a la vista completa del Choapa.
 document.getElementById('breadcrumbPill').addEventListener('click', () => {
+  // En navegación activa, el zoom out que dispara este botón es programático
+  // (flyTo), así que handleManualMapInteraction() nunca lo detecta como un
+  // gesto real del usuario (revisa e.originalEvent, ausente en animaciones
+  // programáticas) — followMode se quedaba en true, y el próximo fix de GPS
+  // volvía a centrar la cámara sobre el usuario, "ganándole" la vista alejada
+  // al botón. Se replica acá el mismo efecto que ya logra el pellizco manual:
+  // pausar el seguimiento y mostrar el botón de recentrar, ANTES del flyTo.
+  if (state.nav.active){
+    state.nav.followMode = false;
+    navRecenterBtn.classList.add('visible');
+  }
   if (state.currentSublocality) exitSublocality({ fly:true });
   else if (state.currentLocality) exitLocality({ fly:true });
 });
