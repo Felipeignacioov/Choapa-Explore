@@ -1812,6 +1812,22 @@ img{-webkit-user-drag:none; user-select:none;}
   display:flex; align-items:center; justify-content:center;
 }
 .anh-dest-name{font-family:var(--font-display); font-size:12.5px; font-weight:700; color:var(--text-primary);}
+.anh-next{
+  display:flex; align-items:center; gap:10px;
+  padding:9px 10px; margin-bottom:10px; border-radius:var(--radius-m);
+  background:rgba(95,225,232,0.08); border:1px solid rgba(95,225,232,0.22);
+}
+.anh-next-icon{
+  width:30px; height:30px; border-radius:50%; flex-shrink:0;
+  background:rgba(95,225,232,0.14); color:var(--turquoise-bright);
+  display:flex; align-items:center; justify-content:center;
+}
+.anh-next-text{display:flex; flex-direction:column; gap:1px; min-width:0;}
+.anh-next-dist{font-family:var(--font-display); font-size:13.5px; font-weight:800; color:var(--text-primary);}
+.anh-next-instruction{
+  font-size:11.5px; color:var(--text-secondary); font-weight:500;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
 .anh-top{display:flex; align-items:center; gap:12px;}
 .anh-mode-icon{
   width:34px; height:34px; border-radius:50%; flex-shrink:0;
@@ -2287,7 +2303,14 @@ img{-webkit-user-drag:none; user-select:none;}
    <button class="nav-recenter-btn" id="navRecenterBtn" aria-label="Recentrar navegación">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3 17 19 12 15.5 7 19Z" fill="currentColor" stroke="none"/></svg>
   </button>
-   <div class="active-nav-hud" id="activeNavHud">
+     <div class="active-nav-hud" id="activeNavHud">
+    <div class="anh-next" id="anhNext" style="display:none;">
+      <span class="anh-next-icon" id="anhNextIcon"></span>
+      <div class="anh-next-text">
+        <div class="anh-next-dist" id="anhNextDist">—</div>
+        <div class="anh-next-instruction" id="anhNextInstruction">—</div>
+      </div>
+    </div>
     <div class="anh-dest" id="anhDest">
       <span class="anh-dest-icon" id="anhDestIcon"></span>
       <span class="anh-dest-name" id="anhDestName">—</span>
@@ -2372,6 +2395,8 @@ compassRose:  `<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="1" fill
   camera:       `<path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13.5" r="3.3"/>`,
   filter:       `<path d="M4 6h16M7 12h10M10.5 18h3"/>`,
   mountain:     `<path d="M3 19 9.5 8l3.2 5 2-2.6L20 19Z"/>`,
+  navArrow:      `<path d="M12 3 6 20l6-3.5L18 20Z" fill="currentColor" stroke="none"/>`,
+  navRoundabout: `<circle cx="12" cy="12" r="6.5"/><path d="M12 5.7 14 8 12 5.7Z" fill="currentColor" stroke="none"/>`,
 };
 
 // Ícono independiente para HTML normal (chips, badges, tarjetas...)
@@ -2772,7 +2797,7 @@ function restoreNormalCartography(){
 let state = { activeExperience:'todos', selectedPlace:null, sheetExpanded:false, currentLocality:null, currentSublocality:null };
 // Estado del flujo de navegación real ("Cómo llegar") — deliberadamente
 // separado de `state` para no interferir con la lógica de exploración/mapa.
-state.nav = { active:false, mode:null, targetPlace:null, userCoords:null, routeGeoJSON:null, routeDuration:null, routeDistance:null, watchId:null, requestToken:0, destMarker:null, heading:null, lastUserCoords:null, offRouteRecalculating:false, lastRecalcAttempt:0, displayLngLat:null, displayHeading:null, animRaf:null, animFrom:null, animTo:null, animFromHeading:null, animToHeading:null, animStart:0, animDuration:1500, lastFixTime:0 };
+state.nav = { active:false, mode:null, targetPlace:null, userCoords:null, routeGeoJSON:null, routeDuration:null, routeDistance:null, watchId:null, requestToken:0, destMarker:null, heading:null, lastUserCoords:null, offRouteRecalculating:false, lastRecalcAttempt:0, displayLngLat:null, displayHeading:null, animRaf:null, animFrom:null, animTo:null, animFromHeading:null, animToHeading:null, animStart:0, animDuration:1500, lastFixTime:0, routeSteps:null };
 let markers = [];
 let localityMarkers = [];
 let sublocalityMarkers = [];
@@ -5358,12 +5383,26 @@ function clearNavRoute(){
   }
 }
 
+// Aplana segments[].steps[] en un solo arreglo — ORS ya los incluye por
+// defecto en cada respuesta (nunca se pasó instructions:false), simplemente
+// se estaban ignorando hasta ahora.
+function flattenORSSteps(feature){
+  const segments = feature.properties && feature.properties.segments;
+  if (!segments) return [];
+  const steps = [];
+  segments.forEach(seg => (seg.steps || []).forEach(step => steps.push(step)));
+  return steps;
+}
+
 async function fetchRoute(mode, from, to){
   const myToken = ++state.nav.requestToken;
   const res = await fetch(`https://api.openrouteservice.org/v2/directions/${mode}/geojson`, {
     method:'POST',
     headers:{ 'Authorization': ORS_API_KEY, 'Content-Type':'application/json' },
-    body: JSON.stringify({ coordinates:[[from.lng, from.lat], [to.lng, to.lat]] }),
+    // language:'es' — mismo endpoint de siempre, solo se pide el idioma
+    // correcto para que "instruction" venga en español, coherente con el
+    // resto de la app.
+    body: JSON.stringify({ coordinates:[[from.lng, from.lat], [to.lng, to.lat]], language:'es' }),
   });
   if (myToken !== state.nav.requestToken) return null; // hay una petición más nueva en curso — se descarta esta respuesta
   if (!res.ok) throw new Error(`ORS respondió ${res.status}`);
@@ -5375,7 +5414,38 @@ async function fetchRoute(mode, from, to){
     geometry: feature.geometry,
     distanceM: feature.properties.summary.distance,
     durationS: feature.properties.summary.duration,
+    steps: flattenORSSteps(feature),
   };
+}
+
+// way_points de cada step son índices sobre la geometría ORIGINAL de ORS
+// (state.nav.routeGeoJSON.coordinates, que nunca se recorta — ver nota en
+// nearestPointOnLine). "Próxima maniobra" = el primer step cuyo tramo todavía
+// no empezamos.
+function findNextManeuverStep(segmentIndex){
+  const steps = state.nav.routeSteps;
+  if (!steps || !steps.length) return null;
+  for (let i = 0; i < steps.length; i++){
+    if (steps[i].way_points[0] > segmentIndex) return steps[i];
+  }
+  return steps[steps.length - 1]; // ya en el último tramo — instrucción de llegada
+}
+
+const MANEUVER_TYPE_ROTATION = { 0:-90, 1:90, 2:-135, 3:135, 4:-45, 5:45, 6:0, 9:180, 11:0, 12:-25, 13:25 };
+function maneuverIconHTML(type){
+  if (type === 7 || type === 8) return icon('navRoundabout', 15);
+  if (type === 10) return icon('pin', 14);
+  const deg = MANEUVER_TYPE_ROTATION[type] != null ? MANEUVER_TYPE_ROTATION[type] : 0;
+  return `<span style="display:flex; transform:rotate(${deg}deg)">${icon('navArrow', 15)}</span>`;
+}
+function updateManeuverDisplay(step, distM){
+  const wrap = document.getElementById('anhNext');
+  if (!wrap) return;
+  if (!step){ wrap.style.display = 'none'; return; }
+  wrap.style.display = 'flex';
+  document.getElementById('anhNextIcon').innerHTML = maneuverIconHTML(step.type);
+  document.getElementById('anhNextDist').textContent = formatRouteDistance(distM);
+  document.getElementById('anhNextInstruction').textContent = step.instruction || step.name || '';
 }
 
 // Segmento conector: línea recta simple (no calculada por ORS) entre la
@@ -5561,9 +5631,10 @@ async function calculateAndShowRoute(mode){
   try{
     const route = await fetchRoute(mode, userCoords, place);
     if (!route) return; // respuesta descartada por una petición más nueva
-    state.nav.routeGeoJSON = route.geometry;
+       state.nav.routeGeoJSON = route.geometry;
     state.nav.routeDuration = route.durationS;
     state.nav.routeDistance = route.distanceM;
+    state.nav.routeSteps = route.steps;
           drawRouteOnMap(route.geometry);
     drawNavConnector([userCoords.lng, userCoords.lat], route.geometry.coordinates[0]);
     flyToRouteOverview(route.geometry, userCoords, place);
@@ -5835,7 +5906,8 @@ function startActiveNavigation(){
     document.getElementById('anhDestName').textContent = navDestPlace.name;
   }
 
-   routeSummaryPanel.classList.remove('visible');
+      updateManeuverDisplay(null); // se muestra recién con el primer fix real de GPS
+  routeSummaryPanel.classList.remove('visible');
   activeNavHud.classList.add('visible');
   // Se oculta el botón normal de "Cerca de mí" mientras dura la navegación
   // activa — cumple una función similar a recenter y quedaban superpuestos.
@@ -5897,7 +5969,17 @@ function onNavPositionUpdate(userCoords, gpsHeading){
   // El conector se recalcula contra el inicio de la geometría RESTANTE (ya
   // recortada), no la original — así siempre conecta con el tramo de ruta que
   // realmente sigue visible en pantalla.
-  drawNavConnector([userCoords.lng, userCoords.lat], remaining[0]);
+    drawNavConnector([userCoords.lng, userCoords.lat], remaining[0]);
+
+  // Próxima maniobra — reutiliza `remaining` y `lineLengthMeters` ya
+  // calculados arriba, sin duplicar lógica de distancia.
+  const nextStep = findNextManeuverStep(nearest.segmentIndex);
+  if (nextStep){
+    const localIdx = Math.min(Math.max(nextStep.way_points[0] - nearest.segmentIndex, 0), remaining.length - 1);
+    updateManeuverDisplay(nextStep, lineLengthMeters(remaining.slice(0, localIdx + 1)));
+  } else {
+    updateManeuverDisplay(null);
+  }
 
   // Desvío real (más allá del umbral) + fuera del cooldown + sin otro
   // recálculo ya en curso → se pide una ruta nueva desde la posición actual.
@@ -5943,9 +6025,10 @@ async function recalculateRouteFromOffRoute(){
   try{
     const route = await fetchRoute(state.nav.mode, userCoords, place);
     if (!route) return; // descartada por una petición más nueva (mismo requestToken de fetchRoute)
-    state.nav.routeGeoJSON = route.geometry;
+       state.nav.routeGeoJSON = route.geometry;
     state.nav.routeDuration = route.durationS;
     state.nav.routeDistance = route.distanceM;
+    state.nav.routeSteps = route.steps;
     state.nav.speedMps = route.distanceM / route.durationS; // el HUD usa esta velocidad para el ETA de los siguientes ticks
     drawRouteOnMap(route.geometry);
     clearNavConnector();
@@ -5989,8 +6072,10 @@ function finishNavigation(reason){
   state.nav.followMode = true; // reset — la próxima navegación empieza siempre en modo seguimiento
   if (state.nav.animRaf) cancelAnimationFrame(state.nav.animRaf);
   state.nav.animRaf = null;
-  state.nav.displayLngLat = null;
+    state.nav.displayLngLat = null;
   state.nav.displayHeading = null;
+  state.nav.routeSteps = null;
+  updateManeuverDisplay(null);
 
   if (reason === 'arrived'){
     document.getElementById('arrivalToastSub').textContent = state.nav.targetPlace ? state.nav.targetPlace.name : '';
