@@ -5838,11 +5838,12 @@ async function calculateAndShowRoute(mode){
     // y el POI de destino se fuerza a mostrarse aunque el usuario no haya
     // "entrado" a esa localidad — la jerarquía normal comuna → localidad → POI
     // se retoma recién al cancelar/llegar (ver clearNavRoute).
-        state.nav.active = true;
+               state.nav.active = true;
     applyNavCartographyBoost(); // refuerzo de comunas/relieve — solo mientras dura el flujo de ruta
     clearSublocalityMarkers();
     clearPOIMarkers();
-       updateSelectedPOILayer(null); // evita el pin nativo duplicado detrás del marcador de destino
+    renderPOIs(); // fuerza el vaciado inmediato de la capa NATIVA de POIs — sin esto, si el zoom no cambia de tier al iniciar la ruta, los POIs de alrededor quedaban visibles hasta el próximo cambio de nivel
+    updateSelectedPOILayer(null); // evita el pin nativo duplicado detrás del marcador de destino
     renderNavDestinationMarker(place);
     startRouteGlow(); // "Seleccionar destino" — brillo suave mientras la navegación aún no arranca
     rspStatus.style.display = 'none';
