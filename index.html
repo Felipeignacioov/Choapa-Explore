@@ -5419,8 +5419,9 @@ function clearNavRoute(){
   if (map.getLayer('nav-route-line')) map.removeLayer('nav-route-line');
   if (map.getLayer('nav-route-line-outline')) map.removeLayer('nav-route-line-outline');
   if (map.getLayer('nav-route-line-halo')) map.removeLayer('nav-route-line-halo');
-  if (map.getSource('nav-route')) map.removeSource('nav-route');
+    if (map.getSource('nav-route')) map.removeSource('nav-route');
   clearNavConnector();
+  stopRouteGlow();
    routeSummaryPanel.classList.remove('visible');
   clearNavDestinationMarker();
   state.nav.active = false;
@@ -5565,10 +5566,15 @@ function smoothRouteCoordinates(coords, iterations = 2){
 // y onNavPositionUpdate en cada actualización de navegación activa) — al
 // vivir el suavizado acá, en el único punto donde se dibuja la línea, los dos
 // estados quedan automáticamente idénticos sin duplicar lógica.
+// lastDrawnRouteCoords guarda la geometría YA suavizada que se acaba de
+// pintar — solo lectura para el brillo de "Seleccionar destino" (más abajo),
+// nunca se usa para calcular distancia/tiempo/cámara ni nada del flujo real.
+let lastDrawnRouteCoords = null;
 function drawRouteOnMap(geometry){
   const smoothedCoords = geometry.type === 'LineString'
     ? smoothRouteCoordinates(geometry.coordinates)
     : geometry.coordinates;
+  lastDrawnRouteCoords = smoothedCoords;
   const data = { type:'Feature', geometry:{ ...geometry, coordinates: smoothedCoords }, properties:{} };
   if (map.getSource('nav-route')){
     map.getSource('nav-route').setData(data);
@@ -5597,7 +5603,7 @@ function drawRouteOnMap(geometry){
         'line-width': ['interpolate', ['linear'], ['zoom'], 10, 2.7, 13, 3.9, 16, 6.0, 18, 7.8],
       },
     });
-    map.addLayer({
+       map.addLayer({
       id:'nav-route-line', type:'line', source:'nav-route',
       layout:{ 'line-cap':'round', 'line-join':'round' },
       paint:{
@@ -5606,6 +5612,107 @@ function drawRouteOnMap(geometry){
       },
     });
   }
+}
+
+/* ---------- Brillo recorriendo la ruta — SOLO en "Seleccionar destino" ----------
+   Efecto puramente visual: un punto que se desliza sobre la MISMA geometría ya
+   dibujada (lastDrawnRouteCoords), en una fuente/capa GeoJSON propia y
+   separada de nav-route. Nunca toca routeGeoJSON, distancia/duración, cámara,
+   zoom ni ningún cálculo de ruta — solo lectura de coordenadas + su propio
+   requestAnimationFrame. Se enciende al final de calculateAndShowRoute()
+   (ruta calculada, navegación aún no iniciada) y se apaga de inmediato al
+   entrar a startActiveNavigation() ("Iniciar viaje") o al cancelar
+   (clearNavRoute). Intensidad baja, sin neón: opacidades 0.5/0.18, blur alto,
+   mismo turquesa de marca que ya usa la línea de ruta. */
+const ROUTE_GLOW_SPEED = 0.00028; // fracción del largo total recorrida por ms — lento, constante
+let routeGlowRaf = null;
+let routeGlowLastTs = null;
+let routeGlowProgress = 0;
+let routeGlowFractions = null;
+
+// Distancias acumuladas normalizadas [0..1] por vértice — sirve para ubicar
+// un punto a mitad de camino sin depender de metros reales (esto es un
+// efecto de dibujo, no un dato de navegación).
+function computeCumulativeFractions(coords){
+  const dists = [0];
+  let total = 0;
+  for (let i = 0; i < coords.length - 1; i++){
+    total += Math.hypot(coords[i+1][0] - coords[i][0], coords[i+1][1] - coords[i][1]);
+    dists.push(total);
+  }
+  if (total === 0) return coords.map(() => 0);
+  return dists.map(d => d / total);
+}
+function pointAtFraction(coords, fractions, f){
+  if (coords.length < 2) return coords[0];
+  let i = 0;
+  while (i < fractions.length - 2 && fractions[i + 1] < f) i++;
+  const f0 = fractions[i], f1 = fractions[i + 1];
+  const localT = f1 > f0 ? (f - f0) / (f1 - f0) : 0;
+  const a = coords[i], b = coords[i + 1];
+  return [a[0] + (b[0] - a[0]) * localT, a[1] + (b[1] - a[1]) * localT];
+}
+
+function ensureRouteGlowLayer(){
+  if (map.getSource('route-glow-source')) return;
+  map.addSource('route-glow-source', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
+  // Halo ancho y muy difuso — intensidad baja a propósito, nunca estética neón.
+  map.addLayer({
+    id:'route-glow-halo-layer', type:'circle', source:'route-glow-source',
+    paint:{
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 7, 16, 15],
+      'circle-color':'#5FE1E8',
+      'circle-opacity':0.18,
+      'circle-blur':1.4,
+    },
+  });
+  // Núcleo pequeño y suave, acompaña al halo sin dominar.
+  map.addLayer({
+    id:'route-glow-core-layer', type:'circle', source:'route-glow-source',
+    paint:{
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 2.6, 16, 5],
+      'circle-color':'#FFFFFF',
+      'circle-opacity':0.5,
+      'circle-blur':0.6,
+    },
+  });
+}
+function removeRouteGlowLayer(){
+  if (map.getLayer('route-glow-core-layer')) map.removeLayer('route-glow-core-layer');
+  if (map.getLayer('route-glow-halo-layer')) map.removeLayer('route-glow-halo-layer');
+  if (map.getSource('route-glow-source')) map.removeSource('route-glow-source');
+}
+function routeGlowStep(ts){
+  if (!routeGlowLastTs) routeGlowLastTs = ts;
+  const dt = ts - routeGlowLastTs;
+  routeGlowLastTs = ts;
+  routeGlowProgress = (routeGlowProgress + dt * ROUTE_GLOW_SPEED) % 1;
+
+  const src = map.getSource('route-glow-source');
+  if (src && lastDrawnRouteCoords && routeGlowFractions){
+    const pt = pointAtFraction(lastDrawnRouteCoords, routeGlowFractions, routeGlowProgress);
+    src.setData({ type:'Feature', geometry:{ type:'Point', coordinates:pt }, properties:{} });
+  }
+  routeGlowRaf = requestAnimationFrame(routeGlowStep);
+}
+// Se llama al final de calculateAndShowRoute() (ruta recién calculada o
+// recalculada por cambio de modo) — si ya había una animación corriendo, se
+// reinicia contra la geometría nueva, así el brillo siempre se adapta a la
+// ruta vigente.
+function startRouteGlow(){
+  stopRouteGlow();
+  if (!lastDrawnRouteCoords || lastDrawnRouteCoords.length < 2) return;
+  ensureRouteGlowLayer();
+  routeGlowFractions = computeCumulativeFractions(lastDrawnRouteCoords);
+  routeGlowProgress = 0;
+  routeGlowLastTs = null;
+  routeGlowRaf = requestAnimationFrame(routeGlowStep);
+}
+// Se llama al iniciar el viaje (startActiveNavigation) y al cancelar/terminar
+// (clearNavRoute) — detiene el rAF y elimina la capa por completo.
+function stopRouteGlow(){
+  if (routeGlowRaf){ cancelAnimationFrame(routeGlowRaf); routeGlowRaf = null; }
+  removeRouteGlowLayer();
 }
 
 // Encuadre panorámico usuario→destino, mismo patrón de easing que ya usa el
@@ -5708,8 +5815,9 @@ async function calculateAndShowRoute(mode){
     applyNavCartographyBoost(); // refuerzo de comunas/relieve — solo mientras dura el flujo de ruta
     clearSublocalityMarkers();
     clearPOIMarkers();
-    updateSelectedPOILayer(null); // evita el pin nativo duplicado detrás del marcador de destino
+       updateSelectedPOILayer(null); // evita el pin nativo duplicado detrás del marcador de destino
     renderNavDestinationMarker(place);
+    startRouteGlow(); // "Seleccionar destino" — brillo suave mientras la navegación aún no arranca
     rspStatus.style.display = 'none';
     renderRouteSummaryPanel();
   } catch(err){
@@ -5939,6 +6047,7 @@ navRecenterBtn.addEventListener('click', () => {
 
 function startActiveNavigation(){
   if (!state.nav.routeGeoJSON || !state.nav.targetPlace) return;
+  stopRouteGlow(); // arranca "Voy viajando" — el brillo de selección desaparece por completo
   if (!navigator.geolocation){
     const anhStatus = document.getElementById('anhStatus');
     anhStatus.style.display = 'flex';
