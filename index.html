@@ -115,11 +115,18 @@ img{-webkit-user-drag:none; user-select:none;}
   position:absolute; top:0; left:0; right:0; z-index:10;
   padding: calc(14px + var(--safe-top)) 16px 10px;
   display:flex; flex-direction:column; gap:12px;
+  /* Header compacto — se activa al explorar el mapa (ver .top-ui.compact más
+     abajo, y el bloque JS "HEADER COMPACTO"). Transición propia. */
+  transition:gap .28s cubic-bezier(.4,0,.2,1), padding .28s cubic-bezier(.4,0,.2,1);
 }
 .header-row{display:flex; align-items:center; justify-content:space-between; gap:12px;}
 .brand{display:flex; flex-direction:column; line-height:1; font-family:var(--font-display);}
 .brand-choapa{font-size:18px; font-weight:800; letter-spacing:0.3px; color:var(--text-primary);}
-.brand-explore{font-size:10px; font-weight:700; letter-spacing:3.5px; color:var(--turquoise-bright); margin-top:3px;}
+.brand-explore{
+  font-size:10px; font-weight:700; letter-spacing:3.5px; color:var(--turquoise-bright); margin-top:3px;
+  max-height:16px; opacity:1; overflow:hidden;
+  transition:opacity .28s cubic-bezier(.4,0,.2,1), max-height .28s cubic-bezier(.4,0,.2,1), margin-top .28s cubic-bezier(.4,0,.2,1);
+}
 
 .profile-btn{
   width:38px; height:38px; border-radius:50%;
@@ -140,7 +147,7 @@ img{-webkit-user-drag:none; user-select:none;}
   border-radius:var(--radius-pill);
   padding:10.5px 16px;
   box-shadow:var(--shadow-float);
-  transition:border-color .2s ease, box-shadow .2s ease, background .2s ease, border-radius .2s ease;
+  transition:border-color .2s ease, box-shadow .2s ease, background .2s ease, border-radius .2s ease, padding .28s cubic-bezier(.4,0,.2,1);
 }
 .searchbar:focus-within{
   border-color:rgba(95,225,232,0.5);
@@ -199,7 +206,7 @@ img{-webkit-user-drag:none; user-select:none;}
      cambio de tinte al elegir categoría se sienta como un fundido suave. La
      transición de transform/box-shadow (feedback táctil al tocar) se mantiene
      igual, sin tocar. */
-  transition:background .3s cubic-bezier(.4,0,.2,1), color .3s cubic-bezier(.4,0,.2,1), border-color .3s cubic-bezier(.4,0,.2,1), transform .16s cubic-bezier(.34,1.56,.64,1), box-shadow .16s ease;
+   transition:background .3s cubic-bezier(.4,0,.2,1), color .3s cubic-bezier(.4,0,.2,1), border-color .3s cubic-bezier(.4,0,.2,1), transform .16s cubic-bezier(.34,1.56,.64,1), box-shadow .16s ease, padding .28s cubic-bezier(.4,0,.2,1);
   white-space:nowrap;
 }
 .chip .dot{width:6px; height:6px; border-radius:50%; background:currentColor; opacity:.85;}
@@ -211,6 +218,26 @@ img{-webkit-user-drag:none; user-select:none;}
   transform:translateY(-1px);
 }
 .chip:active{transform:scale(0.95);}
+
+/* ---------------- HEADER COMPACTO ----------------
+   Se activa mientras el usuario explora el mapa (pan/zoom real, nunca vuelos
+   programáticos como enterLocality/exitLocality) — ver JS
+   handleHeaderCompactTrigger. Solo reduce paddings/gaps y oculta el subtítulo
+   "EXPLORE"; nunca cambia el tamaño de fuente de categorías/buscador ni su
+   contenido. Nada de esto toca el mapa, sus capas ni su lógica. */
+.top-ui.compact{
+  padding-bottom:6px;
+  gap:7px;
+}
+.top-ui.compact .brand-explore{
+  max-height:0; opacity:0; margin-top:0;
+}
+.top-ui.compact .searchbar{
+  padding:7px 16px;
+}
+.top-ui.compact .chip{
+  padding:6px 14px;
+}
 /* ---------------- MAP CONTROLS ---------------- */
 .map-controls{
   position:absolute; right:16px; z-index:9;
@@ -3098,6 +3125,41 @@ map.on('pitch', updateCompass);
 compassBtn.addEventListener('click', () => {
   map.easeTo({ bearing:0, pitch:0, duration:500, easing:t => 1 - Math.pow(1 - t, 3) });
 });
+
+/* ---------- HEADER COMPACTO — más territorio visible al explorar ----------
+   Mismo criterio que handleManualMapInteraction (más abajo, navegación
+   activa): e.originalEvent solo existe en gestos reales del usuario
+   (touch/mouse), nunca en vuelos programáticos como enterLocality/
+   exitLocality/flyToRouteOverview — así el header nunca se compacta por un
+   movimiento que la propia app dispara, solo por interacción real del
+   usuario con el mapa. */
+const topUI = document.querySelector('.top-ui');
+let headerCompactTimer = null;
+const HEADER_COMPACT_IDLE_MS = 900; // sin gesto nuevo durante este tiempo → el header vuelve a expandirse
+function compactHeader(){
+  clearTimeout(headerCompactTimer);
+  if (!topUI.classList.contains('compact')){
+    topUI.classList.add('compact');
+    // Los chips cambian de ancho al compactarse — se recalcula el fade de
+    // los bordes de la fila una vez terminada la transición (280ms).
+    setTimeout(() => { if (typeof updateChipsFade === 'function') updateChipsFade(); }, 300);
+  }
+}
+function scheduleHeaderExpand(){
+  clearTimeout(headerCompactTimer);
+  headerCompactTimer = setTimeout(() => {
+    topUI.classList.remove('compact');
+    setTimeout(() => { if (typeof updateChipsFade === 'function') updateChipsFade(); }, 300);
+  }, HEADER_COMPACT_IDLE_MS);
+}
+function handleHeaderCompactTrigger(e){
+  if (!e.originalEvent) return; // vuelo programático — se ignora
+  compactHeader();
+}
+map.on('movestart', handleHeaderCompactTrigger);
+map.on('zoomstart', handleHeaderCompactTrigger);
+map.on('moveend', scheduleHeaderExpand);
+map.on('zoomend', scheduleHeaderExpand);
 
 // Ajusta sutilmente la paleta del mapa hacia azul-noche/turquesa
 function tintMapLayers(){
