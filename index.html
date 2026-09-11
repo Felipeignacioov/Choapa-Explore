@@ -5741,42 +5741,6 @@ function stopRouteGlow(){
   if (routeGlowRaf){ cancelAnimationFrame(routeGlowRaf); routeGlowRaf = null; }
   removeRouteGlowLayer();
 }
-  if (map.getLayer('route-glow-core-layer')) map.removeLayer('route-glow-core-layer');
-  if (map.getLayer('route-glow-halo-layer')) map.removeLayer('route-glow-halo-layer');
-  if (map.getSource('route-glow-source')) map.removeSource('route-glow-source');
-}
-function routeGlowStep(ts){
-  if (!routeGlowLastTs) routeGlowLastTs = ts;
-  const dt = ts - routeGlowLastTs;
-  routeGlowLastTs = ts;
-  routeGlowProgress = (routeGlowProgress + dt * ROUTE_GLOW_SPEED) % 1;
-
-  const src = map.getSource('route-glow-source');
-  if (src && lastDrawnRouteCoords && routeGlowFractions){
-    const pt = pointAtFraction(lastDrawnRouteCoords, routeGlowFractions, routeGlowProgress);
-    src.setData({ type:'Feature', geometry:{ type:'Point', coordinates:pt }, properties:{} });
-  }
-  routeGlowRaf = requestAnimationFrame(routeGlowStep);
-}
-// Se llama al final de calculateAndShowRoute() (ruta recién calculada o
-// recalculada por cambio de modo) — si ya había una animación corriendo, se
-// reinicia contra la geometría nueva, así el brillo siempre se adapta a la
-// ruta vigente.
-function startRouteGlow(){
-  stopRouteGlow();
-  if (!lastDrawnRouteCoords || lastDrawnRouteCoords.length < 2) return;
-  ensureRouteGlowLayer();
-  routeGlowFractions = computeCumulativeFractions(lastDrawnRouteCoords);
-  routeGlowProgress = 0;
-  routeGlowLastTs = null;
-  routeGlowRaf = requestAnimationFrame(routeGlowStep);
-}
-// Se llama al iniciar el viaje (startActiveNavigation) y al cancelar/terminar
-// (clearNavRoute) — detiene el rAF y elimina la capa por completo.
-function stopRouteGlow(){
-  if (routeGlowRaf){ cancelAnimationFrame(routeGlowRaf); routeGlowRaf = null; }
-  removeRouteGlowLayer();
-}
 
 // Encuadre panorámico usuario→destino, mismo patrón de easing que ya usa el
 // resto de la app (curve/duration coherentes con enterLocality/exitLocality).
