@@ -2946,6 +2946,7 @@ map.on('load', () => {
   startPOIBreathingAnimation(); // Fase 5a — respiración del fondo de POIs
  currentDayPeriod = getDayPeriod();
   applyMoodAtmosphere('todos'); // sin categoría activa: --mood-glow queda 'transparent', sin halo extra
+  applyDayLightLift(); // aumento de luminosidad diurna — aplica el estado real al cargar
   setInterval(updateDayPeriod, 3 * 60 * 1000);
   renderTerritoryFade();
   renderLocalityMarkers();
@@ -4937,6 +4938,20 @@ function blendHex(baseHex, tintHex, amount){
 }
 const BASE_BG_COLOR = '#0B1726';
 
+// ---------- Paleta base "adaptable" al estado 'day' de TIME_ATMOSPHERE ----------
+// Estos son los MISMOS valores que tintMapLayers() ya fija una sola vez al
+// cargar el mapa (vegetación, zonas residenciales, edificios) — nunca antes
+// respondían al ciclo día/noche. Se extraen a constantes solo para poder
+// mezclarlos (blendHex, ya existente) hacia un tono algo más luminoso cuando
+// el período es 'day' — en dusk/night el resultado es idéntico al de
+// siempre (mezcla al 0%, ver TIME_ATMOSPHERE.dayLift más abajo).
+const BASE_PALETTE = {
+  vegetation:  '#12241D',
+  residential: '#16283A',
+  building:    '#1C3450',
+};
+const DAY_LIGHT_TINT = '#4C6B82'; // acero-azulado claro — sigue siendo oscuro/premium, nunca blanco
+
 // ---------- Ciclo día/noche real — sol calculado para las coordenadas del Choapa ----------
 // Algoritmo compacto de posición solar (el mismo principio que usa la librería
 // SunCalc): exacto a pocos minutos, calculado en el momento — no horas fijas que
@@ -4986,9 +5001,13 @@ function getDayPeriod(){
   return 'night';
 }
 const TIME_ATMOSPHERE = {
-  day:   { bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315 },
-  dusk:  { bgTint:'#E8A24D', bgAmount:0.05, glowAmount:0.22, glowOpacity:0.055, illum:305 },
-  night: { bgTint:'#8B7CF0', bgAmount:0.06, glowAmount:0.28, glowOpacity:0.032, illum:300 },
+  // dayLift: única clave nueva — cuánto se mezcla la paleta base (vegetación/
+  // residencial/edificios) hacia DAY_LIGHT_TINT. 0 en dusk/night preserva su
+  // apariencia exactamente igual a como está hoy; el resto de las claves
+  // (bgTint, bgAmount, glowAmount, glowOpacity, illum) no se toca.
+  day:   { bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.08 },
+  dusk:  { bgTint:'#E8A24D', bgAmount:0.05, glowAmount:0.22, glowOpacity:0.055, illum:305, dayLift:0 },
+  night: { bgTint:'#8B7CF0', bgAmount:0.06, glowAmount:0.28, glowOpacity:0.032, illum:300, dayLift:0 },
 };
 let currentDayPeriod = null;
 // Atmósfera del mapa según la experiencia activa — nunca cambia el mapa en sí,
@@ -5065,12 +5084,42 @@ function applyMoodAtmosphere(expId){
     map.setPaintProperty('territory-fade-layer', 'raster-saturation', active ? 0.15 : 0);
   }
 
-  // Halo exterior de los POIs — variable CSS global, así TODOS los marcadores ya
+    // Halo exterior de los POIs — variable CSS global, así TODOS los marcadores ya
   // renderizados se actualizan al instante sin re-crear ni un solo pin. El
   // centro/ícono de cada POI sigue exactamente con su color de categoría/
   // experiencia de siempre (eso no se toca, es identidad de cada lugar).
   document.documentElement.style.setProperty('--mood-glow', active ? tint : 'transparent');
 }
+
+// Aumento de luminosidad diurna — única mejora de esta fase. Reutiliza
+// TIME_ATMOSPHERE.dayLift (0 en dusk/night, valor bajo en day) y blendHex()
+// ya existentes; no crea ningún sistema de atmósferas nuevo. Recolorea SOLO
+// 3 capas de la paleta base que tintMapLayers() fija una sola vez al cargar
+// (vegetación, residencial, edificios) — nunca toca hillshade, territory-fade,
+// vignette, POIs, comunas/localidades, rutas, categorías ni UI. Con
+// dayLift:0 (dusk/night) el resultado es matemáticamente idéntico al color
+// original — su apariencia no cambia ni un píxel.
+function applyDayLightLift(){
+  const amount = (TIME_ATMOSPHERE[currentDayPeriod || 'day'] || TIME_ATMOSPHERE.day).dayLift || 0;
+  const layers = map.getStyle().layers || [];
+  layers.forEach(l => {
+    try{
+      if (l.type === 'fill' && (l.id === 'landcover_wood' || l.id === 'landuse_park')){
+        map.setPaintProperty(l.id, 'fill-color-transition', { duration:600 });
+        map.setPaintProperty(l.id, 'fill-color', blendHex(BASE_PALETTE.vegetation, DAY_LIGHT_TINT, amount));
+      }
+      if (l.type === 'fill' && l.id === 'landuse_residential'){
+        map.setPaintProperty(l.id, 'fill-color-transition', { duration:600 });
+        map.setPaintProperty(l.id, 'fill-color', blendHex(BASE_PALETTE.residential, DAY_LIGHT_TINT, amount));
+      }
+      if (l.type === 'fill' && l.id === 'building'){
+        map.setPaintProperty(l.id, 'fill-color-transition', { duration:600 });
+        map.setPaintProperty(l.id, 'fill-color', blendHex(BASE_PALETTE.building, DAY_LIGHT_TINT, amount));
+      }
+    }catch(e){ /* capa no aplicable en este estilo — se ignora, igual que en tintMapLayers */ }
+  });
+}
+
 // Se revisa cada 3 minutos — suficiente para que la transición se sienta natural
 // sin recalcular en cada frame. Solo reaplica si el período realmente cambió
 // (evita reiniciar transiciones sin necesidad cada vez que corre el intervalo).
@@ -5078,6 +5127,7 @@ function updateDayPeriod(){
   const period = getDayPeriod();
   if (period === currentDayPeriod) return;
   currentDayPeriod = period;
+  applyDayLightLift();
   applyMoodAtmosphere(state.activeExperience);
 }
 
