@@ -238,6 +238,25 @@ img{-webkit-user-drag:none; user-select:none;}
 .top-ui.compact .chip{
   padding:6px 14px;
 }
+
+/* ---------------- OCULTAMIENTO EN "VOY VIAJANDO" ----------------
+   Se activa/desactiva únicamente vía JS (ver setExploreChromeHiddenForNav)
+   en los dos puntos donde ya existe la transición real de estado:
+   startActiveNavigation() (arranca el GPS = "Voy viajando") y
+   finishNavigation() (cancela/llega = vuelve a "Seleccionar destino"/normal).
+   Nunca se activa en "Seleccionar destino" (calculateAndShowRoute) — ahí el
+   buscador/chips/breadcrumb siguen exactamente como están hoy. */
+.search-wrap.nav-voy-hidden,
+.chips-row.nav-voy-hidden,
+.map-controls.nav-voy-hidden{
+  display:none;
+}
+/* .breadcrumb-pill ya alterna display:none/flex vía su propia clase
+   .visible — !important necesario solo para poder forzar el ocultamiento
+   por encima de esa clase mientras dura la navegación activa. */
+.breadcrumb-pill.nav-voy-hidden{
+  display:none !important;
+}
 /* ---------------- MAP CONTROLS ---------------- */
 .map-controls{
   position:absolute; right:16px; z-index:9;
@@ -5923,6 +5942,20 @@ const OFF_ROUTE_RECALC_COOLDOWN_MS = 8000;
 
 const navRecenterBtn = document.getElementById('navRecenterBtn');
 
+// Oculta/restaura el "chrome" de exploración (buscador, chips, selector de
+// comuna/localidad, zoom +/-) exclusivamente durante "Voy viajando" — nunca
+// en "Seleccionar destino". Solo alterna una clase CSS; ningún elemento se
+// elimina del DOM ni cambia su lógica interna (el buscador sigue siendo el
+// mismo input, los chips el mismo filtro, el breadcrumb sigue sabiendo si
+// hay comuna/localidad activa — solo se le suma/quita esta clase que fuerza
+// display:none por encima de su propio estado).
+function setExploreChromeHiddenForNav(hidden){
+  document.querySelector('.search-wrap').classList.toggle('nav-voy-hidden', hidden);
+  document.getElementById('chipsRow').classList.toggle('nav-voy-hidden', hidden);
+  document.getElementById('breadcrumbPill').classList.toggle('nav-voy-hidden', hidden);
+  document.querySelector('.map-controls').classList.toggle('nav-voy-hidden', hidden);
+}
+
 // El HUD de navegación activa cambia de alto según su contenido (bloque de
 // próxima maniobra .anh-next, o de error .anh-status, visibles o no) — el
 // botón de recentrar debe quedar SIEMPRE por encima de su borde superior real,
@@ -6127,10 +6160,11 @@ function startActiveNavigation(){
     document.getElementById('anhDestName').textContent = navDestPlace.name;
   }
 
-            updateManeuverDisplay(null); // se muestra recién con el primer fix real de GPS
+                  updateManeuverDisplay(null); // se muestra recién con el primer fix real de GPS
   routeSummaryPanel.classList.remove('visible');
   activeNavHud.classList.add('visible');
   requestAnimationFrame(updateNavRecenterOffset); // altura real del HUD recién visible
+  setExploreChromeHiddenForNav(true); // arranca "Voy viajando" — más territorio visible durante el viaje
   // Se oculta el botón normal de "Cerca de mí" mientras dura la navegación
   // activa — cumple una función similar a recenter y quedaban superpuestos.
   // Fuera de este flujo, #btnCenterMe sigue funcionando exactamente igual.
@@ -6286,10 +6320,11 @@ function finishNavigation(reason){
     navigator.geolocation.clearWatch(state.nav.watchId);
     state.nav.watchId = null;
   }
-       activeNavHud.classList.remove('visible');
+          activeNavHud.classList.remove('visible');
   navRecenterBtn.classList.remove('visible');
   document.getElementById('btnCenterMe').style.display = '';
   document.documentElement.style.removeProperty('--nav-recenter-bottom');
+  setExploreChromeHiddenForNav(false); // vuelve a "Seleccionar destino"/exploración normal
     setUserMarkerNavStyle(false);
   state.nav.heading = null;
   state.nav.lastUserCoords = null;
