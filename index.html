@@ -3541,11 +3541,16 @@ function renderTerrainDepth(){
     // Imperceptible como animación explícita; perceptible como "nunca está del
     // todo congelado". Mismo mecanismo de setInterval+seno que ya usa el halo
     // del río, así que no introduce ningún patrón nuevo al proyecto.
-    const WATER_BASE = '#0E3742';
-           setInterval(() => {
+        // currentWaterBase reemplaza a la antigua constante fija WATER_BASE —
+    // ahora es actualizada por applyDayLightLift() según el período del día,
+    // así el ciclo de respiración (abajo) sigue funcionando exactamente
+    // igual, pero mezclando desde el tono correcto en cada momento en vez de
+    // siempre el mismo valor nocturno. Nada más de este bloque se toca:
+    // mismo ciclo, misma amplitud (2.5%), mismos 240ms.
+    setInterval(() => {
       if (!map.getLayer('water')) return;
       const wobble = (Math.sin(performance.now() / 1650) + 1) / 2 * 0.025; // 0 → 2.5%
-      map.setPaintProperty('water', 'fill-color', blendHex(WATER_BASE, '#FFFFFF', wobble));
+      map.setPaintProperty('water', 'fill-color', blendHex(currentWaterBase, '#FFFFFF', wobble));
     }, 240);
 
     // 2) Textura costera — una segunda línea, más fina y difusa que coast-glow,
@@ -4949,8 +4954,14 @@ const BASE_PALETTE = {
   vegetation:  '#12241D',
   residential: '#16283A',
   building:    '#1C3450',
+  water:       '#0E3742',
 };
 const DAY_LIGHT_TINT = '#4C6B82'; // acero-azulado claro — sigue siendo oscuro/premium, nunca blanco
+// Base de color del agua usada por el ciclo de respiración de luminancia
+// (renderTerrainDepth) — antes una constante fija (WATER_BASE), ahora la
+// actualiza applyDayLightLift() según el período del día, así ambos efectos
+// conviven sin que uno sobrescriba al otro cada 240ms.
+let currentWaterBase = BASE_PALETTE.water;
 
 // ---------- Ciclo día/noche real — sol calculado para las coordenadas del Choapa ----------
 // Algoritmo compacto de posición solar (el mismo principio que usa la librería
@@ -5112,9 +5123,14 @@ function applyDayLightLift(){
         map.setPaintProperty(l.id, 'fill-color-transition', { duration:600 });
         map.setPaintProperty(l.id, 'fill-color', blendHex(BASE_PALETTE.residential, DAY_LIGHT_TINT, amount));
       }
-      if (l.type === 'fill' && l.id === 'building'){
+          if (l.type === 'fill' && l.id === 'building'){
         map.setPaintProperty(l.id, 'fill-color-transition', { duration:600 });
         map.setPaintProperty(l.id, 'fill-color', blendHex(BASE_PALETTE.building, DAY_LIGHT_TINT, amount));
+      }
+      if (l.type === 'fill' && l.id === 'water'){
+        currentWaterBase = blendHex(BASE_PALETTE.water, DAY_LIGHT_TINT, amount);
+        map.setPaintProperty(l.id, 'fill-color-transition', { duration:600 });
+        map.setPaintProperty(l.id, 'fill-color', currentWaterBase);
       }
     }catch(e){ /* capa no aplicable en este estilo — se ignora, igual que en tintMapLayers */ }
   });
