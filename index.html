@@ -1887,11 +1887,13 @@ img{-webkit-user-drag:none; user-select:none;}
    control de "Cerca de mí" duplicado. */
 .nav-recenter-btn{
   position:absolute; right:16px; z-index:22;
-  /* Antes +96px — dejaba el botón libre pero casi pegado al borde superior
-     de la tarjeta (~4-6px de aire). +108px suma ~12px más de separación,
-     dejando un espacio de aire perceptible (~16-18px) sin subir demasiado
-     el botón ni desalinearlo del resto de controles del mapa. */
-  bottom:calc(var(--nav-footprint) + 14px + 108px);
+  /* --nav-recenter-bottom se calcula en JS (updateNavRecenterOffset) contra
+     la altura REAL del HUD en cada momento — ese HUD cambia de alto según si
+     el bloque de "próxima maniobra" (.anh-next) o el de error (.anh-status)
+     están visibles, así que un número fijo se desalinea apenas cambia el
+     contenido. El valor de calc() de abajo es solo el respaldo para el
+     instante antes de que JS calcule el real. */
+  bottom:var(--nav-recenter-bottom, calc(var(--nav-footprint) + 14px + 108px));
   width:38px; height:38px; border-radius:50%;
   background:var(--turquoise); box-shadow:var(--shadow-float), 0 4px 14px rgba(22,184,196,0.35);
   border:none;
@@ -5504,11 +5506,16 @@ function maneuverIconHTML(type){
 function updateManeuverDisplay(step, distM){
   const wrap = document.getElementById('anhNext');
   if (!wrap) return;
-  if (!step){ wrap.style.display = 'none'; return; }
+  if (!step){
+    wrap.style.display = 'none';
+    requestAnimationFrame(updateNavRecenterOffset);
+    return;
+  }
   wrap.style.display = 'flex';
   document.getElementById('anhNextIcon').innerHTML = maneuverIconHTML(step.type);
   document.getElementById('anhNextDist').textContent = formatRouteDistance(distM);
   document.getElementById('anhNextInstruction').textContent = step.instruction || step.name || '';
+  requestAnimationFrame(updateNavRecenterOffset);
 }
 
 // Segmento conector: línea recta simple (no calculada por ORS) entre la
@@ -5916,6 +5923,21 @@ const OFF_ROUTE_RECALC_COOLDOWN_MS = 8000;
 
 const navRecenterBtn = document.getElementById('navRecenterBtn');
 
+// El HUD de navegación activa cambia de alto según su contenido (bloque de
+// próxima maniobra .anh-next, o de error .anh-status, visibles o no) — el
+// botón de recentrar debe quedar SIEMPRE por encima de su borde superior real,
+// nunca a una distancia fija calculada a mano. Se llama cada vez que el
+// contenido del HUD puede haber cambiado de alto (mostrar/ocultar el HUD,
+// actualizar la próxima maniobra, mostrar/ocultar un status de error).
+function updateNavRecenterOffset(){
+  if (!activeNavHud.classList.contains('visible')){
+    document.documentElement.style.removeProperty('--nav-recenter-bottom');
+    return;
+  }
+  const hudHeight = activeNavHud.getBoundingClientRect().height;
+  document.documentElement.style.setProperty('--nav-recenter-bottom', `calc(var(--nav-footprint) + ${Math.round(hudHeight) + 22}px)`);
+}
+
 // Rumbo (bearing) entre dos coordenadas — fallback cuando el GPS no entrega
 // heading real. Fórmula estándar de navegación.
 function computeBearing(lat1, lng1, lat2, lng2){
@@ -6105,9 +6127,10 @@ function startActiveNavigation(){
     document.getElementById('anhDestName').textContent = navDestPlace.name;
   }
 
-      updateManeuverDisplay(null); // se muestra recién con el primer fix real de GPS
+            updateManeuverDisplay(null); // se muestra recién con el primer fix real de GPS
   routeSummaryPanel.classList.remove('visible');
   activeNavHud.classList.add('visible');
+  requestAnimationFrame(updateNavRecenterOffset); // altura real del HUD recién visible
   // Se oculta el botón normal de "Cerca de mí" mientras dura la navegación
   // activa — cumple una función similar a recenter y quedaban superpuestos.
   // Fuera de este flujo, #btnCenterMe sigue funcionando exactamente igual.
@@ -6253,6 +6276,7 @@ function onNavPositionError(err){
     : `${icon('pin', 13)} Señal de ubicación perdida — intentando reconectar…`;
   // No se detiene watchPosition: el navegador suele seguir reintentando solo;
   // el botón de cancelar del HUD sigue disponible en todo momento.
+  requestAnimationFrame(updateNavRecenterOffset);
 }
 
 // reason: 'cancelled' | 'arrived' — ambos limpian watch/capa/HUD igual; solo
@@ -6262,9 +6286,10 @@ function finishNavigation(reason){
     navigator.geolocation.clearWatch(state.nav.watchId);
     state.nav.watchId = null;
   }
-    activeNavHud.classList.remove('visible');
+       activeNavHud.classList.remove('visible');
   navRecenterBtn.classList.remove('visible');
   document.getElementById('btnCenterMe').style.display = '';
+  document.documentElement.style.removeProperty('--nav-recenter-bottom');
     setUserMarkerNavStyle(false);
   state.nav.heading = null;
   state.nav.lastUserCoords = null;
