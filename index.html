@@ -27,15 +27,6 @@
   --text-tertiary:#5D7185;
   --border-subtle: rgba(145,164,184,0.14);
 
-  --cat-todos:#5FE1E8;
-  --cat-naturaleza:#2DD4A7;
-  --cat-comida:#F0A85B;
-  --cat-alojamiento:#5B9CF0;
-  --cat-patrimonio:#D4AF5B;
-  --cat-cielos:#8B7CF0;
-  --cat-vinos:#B06CE0;
-  --cat-actividades:#5BD98A;
-
  /* Experiencias — "qué puedo hacer/sentir allí", distinto del tipo de lugar */
   --exp-todos:#5FE1E8;
   --exp-cita:#E8748C;
@@ -2460,22 +2451,11 @@ function iconGlyph(name, cx, cy, box, color, strokeWidth = 2.1){
   return `<g transform="translate(${cx - box / 2},${cy - box / 2}) scale(${s})" style="color:${color};" fill="none" stroke="${color}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round">${p}</g>`;
 }
 
-/* ---------- 1. CATEGORÍAS (TIPO DE LUGAR — "qué es") ---------- */
-// Se conserva intacta como arquitectura de clasificación por tipo de lugar
-// (restaurante, mirador, hotel, patrimonio...). Sigue usándose para el color/ícono
-// del marcador y las etiquetas de tipo dentro de las tarjetas — pero ya NO es lo que
-// filtran los chips superiores. Eso ahora lo hace EXPERIENCE_TAGS (ver abajo).
-const CATEGORIES = [
-  { id:'todos',        label:'Todos',        icon:icon('todos',14),        iconKey:'todos',        color:'var(--cat-todos)' },
-  { id:'naturaleza',   label:'Naturaleza',   icon:icon('naturaleza',14),   iconKey:'naturaleza',   color:'var(--cat-naturaleza)' },
-  { id:'comida',       label:'Comida',       icon:icon('comida',14),      iconKey:'comida',       color:'var(--cat-comida)' },
-  { id:'alojamiento',  label:'Alojamientos', icon:icon('alojamiento',14), iconKey:'alojamiento',  color:'var(--cat-alojamiento)' },
-  { id:'patrimonio',   label:'Patrimonio',   icon:icon('patrimonio',14),  iconKey:'patrimonio',   color:'var(--cat-patrimonio)' },
-  { id:'cielos',       label:'Cielos',       icon:icon('cielos',14),      iconKey:'cielos',       color:'var(--cat-cielos)' },
-  { id:'vinos',        label:'Vinos',        icon:icon('vinos',14),       iconKey:'vinos',        color:'var(--cat-vinos)' },
-  { id:'actividades',  label:'Actividades',  icon:icon('actividades',14), iconKey:'actividades',  color:'var(--cat-actividades)' },
-];
-const catById = id => CATEGORIES.find(c => c.id === id);
+/* ---------- 1. TAXONOMÍA DE EXPERIENCIAS ----------
+   La antigua taxonomía CATEGORIES ("tipo de lugar") fue eliminada: ya no
+   forma parte del modelo del producto. EXPERIENCE_TAGS (más abajo) es ahora
+   la ÚNICA taxonomía — tanto para lo que filtran los chips como para el
+   color/ícono de tipo que se muestra en marcadores y tarjetas. */
 
 /* ---------- 1B. EXPERIENCIAS (TIPO DE PLAN — "qué puedo hacer/sentir allí") ---------- */
 // Esto es lo que ahora filtran los chips superiores y lo que interpreta el buscador.
@@ -2532,27 +2512,27 @@ const DEMO_PLACES = [
     image:'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&q=60',
     description:'Marcador de posición — vista panorámica del valle. Datos reales pendientes de verificación.',
     experiences:['tranquilo','cita'] }),
-makePlace({ id:'p2', name:'Restaurante de ejemplo', category:'comida', locality:'Illapel', lat:-31.6308, lng:-71.1642,
+makePlace({ id:'p2', name:'Restaurante de ejemplo', category:'gastronomia', locality:'Illapel', lat:-31.6308, lng:-71.1642,
     image:'https://images.unsplash.com/photo-1600891964092-4316c288032e?w=400&q=60',
     description:'Marcador de posición — cocina local. Datos reales pendientes de verificación.',
     categoryPrimary:'gastronomia', experiences:['gastronomia','cita'] }),
-  makePlace({ id:'p3', name:'Observatorio de ejemplo', category:'cielos', locality:'Canela', lat:-31.390, lng:-71.457,
+    makePlace({ id:'p3', name:'Observatorio de ejemplo', category:'noche', locality:'Canela', lat:-31.390, lng:-71.457,
     image:'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=400&q=60',
     description:'Marcador de posición — cielos despejados del Norte Chico. Datos reales pendientes de verificación.',
     categoryPrimary:'noche', experiences:['noche','cita'] }),
- makePlace({ id:'p4', name:'Viña de ejemplo', category:'vinos', locality:'Salamanca', lat:-31.83, lng:-71.02,
+  makePlace({ id:'p4', name:'Viña de ejemplo', category:'gastronomia', locality:'Salamanca', lat:-31.83, lng:-71.02,
     image:'https://images.unsplash.com/photo-1560493676-04071c5f467b?w=400&q=60',
     description:'Marcador de posición — viñas del valle del Choapa. Datos reales pendientes de verificación.',
     categoryPrimary:'gastronomia', experiences:['gastronomia','tranquilo','cita'] }),
-  makePlace({ id:'p5', name:'Iglesia de ejemplo', category:'patrimonio', locality:'Salamanca', lat:-31.7792, lng:-70.9639,
+    makePlace({ id:'p5', name:'Iglesia de ejemplo', category:'tranquilo', locality:'Salamanca', lat:-31.7792, lng:-70.9639,
     image:'https://images.unsplash.com/photo-1548625149-fc4a29cf7092?w=400&q=60',
     description:'Marcador de posición — patrimonio religioso local. Datos reales pendientes de verificación.',
     categoryPrimary:'tranquilo', experiences:['tranquilo','familia'] }),
-  makePlace({ id:'p6', name:'Alojamiento de ejemplo', category:'alojamiento', locality:'Los Vilos', lat:-31.909, lng:-71.513,
+    makePlace({ id:'p6', name:'Alojamiento de ejemplo', category:'tranquilo', locality:'Los Vilos', lat:-31.909, lng:-71.513,
     image:'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&q=60',
     description:'Marcador de posición — hospedaje costero. Datos reales pendientes de verificación.',
     categoryPrimary:'tranquilo', experiences:['tranquilo','familia'] }),
- makePlace({ id:'p7', name:'Restaurante de ejemplo', category:'comida', locality:'Los Vilos', lat:-31.905, lng:-71.510,
+  makePlace({ id:'p7', name:'Restaurante de ejemplo', category:'gastronomia', locality:'Los Vilos', lat:-31.905, lng:-71.510,
     image:'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=60',
     description:'Marcador de posición — sabores de mar. Datos reales pendientes de verificación.',
     categoryPrimary:'gastronomia', experiences:['gastronomia','familia'] }),
@@ -2560,7 +2540,7 @@ makePlace({ id:'p2', name:'Restaurante de ejemplo', category:'comida', locality:
     image:'https://images.unsplash.com/photo-1454391304352-2bf4678b1a7a?w=400&q=60',
     description:'Marcador de posición — ruta de senderismo. Datos reales pendientes de verificación.',
     experiences:['aventura','adrenalina'] }),
-makePlace({ id:'p9', name:'Punto patrimonial de ejemplo', category:'patrimonio', locality:'Salamanca', lat:-31.700, lng:-71.02,
+makePlace({ id:'p9', name:'Punto patrimonial de ejemplo', category:'familia', locality:'Salamanca', lat:-31.700, lng:-71.02,
     image:'https://images.unsplash.com/photo-1477587458883-47145ed94245?w=400&q=60',
     description:'Marcador de posición — historia local. Datos reales pendientes de verificación.',
     categoryPrimary:'familia', experiences:['familia','tranquilo'] }),
@@ -2579,11 +2559,11 @@ makePlace({ id:'p9', name:'Punto patrimonial de ejemplo', category:'patrimonio',
     image:'https://images.unsplash.com/photo-1454391304352-2bf4678b1a7a?w=400&q=60',
     description:'Marcador de posición — ruta de trekking por los cerros. Datos reales pendientes de verificación.',
     experiences:['aventura','adrenalina'] }),
- makePlace({ id:'p13', name:'Restaurante de ejemplo', category:'comida', locality:'El Tambo', lat:-31.7868, lng:-71.0208,
+ makePlace({ id:'p13', name:'Restaurante de ejemplo', category:'gastronomia', locality:'El Tambo', lat:-31.7868, lng:-71.0208,
     image:'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=60',
     description:'Marcador de posición — cocina local junto al río. Datos reales pendientes de verificación.',
     categoryPrimary:'gastronomia', experiences:['gastronomia','familia'] }),
-  makePlace({ id:'p14', name:'Observatorio de ejemplo', category:'cielos', locality:'El Tambo', lat:-31.7828, lng:-71.0248,
+   makePlace({ id:'p14', name:'Observatorio de ejemplo', category:'noche', locality:'El Tambo', lat:-31.7828, lng:-71.0248,
     image:'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=400&q=60',
     description:'Marcador de posición — cielos despejados, ideal para observación nocturna. Datos reales pendientes de verificación.',
     categoryPrimary:'noche', experiences:['noche','cita'] }),
@@ -2630,19 +2610,19 @@ const TEST_CATEGORY_PLACES = [
     image:'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&q=60',
     description:'Dato de prueba — no es un lugar real. Sirve para validar el sistema de colores por categoría.',
     categoryPrimary:'tranquilo', experiences:['tranquilo','naturaleza'], isTestData:true }),
-  makePlace({ id:'test4', name:'Tarde en Familia', category:'actividades', locality:'Salamanca', lat:-31.7768, lng:-70.9648,
+    makePlace({ id:'test4', name:'Tarde en Familia', category:'familia', locality:'Salamanca', lat:-31.7768, lng:-70.9648,
     image:'https://images.unsplash.com/photo-1477587458883-47145ed94245?w=400&q=60',
     description:'Dato de prueba — no es un lugar real. Sirve para validar el sistema de colores por categoría.',
     categoryPrimary:'familia', experiences:['familia','tranquilo'], isTestData:true }),
-  makePlace({ id:'test5', name:'Descenso Extremo', category:'actividades', locality:'Salamanca', lat:-31.7788, lng:-70.9598,
+   makePlace({ id:'test5', name:'Descenso Extremo', category:'adrenalina', locality:'Salamanca', lat:-31.7788, lng:-70.9598,
     image:'https://images.unsplash.com/photo-1548625149-fc4a29cf7092?w=400&q=60',
     description:'Dato de prueba — no es un lugar real. Sirve para validar el sistema de colores por categoría.',
     categoryPrimary:'adrenalina', experiences:['adrenalina','aventura'], isTestData:true }),
-  makePlace({ id:'test6', name:'Mesa del Valle', category:'comida', locality:'Salamanca', lat:-31.7752, lng:-70.9672,
+   makePlace({ id:'test6', name:'Mesa del Valle', category:'gastronomia', locality:'Salamanca', lat:-31.7752, lng:-70.9672,
     image:'https://images.unsplash.com/photo-1600891964092-4316c288032e?w=400&q=60',
     description:'Dato de prueba — no es un lugar real. Sirve para validar el sistema de colores por categoría.',
     categoryPrimary:'gastronomia', experiences:['gastronomia','cita'], isTestData:true }),
-  makePlace({ id:'test7', name:'Cielo Estrellado', category:'cielos', locality:'Salamanca', lat:-31.7722, lng:-70.9638,
+    makePlace({ id:'test7', name:'Cielo Estrellado', category:'noche', locality:'Salamanca', lat:-31.7722, lng:-70.9638,
     image:'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=400&q=60',
     description:'Dato de prueba — no es un lugar real. Sirve para validar el sistema de colores por categoría.',
     categoryPrimary:'noche', experiences:['noche','tranquilo'], isTestData:true }),
@@ -5476,7 +5456,7 @@ const routeSummaryPanel = document.getElementById('routeSummaryPanel');
 // color por categoryPrimary/categoría que ya usa selectPlace(), así se ve con
 // su color real — nunca confundible con un pin de localidad o comuna.
 function navDestinationColor(place){
-  const cat = catById(place.category);
+  const cat = expById(place.category);
   let colorVar = null;
   if (place.categoryPrimary){
     const primaryExp = expById(place.categoryPrimary);
@@ -6470,8 +6450,8 @@ function renderGuardadosGrid(){
     return;
   }
 
-  filtered.forEach(place => {
-    const cat = catById(place.category);
+    filtered.forEach(place => {
+    const cat = expById(place.category);
     const primaryExp = place.categoryPrimary ? expById(place.categoryPrimary) : null;
     const tagInfo = primaryExp || cat;
     const color = getComputedStyle(document.documentElement).getPropertyValue(tagInfo.color.replace('var(','').replace(')','')).trim();
@@ -6592,7 +6572,7 @@ function renderNearbyFilters(){
 // Misma tarjeta visual que Guardados (.gd-card) — solo cambia qué badge lleva
 // encima: distancia real en vez del botón de guardar.
 function buildNearbyCard(place, distanceLabel){
-  const cat = catById(place.category);
+  const cat = expById(place.category);
   const primaryExp = place.categoryPrimary ? expById(place.categoryPrimary) : null;
   const tagInfo = primaryExp || cat;
   const color = getComputedStyle(document.documentElement).getPropertyValue(tagInfo.color.replace('var(','').replace(')','')).trim();
@@ -7025,7 +7005,7 @@ function applyMomentTransition(){
   }, 160);
 }
 function buildTodayTagInfo(place){
-  const cat = catById(place.category);
+  const cat = expById(place.category);
   const primaryExp = place.categoryPrimary ? expById(place.categoryPrimary) : null;
   const tagInfo = primaryExp || cat;
   const color = getComputedStyle(document.documentElement).getPropertyValue(tagInfo.color.replace('var(','').replace(')','')).trim();
@@ -7111,7 +7091,7 @@ function getRecommendedPlaces(){
 // Tarjeta para la vista "Ver todo" (lista vertical completa) — reutiliza .gd-card,
 // el mismo componente visual que ya usan Guardados y Cerca de ti.
 function buildRecommendedCard(place){
-  const cat = catById(place.category);
+  const cat = expById(place.category);
   const primaryExp = place.categoryPrimary ? expById(place.categoryPrimary) : null;
   const tagInfo = primaryExp || cat;
   const color = getComputedStyle(document.documentElement).getPropertyValue(tagInfo.color.replace('var(','').replace(')','')).trim();
@@ -7154,8 +7134,8 @@ function renderPlacesRail(){
 
   placesEmpty.style.display = filtered.length ? 'none' : 'flex';
 
-  filtered.forEach(place => {
-    const cat = catById(place.category);
+    filtered.forEach(place => {
+    const cat = expById(place.category);
     // Igual que en la ficha del POI / "¿Qué hacer hoy?" / Guardados / Cerca de ti:
     // la experiencia principal manda sobre el tipo de lugar cuando existe.
     const primaryExp = place.categoryPrimary ? expById(place.categoryPrimary) : null;
@@ -7779,11 +7759,11 @@ function buildSearchIndex(){
     keywords:(exp.title + ' ' + exp.bold + ' ' + (EXPERIENCE_SYNONYMS[exp.experience] || '')).toLowerCase(),
     action:() => setActiveExperience(exp.experience),
   }));
-  DEMO_PLACES.forEach(p => {
+   DEMO_PLACES.forEach(p => {
     const expLabels = p.experiences.map(id => expById(id)?.label || '').join(' ');
     idx.push({
-      icon:catById(p.category).icon, label:p.name, sub:p.locality,
-      keywords:(p.name + ' ' + p.locality + ' ' + catById(p.category).label + ' ' + expLabels).toLowerCase(),
+      icon:expById(p.category).icon, label:p.name, sub:p.locality,
+      keywords:(p.name + ' ' + p.locality + ' ' + expById(p.category).label + ' ' + expLabels).toLowerCase(),
       action:() => selectPlaceById(p.id),
     });
   });
@@ -7808,10 +7788,10 @@ function buildExperienceSearchIndex(expId){
     keywords:loc.name.toLowerCase(),
     action:() => enterLocality(loc, { fly:true }),
   }));
-  DEMO_PLACES.filter(p => p.experiences.includes(expId)).forEach(p => {
+    DEMO_PLACES.filter(p => p.experiences.includes(expId)).forEach(p => {
     idx.push({
-      icon:catById(p.category).icon, label:p.name, sub:p.locality,
-      keywords:(p.name + ' ' + p.locality + ' ' + catById(p.category).label).toLowerCase(),
+      icon:expById(p.category).icon, label:p.name, sub:p.locality,
+      keywords:(p.name + ' ' + p.locality + ' ' + expById(p.category).label).toLowerCase(),
       action:() => selectPlaceById(p.id),
     });
   });
