@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <style>
 /* ============================================================
    CHOAPA EXPLORE — DESIGN TOKENS
@@ -2379,11 +2380,145 @@ img{-webkit-user-drag:none; user-select:none;}
 
 <script>
 /* ============================================================
+   CAPA DE ACCESO A DATOS — SUPABASE
+   ============================================================
+   Separada por completo de la UI: expone únicamente SupabaseDataLayer.loadAll(),
+   que devuelve datos YA transformados a la misma forma que hoy consumen
+   LOCALITIES / SUBLOCALITIES / DEMO_PLACES (shape de Place, igual que produce
+   makePlace()). Ningún componente de la UI llama a Supabase directamente —
+   solo el orquestador al final del archivo (ver "SINCRONIZACIÓN CON
+   SUPABASE"), que reemplaza el CONTENIDO de esos arrays/objeto ya existentes
+   y dispara los mismos renders que la app ya usa cuando algo cambia.
+   Solo lecturas (select) — nunca insert/update/delete desde el frontend. */
+
+/* SUPABASE_URL / SUPABASE_ANON_KEY — sin sistema de build/env en este
+   proyecto (single-file), así que estas dos constantes son la única forma de
+   configurar la conexión, mismo patrón que ya usa ORS_API_KEY más abajo
+   (aceptado explícitamente para esta etapa). SUPABASE_ANON_KEY es la
+   "anon/publishable key" pública del proyecto — está DISEÑADA para vivir en
+   el cliente; nunca la service_role key, que da acceso total y jamás debe
+   exponerse acá. La seguridad real la dan las políticas RLS del servidor
+   (ver SQL entregado aparte), no el secreto de esta key. Reemplaza los dos
+   valores de abajo por los de tu proyecto (Project Settings → API en el
+   dashboard de Supabase). Mientras queden con el valor placeholder, la app
+   detecta que no hay configuración real y sigue funcionando 100% con los
+   datos locales de ejemplo — sin ningún error visible. */
+const SUPABASE_URL = 'https://TU-PROYECTO.supabase.co';
+const SUPABASE_ANON_KEY = 'TU-ANON-PUBLIC-KEY';
+const supabaseClient = (window.supabase && SUPABASE_URL && SUPABASE_ANON_KEY &&
+  !SUPABASE_URL.includes('TU-PROYECTO') && !SUPABASE_ANON_KEY.includes('TU-ANON'))
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
+
+async function fetchCommunesFromSupabase(){
+  const { data, error } = await supabaseClient.from('communes').select('id,name,lat,lng');
+  if (error) throw error;
+  return data || [];
+}
+async function fetchLocalitiesFromSupabase(){
+  const { data, error } = await supabaseClient.from('localities').select('id,name,lat,lng,commune_id');
+  if (error) throw error;
+  return data || [];
+}
+// Trae cada experiencia publicada junto con sus tags (experience_experience_tags)
+// y sus imágenes ordenadas (experience_images) en una sola consulta — PostgREST
+// resuelve el embed automáticamente a partir de las FK ya declaradas en el
+// esquema (experience_id → experiences.id en ambas tablas hijas).
+async function fetchExperiencesFromSupabase(){
+  const { data, error } = await supabaseClient
+    .from('experiences')
+    .select(`
+      id, name, description, address, opening_hours, price_range, duration, difficulty,
+      lat, lng, locality_id, category_primary_experience_id,
+      experience_experience_tags ( experience_tag_id ),
+      experience_images ( url, sort_order )
+    `)
+    .eq('is_published', true);
+  if (error) throw error;
+  return data || [];
+}
+
+// Transforma filas de Supabase a la MISMA forma que ya esperan LOCALITIES,
+// SUBLOCALITIES y DEMO_PLACES/Place — así ningún consumidor existente
+// (mapa, paneles, buscador, álbum, guardados...) necesita cambiar.
+function transformSupabaseData(communesRows, localitiesRows, experiencesRows){
+  const localityById = new Map(localitiesRows.map(l => [l.id, l]));
+
+  // Nivel 1 (comunas): aliases = nombres de TODAS las localidades reales bajo
+  // esa comuna — mismo rol que cumplían los aliases hardcodeados hoy (qué
+  // nombres de "locality" caen dentro de esa comuna al filtrar POIs).
+  const newLocalities = communesRows.map(c => ({
+    id: c.id, name: c.name, lat: c.lat, lng: c.lng,
+    aliases: localitiesRows.filter(l => l.commune_id === c.id).map(l => l.name),
+  }));
+
+  // Nivel 2 (localidades dentro de la comuna): cada localidad real de
+  // Supabase es su propia sub-localidad, con alias = su propio nombre — ya
+  // no hace falta el sistema de alias múltiples por caserío, porque cada
+  // localidad ya tiene un id y una comuna padre inequívocos (FK real).
+  const newSublocalities = {};
+  communesRows.forEach(c => { newSublocalities[c.id] = []; });
+  localitiesRows.forEach(l => {
+    if (!newSublocalities[l.commune_id]) newSublocalities[l.commune_id] = [];
+    newSublocalities[l.commune_id].push({ id:l.id, name:l.name, lat:l.lat, lng:l.lng, aliases:[l.name] });
+  });
+
+  // Experiencias — misma forma que ya produce makePlace(). category_primary_
+  // experience_id → categoryPrimary; experience_experience_tags → experiences[];
+  // experience_images (ya ordenadas) → images[]/image. `category` se fija al
+  // mismo valor que la experiencia principal resuelta (categoryPrimary → primer
+  // tag → 'todos') — sigue siendo el fallback que usan varias funciones vía
+  // expById(place.category) cuando categoryPrimary no está seteado, ahora sin
+  // la vieja taxonomía CATEGORIES (ya eliminada en la limpieza anterior).
+  const newPlaces = experiencesRows.map(row => {
+    const tagIds = (row.experience_experience_tags || []).map(t => t.experience_tag_id).filter(Boolean);
+    const images = (row.experience_images || [])
+      .slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+      .map(im => im.url);
+    const locality = localityById.get(row.locality_id);
+    const primaryId = row.category_primary_experience_id || tagIds[0] || 'todos';
+    return {
+      id: row.id,
+      name: row.name,
+      category: primaryId,
+      categoryPrimary: row.category_primary_experience_id || null,
+      locality: locality ? locality.name : '',
+      lat: row.lat, lng: row.lng,
+      image: images[0] || '',
+      images,
+      isDemo: false, isTestData: false,
+      experiences: tagIds,
+      description: row.description || '',
+      address: row.address || '', openingHours: row.opening_hours || '', priceRange: row.price_range || '',
+      duration: row.duration || '', difficulty: row.difficulty || '',
+      phone:'', website:'', instagram:'', tags:[],
+    };
+  });
+
+  return { newLocalities, newSublocalities, newPlaces };
+}
+
+// Única función pública de la capa de datos — el orquestador (al final del
+// archivo) solo conoce esto, nunca las funciones fetch* ni el cliente de
+// Supabase directamente.
+const SupabaseDataLayer = {
+  async loadAll(){
+    const [communesRows, localitiesRows, experiencesRows] = await Promise.all([
+      fetchCommunesFromSupabase(),
+      fetchLocalitiesFromSupabase(),
+      fetchExperiencesFromSupabase(),
+    ]);
+    if (!communesRows.length) throw new Error('Supabase devolvió 0 comunas — revisa las políticas RLS o los datos cargados.');
+    return transformSupabaseData(communesRows, localitiesRows, experiencesRows);
+  },
+};
+
+/* ============================================================
    CHOAPA EXPLORE — FASE 1
    Modelo de datos, mapa, POIs, bottom sheet, filtros.
    ============================================================ */
 
-/* ---------- 0. SISTEMA DE ÍCONOS DE MARCA ----------
+/* ---------- 0. SISTEMA DE ÍCONOS DE MARCA ---------- */
    Nada de emojis del sistema operativo (🏞️🍽️❤️...): rompen la identidad visual,
    cambian de estilo entre iOS/Android/desktop y no respetan la paleta de marca.
    En su lugar, un set propio de íconos de línea — mismo lenguaje visual que ya
@@ -8166,6 +8301,50 @@ document.getElementById('mdDelete').addEventListener('click', () => {
   else if (currentAlbumIsPersonal) renderPersonalAlbum();
   else renderAlbumIndex();
 });
+
+/* ============================================================
+   SINCRONIZACIÓN CON SUPABASE — reemplaza los datos locales por los
+   remotos, sin tocar ningún sistema de mapa/UI: solo muta el CONTENIDO de
+   los mismos arrays/objeto que la app ya usa (DEMO_PLACES, LOCALITIES,
+   SUBLOCALITIES, SEARCH_INDEX — declarados con const, pero mutables en su
+   contenido) y dispara los mismos renders que la app ya invoca cuando algo
+   cambia. Si Supabase no está configurado o falla, esta función no hace
+   nada y los datos locales de ejemplo (ya cargados de por sí) siguen
+   funcionando exactamente igual que hoy — ese es el fallback.
+   ============================================================ */
+function applySupabaseData({ newLocalities, newSublocalities, newPlaces }){
+  DEMO_PLACES.length = 0; DEMO_PLACES.push(...newPlaces);
+  LOCALITIES.length = 0; LOCALITIES.push(...newLocalities);
+  Object.keys(SUBLOCALITIES).forEach(k => delete SUBLOCALITIES[k]);
+  Object.assign(SUBLOCALITIES, newSublocalities);
+
+  SEARCH_INDEX.length = 0; SEARCH_INDEX.push(...buildSearchIndex());
+
+  renderLocalityMarkers();
+  lastTier = null; // fuerza un re-render completo del nivel de exploración — mismo patrón que ya usa clearNavRoute()
+  updateExplorationLevel();
+  renderPlacesRail();
+  renderTodayRail();
+  renderExploreMoreRail();
+  renderCollectionsRail();
+  renderClosingFeature();
+
+  console.info(`[Supabase] Datos remotos aplicados: ${newPlaces.length} experiencias, ${newLocalities.length} comunas.`);
+}
+
+function initSupabaseSync(){
+  if (!supabaseClient){
+    console.info('[Supabase] Sin credenciales configuradas (SUPABASE_URL/SUPABASE_ANON_KEY) — usando datos locales de ejemplo.');
+    return;
+  }
+  SupabaseDataLayer.loadAll().then(result => {
+    if (map.isStyleLoaded()) applySupabaseData(result);
+    else map.once('load', () => applySupabaseData(result));
+  }).catch(err => {
+    console.error('[Supabase] No se pudo cargar datos remotos — se mantienen los datos locales de ejemplo.', err);
+  });
+}
+initSupabaseSync();
 </script>
 </body>
 </html>
