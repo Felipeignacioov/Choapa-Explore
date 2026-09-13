@@ -3408,19 +3408,26 @@ function tintMapLayers(){
       // NUNCA se tocan — mantienen exactamente su opacidad de siempre en
       // todo el rango de zoom. No cambia geometría, ancho, color ni ninguna
       // otra capa — solo esta opacidad, y solo para 'secondary'.
+           // Mismos valores base/mínimo ya aprobados (0.58/0.47 inner, 0.5/0.4
+      // casing) — solo se eliminan las mesetas planas que generaban dos
+      // "escalones" de pendiente. Con más paradas intermedias, la curva se
+      // percibe como una única transición continua al acercarse/alejarse de
+      // una localidad, en vez de tramo-plano → tramo-plano.
       const ROAD_OPACITY_MAJOR_INNER = ['interpolate', ['linear'], ['zoom'],
-        8,    ['match', ['get','class'], 'secondary', 0.58, 0.58],
-        10,   ['match', ['get','class'], 'secondary', 0.58, 0.58],
-        12,   ['match', ['get','class'], 'secondary', 0.47, 0.58],
-        13.5, ['match', ['get','class'], 'secondary', 0.47, 0.58],
-        16,   ['match', ['get','class'], 'secondary', 0.58, 0.58],
+        8,    ['match', ['get','class'], 'secondary', 0.58,  0.58],
+        10,   ['match', ['get','class'], 'secondary', 0.56,  0.58],
+        11.5, ['match', ['get','class'], 'secondary', 0.49,  0.58],
+        12.75,['match', ['get','class'], 'secondary', 0.47,  0.58],
+        14.5, ['match', ['get','class'], 'secondary', 0.54,  0.58],
+        16,   ['match', ['get','class'], 'secondary', 0.58,  0.58],
       ];
       const ROAD_OPACITY_MAJOR_CASING = ['interpolate', ['linear'], ['zoom'],
-        8,    ['match', ['get','class'], 'secondary', 0.5, 0.5],
-        10,   ['match', ['get','class'], 'secondary', 0.5, 0.5],
-        12,   ['match', ['get','class'], 'secondary', 0.4, 0.5],
-        13.5, ['match', ['get','class'], 'secondary', 0.4, 0.5],
-        16,   ['match', ['get','class'], 'secondary', 0.5, 0.5],
+        8,    ['match', ['get','class'], 'secondary', 0.5,   0.5],
+        10,   ['match', ['get','class'], 'secondary', 0.485, 0.5],
+        11.5, ['match', ['get','class'], 'secondary', 0.42,  0.5],
+        12.75,['match', ['get','class'], 'secondary', 0.4,   0.5],
+        14.5, ['match', ['get','class'], 'secondary', 0.465, 0.5],
+        16,   ['match', ['get','class'], 'secondary', 0.5,   0.5],
       ];
 
       if (l.type === 'line' && l.id === 'highway_major_inner'){
@@ -4262,6 +4269,15 @@ function poiSourceFeatures(){
   });
 }
 
+// Curvas de aparición progresiva de POIs — mismo minzoom/umbral de siempre
+// (ZOOM_DETAIL para íconos, ZOOM_POI_NAME para nombres), solo se suaviza CÓMO
+// se llega a opacidad 1 en vez de aparecer de golpe. 0.4 de zoom es un tramo
+// corto y casi imperceptible como "animación", se siente como revelado
+// natural del territorio al acercarse.
+const POI_ZOOM_FADE_SPAN = 0.4;
+const POI_ICON_FADE_OPACITY = ['interpolate', ['linear'], ['zoom'], ZOOM_DETAIL, 0, ZOOM_DETAIL + POI_ZOOM_FADE_SPAN, 1];
+const POI_LABEL_FADE_OPACITY = ['interpolate', ['linear'], ['zoom'], ZOOM_POI_NAME, 0, ZOOM_POI_NAME + POI_ZOOM_FADE_SPAN, 1];
+
 function ensurePOINativeLayers(){
   if (map.getSource('poi-source')){ bindPOINativeClickHandlers(); return; }
   map.addSource('poi-source', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
@@ -4288,7 +4304,7 @@ function ensurePOINativeLayers(){
       'circle-translate-anchor':'viewport',
     },
   });
-  map.addLayer({
+   map.addLayer({
     id:'poi-bg-layer', type:'symbol', source:'poi-source',
     minzoom: ZOOM_DETAIL,
     layout:{
@@ -4298,6 +4314,9 @@ function ensurePOINativeLayers(){
       'icon-size':0.24,
       'icon-allow-overlap':true,
       'icon-ignore-placement':true,
+    },
+    paint:{
+      'icon-opacity': POI_ICON_FADE_OPACITY,
     },
   });
   // Ícono + nombre en la misma capa symbol. text-opacity con 'step' reemplaza
@@ -4315,8 +4334,9 @@ function ensurePOINativeLayers(){
       'icon-allow-overlap':true,
       'icon-ignore-placement':true,
     },
-    paint:{
+        paint:{
       'icon-color':['get','displayColor'],
+      'icon-opacity': POI_ICON_FADE_OPACITY,
     },
   });
   // Nombre del POI — placa sólida vía icon-text-fit, en capa separada del
@@ -4347,10 +4367,10 @@ function ensurePOINativeLayers(){
       'text-optional':true,
       'icon-optional':true,
     },
-    paint:{
+       paint:{
       'text-color':'#F4F7FA',
-      'icon-opacity': ['step', ['zoom'], 0, ZOOM_POI_NAME, 1],
-      'text-opacity': ['step', ['zoom'], 0, ZOOM_POI_NAME, 1],
+      'icon-opacity': POI_LABEL_FADE_OPACITY,
+      'text-opacity': POI_LABEL_FADE_OPACITY,
     },
   });
     bindPOINativeClickHandlers();
@@ -4380,8 +4400,13 @@ function startPOIBreathingAnimation(){
       // un parpadeo casi imperceptible (antes variaba opacidad ±0.07; ahora
       // ±0.025) en vez de un pulso de brillo evidente.
       const haloWobble = (Math.sin(performance.now() / 668) + 1) / 2; // 0 → 1, ciclo ~4.2s
+      // Mismo intervalo de siempre, misma fórmula de respiración — se le
+      // suma únicamente un factor de proximidad al zoom de entrada
+      // (0 justo al cruzar ZOOM_DETAIL, 1 ya pasado ese medio paso), para que
+      // el halo entre en escena junto con el ícono en vez de aparecer de golpe.
+      const haloZoomFade = Math.min(Math.max((map.getZoom() - ZOOM_DETAIL) / POI_ZOOM_FADE_SPAN, 0), 1);
       map.setPaintProperty('poi-ambient-halo-layer', 'circle-radius', POI_HALO_BASE_RADIUS + haloWobble * (POI_HALO_BASE_RADIUS * 0.03));
-      map.setPaintProperty('poi-ambient-halo-layer', 'circle-opacity', 0.28 + haloWobble * 0.025);
+      map.setPaintProperty('poi-ambient-halo-layer', 'circle-opacity', (0.28 + haloWobble * 0.025) * haloZoomFade);
     }
   }, 250);
 }
