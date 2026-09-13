@@ -4354,8 +4354,16 @@ function ensurePOINativeLayers(){
       'icon-text-fit-padding':[2, 6, 2, 6],
       'icon-anchor':'bottom',
       'icon-allow-overlap':false,
-      'text-field':['get','name'],
-      'text-font': getBoldStyleTextFont(),
+            'text-field':['get','name'],
+      // Revertido de getBoldStyleTextFont() a getStyleTextFont() — la
+      // variante "Bold" no existe en el servidor de glyphs de este estilo de
+      // mapa. Sin la fuente real, MapLibre no puede medir el texto para
+      // icon-text-fit:'both', y termina generando una caja de colisión rota
+      // (la placa se estira sin ningún texto adentro) — esa es la causa real
+      // de la mancha negra alargada reportada, no un problema de colisión
+      // entre etiquetas. getStyleTextFont() es el mismo stack ya verificado
+      // que usan sin problemas highway_name y place_city/town.
+      'text-font': getStyleTextFont(),
       'text-size':7.5,
       // Acercado proporcionalmente a la placa más chica — antes -1.35 dejaba
       // la etiqueta "flotando" lejos del ícono una vez reducida.
