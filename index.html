@@ -3392,16 +3392,40 @@ function tintMapLayers(){
         16, ['match', ['get','class'], ['trunk','primary'], 6.0, 'secondary', 3.8, 2.3],
         18, ['match', ['get','class'], ['trunk','primary'], 8.2, 'secondary', 5.2, 3.1],
       ];
-      const ROAD_WIDTH_BY_CLASS_CASING = ['interpolate', ['linear'], ['zoom'],
+            const ROAD_WIDTH_BY_CLASS_CASING = ['interpolate', ['linear'], ['zoom'],
         8,  ['match', ['get','class'], ['trunk','primary'], 2.8, 'secondary', 2.2, 1.7],
         12, ['match', ['get','class'], ['trunk','primary'], 4.1, 'secondary', 3.0, 2.2],
         16, ['match', ['get','class'], ['trunk','primary'], 7.1, 'secondary', 4.9, 3.4],
         18, ['match', ['get','class'], ['trunk','primary'], 9.3, 'secondary', 6.3, 4.2],
       ];
+      // Jerarquía de carreteras en zoom de LOCALIDAD — mismo patrón que
+      // ROAD_WIDTH_BY_CLASS (interpolate de zoom por fuera, match de clase
+      // en el valor de cada parada): la opacidad de la clase OSM 'secondary'
+      // baja MUY sutilmente solo entre ~zoom 10 y ~13.5 (entre
+      // ZOOM_SUBLOCALITY=10.0 y ZOOM_POI_NAME=13.2 — el rango real de
+      // exploración de una localidad), y vuelve a su valor normal antes y
+      // después de esa banda. trunk/primary y la rama por defecto (tertiary)
+      // NUNCA se tocan — mantienen exactamente su opacidad de siempre en
+      // todo el rango de zoom. No cambia geometría, ancho, color ni ninguna
+      // otra capa — solo esta opacidad, y solo para 'secondary'.
+      const ROAD_OPACITY_MAJOR_INNER = ['interpolate', ['linear'], ['zoom'],
+        8,    ['match', ['get','class'], 'secondary', 0.58, 0.58],
+        10,   ['match', ['get','class'], 'secondary', 0.58, 0.58],
+        12,   ['match', ['get','class'], 'secondary', 0.47, 0.58],
+        13.5, ['match', ['get','class'], 'secondary', 0.47, 0.58],
+        16,   ['match', ['get','class'], 'secondary', 0.58, 0.58],
+      ];
+      const ROAD_OPACITY_MAJOR_CASING = ['interpolate', ['linear'], ['zoom'],
+        8,    ['match', ['get','class'], 'secondary', 0.5, 0.5],
+        10,   ['match', ['get','class'], 'secondary', 0.5, 0.5],
+        12,   ['match', ['get','class'], 'secondary', 0.4, 0.5],
+        13.5, ['match', ['get','class'], 'secondary', 0.4, 0.5],
+        16,   ['match', ['get','class'], 'secondary', 0.5, 0.5],
+      ];
 
       if (l.type === 'line' && l.id === 'highway_major_inner'){
         map.setPaintProperty(l.id, 'line-color', roadColor(0.05));
-        map.setPaintProperty(l.id, 'line-opacity', 0.58);
+        map.setPaintProperty(l.id, 'line-opacity', ROAD_OPACITY_MAJOR_INNER);
         map.setPaintProperty(l.id, 'line-width', ROAD_WIDTH_BY_CLASS);
       }
            if (l.type === 'line' && l.id === 'highway_major_casing'){
@@ -3413,7 +3437,7 @@ function tintMapLayers(){
         // mezcla) y la opacidad sube un poco — el contraste, no el ancho, es
         // lo que ahora comunica "esto tiene relieve".
         map.setPaintProperty(l.id, 'line-color', roadColor(0.8));
-        map.setPaintProperty(l.id, 'line-opacity', 0.5);
+        map.setPaintProperty(l.id, 'line-opacity', ROAD_OPACITY_MAJOR_CASING);
         map.setPaintProperty(l.id, 'line-width', ROAD_WIDTH_BY_CLASS_CASING);
       }
       if (l.type === 'line' && l.id === 'highway_major_subtle'){
