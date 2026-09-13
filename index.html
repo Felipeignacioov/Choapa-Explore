@@ -3413,23 +3413,24 @@ function tintMapLayers(){
       // "escalones" de pendiente. Con más paradas intermedias, la curva se
       // percibe como una única transición continua al acercarse/alejarse de
       // una localidad, en vez de tramo-plano → tramo-plano.
-      const ROAD_OPACITY_MAJOR_INNER = ['interpolate', ['linear'], ['zoom'],
-        8,    ['match', ['get','class'], 'secondary', 0.58,  0.58],
-        10,   ['match', ['get','class'], 'secondary', 0.56,  0.58],
-        11.5, ['match', ['get','class'], 'secondary', 0.49,  0.58],
-        12.75,['match', ['get','class'], 'secondary', 0.47,  0.58],
-        14.5, ['match', ['get','class'], 'secondary', 0.54,  0.58],
-        16,   ['match', ['get','class'], 'secondary', 0.58,  0.58],
+            // Reescrito con 'case' en vez de 'interpolate' anidando 'match' — esta
+      // capa YA evalúa otra expresión data-driven (['get','class']) para su
+      // ancho (ROAD_WIDTH_BY_CLASS/_CASING, ya existente); anidar una SEGUNDA
+      // expresión data-driven distinta para opacidad es la sospecha principal
+      // del bloque negro reportado (ancho mal evaluado en ciertos WebView de
+      // Android). 'case' es la construcción más simple y estándar para "una
+      // curva de zoom distinta según la clase", sin anidar dos expresiones
+      // data-driven sobre la propiedad. Mismos valores exactos de antes.
+      const ROAD_OPACITY_MAJOR_INNER = ['case',
+        ['==', ['get','class'], 'secondary'],
+        ['interpolate', ['linear'], ['zoom'], 8,0.58, 10,0.56, 11.5,0.49, 12.75,0.47, 14.5,0.54, 16,0.58],
+        0.58,
       ];
-      const ROAD_OPACITY_MAJOR_CASING = ['interpolate', ['linear'], ['zoom'],
-        8,    ['match', ['get','class'], 'secondary', 0.5,   0.5],
-        10,   ['match', ['get','class'], 'secondary', 0.485, 0.5],
-        11.5, ['match', ['get','class'], 'secondary', 0.42,  0.5],
-        12.75,['match', ['get','class'], 'secondary', 0.4,   0.5],
-        14.5, ['match', ['get','class'], 'secondary', 0.465, 0.5],
-        16,   ['match', ['get','class'], 'secondary', 0.5,   0.5],
+      const ROAD_OPACITY_MAJOR_CASING = ['case',
+        ['==', ['get','class'], 'secondary'],
+        ['interpolate', ['linear'], ['zoom'], 8,0.5, 10,0.485, 11.5,0.42, 12.75,0.4, 14.5,0.465, 16,0.5],
+        0.5,
       ];
-
       if (l.type === 'line' && l.id === 'highway_major_inner'){
         map.setPaintProperty(l.id, 'line-color', roadColor(0.05));
         map.setPaintProperty(l.id, 'line-opacity', ROAD_OPACITY_MAJOR_INNER);
