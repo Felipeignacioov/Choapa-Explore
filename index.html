@@ -4814,13 +4814,11 @@ function enterLocality(locality, { fly }){
     // Con Nivel 2 cargado: nos quedamos a media distancia para ver la zona de
     // influencia completa. Sin Nivel 2 todavía: vamos directo al detalle, igual
     // que antes, para no dejar al usuario "varado" mirando un mapa vacío.
-        // Mismo criterio de mayor apertura que en localidades: con Nivel 2
-    // cargado, 10.3 (antes 10.6) sigue por encima de ZOOM_SUBLOCALITY (10.0)
-    // — margen suficiente para no caer de vuelta al tier de comuna apenas se
-    // asienta la cámara. Sin Nivel 2, 12.7 (antes 13) se mantiene por encima
-    // de ZOOM_DETAIL (12.4), así los POIs de la comuna siguen visibles de
-    // inmediato al entrar.
-    const zoom = hasSublocalities ? 10.3 : 12.7;
+           // Un poco más de apertura todavía: con Nivel 2 cargado, 10.15 (antes
+    // 10.3) — cerca del límite práctico sobre ZOOM_SUBLOCALITY (10.0), el
+    // umbral donde volvería a caer a nivel comuna. Sin Nivel 2, 12.5 (antes
+    // 12.7) se mantiene por encima de ZOOM_DETAIL (12.4).
+    const zoom = hasSublocalities ? 10.15 : 12.5;
     const flight = COMUNA_FLIGHT[locality.id];
     if (flight){
       map.flyTo({
@@ -4888,10 +4886,11 @@ let comunaPanelAutoMinimized = false;
 // nueva): al partir de un zoom menos profundo, alejar con los dedos tarda
 // un poco más en cruzar el umbral de vuelta a nivel comuna
 // (ZOOM_SUBLOCALITY), sin tocar ese umbral en sí.
-// 12.5 (antes 12.7) — un poco más de margen todavía, sin bajar de
-// ZOOM_DETAIL (12.4): por debajo de ese umbral los POIs dejarían de
-// mostrarse al entrar, así que este es el límite práctico de apertura.
-const SUBLOCALITY_ENTER_ZOOM = 12.5;
+// 12.45 (antes 12.5) — el máximo margen práctico posible: apenas por
+// encima de ZOOM_DETAIL (12.4), el límite real donde los POIs dejan de
+// mostrarse. No se puede abrir más sin arriesgar que algún POI quede oculto
+// justo al entrar.
+const SUBLOCALITY_ENTER_ZOOM = 12.45;
 function enterSublocality(sub, { fly }){
   state.currentSublocality = sub;
   if (!comunaPanel.classList.contains('hidden')){
