@@ -2926,7 +2926,16 @@ const COMMUNE_LABEL_OPACITY_NORMAL = ['interpolate', ['linear'], ['zoom'], 10.5,
 const COMMUNE_LABEL_OPACITY_NAV    = ['interpolate', ['linear'], ['zoom'], 7, 0.40, 10.5, 0.48, 13, 0.62, 16, 0.8];
 const COMMUNE_LABEL_SIZE_NORMAL = 10;
 const COMMUNE_LABEL_SIZE_NAV = 11.5;
-const HILLSHADE_EXAGGERATION_NORMAL = ['interpolate', ['linear'], ['zoom'], 8, 0.34, 14, 0.30, 16, 0.20, 17.5, 0.14];
+// Se agregan 2 paradas intermedias (10 y 12.5) que sostienen/aumentan
+// levemente la exageración justo en el rango de zoom de localidad
+// (ZOOM_SUBLOCALITY=10.0 a ZOOM_DETAIL=12.4, hasta cerca de ZOOM_POI_NAME=
+// 13.2) — antes la curva bajaba casi plana desde el nivel de comuna (zoom 8)
+// hasta zoom 14, sin ningún repunte ahí. Los extremos (zoom 8 y desde zoom
+// 14 en adelante) quedan EXACTAMENTE en los mismos valores de siempre, así
+// el nivel de comuna y los zooms más cercanos (14+) no cambian en nada —
+// solo se realza el tramo intermedio de localidad, de forma progresiva
+// (sube y vuelve a bajar suave, sin ningún salto).
+const HILLSHADE_EXAGGERATION_NORMAL = ['interpolate', ['linear'], ['zoom'], 8, 0.34, 10, 0.37, 12.5, 0.38, 14, 0.30, 16, 0.20, 17.5, 0.14];
 const HILLSHADE_EXAGGERATION_NAV    = ['interpolate', ['linear'], ['zoom'], 8, 0.46, 14, 0.40, 16, 0.26, 17.5, 0.18];
 let NAV_COMMUNE_LABEL_LAYER_IDS = []; // se completa dentro de tintMapLayers()
 let navCartographyBoosted = false;
