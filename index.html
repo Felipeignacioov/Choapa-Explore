@@ -4362,12 +4362,18 @@ function ensurePOINativeLayers(){
                            // Ajuste fino final (~4% más negativo sobre -1.85). Solo posición,
       // mismo tamaño de siempre.
       'text-offset':[0, -1.92],
-      'text-anchor':'bottom',
+            'text-anchor':'bottom',
       'text-allow-overlap':false,
-      'text-optional':true,
-      'icon-optional':true,
+      // Antes ambos en true: MapLibre podía mostrar la placa de fondo
+      // (icon) SIN su texto cuando dos etiquetas de POI colisionaban entre
+      // sí — esa placa huérfana, oscura y con bordes redondeados, es
+      // exactamente el "rectángulo negro" reportado. Con ambos en false,
+      // MapLibre exige que icono+texto quepan juntos: o se muestran los dos,
+      // o no se muestra ninguno — nunca la placa sola.
+      'text-optional':false,
+      'icon-optional':false,
     },
-       paint:{
+    paint:{
       'text-color':'#F4F7FA',
       'icon-opacity': POI_LABEL_FADE_OPACITY,
       'text-opacity': POI_LABEL_FADE_OPACITY,
