@@ -4873,7 +4873,16 @@ function exitLocality({ fly }){
 // mano a nivel comuna, esa elección se respeta y no se toca al salir.
 let comunaPanelAutoMinimized = false;
 
-// Nivel 2 → Nivel 3: vuelo más cercano, aquí sí queremos ver el detalle del pueblo.
+// Nivel 2 → Nivel 3: vuelo más abierto que antes (12.7, antes 13.5) —
+// suficiente para quedar por encima de ZOOM_DETAIL (12.4, ahí aparecen los
+// POIs) sin llegar a ZOOM_POI_NAME (13.2), dejando ver la localidad Y su
+// entorno cercano con sus POIs, en vez de quedar "pegado" solo al punto
+// central. Mismo criterio para todas las localidades — ningún ajuste
+// especial por comuna. Como efecto secundario esperado (no una lógica
+// nueva): al partir de un zoom menos profundo, alejar con los dedos tarda
+// un poco más en cruzar el umbral de vuelta a nivel comuna
+// (ZOOM_SUBLOCALITY), sin tocar ese umbral en sí.
+const SUBLOCALITY_ENTER_ZOOM = 12.7;
 function enterSublocality(sub, { fly }){
   state.currentSublocality = sub;
   if (!comunaPanel.classList.contains('hidden')){
@@ -4881,7 +4890,7 @@ function enterSublocality(sub, { fly }){
     comunaPanelAutoMinimized = true;
   }
   if (fly){
-    map.flyTo({ center:[sub.lng, sub.lat], zoom:13.5, duration:1300, curve:1.3, easing:t => t*(2-t) });
+    map.flyTo({ center:[sub.lng, sub.lat], zoom:SUBLOCALITY_ENTER_ZOOM, duration:1300, curve:1.3, easing:t => t*(2-t) });
   }
   renderPOIs();
   updateExplorationBreadcrumb();
