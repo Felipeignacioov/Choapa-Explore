@@ -474,6 +474,13 @@ img{-webkit-user-drag:none; user-select:none;}
    texto ajeno del mapa base cerca de él. Ahora se atenúa pero nunca desaparece
    del todo — el punto siempre queda asociado a algo de texto legible. */
 .locality-marker.label-collapsed .loc-label{opacity:0.4; transform:scale(0.9); pointer-events:none;}
+/* CAMBIO "Localidades muy juntas": antes solo el nombre bajaba de opacidad al
+   perder la colisión — el punto quedaba igual de visible aunque su localidad
+   estuviera "detrás". Mismo valor de opacidad que ya usa .loc-label, para que
+   nombre y punto se lean como una sola unidad atenuada. Selector específico a
+   .locality-marker — nunca afecta a .poi-marker (POIs de experiencias), que
+   mantiene su sistema de colisión intacto. */
+.locality-marker.label-collapsed svg{opacity:0.4; transition:opacity .22s ease;}
 /* Nivel 2 — sub-localidades dentro de una comuna: más chicas y discretas que las
    comunas (Nivel 1), color propio (violeta eléctrico) para no confundirse con ellas.
    Núcleo pequeño y preciso + anillo fino sin relleno — lenguaje de marcador
@@ -4729,6 +4736,17 @@ function clearSublocalityMarkers(){
 // localidad (Nivel 2); dentro del mismo nivel, gana la más cercana al centro del
 // mapa. Solo se oculta el texto de la etiqueta — el punto sigue siendo tocable —
 // así que no toca la lógica de navegación ni de niveles, solo la lectura visual.
+// Combina dos DOMRect en su caja envolvente — usado para tratar "nombre + punto"
+// de una localidad como una sola unidad visual a la hora de chequear colisión.
+function unionRect(a, b){
+  return {
+    left: Math.min(a.left, b.left),
+    right: Math.max(a.right, b.right),
+    top: Math.min(a.top, b.top),
+    bottom: Math.max(a.bottom, b.bottom),
+  };
+}
+
 function resolveLabelCollisions(){
   const locVisible = [...localityMarkers, ...sublocalityMarkers]
     .filter(m => m._el && !m._el.classList.contains('hidden-level'));
@@ -4750,7 +4768,16 @@ function resolveLabelCollisions(){
   ranked.forEach(({ m }) => {
     const label = m._el.querySelector('.loc-label') || m._el.querySelector('.poi-name-label');
     if (!label) return;
-    const rect = label.getBoundingClientRect();
+    // Para comunas/localidades (NO para POIs — ese sistema no se toca), la
+    // unidad visual a proteger es el nombre + su punto (svg), no solo el
+    // texto: así una colisión "punto contra nombre/punto vecino" también se
+    // detecta, aunque los textos entre sí nunca se toquen.
+    let rect = label.getBoundingClientRect();
+    const isLocalityUnit = !!(m._locality || m._sub);
+    if (isLocalityUnit){
+      const dot = m._el.querySelector('svg');
+      if (dot) rect = unionRect(rect, dot.getBoundingClientRect());
+    }
     const collides = placed.some(r =>
       rect.left < r.right && rect.right > r.left && rect.top < r.bottom && rect.bottom > r.top
     );
