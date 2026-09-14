@@ -6448,14 +6448,12 @@ function startActiveNavigation(){
 
 function onNavPositionUpdate(userCoords, gpsHeading){
   document.getElementById('anhStatus').style.display = 'none';
-   state.nav.userCoords = userCoords;
+  state.nav.userCoords = userCoords;
 
   // Dirección: se prioriza el heading real del GPS; si no viene disponible, se
   // calcula a partir del último tramo recorrido. Si el usuario no se movió lo
   // suficiente (menos de 2m) para un cálculo confiable, se conserva el último
-  // rumbo conocido en vez de mostrar un cono errático. Este cálculo sigue
-  // siendo el dato REAL — la interpolación visual se aplica después, nunca
-  // sobre este valor.
+  // rumbo conocido en vez de mostrar un cono errático.
   if (gpsHeading != null && !isNaN(gpsHeading)){
     state.nav.heading = gpsHeading;
   } else if (state.nav.lastUserCoords){
@@ -6466,20 +6464,6 @@ function onNavPositionUpdate(userCoords, gpsHeading){
   }
   state.nav.lastUserCoords = userCoords;
 
-  // Primer fix de la sesión: el marcador todavía no existe o no hay ninguna
-  // posición mostrada previa que animar desde ella — se coloca directo, sin
-  // interpolación (no hay salto que suavizar en el punto de partida). Desde
-  // el segundo fix en adelante, cada actualización se desliza suavemente
-  // desde la posición mostrada actual hasta la nueva (startNavMarkerAnimation).
-  if (!userMarker || !state.nav.displayLngLat){
-    placeUserMarker(userCoords.lat, userCoords.lng);
-    state.nav.displayLngLat = [userCoords.lng, userCoords.lat];
-    state.nav.displayHeading = state.nav.heading;
-    state.nav.lastFixTime = performance.now();
-    updateNavUserMarkerRotation();
-  } else {
-    startNavMarkerAnimation(userCoords.lat, userCoords.lng, state.nav.heading);
-  }
   const place = state.nav.targetPlace;
   const distToDestM = distanceKm(userCoords.lat, userCoords.lng, place.lat, place.lng) * 1000;
   if (distToDestM <= ARRIVAL_RADIUS_M){
@@ -6487,47 +6471,42 @@ function onNavPositionUpdate(userCoords, gpsHeading){
     return;
   }
 
-     const coords = state.nav.routeGeoJSON.coordinates;
+   const coords = state.nav.routeGeoJSON.coordinates;
   const nearest = nearestPointOnLine(coords, [userCoords.lng, userCoords.lat]);
   const remaining = trimRouteFromPoint(coords, nearest);
   drawRouteOnMap({ type:'LineString', coordinates: remaining }); // reutiliza la función existente de Fase 2, sin tocarla
   // El conector se recalcula contra el inicio de la geometría RESTANTE (ya
   // recortada), no la original — así siempre conecta con el tramo de ruta que
   // realmente sigue visible en pantalla.
-    drawNavConnector([userCoords.lng, userCoords.lat], remaining[0]);
+  drawNavConnector([userCoords.lng, userCoords.lat], remaining[0]);
 
-  // Próxima maniobra — reutiliza `remaining` y `lineLengthMeters` ya
-  // calculados arriba, sin duplicar lógica de distancia.
-  const nextStep = findNextManeuverStep(nearest.segmentIndex);
-  if (nextStep){
-    const localIdx = Math.min(Math.max(nextStep.way_points[0] - nearest.segmentIndex, 0), remaining.length - 1);
-    updateManeuverDisplay(nextStep, lineLengthMeters(remaining.slice(0, localIdx + 1)));
-  } else {
-    updateManeuverDisplay(null);
-  }
-
-  // Desvío real (más allá del umbral) + fuera del cooldown + sin otro
-  // recálculo ya en curso → se pide una ruta nueva desde la posición actual.
-  // No bloquea el dibujo de arriba (el conector punteado se ve normal
-  // mientras la respuesta de ORS está en camino) — solo dispara la petición.
-  const offRouteDistM = distanceKm(userCoords.lat, userCoords.lng, nearest.point[1], nearest.point[0]) * 1000;
-  const cooldownElapsed = Date.now() - state.nav.lastRecalcAttempt > OFF_ROUTE_RECALC_COOLDOWN_MS;
-  if (offRouteDistM > OFF_ROUTE_THRESHOLD_M && !state.nav.offRouteRecalculating && cooldownElapsed){
-    recalculateRouteFromOffRoute();
-  }
+  // Posición visual del usuario: se ancla al punto más cercano SOBRE la
+  // geometría real de la ruta (nearest.point, el mismo cálculo que ya recorta
+  // la línea arriba) en vez del punto crudo del GPS. El GPS siempre tiene
+  // varios metros de margen de error; como la línea de ruta SÍ viene encajada
+  // a la calle real (ORS), dibujar el punto crudo junto a esa línea exacta es
+  // lo que se veía como "el usuario corrido hacia la derecha de la calle" —
+  // no era un offset de cámara ni del marcador. La detección de llegada, el
+  // rumbo y el ETA/distancia siguen calculándose con userCoords (GPS real),
+  // sin tocar — esto solo cambia DÓNDE se dibuja el punto en el mapa.
+  const displayLng = nearest.point[0], displayLat = nearest.point[1];
+  placeUserMarker(displayLat, displayLng);
+  setUserMarkerNavStyle(true, state.nav.heading);
 
    const remainingM = lineLengthMeters(remaining);
   const remainingS = state.nav.speedMps > 0 ? remainingM / state.nav.speedMps : 0;
-    document.getElementById('anhEta').textContent = formatDuration(remainingS);
-  document.getElementById('anhDist').textContent = `${formatRouteDistance(remainingM)} · Llegas a las ${formatArrivalTime(remainingS)}`;
+  document.getElementById('anhEta').textContent = formatDuration(remainingS);
+  document.getElementById('anhDist').textContent = formatRouteDistance(remainingM);
 
   // Cámara siguiendo al usuario — solo si el modo seguimiento sigue activo. Si
   // el usuario interactuó manualmente (zoom/pan), se respeta su posición hasta
   // que toque el botón de recentrar — nunca se retoma solo por el paso del
   // tiempo. Animación adicional de este flujo únicamente, no reemplaza ni
   // modifica la elasticidad/bounds/moveend del mapa en modo exploración normal.
+  // Sigue el mismo punto anclado a la ruta que usa el marcador (arriba), así
+  // cámara y marcador nunca quedan en desacuerdo sobre dónde "está" el usuario.
   if (state.nav.followMode){
-    map.easeTo({ center:[userCoords.lng, userCoords.lat], zoom: Math.max(map.getZoom(), 15.5), duration:700 });
+    map.easeTo({ center:[displayLng, displayLat], zoom: Math.max(map.getZoom(), 15.5), duration:700 });
   }
 }
 
