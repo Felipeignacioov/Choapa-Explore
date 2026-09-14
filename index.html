@@ -39,9 +39,13 @@
   --exp-gastronomia:#C99A52;
   --exp-noche:#8B7CF0;
 
-  /* Nivel 2 del mapa — localidades dentro de una comuna. Deliberadamente distinto
+   /* Nivel 2 del mapa — localidades dentro de una comuna. Deliberadamente distinto
      del turquesa (comunas) y del violeta de "Cielos" para no generar ambigüedad. */
   --sub-locality:#8B7CFF;
+  /* Jerarquía primary/secondary de sub-localidades — 0 = sin diferencia visual,
+     1 = diferencia máxima. La actualiza JS (updateLocalityTierDiff) en cada
+     zoom dentro del rango de localidad, nunca a mano. */
+  --loc-tier-diff:0;
 
   --font-display:'Sora', system-ui, sans-serif;
   --font-body:'Inter', system-ui, sans-serif;
@@ -500,6 +504,33 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 .locality-marker.sublocality .loc-name{font-size:9.5px; font-weight:700; color:var(--text-primary); letter-spacing:0.3px;}
 .locality-marker.sublocality .loc-count{color:var(--sub-locality);}
+
+/* ---------------- JERARQUÍA PRIMARY / SECONDARY (Nivel 2) ----------------
+   Secondary: se atenúa TODO el conjunto (nombre + punto + halo) reduciendo
+   opacity en .loc-visual — al ser el contenedor padre, la atenuación se
+   compone sobre sus hijos automáticamente, sin tocar cada elemento por
+   separado. La magnitud depende de --loc-tier-diff (dinámico por zoom, ver
+   updateLocalityTierDiff): máxima diferencia al entrar al nivel de
+   localidad, cero justo antes del nivel de POIs — ninguna secundaria queda
+   permanentemente relegada. */
+.locality-marker.sublocality.tier-secondary .loc-visual{
+  opacity: calc(1 - var(--loc-tier-diff, 0) * 0.42);
+}
+.locality-marker.sublocality.tier-secondary .loc-name{
+  font-size: calc(9.5px - var(--loc-tier-diff, 0) * 1px);
+}
+.locality-marker.sublocality.tier-secondary svg{
+  width: calc(20.5px - var(--loc-tier-diff, 0) * 3px);
+  height: calc(20.5px - var(--loc-tier-diff, 0) * 3px);
+}
+/* Primary: apariencia base sin cambios (ya es el tratamiento normal de
+   .sublocality) + un realce mínimo de tamaño/peso que crece junto con la
+   diferencia — el contraste real lo aporta la atenuación de las
+   secundarias de arriba, esto solo suma un empuje adicional. */
+.locality-marker.sublocality.tier-primary .loc-name{
+  font-size: calc(9.5px + var(--loc-tier-diff, 0) * 0.6px);
+  font-weight: 800;
+}
 
 /* El aro exterior (2do círculo del SVG) solo se ve cuando el zoom está lo
    suficientemente cerca dentro del nivel de localidad — desaparece al alejar. */
@@ -2806,14 +2837,18 @@ function placesInLocality(locality){
    Solo Salamanca tiene Nivel 2 cargado por ahora — el resto de las comunas cae de
    forma automática y transparente al comportamiento anterior (Nivel 1 → POIs directo)
    hasta que carguemos sus localidades. */
-function makeSublocality({ id, name, lat, lng, aliases }){
-  return { id, name, lat, lng, aliases };
+// tier: 'primary' | 'secondary' (default) — jerarquía visual de este marcador
+// en el nivel de localidad. Campo puramente local por ahora (punto 7):
+// ninguna tabla de Supabase se toca, los datos cargados desde el backend
+// simplemente no traen este campo y caen al default 'secondary'.
+function makeSublocality({ id, name, lat, lng, aliases, tier='secondary' }){
+  return { id, name, lat, lng, aliases, tier };
 }
 const SUBLOCALITIES = {
   // Coordenadas verificadas, provistas directamente por Felipe (12/08/2026) —
   // ya NO son estimaciones: reemplazan las posiciones aproximadas anteriores.
   salamanca: [
-    makeSublocality({ id:'salamanca-centro', name:'Salamanca (centro)', lat:-31.776, lng:-70.964, aliases:['Salamanca'] }),
+    makeSublocality({ id:'salamanca-centro', name:'Salamanca (centro)', lat:-31.776, lng:-70.964, aliases:['Salamanca'], tier:'primary' }),
     makeSublocality({ id:'chalinga',    name:'Chalinga',    lat:-31.76875625115217, lng:-70.97732101185743, aliases:['Chalinga'] }),
     makeSublocality({ id:'tahuinco',    name:'Tahuinco',    lat:-31.788986506744983, lng:-71.0594996885501,   aliases:['Tahuinco'] }),
     makeSublocality({ id:'el-tambo',    name:'El Tambo',    lat:-31.786488520168078, lng:-71.02231994437052,  aliases:['El Tambo'] }),
@@ -2834,7 +2869,7 @@ const SUBLOCALITIES = {
   // posición aproximada en su zona real (interior, entre Los Vilos y Tilama),
   // pendiente de reemplazo por coordenadas verificadas.
   losvilos: [
-    makeSublocality({ id:'losvilos-centro', name:'Los Vilos (centro)', lat:-31.912162, lng:-71.511739, aliases:['Los Vilos'] }),
+      makeSublocality({ id:'losvilos-centro', name:'Los Vilos (centro)', lat:-31.912162, lng:-71.511739, aliases:['Los Vilos'], tier:'primary' }),
     makeSublocality({ id:'pichidangui',     name:'Pichidangui',        lat:-32.140611, lng:-71.525551, aliases:['Pichidangui'] }),
     makeSublocality({ id:'quilimari',       name:'Quilimarí',          lat:-32.119003, lng:-71.499741, aliases:['Quilimarí'] }),
     makeSublocality({ id:'caimanes',        name:'Caimanes',           lat:-31.932205422997175, lng:-71.13452849598387, aliases:['Caimanes'] }),
@@ -2848,7 +2883,11 @@ const SUBLOCALITIES = {
   // pequeños — posiciones aproximadas en su zona real, pendientes de coordenadas
   // exactas verificadas.
   canela: [
-    makeSublocality({ id:'canela-baja',     name:'Canela Baja',   lat:-31.399101, lng:-71.457397, aliases:['Canela Baja'] }),
+        // Canela no tiene una localidad "(centro)" propia declarada — se asume
+    // Canela Baja como la principal por ser el pueblo más grande de la
+    // comuna. Supuesto ajustable: basta con cambiar 'primary' por otra
+    // localidad de este mismo bloque si no coincide con el criterio real.
+    makeSublocality({ id:'canela-baja',     name:'Canela Baja',   lat:-31.399101, lng:-71.457397, aliases:['Canela Baja'], tier:'primary' }),
     makeSublocality({ id:'canela-alta',     name:'Canela Alta',   lat:-31.390009, lng:-71.384799, aliases:['Canela Alta'] }),
     makeSublocality({ id:'huentelauquen',   name:'Huentelauquén', lat:-31.578181, lng:-71.535603, aliases:['Huentelauquén'] }),
     makeSublocality({ id:'mincha',          name:'Mincha',        lat:-31.587389, lng:-71.447773, aliases:['Mincha'] }),
@@ -2864,7 +2903,7 @@ const SUBLOCALITIES = {
   // Pintacura, en la ribera sur del río Choapa — posición aproximada dado que no
   // tiene geocodificación exacta disponible, pendiente de coordenadas verificadas.
   illapel: [
-    makeSublocality({ id:'illapel-centro', name:'Illapel (centro)', lat:-31.630646, lng:-71.165438, aliases:['Illapel'] }),
+      makeSublocality({ id:'illapel-centro', name:'Illapel (centro)', lat:-31.630646, lng:-71.165438, aliases:['Illapel'], tier:'primary' }),
     makeSublocality({ id:'cuz-cuz',        name:'Cuz Cuz',          lat:-31.640022, lng:-71.192173, aliases:['Cuz Cuz'] }),
     makeSublocality({ id:'huintil',        name:'Huintil',          lat:-31.568723, lng:-70.981813, aliases:['Huintil'] }),
     makeSublocality({ id:'asiento-viejo',  name:'Asiento Viejo',    lat:-31.603735, lng:-71.131639, aliases:['Asiento Viejo'] }),
@@ -4713,7 +4752,14 @@ function renderSublocalityMarkers(subs){
   if (state.nav.active) return;
   subs.forEach((sub, i) => {
     const el = document.createElement('div');
-    // Arranca en estado "entering" (oculto/desplazado) — se quita con un pequeño
+        // Arranca en estado "entering" (oculto/desplazado) — se quita con un pequeño
+    // desfase por índice, así las localidades se revelan en cascada, no todas
+    // de golpe. El foco de cámara no se toca acá: eso ya lo maneja enterLocality.
+    // tier-primary/tier-secondary — jerarquía visual (ver CSS). sub.tier no
+    // definido (ej. localidades cargadas desde Supabase, aún sin este campo)
+    // cae a 'secondary' por defecto, sin romper nada.
+    const tierClass = sub.tier === 'primary' ? 'tier-primary' : 'tier-secondary';
+    el.className = `locality-marker sublocality ${tierClass} entering`;
     // desfase por índice, así las localidades se revelan en cascada, no todas
     // de golpe. El foco de cámara no se toca acá: eso ya lo maneja enterLocality.
     el.className = 'locality-marker sublocality entering';
@@ -4767,12 +4813,20 @@ function resolveLabelCollisions(){
   const visible = [...locVisible, ...poiVisible];
   if (!visible.length) return;
 
-  const center = map.getCenter();
+    const center = map.getCenter();
   const ranked = visible.map(m => {
     const loc = m._locality || m._sub || m._place;
     const tier = m._locality ? 0 : (m._sub ? 1 : 2);
-    return { m, tier, dist: Math.hypot(loc.lat - center.lat, loc.lng - center.lng) };
-  }).sort((a, b) => (a.tier === b.tier) ? a.dist - b.dist : a.tier - b.tier);
+    // Dentro del tier de sub-localidad (1), primary siempre gana sobre
+    // secondary — antes de decidir por distancia. Comunas y POIs no tienen
+    // este sub-nivel (subTier 0 fijo, sin efecto en su orden relativo).
+    const subTier = (m._sub && m._sub.tier === 'secondary') ? 1 : 0;
+    return { m, tier, subTier, dist: Math.hypot(loc.lat - center.lat, loc.lng - center.lng) };
+  }).sort((a, b) => {
+    if (a.tier !== b.tier) return a.tier - b.tier;
+    if (a.subTier !== b.subTier) return a.subTier - b.subTier;
+    return a.dist - b.dist;
+  });
 
   const placed = [];
   ranked.forEach(({ m }) => {
@@ -4815,6 +4869,19 @@ function currentZoomTier(){
   return 'detalle';
 }
 
+// Diferencia visual primary/secondary, en función del zoom actual dentro del
+// rango de localidad (punto 5 del brief): 1 (máxima diferencia) justo al
+// entrar desde el nivel de comuna (ZOOM_SUBLOCALITY), 0 (sin diferencia)
+// justo antes de que aparezcan los POIs (ZOOM_DETAIL) — así las secundarias
+// nunca quedan permanentemente relegadas. Fuera de ese rango el valor queda
+// clampeado a sus extremos, sin efecto visible (los marcadores de
+// sub-localidad no se muestran fuera de ese rango de todas formas).
+function updateLocalityTierDiff(){
+  const z = map.getZoom();
+  const factor = Math.min(Math.max((ZOOM_DETAIL - z) / (ZOOM_DETAIL - ZOOM_SUBLOCALITY), 0), 1);
+  document.documentElement.style.setProperty('--loc-tier-diff', factor.toFixed(3));
+}
+
 function updateExplorationLevel(){
   const tier = currentZoomTier();
   const showCounts = map.getZoom() >= ZOOM_SHOW_COUNTS;
@@ -4829,6 +4896,7 @@ function updateExplorationLevel(){
   });
   const showPoiNames = map.getZoom() >= ZOOM_POI_NAME;
   document.querySelectorAll('.poi-marker').forEach(el => el.classList.toggle('show-name', showPoiNames));
+  updateLocalityTierDiff();
 
   if (tier === lastTier) return; // sin cambio de nivel, no re-renderizamos
   lastTier = tier;
