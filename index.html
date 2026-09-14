@@ -104,7 +104,40 @@ img{-webkit-user-drag:none; user-select:none;}
        0.32) para que el centro (donde están los POIs) quede como foco natural
        sin que se note como un filtro obvio — sigue siendo transparente en
        más de la mitad central de la pantalla. */
-    radial-gradient(ellipse at center, rgba(7,19,31,0) 52%, rgba(7,19,31,0.4) 100%);
+       radial-gradient(ellipse at center, rgba(7,19,31,0) 52%, rgba(7,19,31,0.4) 100%);
+}
+
+/* ---------------- SEÑAL DE TERRITORIO — más comuna fuera del viewport ----------------
+   Aura morada muy tenue en los bordes donde realmente hay localidades de la
+   comuna actual fuera de pantalla (ver JS: computeTerritoryGlowEdges). Mismo
+   --sub-locality de siempre — ningún color nuevo. z-index por encima del mapa
+   y su viñeteado, por debajo de controles/paneles (map-controls es z-index 9).
+   pointer-events:none en todo el árbol — nunca intercepta un tap real. */
+.territory-glow{ position:absolute; inset:0; z-index:8; pointer-events:none; }
+.tg-edge{ position:absolute; opacity:0; transition:opacity 1s ease; }
+.tg-edge.tg-active{ opacity:1; animation:tg-breathe 3.6s ease-in-out infinite; }
+.tg-left{
+  left:0; top:0; bottom:0; width:130px;
+  background:linear-gradient(to right, rgba(139,124,255,0.16), rgba(139,124,255,0.055) 55%, transparent 100%);
+}
+.tg-right{
+  right:0; top:0; bottom:0; width:130px;
+  background:linear-gradient(to left, rgba(139,124,255,0.16), rgba(139,124,255,0.055) 55%, transparent 100%);
+}
+.tg-top{
+  left:0; right:0; top:0; height:110px;
+  background:linear-gradient(to bottom, rgba(139,124,255,0.13), rgba(139,124,255,0.045) 55%, transparent 100%);
+}
+.tg-bottom{
+  left:0; right:0; bottom:0; height:110px;
+  background:linear-gradient(to top, rgba(139,124,255,0.13), rgba(139,124,255,0.045) 55%, transparent 100%);
+}
+/* Respiración orgánica — nunca escala ni se mueve, solo varía su intensidad,
+   para que se lea como una energía ambiental, nunca como una flecha animada
+   ni un elemento de interfaz de videojuego. */
+@keyframes tg-breathe{
+  0%,100%{ opacity:0.5; }
+  50%{ opacity:1; }
 }
 /* ---------------- HEADER ---------------- */
 .top-ui{
@@ -1999,8 +2032,19 @@ img{-webkit-user-drag:none; user-select:none;}
 </head>
 <body>
 <div id="app">
-  <div id="map"></div>
+    <div id="map"></div>
   <div class="map-vignette"></div>
+
+  <!-- Señal de "más territorio fuera del viewport" — aura morada en los
+       bordes, mismo color que las sub-localidades. Puramente decorativa
+       (pointer-events:none), controlada por JS (ver showTerritoryGlowIfNeeded /
+       hideTerritoryGlow), nunca bloquea taps del mapa. -->
+  <div class="territory-glow" aria-hidden="true">
+    <div class="tg-edge tg-left" id="tgLeft"></div>
+    <div class="tg-edge tg-right" id="tgRight"></div>
+    <div class="tg-edge tg-top" id="tgTop"></div>
+    <div class="tg-edge tg-bottom" id="tgBottom"></div>
+  </div>
 
   <div class="map-loading" id="mapLoading">
     <div class="loading-mark">
@@ -4985,6 +5029,70 @@ function updateLosVilosReflection(){
   map.setPaintProperty('losvilos-reflection-layer', 'circle-opacity', active ? 0.0425 : 0);
 }
 
+/* ---------- SEÑAL DE TERRITORIO — "hay más comuna fuera del viewport" ----------
+   Reutiliza SUBLOCALITIES (las mismas coordenadas verificadas del Nivel 2) y
+   map.getBounds() (el mismo viewport que ya usa toda la app) — no se crea
+   ningún dato geográfico ni sistema de límites nuevo. Ámbito 100% visual:
+   nunca toca zoom, bounds, elasticidad, ni ninguna coordenada real. */
+let territoryGlowTimer = null;
+let territoryGlowActiveForLocalityId = null;
+
+// Compara cada localidad real de la comuna contra el viewport actual — un
+// borde solo se enciende si de verdad hay una localidad más allá de ese
+// borde, nunca "porque sí estamos en una comuna". Comunas sin Nivel 2
+// cargado (SUBLOCALITIES[id] vacío) no muestran nada — mismo criterio que ya
+// usa updateExplorationLevel() para saber si una comuna tiene Nivel 2.
+function computeTerritoryGlowEdges(locality){
+  const subs = SUBLOCALITIES[locality.id] || [];
+  if (!subs.length) return null;
+  const b = map.getBounds();
+  const edges = { left:false, right:false, top:false, bottom:false };
+  subs.forEach(sub => {
+    if (sub.lng < b.getWest()) edges.left = true;
+    if (sub.lng > b.getEast()) edges.right = true;
+    if (sub.lat > b.getNorth()) edges.top = true;
+    if (sub.lat < b.getSouth()) edges.bottom = true;
+  });
+  if (!edges.left && !edges.right && !edges.top && !edges.bottom) return null;
+  return edges;
+}
+
+function hideTerritoryGlow(){
+  clearTimeout(territoryGlowTimer);
+  territoryGlowTimer = null;
+  territoryGlowActiveForLocalityId = null;
+  document.querySelectorAll('.tg-edge').forEach(el => el.classList.remove('tg-active'));
+}
+
+// Se llama una sola vez por entrada INTENCIONAL a una comuna (tap directo,
+// fly:true) — nunca desde correcciones automáticas de nivel por pellizco, así
+// la señal nunca se siente repetitiva durante la navegación normal. Fade-out
+// automático a los ~3.8s si el usuario no interactúa.
+function showTerritoryGlowIfNeeded(locality){
+  const edges = computeTerritoryGlowEdges(locality);
+  if (!edges) return;
+  territoryGlowActiveForLocalityId = locality.id;
+  if (edges.left) document.getElementById('tgLeft').classList.add('tg-active');
+  if (edges.right) document.getElementById('tgRight').classList.add('tg-active');
+  if (edges.top) document.getElementById('tgTop').classList.add('tg-active');
+  if (edges.bottom) document.getElementById('tgBottom').classList.add('tg-active');
+  clearTimeout(territoryGlowTimer);
+  territoryGlowTimer = setTimeout(hideTerritoryGlow, 3800);
+}
+
+// Mismo criterio que handleManualMapInteraction/handleHeaderCompactTrigger:
+// e.originalEvent solo existe en un gesto REAL del usuario, nunca en un vuelo
+// programático (flyTo/easeTo de la propia app) — así la señal se apaga apenas
+// el usuario empieza a explorar por su cuenta, y nunca por un movimiento que
+// la app misma dispara.
+function handleTerritoryGlowInteraction(e){
+  if (!e.originalEvent) return;
+  if (!territoryGlowActiveForLocalityId) return;
+  hideTerritoryGlow();
+}
+map.on('dragstart', handleTerritoryGlowInteraction);
+map.on('zoomstart', handleTerritoryGlowInteraction);
+
 function enterLocality(locality, { fly }){
   state.currentLocality = locality;
   state.currentSublocality = null;
@@ -5019,8 +5127,11 @@ function enterLocality(locality, { fly }){
     // (COMUNA_FLIGHT). Guard por si el usuario toca otra comuna antes de que
     // este vuelo termine: solo se muestra el panel de la comuna que sigue
     // siendo la actual al momento de asentarse la cámara.
-    map.once('moveend', () => {
-      if (state.currentLocality === locality) showComunaPanel(locality);
+        map.once('moveend', () => {
+      if (state.currentLocality === locality){
+        showComunaPanel(locality);
+        showTerritoryGlowIfNeeded(locality); // señal de territorio — solo en entradas intencionales (fly:true)
+      }
     });
   } else {
     // Sin vuelo de cámara (el usuario llegó pellizcando el zoom, o es una
@@ -5040,6 +5151,7 @@ function exitLocality({ fly }){
   updateSheetHero();
   updateLosVilosReflection();
    hideComunaPanel(); // Fase 2 — devuelve #sheetPill a su comportamiento normal
+  hideTerritoryGlow(); // la señal de territorio no debe sobrevivir fuera de la comuna
   clearSublocalityMarkers();
   if (fly){
            // Mismo padding EXACTO que fitBoundsOptions en la inicialización del mapa
