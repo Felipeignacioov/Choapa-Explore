@@ -477,10 +477,10 @@ img{-webkit-user-drag:none; user-select:none;}
 /* CAMBIO "Localidades muy juntas": antes solo el nombre bajaba de opacidad al
    perder la colisión — el punto quedaba igual de visible aunque su localidad
    estuviera "detrás". Mismo valor de opacidad que ya usa .loc-label, para que
-   nombre y punto se lean como una sola unidad atenuada. Selector específico a
-   .locality-marker — nunca afecta a .poi-marker (POIs de experiencias), que
-   mantiene su sistema de colisión intacto. */
-.locality-marker.label-collapsed svg{opacity:0.4; transition:opacity .22s ease;}
+   nombre y punto se lean como una sola unidad atenuada. Acotado SOLO a
+   sub-localidades (.sublocality) — las comunas (Nivel 1) nunca atenúan su
+   punto, solo su texto, como siempre. Nunca afecta a .poi-marker tampoco. */
+.locality-marker.sublocality.label-collapsed svg{opacity:0.4; transition:opacity .22s ease;}
 /* Nivel 2 — sub-localidades dentro de una comuna: más chicas y discretas que las
    comunas (Nivel 1), color propio (violeta eléctrico) para no confundirse con ellas.
    Núcleo pequeño y preciso + anillo fino sin relleno — lenguaje de marcador
@@ -4768,13 +4768,16 @@ function resolveLabelCollisions(){
   ranked.forEach(({ m }) => {
     const label = m._el.querySelector('.loc-label') || m._el.querySelector('.poi-name-label');
     if (!label) return;
-    // Para comunas/localidades (NO para POIs — ese sistema no se toca), la
-    // unidad visual a proteger es el nombre + su punto (svg), no solo el
-    // texto: así una colisión "punto contra nombre/punto vecino" también se
-    // detecta, aunque los textos entre sí nunca se toquen.
+        // Para SUB-localidades únicamente (Nivel 2, m._sub) la unidad visual a
+    // proteger es el nombre + su punto (svg), no solo el texto — así una
+    // colisión "punto contra nombre/punto vecino" también se detecta ahí.
+    // Las comunas (Nivel 1, m._locality) quedan deliberadamente fuera de esto:
+    // su punto es más grande (26px + halo respirando) y generaba falsos
+    // positivos entre comunas que ni siquiera están cerca visualmente — para
+    // comunas se mantiene el comportamiento original (solo colisión de texto).
     let rect = label.getBoundingClientRect();
-    const isLocalityUnit = !!(m._locality || m._sub);
-    if (isLocalityUnit){
+    const isSublocalityUnit = !!m._sub;
+    if (isSublocalityUnit){
       const dot = m._el.querySelector('svg');
       if (dot) rect = unionRect(rect, dot.getBoundingClientRect());
     }
