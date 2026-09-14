@@ -4280,7 +4280,17 @@ function poiSourceFeatures(){
 // se llega a opacidad 1 en vez de aparecer de golpe. 0.4 de zoom es un tramo
 // corto y casi imperceptible como "animación", se siente como revelado
 // natural del territorio al acercarse.
-const POI_ZOOM_FADE_SPAN = 0.4;
+// Antes 0.4 — la cámara aterriza en SUBLOCALITY_ENTER_ZOOM (12.45), apenas
+// 0.05 por encima de ZOOM_DETAIL (12.4, donde arranca este fade). Con un
+// rango de 0.4, en ese punto de aterrizaje los POIs quedaban a solo ~12% de
+// su opacidad final — eso es lo que se veía como "sombreado/apagado" justo
+// al entrar a una localidad, y por qué un zoom manual adicional (cruzando el
+// resto de esos 0.4 niveles) los aclaraba. Con 0.05, la curva ya completa su
+// recorrido justo al llegar a ese zoom de entrada — los POIs aparecen
+// prácticamente en su color/opacidad real desde el primer instante, sin
+// perder el efecto de aparición progresiva al pellizcar el zoom lentamente
+// desde más lejos.
+const POI_ZOOM_FADE_SPAN = 0.05;
 const POI_ICON_FADE_OPACITY = ['interpolate', ['linear'], ['zoom'], ZOOM_DETAIL, 0, ZOOM_DETAIL + POI_ZOOM_FADE_SPAN, 1];
 const POI_LABEL_FADE_OPACITY = ['interpolate', ['linear'], ['zoom'], ZOOM_POI_NAME, 0, ZOOM_POI_NAME + POI_ZOOM_FADE_SPAN, 1];
 
