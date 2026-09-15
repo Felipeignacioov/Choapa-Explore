@@ -139,6 +139,23 @@ img{-webkit-user-drag:none; user-select:none;}
   0%,100%{ opacity:0.5; }
   50%{ opacity:1; }
 }
+/* ---------- Respuesta direccional — "sí, por aquí" ----------
+   Puramente aditivo: ninguna regla de arriba se toca. El ::after hereda el
+   MISMO gradiente ya declarado en .tg-left/.tg-right/.tg-top/.tg-bottom vía
+   background:inherit (toma el fondo ya calculado del propio .tg-edge padre),
+   así nunca se duplica ni reinventa ningún color — es literalmente la misma
+   aura, superpuesta un instante con más presencia. Se activa solo cuando JS
+   agrega .tg-confirm (ver confirmTerritoryGlowConfirm), nunca por sí sola. */
+.tg-edge.tg-confirm::after{
+  content:''; position:absolute; inset:0;
+  background:inherit; pointer-events:none;
+  animation: tg-confirm-pulse 220ms ease-out;
+}
+@keyframes tg-confirm-pulse{
+  0%{ opacity:0; }
+  35%{ opacity:0.42; }
+  100%{ opacity:0; }
+}
 /* ---------------- HEADER ---------------- */
 .top-ui{
   position:absolute; top:0; left:0; right:0; z-index:10;
@@ -5072,7 +5089,7 @@ function hideTerritoryGlow(){
   territoryGlowActiveForLocalityId = null;
   territoryGlowSequence = [];
   territoryGlowStepIndex = 0;
-  document.querySelectorAll('.tg-edge').forEach(el => el.classList.remove('tg-active'));
+  document.querySelectorAll('.tg-edge').forEach(el => el.classList.remove('tg-active', 'tg-confirm'));
 }
 
 const TERRITORY_GLOW_EDGE_IDS = { left:'tgLeft', right:'tgRight', top:'tgTop', bottom:'tgBottom' };
@@ -5151,13 +5168,41 @@ function handleTerritoryGlowPointerDown(e){
   territoryGlowPointerStartX = e.clientX;
   territoryGlowPointerStartY = e.clientY;
 }
+// Pulso de confirmación (150-300ms) sobre el borde que YA está activo — sin
+// tocar territoryGlowSequence/territoryGlowStepIndex ni la clase .tg-active
+// (el aura sigue exactamente como estaba). Se fuerza un reflow antes de
+// agregar la clase para garantizar que la animación se reproduzca aunque el
+// mismo borde ya la hubiera mostrado antes en la sesión. Termina en
+// hideTerritoryGlow() — mismo fade-out de 1s de siempre, nunca reinicia ni
+// vuelve a mostrar el aura.
+const TERRITORY_GLOW_CONFIRM_MS = 220;
+function confirmTerritoryGlowDirection(edgeKey){
+  const el = document.getElementById(TERRITORY_GLOW_EDGE_IDS[edgeKey]);
+  if (el){
+    el.classList.remove('tg-confirm');
+    void el.offsetWidth; // fuerza reflow — permite re-disparar el keyframe si ya se había usado
+    el.classList.add('tg-confirm');
+  }
+  clearTimeout(territoryGlowTimer);
+  territoryGlowTimer = setTimeout(hideTerritoryGlow, TERRITORY_GLOW_CONFIRM_MS);
+}
+
 function handleTerritoryGlowPointerMove(e){
   if (territoryGlowPointerStartX == null || e.pointerId !== territoryGlowPointerId) return;
   const dx = e.clientX - territoryGlowPointerStartX;
   const dy = e.clientY - territoryGlowPointerStartY;
   if (Math.hypot(dx, dy) > TERRITORY_GLOW_DRAG_THRESHOLD_PX){
     territoryGlowPointerStartX = null; // ya se disparó — no volver a evaluar hasta el próximo pointerdown
-    if (territoryGlowActiveForLocalityId) hideTerritoryGlow();
+    if (!territoryGlowActiveForLocalityId) return;
+    // Dirección predominante del gesto REAL (inicio → posición actual), no un
+    // evento genérico — eje con mayor desplazamiento decide horizontal vs
+    // vertical, el signo decide el lado.
+    const gestureEdge = Math.abs(dx) >= Math.abs(dy)
+      ? (dx < 0 ? 'left' : 'right')
+      : (dy < 0 ? 'top' : 'bottom');
+    const activeEdge = territoryGlowSequence[territoryGlowStepIndex];
+    if (activeEdge === gestureEdge) confirmTerritoryGlowDirection(activeEdge);
+    else hideTerritoryGlow();
   }
 }
 function handleTerritoryGlowPointerUp(){
