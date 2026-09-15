@@ -5036,12 +5036,21 @@ function updateLosVilosReflection(){
    nunca toca zoom, bounds, elasticidad, ni ninguna coordenada real. */
 let territoryGlowTimer = null;
 let territoryGlowActiveForLocalityId = null;
+// Secuencia de bordes activos y paso actual — reemplaza el encendido
+// simultáneo de todos los bordes por un recorrido de a uno, nunca dos a la
+// vez (ver activateTerritoryGlowStep). Mismo diseño visual de siempre
+// (.tg-edge/.tg-active/colores/blur intactos) — esto solo decide CUÁNDO cada
+// borde recibe la clase .tg-active.
+let territoryGlowSequence = [];
+let territoryGlowStepIndex = 0;
 
 // Compara cada localidad real de la comuna contra el viewport actual — un
 // borde solo se enciende si de verdad hay una localidad más allá de ese
 // borde, nunca "porque sí estamos en una comuna". Comunas sin Nivel 2
 // cargado (SUBLOCALITIES[id] vacío) no muestran nada — mismo criterio que ya
 // usa updateExplorationLevel() para saber si una comuna tiene Nivel 2.
+// (Sin cambios respecto a la versión anterior — sigue siendo la única fuente
+// de verdad geográfica.)
 function computeTerritoryGlowEdges(locality){
   const subs = SUBLOCALITIES[locality.id] || [];
   if (!subs.length) return null;
@@ -5061,37 +5070,105 @@ function hideTerritoryGlow(){
   clearTimeout(territoryGlowTimer);
   territoryGlowTimer = null;
   territoryGlowActiveForLocalityId = null;
+  territoryGlowSequence = [];
+  territoryGlowStepIndex = 0;
   document.querySelectorAll('.tg-edge').forEach(el => el.classList.remove('tg-active'));
+}
+
+const TERRITORY_GLOW_EDGE_IDS = { left:'tgLeft', right:'tgRight', top:'tgTop', bottom:'tgBottom' };
+// Presencia total objetivo (~2.5-3s, antes ~3.8s sostenidos + 1s de fade =
+// ~4.8s percibidos). Con una sola dirección, se sostiene este tiempo completo
+// antes de iniciar el fade-out. Con varias direcciones, este mismo total se
+// REPARTE entre ellas en una secuencia — nunca dos bordes activos a la vez —
+// con un piso de 1100ms por paso para que cada dirección alcance a leerse
+// antes de ceder paso a la siguiente (si hay 3+ direcciones, el total real
+// puede superar levemente el objetivo para respetar ese piso de legibilidad).
+const TERRITORY_GLOW_TOTAL_MS = 2500;
+const TERRITORY_GLOW_MIN_STEP_MS = 1100;
+
+// Enciende un único borde de la secuencia. Si ya había uno activo, se apaga
+// en el MISMO instante en que se enciende el nuevo — al compartir ambos la
+// misma transition:opacity de .tg-edge (sin tocar), esto produce un
+// cross-fade natural entre direcciones, nunca "dos paredes" simultáneas ni
+// una animación adicional.
+function activateTerritoryGlowStep(){
+  document.querySelectorAll('.tg-edge').forEach(el => el.classList.remove('tg-active'));
+  const edgeKey = territoryGlowSequence[territoryGlowStepIndex];
+  if (!edgeKey){ hideTerritoryGlow(); return; }
+  document.getElementById(TERRITORY_GLOW_EDGE_IDS[edgeKey]).classList.add('tg-active');
+
+  const isLast = territoryGlowStepIndex === territoryGlowSequence.length - 1;
+  const stepMs = Math.max(TERRITORY_GLOW_MIN_STEP_MS, TERRITORY_GLOW_TOTAL_MS / territoryGlowSequence.length);
+  clearTimeout(territoryGlowTimer);
+  territoryGlowTimer = setTimeout(() => {
+    if (isLast){ hideTerritoryGlow(); }
+    else { territoryGlowStepIndex++; activateTerritoryGlowStep(); }
+  }, stepMs);
 }
 
 // Se llama una sola vez por entrada INTENCIONAL a una comuna (tap directo,
 // fly:true) — nunca desde correcciones automáticas de nivel por pellizco, así
-// la señal nunca se siente repetitiva durante la navegación normal. Fade-out
-// automático a los ~3.8s si el usuario no interactúa.
+// la señal nunca se siente repetitiva durante la navegación normal.
 function showTerritoryGlowIfNeeded(locality){
   const edges = computeTerritoryGlowEdges(locality);
   if (!edges) return;
   territoryGlowActiveForLocalityId = locality.id;
-  if (edges.left) document.getElementById('tgLeft').classList.add('tg-active');
-  if (edges.right) document.getElementById('tgRight').classList.add('tg-active');
-  if (edges.top) document.getElementById('tgTop').classList.add('tg-active');
-  if (edges.bottom) document.getElementById('tgBottom').classList.add('tg-active');
-  clearTimeout(territoryGlowTimer);
-  territoryGlowTimer = setTimeout(hideTerritoryGlow, 3800);
+  territoryGlowSequence = ['left','right','top','bottom'].filter(k => edges[k]);
+  territoryGlowStepIndex = 0;
+  activateTerritoryGlowStep();
 }
 
-// Mismo criterio que handleManualMapInteraction/handleHeaderCompactTrigger:
-// e.originalEvent solo existe en un gesto REAL del usuario, nunca en un vuelo
-// programático (flyTo/easeTo de la propia app) — así la señal se apaga apenas
-// el usuario empieza a explorar por su cuenta, y nunca por un movimiento que
-// la app misma dispara.
+// Un pellizco de zoom sigue cancelando la señal al instante — es una acción
+// de navegación deliberada, distinta de un simple toque. e.originalEvent solo
+// existe en un gesto REAL del usuario, nunca en un vuelo programático
+// (flyTo/easeTo de la propia app) — mismo criterio que ya usan
+// handleManualMapInteraction/handleHeaderCompactTrigger.
 function handleTerritoryGlowInteraction(e){
   if (!e.originalEvent) return;
   if (!territoryGlowActiveForLocalityId) return;
   hideTerritoryGlow();
 }
-map.on('dragstart', handleTerritoryGlowInteraction);
 map.on('zoomstart', handleTerritoryGlowInteraction);
+
+// ---------- Cancelación por PAN real, no por un simple toque ----------
+// dragstart de MapLibre se descarta a propósito para esto: su umbral interno
+// es de solo unos pocos píxeles, así que en un dedo real sobre pantalla
+// táctil dispara casi con cualquier toque, aunque la intención haya sido solo
+// tocar. En su lugar, se mide la distancia real del gesto con Pointer Events
+// — mismo patrón que ya usa el sistema de elasticidad sobre `mapCanvas`
+// (declarado más arriba en el archivo) — con un umbral bastante más generoso
+// que sí distingue con confianza "toqué" de "empecé a arrastrar". El mapa en
+// sí no se toca: sigue reaccionando exactamente igual a cualquier gesto, esto
+// solo decide cuándo la SEÑAL debe empezar a desaparecer.
+let territoryGlowPointerId = null;
+let territoryGlowPointerStartX = null;
+let territoryGlowPointerStartY = null;
+const TERRITORY_GLOW_DRAG_THRESHOLD_PX = 18;
+
+function handleTerritoryGlowPointerDown(e){
+  if (!territoryGlowActiveForLocalityId) return;
+  territoryGlowPointerId = e.pointerId;
+  territoryGlowPointerStartX = e.clientX;
+  territoryGlowPointerStartY = e.clientY;
+}
+function handleTerritoryGlowPointerMove(e){
+  if (territoryGlowPointerStartX == null || e.pointerId !== territoryGlowPointerId) return;
+  const dx = e.clientX - territoryGlowPointerStartX;
+  const dy = e.clientY - territoryGlowPointerStartY;
+  if (Math.hypot(dx, dy) > TERRITORY_GLOW_DRAG_THRESHOLD_PX){
+    territoryGlowPointerStartX = null; // ya se disparó — no volver a evaluar hasta el próximo pointerdown
+    if (territoryGlowActiveForLocalityId) hideTerritoryGlow();
+  }
+}
+function handleTerritoryGlowPointerUp(){
+  territoryGlowPointerId = null;
+  territoryGlowPointerStartX = null;
+  territoryGlowPointerStartY = null;
+}
+mapCanvas.addEventListener('pointerdown', handleTerritoryGlowPointerDown, { passive:true });
+mapCanvas.addEventListener('pointermove', handleTerritoryGlowPointerMove, { passive:true });
+window.addEventListener('pointerup', handleTerritoryGlowPointerUp, { passive:true });
+window.addEventListener('pointercancel', handleTerritoryGlowPointerUp, { passive:true });
 
 function enterLocality(locality, { fly }){
   state.currentLocality = locality;
