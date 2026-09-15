@@ -5197,9 +5197,17 @@ function handleTerritoryGlowPointerMove(e){
     // Dirección predominante del gesto REAL (inicio → posición actual), no un
     // evento genérico — eje con mayor desplazamiento decide horizontal vs
     // vertical, el signo decide el lado.
+       // Convención de paneo de mapa: el contenido sigue al dedo — arrastrar el
+    // dedo hacia la IZQUIERDA revela territorio que estaba oculto a la
+    // DERECHA (y viceversa), mismo principio en vertical. La versión anterior
+    // tenía el signo invertido (dx<0 → 'left'), por lo que el gesto NATURAL
+    // hacia una dirección con aura activa siempre calculaba el borde
+    // contrario y terminaba en el fade-out normal en vez de la reacción de
+    // confirmación — este es el fix real, no un listener de dragstart/
+    // zoomstart interfiriendo (ese ya estaba correctamente retirado).
     const gestureEdge = Math.abs(dx) >= Math.abs(dy)
-      ? (dx < 0 ? 'left' : 'right')
-      : (dy < 0 ? 'top' : 'bottom');
+      ? (dx < 0 ? 'right' : 'left')
+      : (dy < 0 ? 'bottom' : 'top');
     const activeEdge = territoryGlowSequence[territoryGlowStepIndex];
     if (activeEdge === gestureEdge) confirmTerritoryGlowDirection(activeEdge);
     else hideTerritoryGlow();
