@@ -4839,11 +4839,8 @@ function renderSublocalityMarkers(subs){
     // tier-primary/tier-secondary — jerarquía visual (ver CSS). sub.tier no
     // definido (ej. localidades cargadas desde Supabase, aún sin este campo)
     // cae a 'secondary' por defecto, sin romper nada.
-    const tierClass = sub.tier === 'primary' ? 'tier-primary' : 'tier-secondary';
+        const tierClass = sub.tier === 'primary' ? 'tier-primary' : 'tier-secondary';
     el.className = `locality-marker sublocality ${tierClass} entering`;
-    // desfase por índice, así las localidades se revelan en cascada, no todas
-    // de golpe. El foco de cámara no se toca acá: eso ya lo maneja enterLocality.
-    el.className = 'locality-marker sublocality entering';
     el.innerHTML = `
       <div class="loc-visual">
         <div class="loc-label"><span class="loc-name">${sub.name}</span></div>
