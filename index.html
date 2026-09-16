@@ -2560,15 +2560,39 @@ function transformSupabaseData(communesRows, localitiesRows, experiencesRows){
     aliases: localitiesRows.filter(l => l.commune_id === c.id).map(l => l.name),
   }));
 
-  // Nivel 2 (localidades dentro de la comuna): cada localidad real de
+   // Nivel 2 (localidades dentro de la comuna): cada localidad real de
   // Supabase es su propia sub-localidad, con alias = su propio nombre — ya
   // no hace falta el sistema de alias múltiples por caserío, porque cada
   // localidad ya tiene un id y una comuna padre inequívocos (FK real).
+  //
+  // tier — Supabase no tiene (todavía) ninguna columna que marque "esta
+  // localidad es el centro comunal" (confirmado: `localities` solo trae
+  // id/name/lat/lng/commune_id). Mismo criterio que ya usan los datos locales
+  // de ejemplo (salamanca-centro vs comuna Salamanca): si el nombre de la
+  // localidad coincide con el nombre de su propia comuna una vez normalizado
+  // (minúsculas, sin acentos, sin espacios/paréntesis/guiones), es el centro
+  // → tier:'primary'. El resto cae en 'secondary', igual que en
+  // makeSublocality(). No se agrega ninguna tabla/columna nueva.
+  const normalizeForTierMatch = s => (s || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // quita acentos
+    .replace(/[()]/g, '')
+    .replace(/[\s-]/g, '');
+  const communeNameById = new Map(communesRows.map(c => [c.id, normalizeForTierMatch(c.name)]));
+
   const newSublocalities = {};
   communesRows.forEach(c => { newSublocalities[c.id] = []; });
   localitiesRows.forEach(l => {
     if (!newSublocalities[l.commune_id]) newSublocalities[l.commune_id] = [];
-    newSublocalities[l.commune_id].push({ id:l.id, name:l.name, lat:l.lat, lng:l.lng, aliases:[l.name] });
+    const localityNorm = normalizeForTierMatch(l.name);
+    const communeNorm = communeNameById.get(l.commune_id) || '';
+    // Coincidencia exacta O la localidad empieza con el nombre de la comuna
+    // (cubre "salamanca(centro)", "salamanca centro", "salamanca-centro"...)
+    const isCommuneCenter = communeNorm && (localityNorm === communeNorm || localityNorm.startsWith(communeNorm));
+    newSublocalities[l.commune_id].push({
+      id:l.id, name:l.name, lat:l.lat, lng:l.lng, aliases:[l.name],
+      tier: isCommuneCenter ? 'primary' : 'secondary',
+    });
   });
 
   // Experiencias — misma forma que ya produce makePlace(). category_primary_
@@ -3599,13 +3623,19 @@ function tintMapLayers(){
         map.setPaintProperty(l.id, 'line-color', roadColor(0.1));
         map.setPaintProperty(l.id, 'line-opacity', 0.45);
       }
-      if (l.type === 'line' && (l.id === 'highway_minor' || l.id === 'highway_path')){
+           if (l.type === 'line' && (l.id === 'highway_minor' || l.id === 'highway_path')){
         // Casi disueltas en el fondo — mismo espíritu que antes, tono más
         // oscuro (72% mezclado hacia el navy) y bastante menos opacas que
         // cualquier capa "major", para que la jerarquía sea innegable.
         map.setPaintProperty(l.id, 'line-color', roadColor(0.72));
-        map.setPaintProperty(l.id, 'line-opacity', 0.34);
-        map.setPaintProperty(l.id, 'line-width', ['interpolate', ['linear'], ['zoom'], 10, 0.6, 13, 1.0, 16, 1.5, 18, 1.9]);
+        // Legibilidad SOLO al entrar a una comuna (zoom 8.8→12.4 — de
+        // ZOOM_COMUNA_NEAR a ZOOM_DETAIL): ahí aterriza enterLocality (z10.15
+        // con sub-localidades) y todavía no hay POIs en pantalla; estas calles
+        // menores eran casi invisibles (0.34/0.6px fijos) y el territorio se
+        // sentía vacío. Pico suave en ese tramo; fuera de él (comuna lejana o
+        // ya con POIs) el valor vuelve exactamente al de siempre.
+        map.setPaintProperty(l.id, 'line-opacity', ['interpolate', ['linear'], ['zoom'], 8.8, 0.34, 10.5, 0.42, 12.4, 0.34]);
+        map.setPaintProperty(l.id, 'line-width', ['interpolate', ['linear'], ['zoom'], 8.8, 0.6, 10.5, 0.95, 12.4, 1.0, 16, 1.5, 18, 1.9]);
       }
              // Color compartido para "información de referencia" del mapa base —
       // nombres de calle y localidades sin curar (Cancha Brava, El Boldo...).
