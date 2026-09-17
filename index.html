@@ -487,6 +487,21 @@ img{-webkit-user-drag:none; user-select:none;}
   opacity:0.4; transition:opacity .18s ease;
 }
 .locality-marker svg{filter:drop-shadow(0 2px 5px rgba(2,8,15,0.38)); overflow:visible;}
+/* Entrada de los pines de COMUNA (Nivel 1) al cargar el mapa — mismo lenguaje
+   que poi-enter (fade + scale-in), pero acotado a .loc-visual (el hijo que no
+   participa del posicionamiento geográfico), nunca al root .locality-marker,
+   por el mismo motivo de estabilidad documentado arriba. Delay escalonado vía
+   --enter-delay, fijado por JS en renderLocalityMarkers(). No afecta a
+   sub-localidades (Nivel 2), que ya tienen su propia entrada en cascada
+   (.sublocality.entering). */
+.locality-marker:not(.sublocality) .loc-visual{
+  animation: comuna-marker-enter .42s cubic-bezier(.2,.9,.28,1.05) backwards;
+  animation-delay: var(--enter-delay, 0ms);
+}
+@keyframes comuna-marker-enter{
+  from{ opacity:0; transform:scale(0.55); }
+  to{ opacity:1; transform:scale(1); }
+}
 .locality-marker.hidden-level .loc-visual{opacity:0; transform:scale(0.5);}
 .locality-marker:active .loc-visual{transform:scale(0.94);}
 .locality-marker svg{width:26px; height:26px;}
@@ -4871,13 +4886,14 @@ function renderLocalityMarkers(){
   // presencia, nunca un pin "apagado" ni uno desproporcionadamente brillante.
   const maxComunaCount = Math.max(1, ...LOCALITIES.map(l => placesInLocality(l).length));
 
-  LOCALITIES.forEach(loc => {
+    LOCALITIES.forEach((loc, locIndex) => {
     const count = placesInLocality(loc).length;
     const richness = count / maxComunaCount;
     const haloMultiplier = (0.82 + richness * 0.36).toFixed(3);
     const el = document.createElement('div');
     el.className = 'locality-marker';
     el.style.setProperty('--comuna-halo-mult', haloMultiplier);
+    el.style.setProperty('--enter-delay', (locIndex * 90) + 'ms');
     el.innerHTML = `
       <div class="loc-visual">
         <div class="loc-label">
