@@ -502,6 +502,13 @@ img{-webkit-user-drag:none; user-select:none;}
    siguen usando loc-breathe sin ningún cambio. */
 .locality-marker:not(.sublocality) .loc-halo{
   animation: comuna-halo-pulse 5s ease-in-out infinite;
+  /* Multiplicador por "riqueza" de la comuna (cuántas experiencias tiene
+     cargadas) — fijado por JS en renderLocalityMarkers() vía --comuna-halo-mult
+     en el marcador raíz. filter:opacity() se aplica ENCIMA de la opacidad ya
+     animada por comuna-halo-pulse (no se puede animar y fijar la misma
+     propiedad 'opacity' a la vez), así el pulso sigue intacto, solo un poco
+     más o menos presente según el contenido real de esa comuna. */
+  filter: opacity(var(--comuna-halo-mult, 1));
 }
 @keyframes comuna-halo-pulse{
   0%,100%{ opacity:0.05; r:10.5; }
@@ -4821,10 +4828,21 @@ function renderLocalityMarkers(){
   localityMarkers.forEach(m => m.remove());
   localityMarkers = [];
 
+  // Riqueza relativa de cada comuna (cuántas experiencias tiene ya cargadas,
+  // mismo dato que placesInLocality() ya usaba solo para el texto del label)
+  // — normalizada contra la comuna con más contenido, nunca contra un valor
+  // fijo, así el sistema se auto-ajusta a medida que se cargan más POIs
+  // reales sin tocar código. Rango acotado (0.82–1.18): variación sutil de
+  // presencia, nunca un pin "apagado" ni uno desproporcionadamente brillante.
+  const maxComunaCount = Math.max(1, ...LOCALITIES.map(l => placesInLocality(l).length));
+
   LOCALITIES.forEach(loc => {
     const count = placesInLocality(loc).length;
+    const richness = count / maxComunaCount;
+    const haloMultiplier = (0.82 + richness * 0.36).toFixed(3);
     const el = document.createElement('div');
     el.className = 'locality-marker';
+    el.style.setProperty('--comuna-halo-mult', haloMultiplier);
     el.innerHTML = `
       <div class="loc-visual">
         <div class="loc-label">
