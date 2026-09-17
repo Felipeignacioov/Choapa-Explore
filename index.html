@@ -564,17 +564,16 @@ img{-webkit-user-drag:none; user-select:none;}
    localidad, cero justo antes del nivel de POIs — ninguna secundaria queda
    permanentemente relegada. */
 .locality-marker.sublocality.tier-secondary .loc-visual{
-  /* Antes 0.42 → mínimo 0.58 al entrar a la comuna, se leía como
-     "demasiado transparente" frente al centro. Ahora 0.22 → mínimo 0.78,
-     sigue distinguiéndose del centro sin perder presencia territorial. */
-  opacity: calc(1 - var(--loc-tier-diff, 0) * 0.22);
+  /* Ajuste fino sobre el 0.22 anterior — piso de opacidad sube de 0.78 a
+     ~0.86 (≈8% más notorio), manteniendo la misma curva/lógica de siempre. */
+  opacity: calc(1 - var(--loc-tier-diff, 0) * 0.14);
 }
 .locality-marker.sublocality.tier-secondary .loc-name{
-  font-size: calc(9.5px - var(--loc-tier-diff, 0) * 0.5px);
+  font-size: calc(9.5px - var(--loc-tier-diff, 0) * 0.33px);
 }
 .locality-marker.sublocality.tier-secondary svg{
-  width: calc(20.5px - var(--loc-tier-diff, 0) * 1.5px);
-  height: calc(20.5px - var(--loc-tier-diff, 0) * 1.5px);
+  width: calc(20.5px - var(--loc-tier-diff, 0) * 1px);
+  height: calc(20.5px - var(--loc-tier-diff, 0) * 1px);
 }
 /* Primary: apariencia base sin cambios (ya es el tratamiento normal de
    .sublocality) + un realce mínimo de tamaño/peso que crece junto con la
