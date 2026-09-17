@@ -3838,10 +3838,13 @@ function renderTerrainDepth(){
       })),
     },
   });
- map.addLayer({
+  map.addLayer({
     id:'comuna-glow-layer', type:'circle', source:'comuna-glow',
     paint:{
-      'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 28, 10, 65, 13, 120],
+      // Stop extra en zoom 8 (entre el 28 de zoom 7 y el 65 de zoom 10) —
+      // le da algo más de cuerpo al halo justo en el rango de spawn/vista
+      // general, sin tocar los extremos ya calibrados.
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 28, 8, 42, 10, 65, 13, 120],
       'circle-color': turquoise,
       'circle-opacity': 0.05,
       'circle-blur': 1,
@@ -3850,11 +3853,13 @@ function renderTerrainDepth(){
   });
   // Variación mínima (±2.5%) del radio — la comuna "respira" sin que se note
   // como una animación explícita.
-    setInterval(() => {
+        setInterval(() => {
     if (!map.getLayer('comuna-glow-layer')) return;
     const mult = 1 + Math.sin(performance.now() / 5200) * 0.025;
+    // Mismo stop extra en zoom 8 que la curva inicial — la respiración debe
+    // mantener la misma forma, solo escalada por `mult`.
     map.setPaintProperty('comuna-glow-layer', 'circle-radius', [
-      'interpolate', ['linear'], ['zoom'], 7, 28 * mult, 10, 65 * mult, 13, 120 * mult,
+      'interpolate', ['linear'], ['zoom'], 7, 28 * mult, 8, 42 * mult, 10, 65 * mult, 13, 120 * mult,
     ]);
   }, 260);
 
@@ -5692,11 +5697,21 @@ function applyMoodAtmosphere(expId){
   // opacidad (intensidad del halo) también respira con la hora — de noche las
   // comunas se sienten más "dormidas" — sin tocar la animación de respiración
   // del radio que ya existe (esa sigue funcionando exactamente igual, aparte).
-  if (map.getLayer('comuna-glow-layer')){
+   if (map.getLayer('comuna-glow-layer')){
     map.setPaintProperty('comuna-glow-layer', 'circle-color-transition', { duration:600 });
     map.setPaintProperty('comuna-glow-layer', 'circle-opacity-transition', { duration:600 });
     map.setPaintProperty('comuna-glow-layer', 'circle-color', blendHex(glowTimeBase, tint, active ? 0.35 : 0));
-    map.setPaintProperty('comuna-glow-layer', 'circle-opacity', period.glowOpacity);
+    // Boost SOLO en el rango de spawn/vista general (minZoom 7.6 →
+    // ZOOM_COMUNA_NEAR 8.8) — ahí el glow es casi lo único que le da presencia
+    // al territorio, así que se refuerza (~×1.8) sobre el valor de siempre
+    // (día/atardecer/noche, sin tocar esa lógica). Desde ZOOM_COMUNA_NEAR en
+    // adelante vuelve exactamente a period.glowOpacity, comportamiento
+    // idéntico al actual.
+    map.setPaintProperty('comuna-glow-layer', 'circle-opacity', [
+      'interpolate', ['linear'], ['zoom'],
+      7.6, period.glowOpacity * 1.8,
+      8.8, period.glowOpacity,
+    ]);
   }
 
   // Hillshade — el ángulo de iluminación se corre unos grados al anochecer,
