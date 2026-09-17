@@ -683,6 +683,12 @@ img{-webkit-user-drag:none; user-select:none;}
   border-radius:var(--radius-pill);
   padding:7px 13px 7px 10px; color:var(--turquoise-bright); font-size:11.5px; font-weight:700;
   display:none;
+  /* Acento de color por categoría (ver updateFilterAccent) — border-color y
+     background se sobreescriben inline vía JS solo cuando hay un filtro de
+     experiencia activo; sin filtro, quedan en los valores turquesa de
+     siempre definidos arriba. Transición para que el cambio de categoría se
+     sienta como un fundido, no un salto. */
+  transition:border-color .3s cubic-bezier(.4,0,.2,1), background .3s cubic-bezier(.4,0,.2,1);
 }
 .breadcrumb-pill.visible{display:flex;}
 .breadcrumb-pill:active{transform:scale(0.95);}
@@ -1014,7 +1020,10 @@ img{-webkit-user-drag:none; user-select:none;}
   background:rgba(16,36,56,0.74); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
   border:1px solid var(--border-glass); box-shadow:var(--shadow-float);
   border-radius:var(--radius-pill);
-  transition:opacity .24s ease, transform .24s cubic-bezier(.2,.9,.28,1.1);
+  /* Acento de color por categoría (ver updateFilterAccent) sobreescribe
+     border-color inline vía JS cuando hay filtro activo; transición para
+     que el cambio se sienta como fundido, coherente con breadcrumb-pill. */
+  transition:opacity .24s ease, transform .24s cubic-bezier(.2,.9,.28,1.1), border-color .3s cubic-bezier(.4,0,.2,1);
 }
 .comuna-panel-pill.hidden{opacity:0; transform:translateY(10px) scale(0.97); pointer-events:none;}
 .comuna-panel-pill:active{transform:scale(0.97);}
@@ -5528,6 +5537,34 @@ function syncZonePromptOffset(){
   document.getElementById('zonePrompt').classList.toggle('pushed-down', breadcrumbVisible);
 }
 
+// Acento de color por categoría activa — aplicado al breadcrumb y a la
+// píldora colapsada del panel de comuna, reutilizando EXACTAMENTE el mismo
+// color ya calculado para chips/zone-prompt (expById().color). Sin filtro
+// activo ('todos'), ambos elementos vuelven a sus estilos turquesa fijos del
+// CSS (se limpian los estilos inline con removeProperty). No crea ningún
+// sistema de color nuevo — solo extiende el ya existente a estos dos
+// elementos, que hoy quedan "desconectados" del filtro activo.
+function updateFilterAccent(){
+  const breadcrumb = document.getElementById('breadcrumbPill');
+  const panelPill = document.getElementById('comunaPanelPill');
+  const filtering = state.activeExperience !== 'todos';
+  const color = filtering
+    ? getComputedStyle(document.documentElement).getPropertyValue(expById(state.activeExperience).color.replace('var(','').replace(')','')).trim()
+    : null;
+
+  if (color){
+    breadcrumb.style.borderColor = `${color}59`;
+    breadcrumb.style.background = `${color}24`;
+    breadcrumb.style.color = color;
+    panelPill.style.borderColor = `${color}59`;
+  } else {
+    breadcrumb.style.removeProperty('border-color');
+    breadcrumb.style.removeProperty('background');
+    breadcrumb.style.removeProperty('color');
+    panelPill.style.removeProperty('border-color');
+  }
+}
+
 function updateExplorationBreadcrumb(){
   const breadcrumb = document.getElementById('breadcrumbPill');
   const label = document.getElementById('breadcrumbLabel');
@@ -5541,6 +5578,7 @@ function updateExplorationBreadcrumb(){
     breadcrumb.classList.remove('visible');
   }
   syncZonePromptOffset();
+  updateFilterAccent();
 }
 // Retrocede un nivel a la vez: si hay sub-localidad activa, vuelve a la comuna;
 // si no, vuelve de la comuna a la vista completa del Choapa.
@@ -7611,6 +7649,7 @@ function setActiveExperience(id){
   state.activeExperience = id;
   updateZonePrompt();
   applyMoodAtmosphere(id);
+  updateFilterAccent();
   document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.exp === id));
   searchInput.placeholder = SEARCH_PLACEHOLDERS[id] || SEARCH_PLACEHOLDERS.todos;
   renderPOIs();
@@ -8130,6 +8169,7 @@ function minimizeComunaPanel(){
   document.getElementById('comunaPanelPillTitle').textContent =
     document.getElementById('comunaPanelTitle').textContent;
   comunaPanelPill.classList.remove('hidden');
+  updateFilterAccent();
 }
 function expandComunaPanel(){
   comunaPanelPill.classList.add('hidden');
