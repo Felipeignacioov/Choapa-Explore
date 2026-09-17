@@ -3559,17 +3559,20 @@ function tintMapLayers(){
       // valores de grosor de siempre (los del casing = los del inner + 1.1,
       // ya sumados a mano en cada parada, en vez de sumarlos en tiempo de
       // evaluación) — la jerarquía por clase no cambia en nada.
+            // Escalado ~18% en todos los stops — mismas proporciones relativas
+      // entre trunk/primary > secondary > tertiary, solo más presencia
+      // general de las vías principales, tal como se pidió.
       const ROAD_WIDTH_BY_CLASS = ['interpolate', ['linear'], ['zoom'],
-        8,  ['match', ['get','class'], ['trunk','primary'], 1.7, 'secondary', 1.1, 0.6],
-        12, ['match', ['get','class'], ['trunk','primary'], 3.0, 'secondary', 1.9, 1.1],
-        16, ['match', ['get','class'], ['trunk','primary'], 6.0, 'secondary', 3.8, 2.3],
-        18, ['match', ['get','class'], ['trunk','primary'], 8.2, 'secondary', 5.2, 3.1],
+        8,  ['match', ['get','class'], ['trunk','primary'], 2.0, 'secondary', 1.3, 0.71],
+        12, ['match', ['get','class'], ['trunk','primary'], 3.5, 'secondary', 2.2, 1.3],
+        16, ['match', ['get','class'], ['trunk','primary'], 7.1, 'secondary', 4.5, 2.7],
+        18, ['match', ['get','class'], ['trunk','primary'], 9.7, 'secondary', 6.1, 3.7],
       ];
             const ROAD_WIDTH_BY_CLASS_CASING = ['interpolate', ['linear'], ['zoom'],
-        8,  ['match', ['get','class'], ['trunk','primary'], 2.8, 'secondary', 2.2, 1.7],
-        12, ['match', ['get','class'], ['trunk','primary'], 4.1, 'secondary', 3.0, 2.2],
-        16, ['match', ['get','class'], ['trunk','primary'], 7.1, 'secondary', 4.9, 3.4],
-        18, ['match', ['get','class'], ['trunk','primary'], 9.3, 'secondary', 6.3, 4.2],
+        8,  ['match', ['get','class'], ['trunk','primary'], 3.3, 'secondary', 2.6, 2.0],
+        12, ['match', ['get','class'], ['trunk','primary'], 4.8, 'secondary', 3.5, 2.6],
+        16, ['match', ['get','class'], ['trunk','primary'], 8.4, 'secondary', 5.8, 4.0],
+        18, ['match', ['get','class'], ['trunk','primary'], 11.0, 'secondary', 7.4, 5.0],
       ];
       // Jerarquía de carreteras en zoom de LOCALIDAD — mismo patrón que
       // ROAD_WIDTH_BY_CLASS (interpolate de zoom por fuera, match de clase
@@ -3656,8 +3659,12 @@ function tintMapLayers(){
         // menores eran casi invisibles (0.34/0.6px fijos) y el territorio se
         // sentía vacío. Pico suave en ese tramo; fuera de él (comuna lejana o
         // ya con POIs) el valor vuelve exactamente al de siempre.
-        map.setPaintProperty(l.id, 'line-opacity', ['interpolate', ['linear'], ['zoom'], 8.8, 0.34, 10.5, 0.42, 12.4, 0.34]);
-        map.setPaintProperty(l.id, 'line-width', ['interpolate', ['linear'], ['zoom'], 8.8, 0.6, 10.5, 0.95, 12.4, 1.0, 16, 1.5, 18, 1.9]);
+               // Techo del boost subido (0.42→0.5 opacidad, 0.95→1.3 ancho) —
+        // seguía perdiéndose frente a highway_major_subtle (0.62 fijo) justo
+        // en el zoom de entrada a comuna (ej. camino a Colliguay). Mismo
+        // rango de siempre (8.8→12.4), mismo retorno exacto fuera de él.
+        map.setPaintProperty(l.id, 'line-opacity', ['interpolate', ['linear'], ['zoom'], 8.8, 0.34, 10.5, 0.5, 12.4, 0.34]);
+        map.setPaintProperty(l.id, 'line-width', ['interpolate', ['linear'], ['zoom'], 8.8, 0.6, 10.5, 1.3, 12.4, 1.0, 16, 1.5, 18, 1.9]);
       }
              // Color compartido para "información de referencia" del mapa base —
       // nombres de calle y localidades sin curar (Cancha Brava, El Boldo...).
