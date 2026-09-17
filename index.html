@@ -590,6 +590,19 @@ img{-webkit-user-drag:none; user-select:none;}
   font-size: calc(9.5px + var(--loc-tier-diff, 0) * 0.6px);
   font-weight: 800;
 }
+/* El punto/halo del centro comunal no tenía boost propio — quedaba con el
+   mismo tamaño base que cualquier secundaria, y al subir recientemente el
+   piso de las secundarias, el centro dejó de notarse por encima. Mismo
+   mecanismo (--loc-tier-diff, máximo al entrar a la comuna, cero cerca de
+   ZOOM_DETAIL) aplicado ahora también al punto: un poco más grande y con
+   halo algo más presente, vuelve a su tamaño base de siempre al acercarse. */
+.locality-marker.sublocality.tier-primary svg{
+  width: calc(20.5px + var(--loc-tier-diff, 0) * 2.5px);
+  height: calc(20.5px + var(--loc-tier-diff, 0) * 2.5px);
+}
+.locality-marker.sublocality.tier-primary .loc-halo{
+  filter: opacity(calc(1 + var(--loc-tier-diff, 0) * 0.35));
+}
 
 /* El aro exterior (2do círculo del SVG) solo se ve cuando el zoom está lo
    suficientemente cerca dentro del nivel de localidad — desaparece al alejar. */
