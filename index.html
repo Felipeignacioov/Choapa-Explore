@@ -524,6 +524,13 @@ img{-webkit-user-drag:none; user-select:none;}
      propiedad 'opacity' a la vez), así el pulso sigue intacto, solo un poco
      más o menos presente según el contenido real de esa comuna. */
   filter: opacity(var(--comuna-halo-mult, 1));
+  /* Escala extra SOLO en el mismo rango de spawn ya reforzado en
+     comuna-glow-layer (updateComunaHaloSpawnScale, 7.6→ZOOM_COMUNA_NEAR) —
+     el halo de fondo ganó presencia con ese boost y este anillo propio del
+     pin quedaba chico en comparación. transform, no filter/opacity, así no
+     compite con la línea de arriba ni con la animación de r/opacidad. */
+  transform: scale(var(--comuna-halo-spawn-scale, 1));
+  transform-origin: center;
 }
 @keyframes comuna-halo-pulse{
   0%,100%{ opacity:0.05; r:10.5; }
@@ -4056,12 +4063,24 @@ function renderTerrainDepth(){
     });
     // Brillo ambiental muy lento (ciclo de ~7s) sobre el halo del río — se suma,
     // no reemplaza, al comportamiento de moveend/movestart de arriba.
-            setInterval(() => {
+                       setInterval(() => {
       if (!map.getLayer('rio-choapa-halo')) return;
       const wobble = Math.sin(performance.now() / 3500) * 0.015;
       map.setPaintProperty('rio-choapa-halo', 'line-opacity', Math.max(0, riverHaloBase + wobble));
     }, 220);
   }
+
+  // Respiración ambiental de la vía principal en vista de comuna lejana
+  // (highway_major_subtle, la única "vena" visible conectando las 4 comunas
+  // a ese zoom) — mismo patrón que ya usa el río (setInterval + Math.sin,
+  // variación mínima, nunca percibida como animación explícita). Base 0.62,
+  // la misma opacidad fija que ya tenía en tintMapLayers(); esto solo le
+  // suma un wobble de ±0.02 encima.
+  setInterval(() => {
+    if (!map.getLayer('highway_major_subtle')) return;
+    const wobble = Math.sin(performance.now() / 4100) * 0.02;
+    map.setPaintProperty('highway_major_subtle', 'line-opacity', 0.62 + wobble);
+  }, 240);
 }
 
 // Difumina el mapa hacia el azul-noche de marca a medida que el usuario se acerca
@@ -5061,6 +5080,16 @@ function updateLocalityTierDiff(){
   document.documentElement.style.setProperty('--loc-tier-diff', factor.toFixed(3));
 }
 
+// Escala extra del halo del PIN de comuna (Nivel 1) — únicamente en el mismo
+// rango de spawn/vista general ya reforzado en comuna-glow-layer (7.6→
+// ZOOM_COMUNA_NEAR, ver applyMoodAtmosphere). Vuelve exactamente a 1 desde
+// ZOOM_COMUNA_NEAR en adelante, sin afectar el estado "near" ya existente
+// (transform:scale en .locality-marker.near .loc-visual, sistema distinto).
+function updateComunaHaloSpawnScale(){
+  const z = map.getZoom();
+  const factor = Math.min(Math.max((ZOOM_COMUNA_NEAR - z) / (ZOOM_COMUNA_NEAR - 7.6), 0), 1);
+  document.documentElement.style.setProperty('--comuna-halo-spawn-scale', (1 + factor * 0.3).toFixed(3));
+}
 function updateExplorationLevel(){
   const tier = currentZoomTier();
   const showCounts = map.getZoom() >= ZOOM_SHOW_COUNTS;
@@ -5073,9 +5102,10 @@ function updateExplorationLevel(){
     document.querySelectorAll('.locality-marker.sublocality').forEach(el => {
     el.classList.toggle('ring-near', ringNear);
   });
-  const showPoiNames = map.getZoom() >= ZOOM_POI_NAME;
+    const showPoiNames = map.getZoom() >= ZOOM_POI_NAME;
   document.querySelectorAll('.poi-marker').forEach(el => el.classList.toggle('show-name', showPoiNames));
   updateLocalityTierDiff();
+  updateComunaHaloSpawnScale();
 
   if (tier === lastTier) return; // sin cambio de nivel, no re-renderizamos
   lastTier = tier;
