@@ -3743,7 +3743,7 @@ function tintMapLayers(){
         // ahí) quedaban completamente fuera de este bloque. "locality" se
         // retira del regex: no existe ninguna capa con esa clase en este
         // estilo, era una condición sin efecto.
-                    if (l.type === 'symbol' && (l.id === 'place_other' || /^place_(village|suburb)/.test(l.id))){
+                            if (l.type === 'symbol' && (l.id === 'place_other' || /^place_(village|suburb)/.test(l.id))){
         // Antes se quedaba plano en 0.2 desde zoom 13 en adelante — subido a
         // un máximo de 0.48, con un stop intermedio en zoom 16 para que siga
         // ganando presencia al acercarse, en vez de estancarse. Sigue por
@@ -3771,6 +3771,14 @@ function tintMapLayers(){
         map.setPaintProperty(l.id, 'text-halo-width', 0.9);
         map.setLayoutProperty(l.id, 'text-size', 9.2);
         map.setLayoutProperty(l.id, 'text-font', MAP_REFERENCE_TEXT_FONT);
+        // Estas etiquetas llegan crudas de OSM en MAYÚSCULA SOSTENIDA (ej.
+        // "VILLA EL FARO", "CANCHA BRAVA") — nunca se eliminan, siguen siendo
+        // referencia geográfica válida, pero ese formato competía
+        // tipográficamente con las pills curadas (Title Case cuidado). Una
+        // sola propiedad de layout NATIVA de MapLibre (no CSS) que solo
+        // cambia cómo se renderiza el glifo, sin tocar el texto real del
+        // dato ni su opacidad/color/tamaño ya definidos arriba.
+        map.setLayoutProperty(l.id, 'text-transform', 'lowercase');
       }
       // Íconos/etiquetas de POI genéricos de OpenStreetMap (comercios, servicios
       // sin curar) — el mapa debe sentirse como el escenario de las experiencias
