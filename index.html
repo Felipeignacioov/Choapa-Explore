@@ -4445,41 +4445,69 @@ function registerPOIBackgroundImages(){
 // 9-slice (content + stretchX/stretchY) para que MapLibre pueda estirarla
 // horizontalmente según el largo del nombre sin deformar las puntas
 // redondeadas — eso es lo que habilita usarla con icon-text-fit.
-// Reducidas ~0.7x sobre el tamaño anterior (64/30/15) — la placa se sentía
-// desproporcionada frente al ícono de categoría en dispositivo real. RADIUS se
-// mantiene como H/2 exacto para conservar la forma de píldora perfecta.
-const POI_LABEL_BG_W = 46, POI_LABEL_BG_H = 21, POI_LABEL_BG_RADIUS = 10.5;
+// Píldora ~20% más grande que la versión anterior (46/21/10.5) — más
+// prolija, con más aire para el texto. SHADOW_MARGIN es sangrado puro
+// alrededor de la forma (no forma parte de la píldora visible): espacio para
+// que la sombra se difumine hacia afuera sin quedar recortada por el borde
+// del canvas. Se excluye de content/stretchX/stretchY (ver más abajo) para
+// que el 9-slice nunca lo estire — queda fijo sin importar el largo del
+// nombre.
+const POI_LABEL_BG_PILL_W = 55, POI_LABEL_BG_PILL_H = 25, POI_LABEL_BG_RADIUS = 12.5;
+const POI_LABEL_BG_SHADOW_MARGIN = 7;
+const POI_LABEL_BG_W = POI_LABEL_BG_PILL_W + POI_LABEL_BG_SHADOW_MARGIN * 2;
+const POI_LABEL_BG_H = POI_LABEL_BG_PILL_H + POI_LABEL_BG_SHADOW_MARGIN * 2;
 function buildPOILabelBackgroundCanvas(){
   const canvas = document.createElement('canvas');
   canvas.width = POI_LABEL_BG_W; canvas.height = POI_LABEL_BG_H;
   const ctx = canvas.getContext('2d');
+  const m = POI_LABEL_BG_SHADOW_MARGIN;
   const r = POI_LABEL_BG_RADIUS;
-  ctx.beginPath();
-  ctx.moveTo(r, 0);
-  ctx.arcTo(POI_LABEL_BG_W, 0, POI_LABEL_BG_W, POI_LABEL_BG_H, r);
-  ctx.arcTo(POI_LABEL_BG_W, POI_LABEL_BG_H, 0, POI_LABEL_BG_H, r);
-  ctx.arcTo(0, POI_LABEL_BG_H, 0, 0, r);
-  ctx.arcTo(0, 0, POI_LABEL_BG_W, 0, r);
-  ctx.closePath();
-  ctx.fillStyle = 'rgba(9,20,32,0.88)';
+  const w = POI_LABEL_BG_PILL_W, h = POI_LABEL_BG_PILL_H;
+
+  const pillPath = () => {
+    ctx.beginPath();
+    ctx.moveTo(m + r, m);
+    ctx.arcTo(m + w, m, m + w, m + h, r);
+    ctx.arcTo(m + w, m + h, m, m + h, r);
+    ctx.arcTo(m, m + h, m, m, r);
+    ctx.arcTo(m, m, m + w, m, r);
+    ctx.closePath();
+  };
+
+  // Sombra propia de la placa — mismo lenguaje que ya usa .loc-label en el
+  // resto de la UI (box-shadow con blur + offset vertical), replicado en
+  // canvas vía shadowBlur/shadowOffsetY, ya que 'box-shadow' no existe en
+  // Canvas 2D. Se dibuja primero, debajo de la píldora.
+  ctx.save();
+  ctx.shadowColor = 'rgba(2,8,15,0.55)';
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 2;
+  pillPath();
+  ctx.fillStyle = 'rgba(9,20,32,0.92)';
   ctx.fill();
+  ctx.restore();
+
+  // Borde — sin sombra (se dibuja aparte, después de restaurar el contexto).
+  pillPath();
   ctx.lineWidth = 1;
-  ctx.strokeStyle = 'rgba(180,200,220,0.16)';
+  ctx.strokeStyle = 'rgba(180,200,220,0.18)';
   ctx.stroke();
+
   return ctx.getImageData(0, 0, POI_LABEL_BG_W, POI_LABEL_BG_H);
 }
 function registerPOILabelBackgroundImage(){
   if (map.hasImage('poi-label-bg')) return;
+  const m = POI_LABEL_BG_SHADOW_MARGIN;
    map.addImage('poi-label-bg', buildPOILabelBackgroundCanvas(), {
-    // Margen vertical del área de contenido escalado igual que el resto (6 → 4,
-    // mismo ratio ~0.7) — así el texto sigue con el mismo respiro relativo
-    // dentro de la placa, ahora más chica.
-    content:[POI_LABEL_BG_RADIUS, 4, POI_LABEL_BG_W - POI_LABEL_BG_RADIUS, POI_LABEL_BG_H - 4],
-    stretchX:[[POI_LABEL_BG_RADIUS, POI_LABEL_BG_W - POI_LABEL_BG_RADIUS]],
-    stretchY:[[0, POI_LABEL_BG_H]],
+    // content/stretchX/stretchY quedan acotados a la zona de la píldora
+    // (m → m+ancho/alto) — el margen de sombra (m px a cada lado) nunca se
+    // estira ni se usa como área de texto, así queda fijo sin importar el
+    // largo del nombre del POI.
+    content:[m + POI_LABEL_BG_RADIUS, m + 6, m + POI_LABEL_BG_PILL_W - POI_LABEL_BG_RADIUS, m + POI_LABEL_BG_PILL_H - 6],
+    stretchX:[[m + POI_LABEL_BG_RADIUS, m + POI_LABEL_BG_PILL_W - POI_LABEL_BG_RADIUS]],
+    stretchY:[[m, m + POI_LABEL_BG_PILL_H]],
   });
 }
-
 // Variante en negrita del stack de fuente que ya usa el resto del mapa
 // (getStyleTextFont() toma el mismo stack verificado que usan las etiquetas de
 // calles/lugares del estilo base) — swap "Regular"→"Bold" es la convención
@@ -4619,7 +4647,7 @@ function ensurePOINativeLayers(){
       // Padding y tamaño de texto reducidos en conjunto (~30-35%) junto con la
       // placa — la etiqueta debe leerse subordinada al ícono de categoría, no
       // competir visualmente con él.
-      'icon-text-fit-padding':[2, 6, 2, 6],
+            'icon-text-fit-padding':[3, 8, 3, 8],
       'icon-anchor':'bottom',
       'icon-allow-overlap':false,
             'text-field':['get','name'],
@@ -4632,7 +4660,7 @@ function ensurePOINativeLayers(){
       // entre etiquetas. getStyleTextFont() es el mismo stack ya verificado
       // que usan sin problemas highway_name y place_city/town.
       'text-font': getStyleTextFont(),
-      'text-size':7.5,
+           'text-size':8.3,
       // Acercado proporcionalmente a la placa más chica — antes -1.35 dejaba
       // la etiqueta "flotando" lejos del ícono una vez reducida.
                            // Ajuste fino final (~4% más negativo sobre -1.85). Solo posición,
