@@ -4386,10 +4386,11 @@ function buildPOIBackgroundCanvas(colorHex, sizePx = 96){
   // efecto "caramelo" del tono puro al 100%.
   const richColor = blendHex(colorHex, '#07131F', 0.22);
 
-  const grad = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.35, r * 0.1, cx, cy, r);
-  // Highlight muy atenuado (antes 0.38 de opacidad) — un matiz de luz apenas
-  // perceptible, no un brillo evidente tipo "burbuja de plástico".
-  grad.addColorStop(0, 'rgba(255,255,255,0.12)');
+    const grad = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.35, r * 0.1, cx, cy, r);
+  // Highlight un poco más presente que antes (0.12→0.18) — sigue siendo un
+  // matiz sutil, no una "burbuja de plástico", pero ahora se nota el volumen
+  // que el propio gradiente ya calculaba.
+  grad.addColorStop(0, 'rgba(255,255,255,0.18)');
   grad.addColorStop(0.35, richColor);
   grad.addColorStop(1, poiColorToRgba(richColor, 0.92));
 
@@ -4398,14 +4399,14 @@ function buildPOIBackgroundCanvas(colorHex, sizePx = 96){
   ctx.fillStyle = grad;
   ctx.fill();
 
-  // Borde casi invisible — solo define el contorno del círculo, ya no compite
-  // en brillo con el color principal (antes: color puro al 90% de opacidad).
-  ctx.lineWidth = sizePx * 0.03;
-  ctx.strokeStyle = blendHex(colorHex, '#07131F', 0.4);
-  ctx.globalAlpha = 0.45;
+  // Borde reforzado (antes casi invisible: 0.45 de opacidad) — ahora define
+  // con claridad el contorno del círculo sin llegar a competir en brillo con
+  // el color principal, dándole más presencia/prolijidad al conjunto.
+  ctx.lineWidth = sizePx * 0.035;
+  ctx.strokeStyle = blendHex(colorHex, '#07131F', 0.25);
+  ctx.globalAlpha = 0.72;
   ctx.stroke();
   ctx.globalAlpha = 1;
-
   // Disco interior oscuro — sin cambios, sigue dando la sensación de
   // "hundimiento" en el centro (82% del radio principal).
   ctx.globalAlpha = 0.55;
@@ -4572,14 +4573,14 @@ function ensurePOINativeLayers(){
       'circle-translate-anchor':'viewport',
     },
   });
-   map.addLayer({
+     map.addLayer({
     id:'poi-bg-layer', type:'symbol', source:'poi-source',
     minzoom: ZOOM_DETAIL,
     layout:{
       'icon-image':['get','bgIcon'],
-      // -20% respecto al ajuste anterior (0.30 → 0.24): "un poco más chico,
-      // pero no tanto", según tu feedback.
-      'icon-size':0.24,
+      // Subido ~15% (0.24 → 0.276) — círculo con más presencia, mismo
+      // gradiente/proporciones de siempre, solo más grande en pantalla.
+      'icon-size':0.276,
       'icon-allow-overlap':true,
       'icon-ignore-placement':true,
     },
@@ -4590,15 +4591,14 @@ function ensurePOINativeLayers(){
   // Ícono + nombre en la misma capa symbol. text-opacity con 'step' reemplaza
   // la clase .show-name; text-allow-overlap:false + text-optional:true
   // reemplaza el sistema manual de colisión (resolveLabelCollisions) para POIs.
-    map.addLayer({
+        map.addLayer({
     id:'poi-icon-layer', type:'symbol', source:'poi-source',
     minzoom: ZOOM_DETAIL,
     layout:{
       'icon-image':['get','icon'],
-      // -20% respecto al valor anterior (0.32 → 0.26), mismo factor que el
-      // fondo (ver poi-bg-layer) para no alterar la proporción glifo/círculo
-      // ya corregida.
-      'icon-size':0.26,
+      // Mismo factor +15% que poi-bg-layer, para mantener intacta la
+      // proporción glifo/círculo ya corregida antes.
+      'icon-size':0.299,
       'icon-allow-overlap':true,
       'icon-ignore-placement':true,
     },
@@ -4666,7 +4666,7 @@ function ensurePOINativeLayers(){
 // queda tapado por su propio ícono más grande de poi-selected-bg-layer (Fase 3).
 // Réplica del ciclo original .poi-breathe (4.4s, radio +3.5% y vuelta, nunca
 // por debajo del radio base) — no una respiración simétrica hacia ambos lados.
-const POI_BREATHE_BASE_ICON_SIZE = 0.24;
+const POI_BREATHE_BASE_ICON_SIZE = 0.276;
 const POI_HALO_BASE_RADIUS = 7.2;
 function startPOIBreathingAnimation(){
   setInterval(() => {
