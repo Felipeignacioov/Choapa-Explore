@@ -3778,7 +3778,14 @@ function tintMapLayers(){
         // sola propiedad de layout NATIVA de MapLibre (no CSS) que solo
         // cambia cómo se renderiza el glifo, sin tocar el texto real del
         // dato ni su opacidad/color/tamaño ya definidos arriba.
-        map.setLayoutProperty(l.id, 'text-transform', 'lowercase');
+               // MapLibre no tiene un equivalente nativo a 'capitalize' de CSS
+        // (solo 'none'/'uppercase'/'lowercase') — 'lowercase' se probó y dio
+        // "el tambo"/"el queñe norte" en vez de "El Tambo"/"El Queñe Norte".
+        // Se revierte a 'none' (el texto crudo de OSM, tal cual venga:
+        // "EL TAMBO" en mayúscula sostenida) — la meseta de opacidad ya
+        // aplicada arriba sigue siendo lo que baja su presencia frente a las
+        // pills curadas, solo se retira este intento de transformación.
+        map.setLayoutProperty(l.id, 'text-transform', 'none');
       }
       // Íconos/etiquetas de POI genéricos de OpenStreetMap (comercios, servicios
       // sin curar) — el mapa debe sentirse como el escenario de las experiencias
