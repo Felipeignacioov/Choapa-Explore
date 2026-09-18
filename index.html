@@ -4663,9 +4663,11 @@ function ensurePOINativeLayers(){
            'text-size':8.3,
       // Acercado proporcionalmente a la placa más chica — antes -1.35 dejaba
       // la etiqueta "flotando" lejos del ícono una vez reducida.
-                           // Ajuste fino final (~4% más negativo sobre -1.85). Solo posición,
-      // mismo tamaño de siempre.
-      'text-offset':[0, -1.92],
+                                                     // Ajuste proporcional al crecimiento reciente del círculo (+15%,
+      // icon-size 0.24→0.276) y de la placa (+20% alto, 21→25px) — con el
+      // valor anterior (-1.92) la etiqueta quedaba pegada al círculo más
+      // grande. Solo posición, ningún tamaño se toca acá.
+      'text-offset':[0, -2.15],
             'text-anchor':'bottom',
       'text-allow-overlap':false,
       // Antes ambos en true: MapLibre podía mostrar la placa de fondo
