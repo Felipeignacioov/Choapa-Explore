@@ -37,7 +37,8 @@
   --exp-familia:#6FC1E8;
   --exp-adrenalina:#F0754D;
   --exp-gastronomia:#C99A52;
-  --exp-noche:#8B7CF0;
+    --exp-noche:#8B7CF0;
+  --exp-cultura:#A8785A;
 
    /* Nivel 2 del mapa — localidades dentro de una comuna. Deliberadamente distinto
      del turquesa (comunas) y del violeta de "Cielos" para no generar ambigüedad. */
@@ -2741,7 +2742,8 @@ const ICON_PATHS = {
   familia:      `<circle cx="9" cy="7.2" r="2.6"/><circle cx="16.6" cy="8.4" r="2"/><path d="M3.3 20.3c.9-3.7 3-5.8 5.7-5.8s4.9 2.1 5.7 5.8"/><path d="M15.3 20.3c.4-2.4 1.7-4.1 3.6-4.5"/>`,
   adrenalina:   `<path d="M13.2 2 4.3 14h6l-1.1 8L18.7 10h-6l.5-8Z"/>`,
   gastronomia:  `<path d="M8.2 2.5v7.2a1.9 1.9 0 0 0 3.8 0V2.5M10.1 2.5v19"/>`,
-   noche:        `<path d="M20.8 14.7A8.7 8.7 0 1 1 9.5 3.4a7.2 7.2 0 0 0 11.3 11.3Z"/><path d="m18.2 4 .7 1.6L20.5 6.3l-1.6.7-.7 1.6-.7-1.6-1.6-.7 1.6-.7Z" fill="currentColor" stroke="none"/>`,
+     noche:        `<path d="M20.8 14.7A8.7 8.7 0 1 1 9.5 3.4a7.2 7.2 0 0 0 11.3 11.3Z"/><path d="m18.2 4 .7 1.6L20.5 6.3l-1.6.7-.7 1.6-.7-1.6-1.6-.7 1.6-.7Z" fill="currentColor" stroke="none"/>`,
+  cultura:      `<path d="M4 20.5h16M5.5 20.5V10.5M9.2 20.5V10.5M12.8 20.5V10.5M16.5 20.5V10.5M3.5 10.5 12 4l8.5 6.5"/>`,
 
   // Transporte — mismo criterio de composición que el resto (2-3 trazos,
   // simétricos dentro de la caja 24x24), en vez de las siluetas sueltas que
@@ -2800,7 +2802,8 @@ const EXPERIENCE_TAGS = [
   { id:'familia',      label:'Familia',      icon:icon('familia',14),     iconKey:'familia',     color:'var(--exp-familia)' },
   { id:'adrenalina',   label:'Adrenalina',   icon:icon('adrenalina',14),  iconKey:'adrenalina',  color:'var(--exp-adrenalina)' },
   { id:'gastronomia',  label:'Gastronomía',  icon:icon('gastronomia',14), iconKey:'gastronomia', color:'var(--exp-gastronomia)' },
-  { id:'noche',        label:'Noche',        icon:icon('noche',14),       iconKey:'noche',       color:'var(--exp-noche)' },
+    { id:'noche',        label:'Noche',        icon:icon('noche',14),       iconKey:'noche',       color:'var(--exp-noche)' },
+  { id:'cultura',      label:'Cultura',      icon:icon('cultura',14),     iconKey:'cultura',     color:'var(--exp-cultura)' },
 ];
 const expById = id => EXPERIENCE_TAGS.find(e => e.id === id);
 
@@ -2813,7 +2816,8 @@ const EXPERIENCE_PANEL_COPY = {
   familia:     { title:'Planes en familia',             tagline:'Momentos para compartir en familia.' },
   adrenalina:  { title:'Adrenalina en el Choapa',       tagline:'Sube el ritmo, vive la intensidad.' },
   gastronomia: { title:'Gastronomía del Choapa',        tagline:'Sabores que valen el viaje.' },
-  noche:       { title:'Noches del Choapa',             tagline:'Cielos despejados, planes nocturnos.' },
+    noche:       { title:'Noches del Choapa',             tagline:'Cielos despejados, planes nocturnos.' },
+  cultura:     { title:'Cultura del Choapa',             tagline:'Historia e identidad del valle.' },
 };
 
 /* ---------- 2. MODELO Place ---------- */
@@ -5660,6 +5664,7 @@ const ZONE_PROMPT_PLURAL = {
   familia:     'Planes familiares',
   tranquilo:   'Planes tranquilos',
   noche:       'Noches',
+  cultura:     'Cultura',
 };
 
 function updateZonePromptContent(){
@@ -5890,9 +5895,9 @@ function applyMoodAtmosphere(expId){
   // textura ya existente) y se sube apenas la saturación — nunca se toca forma,
   // bordes ni la estructura del degradado. Rotaciones pequeñas (6°-30°) para
   // que la influencia sea casi imperceptible, no un cambio de color evidente.
-  const EXP_HUE_ROTATE = {
+    const EXP_HUE_ROTATE = {
     todos:0, cita:18, aventura:-12, naturaleza:-22, tranquilo:-8,
-    familia:6, adrenalina:-16, gastronomia:-20, noche:30,
+    familia:6, adrenalina:-16, gastronomia:-20, noche:30, cultura:8,
   };
   if (map.getLayer('territory-fade-layer')){
     map.setPaintProperty('territory-fade-layer', 'raster-hue-rotate-transition', { duration:300 });
@@ -7745,9 +7750,9 @@ let activeTimeFilter = 'ahora';
 // editorial, así los 5 bloques narran el mismo momento de forma coherente.
 const TODAY_CURATION_ORDERS = {
   ahora: ['naturaleza','tranquilo','gastronomia','aventura'],
-  tarde: ['tranquilo','aventura','familia','gastronomia','cita'],
+  tarde: ['tranquilo','aventura','familia','cultura','gastronomia','cita'],
   noche: ['noche','gastronomia','tranquilo','cita'],
-  finde: ['aventura','naturaleza','familia','adrenalina'],
+  finde: ['aventura','naturaleza','familia','cultura','adrenalina'],
 };
 const HERO_SUBTITLES = {
   ahora: 'Descubre el mejor panorama para este momento.',
@@ -8521,7 +8526,8 @@ const EXPERIENCE_SYNONYMS = {
   familia:     'familia niños niñas kids plan familiar',
   adrenalina:  'adrenalina extremo intenso emocion emoción',
   gastronomia: 'gastronomia gastronomía comer restaurantes cocina almuerzo cena',
-  noche:       'noche estrellas cielo cielos astronomia astronomía observatorio despejado',
+    noche:       'noche estrellas cielo cielos astronomia astronomía observatorio despejado',
+  cultura:     'cultura historia historico histórico patrimonio arquitectura iglesia iglesias capilla capillas monumento monumentos identidad local tradicion tradición tradiciones sitio historico estacion antigua',
 };
 
 // Placeholder del buscador según la experiencia activa — misma pregunta corta
@@ -8536,7 +8542,8 @@ const SEARCH_PLACEHOLDERS = {
   familia:     '¿Dónde quieres disfrutar en familia?',
   adrenalina:  '¿Dónde buscas adrenalina?',
   gastronomia: '¿Dónde quieres comer?',
-  noche:       '¿Dónde quieres salir esta noche?',
+    noche:       '¿Dónde quieres salir esta noche?',
+  cultura:     '¿Qué sitio histórico quieres conocer?',
 };
 
 // Palabras de relleno que se ignoran al interpretar frases de intención
