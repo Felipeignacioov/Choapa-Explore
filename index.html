@@ -4555,6 +4555,16 @@ function ensureCerroChicoPhotoLayer(){
     return;
   }
 
+    // ---- Prueba independiente temporal — compara Image() nativo vs map.loadImage() ----
+  // Solo diagnóstico: no se agrega a MapLibre, no se toca ningún layer/source.
+  console.log('[PHOTO TEST] iniciando Image()');
+  console.log('[PHOTO TEST] URL', place.image);
+  const testImg = new Image();
+  testImg.crossOrigin = 'anonymous';
+  testImg.onload = () => console.log('[PHOTO TEST] onload', testImg.naturalWidth, 'x', testImg.naturalHeight);
+  testImg.onerror = (e) => console.log('[PHOTO TEST] onerror', e);
+  testImg.src = place.image;
+
   // ---- Diagnóstico temporal alrededor de map.loadImage() — nada más se toca ----
   console.log('[PHOTO SUPABASE] loadImage URL exacta:', place.image);
   console.log('[PHOTO SUPABASE] loadImage: iniciando llamada a map.loadImage()...');
