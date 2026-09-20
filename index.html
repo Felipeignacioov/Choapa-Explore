@@ -4448,7 +4448,15 @@ function registerPOIBackgroundImages(){
    fuente/capa 100% propia y separada (mismo patrón ya usado por
    poi-selected-source/nav-dest-marker), superpuesta sobre poi-icon-layer.
    Sin carga por viewport, sin liberación de memoria, sin generalizar a otros
-   POIs — deliberadamente fuera de alcance de este prototipo. */
+   POIs — deliberadamente fuera de alcance de este prototipo.
+
+   SUPABASE ES LA FUENTE DE VERDAD: la identificación de Cerro Chico ya NO
+   depende de un id local hardcodeado ni de coincidencia sensible a
+   mayúsculas contra el name — se busca por nombre NORMALIZADO (minúsculas,
+   sin acentos, sin espacios), y a partir de ahí SIEMPRE se usa place.id, el
+   identificador real del registro encontrado (el UUID de Supabase una vez
+   sincronizado, o el slug local 'cerro-chico' mientras solo existen los
+   datos de ejemplo). No se inventa ni se hardcodea ningún UUID. */
 
 // Mismo canvas base (96px) e icon-size que buildPOIBackgroundCanvas/poi-bg-layer
 // — al compartir tamaño y centro, la foto queda perfectamente alineada sobre
@@ -4466,14 +4474,9 @@ function buildCircularPhotoCanvas(img, sizePx = 96){
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.clip();
-  // Recorte tipo "cover" — la foto llena el círculo sin deformarse, recortando
-  // el sobrante en vez de estirar la imagen.
   const scale = Math.max((r * 2) / img.width, (r * 2) / img.height);
   const drawW = img.width * scale, drawH = img.height * scale;
   ctx.drawImage(img, cx - drawW / 2, cy - drawH / 2, drawW, drawH);
-  // Oscurecimiento sutil inferior — mismo lenguaje discreto que el resto del
-  // sistema de POIs (nunca brillo), ayuda a integrar la foto con el mapa
-  // oscuro en vez de que se vea como un recorte pegado encima.
   const shade = ctx.createLinearGradient(0, cy - r, 0, cy + r);
   shade.addColorStop(0, 'rgba(0,0,0,0)');
   shade.addColorStop(1, 'rgba(2,8,15,0.25)');
@@ -4481,7 +4484,6 @@ function buildCircularPhotoCanvas(img, sizePx = 96){
   ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
   ctx.restore();
 
-  // Borde fino oscuro — separa limpiamente la foto del aro de categoría.
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.lineWidth = sizePx * 0.02;
@@ -4491,35 +4493,78 @@ function buildCircularPhotoCanvas(img, sizePx = 96){
   return ctx.getImageData(0, 0, sizePx, sizePx);
 }
 
-// Crea la capa una sola vez (fuente vacía por defecto) y, en paralelo, intenta
-// cargar+recortar la foto real de Cerro Chico. Si algo falla en cualquier
-// punto (sin imagen, red, CORS, error de canvas), la función simplemente NO
-// popula la fuente — poi-icon-layer (el glifo de categoría, intacto debajo)
-// sigue visible con total normalidad: ese es el fallback, sin código extra.
-function ensureCerroChicoPhotoLayer(){
-  if (map.getSource('poi-photo-source')) return;
-  map.addSource('poi-photo-source', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
-  map.addLayer({
-    id:'poi-photo-layer', type:'symbol', source:'poi-photo-source',
-    minzoom: ZOOM_DETAIL, // mismo umbral que el resto de POIs, sin lógica de zoom nueva
-    layout:{ 'icon-image':'poi-photo-cerro-chico', 'icon-size':0.276, 'icon-allow-overlap':true, 'icon-ignore-placement':true },
-    paint:{ 'icon-opacity': POI_ICON_FADE_OPACITY }, // reutiliza el mismo fade de entrada que ya usan los demás POIs
-  }, 'poi-label-layer'); // se inserta justo debajo del nombre — encima del glifo (lo cubre), debajo de la etiqueta
+// Normaliza un nombre para comparar sin sensibilidad a mayúsculas, acentos ni
+// espacios — mismo criterio ya usado para el tier de localidades
+// (normalizeForTierMatch en transformSupabaseData). No es una segunda fuente
+// de verdad: solo ayuda a ENCONTRAR el registro real dentro de DEMO_PLACES,
+// que sigue siendo la única fuente (local o, tras sincronizar, Supabase).
+function normalizeExperienceName(s){
+  return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\s-]/g, '');
+}
+function findCerroChicoPlace(){
+  const target = normalizeExperienceName('Cerro Chico');
+  // El id local 'cerro-chico' queda solo como respaldo secundario, útil
+  // mientras siguen activos los datos de ejemplo (antes de que Supabase
+  // sincronice) — el mecanismo principal es el nombre normalizado.
+  return DEMO_PLACES.find(p => normalizeExperienceName(p.name) === target || p.id === 'cerro-chico');
+}
 
-  const place = DEMO_PLACES.find(p => p.id === 'cerro-chico' || p.name === 'Cerro Chico');
-  if (!place || !place.image) return; // sin lugar o sin foto → queda el glifo de siempre, sin más acción
+// Idempotente — puede llamarse muchas veces (cada vez que Supabase re-
+// sincroniza, y cada vez que se renderizan POIs nativos) sin duplicar
+// layers/imágenes ni generar errores. Se protege contra el único riesgo real
+// de ciclo de vida: poi-label-layer se crea de forma PEREZOSA (recién cuando
+// el usuario llega al zoom de detalle de una localidad) — si todavía no
+// existe, esta función no hace nada todavía y se reintentará sola la
+// próxima vez que corresponda (ensurePOINativeLayers al entrar a esa
+// localidad, o el próximo applySupabaseData).
+function ensureCerroChicoPhotoLayer(){
+  if (!map.getLayer('poi-label-layer')) return;
+
+  if (!map.getSource('poi-photo-source')){
+    map.addSource('poi-photo-source', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
+    map.addLayer({
+      id:'poi-photo-layer', type:'symbol', source:'poi-photo-source',
+      minzoom: ZOOM_DETAIL,
+      layout:{ 'icon-image':'poi-photo-cerro-chico', 'icon-size':0.276, 'icon-allow-overlap':true, 'icon-ignore-placement':true },
+      paint:{ 'icon-opacity': POI_ICON_FADE_OPACITY },
+    }, 'poi-label-layer');
+  }
+  console.log('[PHOTO SUPABASE] photo source:', !!map.getSource('poi-photo-source'));
+  console.log('[PHOTO SUPABASE] photo layer:', !!map.getLayer('poi-photo-layer'));
+
+  const place = findCerroChicoPlace();
+  console.log('[PHOTO SUPABASE] experience:', place);
+  console.log('[PHOTO SUPABASE] experience id:', place ? place.id : null);
+  console.log('[PHOTO SUPABASE] image:', place ? place.image : null);
+
+  if (!place || !place.image){
+    console.log('[PHOTO SUPABASE] map image: sin lugar o sin foto — se conserva el ícono de categoría');
+    return;
+  }
+
+  const applyFeature = () => {
+    map.getSource('poi-photo-source').setData({
+      type:'FeatureCollection',
+      features:[{ type:'Feature', properties:{}, geometry:{ type:'Point', coordinates:[place.lng, place.lat] } }],
+    });
+  };
+
+  if (map.hasImage('poi-photo-cerro-chico')){
+    console.log('[PHOTO SUPABASE] map image: ya registrada, se reutiliza');
+    applyFeature();
+    return;
+  }
 
   map.loadImage(place.image, (err, img) => {
     if (err || !img){
       console.warn('[Prototipo Cerro Chico] No se pudo cargar la foto — se conserva el ícono de categoría.', err);
+      console.log('[PHOTO SUPABASE] map image: carga fallida');
       return;
     }
     try{
       if (!map.hasImage('poi-photo-cerro-chico')) map.addImage('poi-photo-cerro-chico', buildCircularPhotoCanvas(img));
-      map.getSource('poi-photo-source').setData({
-        type:'FeatureCollection',
-        features:[{ type:'Feature', properties:{}, geometry:{ type:'Point', coordinates:[place.lng, place.lat] } }],
-      });
+      console.log('[PHOTO SUPABASE] map image: registrada');
+      applyFeature();
     } catch(e){
       console.warn('[Prototipo Cerro Chico] Error preparando la foto circular — se conserva el ícono de categoría.', e);
     }
@@ -9095,7 +9140,7 @@ function applySupabaseData({ newLocalities, newSublocalities, newPlaces }){
 
   SEARCH_INDEX.length = 0; SEARCH_INDEX.push(...buildSearchIndex());
 
-  renderLocalityMarkers();
+   renderLocalityMarkers();
   lastTier = null; // fuerza un re-render completo del nivel de exploración — mismo patrón que ya usa clearNavRoute()
   updateExplorationLevel();
   renderPlacesRail();
@@ -9103,6 +9148,14 @@ function applySupabaseData({ newLocalities, newSublocalities, newPlaces }){
   renderExploreMoreRail();
   renderCollectionsRail();
   renderClosingFeature();
+
+  // Prototipo Cerro Chico — solo relevante si el usuario ya había navegado
+  // hasta el zoom de detalle de una localidad ANTES de que Supabase
+  // terminara de sincronizar (poi-label-layer ya existiría en ese caso).
+  // Si aún no existe, la función no hace nada (se protege internamente) y
+  // ensurePOINativeLayers() la ejecutará de nuevo, ya con los datos remotos
+  // aplicados, la próxima vez que el usuario llegue a ese zoom.
+  ensureCerroChicoPhotoLayer();
 
   console.info(`[Supabase] Datos remotos aplicados: ${newPlaces.length} experiencias, ${newLocalities.length} comunas.`);
 }
