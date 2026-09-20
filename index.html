@@ -4555,17 +4555,32 @@ function ensureCerroChicoPhotoLayer(){
     return;
   }
 
+  // ---- Diagnóstico temporal alrededor de map.loadImage() — nada más se toca ----
+  console.log('[PHOTO SUPABASE] loadImage URL exacta:', place.image);
+  console.log('[PHOTO SUPABASE] loadImage: iniciando llamada a map.loadImage()...');
+
   map.loadImage(place.image, (err, img) => {
-    if (err || !img){
-      console.warn('[Prototipo Cerro Chico] No se pudo cargar la foto — se conserva el ícono de categoría.', err);
-      console.log('[PHOTO SUPABASE] map image: carga fallida');
+    console.log('[PHOTO SUPABASE] loadImage: callback recibido');
+    if (err){
+      console.error('[PHOTO SUPABASE] loadImage ERROR:', err);
+      console.log('[PHOTO SUPABASE] map image: carga fallida (error)');
+      return;
+    }
+    console.log('[PHOTO SUPABASE] loadImage: sin error — img existe?', !!img, img);
+    if (!img){
+      console.warn('[PHOTO SUPABASE] loadImage: sin error pero img es null/undefined — no se puede continuar.');
+      console.log('[PHOTO SUPABASE] map image: carga fallida (sin imagen)');
       return;
     }
     try{
-      if (!map.hasImage('poi-photo-cerro-chico')) map.addImage('poi-photo-cerro-chico', buildCircularPhotoCanvas(img));
+      if (!map.hasImage('poi-photo-cerro-chico')){
+        map.addImage('poi-photo-cerro-chico', buildCircularPhotoCanvas(img));
+        console.log('[PHOTO SUPABASE] addImage: poi-photo-cerro-chico registrada correctamente.');
+      }
       console.log('[PHOTO SUPABASE] map image: registrada');
       applyFeature();
     } catch(e){
+      console.error('[PHOTO SUPABASE] Excepción dentro del callback de loadImage:', e);
       console.warn('[Prototipo Cerro Chico] Error preparando la foto circular — se conserva el ícono de categoría.', e);
     }
   });
