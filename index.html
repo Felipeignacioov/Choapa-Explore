@@ -4555,45 +4555,30 @@ function ensureCerroChicoPhotoLayer(){
     return;
   }
 
-    // ---- Prueba independiente temporal — compara Image() nativo vs map.loadImage() ----
-  // Solo diagnóstico: no se agrega a MapLibre, no se toca ningún layer/source.
-  console.log('[PHOTO TEST] iniciando Image()');
-  console.log('[PHOTO TEST] URL', place.image);
-  const testImg = new Image();
-  testImg.crossOrigin = 'anonymous';
-  testImg.onload = () => console.log('[PHOTO TEST] onload', testImg.naturalWidth, 'x', testImg.naturalHeight);
-  testImg.onerror = (e) => console.log('[PHOTO TEST] onerror', e);
-  testImg.src = place.image;
-
-  // ---- Diagnóstico temporal alrededor de map.loadImage() — nada más se toca ----
-  console.log('[PHOTO SUPABASE] loadImage URL exacta:', place.image);
-  console.log('[PHOTO SUPABASE] loadImage: iniciando llamada a map.loadImage()...');
-
-  map.loadImage(place.image, (err, img) => {
-    console.log('[PHOTO SUPABASE] loadImage: callback recibido');
-    if (err){
-      console.error('[PHOTO SUPABASE] loadImage ERROR:', err);
-      console.log('[PHOTO SUPABASE] map image: carga fallida (error)');
-      return;
-    }
-    console.log('[PHOTO SUPABASE] loadImage: sin error — img existe?', !!img, img);
-    if (!img){
-      console.warn('[PHOTO SUPABASE] loadImage: sin error pero img es null/undefined — no se puede continuar.');
-      console.log('[PHOTO SUPABASE] map image: carga fallida (sin imagen)');
-      return;
-    }
+     // map.loadImage() no completaba su callback para esta URL externa de
+  // Supabase Storage (confirmado por diagnóstico: new Image() sí cargaba
+  // correctamente la misma URL). Se reemplaza únicamente el mecanismo de
+  // carga por Image() nativo — el resto del flujo (canvas circular,
+  // addImage, applyFeature, fallback al ícono de categoría) queda igual.
+  console.log('[PHOTO SUPABASE] cargando imagen vía Image():', place.image);
+  const photoImg = new Image();
+  photoImg.crossOrigin = 'anonymous';
+  photoImg.onload = () => {
     try{
       if (!map.hasImage('poi-photo-cerro-chico')){
-        map.addImage('poi-photo-cerro-chico', buildCircularPhotoCanvas(img));
-        console.log('[PHOTO SUPABASE] addImage: poi-photo-cerro-chico registrada correctamente.');
+        map.addImage('poi-photo-cerro-chico', buildCircularPhotoCanvas(photoImg));
       }
       console.log('[PHOTO SUPABASE] map image: registrada');
       applyFeature();
     } catch(e){
-      console.error('[PHOTO SUPABASE] Excepción dentro del callback de loadImage:', e);
       console.warn('[Prototipo Cerro Chico] Error preparando la foto circular — se conserva el ícono de categoría.', e);
     }
-  });
+  };
+  photoImg.onerror = (e) => {
+    console.warn('[Prototipo Cerro Chico] No se pudo cargar la foto — se conserva el ícono de categoría.', e);
+    console.log('[PHOTO SUPABASE] map image: carga fallida');
+  };
+  photoImg.src = place.image;
 }
 
 // Fondo tipo "pill" para las etiquetas de nombre de POI — reemplaza el
