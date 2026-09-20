@@ -4442,6 +4442,90 @@ function registerPOIBackgroundImages(){
   });
 }
 
+/* ---------- PROTOTIPO VISUAL — foto circular SOLO para Cerro Chico ----------
+   Acotado a propósito a un único POI, para evaluar el diseño antes de
+   generalizarlo. No toca poiSourceFeatures() ni ningún otro POI: vive en una
+   fuente/capa 100% propia y separada (mismo patrón ya usado por
+   poi-selected-source/nav-dest-marker), superpuesta sobre poi-icon-layer.
+   Sin carga por viewport, sin liberación de memoria, sin generalizar a otros
+   POIs — deliberadamente fuera de alcance de este prototipo. */
+
+// Mismo canvas base (96px) e icon-size que buildPOIBackgroundCanvas/poi-bg-layer
+// — al compartir tamaño y centro, la foto queda perfectamente alineada sobre
+// el aro de categoría sin necesidad de calcular ningún offset a mano. Radio
+// intencionalmente menor (0.78x) al del aro exterior, para que el color de
+// categoría siga asomando como anillo visible alrededor de la foto.
+function buildCircularPhotoCanvas(img, sizePx = 96){
+  const canvas = document.createElement('canvas');
+  canvas.width = sizePx; canvas.height = sizePx;
+  const ctx = canvas.getContext('2d');
+  const cx = sizePx / 2, cy = sizePx / 2;
+  const r = sizePx * 0.35 * 0.78;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.clip();
+  // Recorte tipo "cover" — la foto llena el círculo sin deformarse, recortando
+  // el sobrante en vez de estirar la imagen.
+  const scale = Math.max((r * 2) / img.width, (r * 2) / img.height);
+  const drawW = img.width * scale, drawH = img.height * scale;
+  ctx.drawImage(img, cx - drawW / 2, cy - drawH / 2, drawW, drawH);
+  // Oscurecimiento sutil inferior — mismo lenguaje discreto que el resto del
+  // sistema de POIs (nunca brillo), ayuda a integrar la foto con el mapa
+  // oscuro en vez de que se vea como un recorte pegado encima.
+  const shade = ctx.createLinearGradient(0, cy - r, 0, cy + r);
+  shade.addColorStop(0, 'rgba(0,0,0,0)');
+  shade.addColorStop(1, 'rgba(2,8,15,0.25)');
+  ctx.fillStyle = shade;
+  ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+  ctx.restore();
+
+  // Borde fino oscuro — separa limpiamente la foto del aro de categoría.
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.lineWidth = sizePx * 0.02;
+  ctx.strokeStyle = 'rgba(7,19,31,0.55)';
+  ctx.stroke();
+
+  return ctx.getImageData(0, 0, sizePx, sizePx);
+}
+
+// Crea la capa una sola vez (fuente vacía por defecto) y, en paralelo, intenta
+// cargar+recortar la foto real de Cerro Chico. Si algo falla en cualquier
+// punto (sin imagen, red, CORS, error de canvas), la función simplemente NO
+// popula la fuente — poi-icon-layer (el glifo de categoría, intacto debajo)
+// sigue visible con total normalidad: ese es el fallback, sin código extra.
+function ensureCerroChicoPhotoLayer(){
+  if (map.getSource('poi-photo-source')) return;
+  map.addSource('poi-photo-source', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
+  map.addLayer({
+    id:'poi-photo-layer', type:'symbol', source:'poi-photo-source',
+    minzoom: ZOOM_DETAIL, // mismo umbral que el resto de POIs, sin lógica de zoom nueva
+    layout:{ 'icon-image':'poi-photo-cerro-chico', 'icon-size':0.276, 'icon-allow-overlap':true, 'icon-ignore-placement':true },
+    paint:{ 'icon-opacity': POI_ICON_FADE_OPACITY }, // reutiliza el mismo fade de entrada que ya usan los demás POIs
+  }, 'poi-label-layer'); // se inserta justo debajo del nombre — encima del glifo (lo cubre), debajo de la etiqueta
+
+  const place = DEMO_PLACES.find(p => p.id === 'cerro-chico' || p.name === 'Cerro Chico');
+  if (!place || !place.image) return; // sin lugar o sin foto → queda el glifo de siempre, sin más acción
+
+  map.loadImage(place.image, (err, img) => {
+    if (err || !img){
+      console.warn('[Prototipo Cerro Chico] No se pudo cargar la foto — se conserva el ícono de categoría.', err);
+      return;
+    }
+    try{
+      if (!map.hasImage('poi-photo-cerro-chico')) map.addImage('poi-photo-cerro-chico', buildCircularPhotoCanvas(img));
+      map.getSource('poi-photo-source').setData({
+        type:'FeatureCollection',
+        features:[{ type:'Feature', properties:{}, geometry:{ type:'Point', coordinates:[place.lng, place.lat] } }],
+      });
+    } catch(e){
+      console.warn('[Prototipo Cerro Chico] Error preparando la foto circular — se conserva el ícono de categoría.', e);
+    }
+  });
+}
+
 // Fondo tipo "pill" para las etiquetas de nombre de POI — reemplaza el
 // text-halo (contorno ajustado a las letras) por una placa sólida y
 // redondeada, en espíritu igual al viejo .poi-name-label (fondo
@@ -4683,13 +4767,14 @@ function ensurePOINativeLayers(){
       'text-optional':false,
       'icon-optional':false,
     },
-    paint:{
+       paint:{
       'text-color':'#F4F7FA',
       'icon-opacity': POI_LABEL_FADE_OPACITY,
       'text-opacity': POI_LABEL_FADE_OPACITY,
     },
   });
-    bindPOINativeClickHandlers();
+    ensureCerroChicoPhotoLayer(); // prototipo acotado — ver definición arriba
+  bindPOINativeClickHandlers();
 }
 
 // ---------- Fase 5a de la migración: respiración del círculo de POIs ----------
