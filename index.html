@@ -7241,10 +7241,28 @@ function onNavPositionUpdate(userCoords, gpsHeading){
   placeUserMarker(displayLat, displayLng);
   setUserMarkerNavStyle(true, state.nav.heading);
 
-   const remainingM = lineLengthMeters(remaining);
+      const remainingM = lineLengthMeters(remaining);
   const remainingS = state.nav.speedMps > 0 ? remainingM / state.nav.speedMps : 0;
   document.getElementById('anhEta').textContent = formatDuration(remainingS);
-  document.getElementById('anhDist').textContent = formatRouteDistance(remainingM);
+  // Se compone igual que ya hace recalculateRouteFromOffRoute() — antes solo
+  // mostraba la distancia restante, sin la hora estimada de llegada.
+  document.getElementById('anhDist').textContent = `${formatRouteDistance(remainingM)} · Llegas a las ${formatArrivalTime(remainingS)}`;
+
+  // Próxima maniobra ("Gire a la derecha a Irarrázaval") — findNextManeuverStep()
+  // y updateManeuverDisplay() ya existían, pero nunca se llamaban desde acá,
+  // así que el bloque .anh-next quedaba siempre oculto. nearest.segmentIndex
+  // ya se calculó arriba para recortar la ruta; se reutiliza tal cual, sin
+  // ningún cálculo geográfico nuevo. La distancia hasta la maniobra se mide
+  // sobre el mismo tramo `remaining` ya recortado, acotado hasta el punto de
+  // esa maniobra.
+  const nextStep = findNextManeuverStep(nearest.segmentIndex);
+  if (nextStep){
+    const wpIndexInRemaining = Math.max(0, Math.min(remaining.length - 1, nextStep.way_points[0] - nearest.segmentIndex));
+    const distToManeuverM = lineLengthMeters(remaining.slice(0, wpIndexInRemaining + 1));
+    updateManeuverDisplay(nextStep, distToManeuverM);
+  } else {
+    updateManeuverDisplay(null);
+  }
 
   // Cámara siguiendo al usuario — solo si el modo seguimiento sigue activo. Si
   // el usuario interactuó manualmente (zoom/pan), se respeta su posición hasta
