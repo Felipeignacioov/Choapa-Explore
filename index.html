@@ -4431,6 +4431,55 @@ function buildPOIBackgroundCanvas(colorHex, sizePx = 96){
   return ctx.getImageData(0, 0, sizePx, sizePx);
 }
 
+// Variante de buildPOIBackgroundCanvas() EXCLUSIVA del aro dedicado de Cerro
+// Chico — misma estructura visual (gradiente, highlight, disco oscuro
+// interior), pero con el disco interior más grande (0.82 → 0.90 del radio),
+// lo que angosta el anillo de color visible ~sutilmente, sin cambiar el
+// radio exterior (r, mismo 0.35 * sizePx de siempre) ni el diámetro total
+// del marcador. buildPOIBackgroundCanvas() en sí queda intacta.
+function buildCerroChicoRingCanvas(colorHex, sizePx = 96){
+  const canvas = document.createElement('canvas');
+  canvas.width = sizePx; canvas.height = sizePx;
+  const ctx = canvas.getContext('2d');
+  const cx = sizePx / 2, cy = sizePx / 2;
+  const r = sizePx * 0.35;
+  const richColor = blendHex(colorHex, '#07131F', 0.22);
+
+  const grad = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.35, r * 0.1, cx, cy, r);
+  grad.addColorStop(0, 'rgba(255,255,255,0.12)');
+  grad.addColorStop(0.35, richColor);
+  grad.addColorStop(1, poiColorToRgba(richColor, 0.92));
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  ctx.lineWidth = sizePx * 0.03;
+  ctx.strokeStyle = blendHex(colorHex, '#07131F', 0.25);
+  ctx.globalAlpha = 0.72;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // Único cambio real respecto a buildPOIBackgroundCanvas(): 0.82 → 0.90 —
+  // el disco oscuro interior crece, angostando el anillo de color visible de
+  // forma sutil, sin tocar r (radio exterior) ni ningún otro valor.
+  ctx.globalAlpha = 0.55;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.90, 0, Math.PI * 2);
+  ctx.fillStyle = '#0D1F30';
+  ctx.fill();
+
+  ctx.globalAlpha = 0.08;
+  ctx.beginPath();
+  ctx.arc(cx - r * 0.3, cy - r * 0.35, r * 0.22, 0, Math.PI * 2);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  return ctx.getImageData(0, 0, sizePx, sizePx);
+}
+
 // Una imagen por cada una de las 8 categorías reales — nunca por color
 // arbitrario, así todas comparten exactamente el mismo tratamiento visual.
 function registerPOIBackgroundImages(){
@@ -4537,14 +4586,13 @@ function ensureCerroChicoPhotoLayer(){
   if (!map.getSource('poi-photo-source')){
     map.addSource('poi-photo-source', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
 
-    // Aro dedicado exclusivamente al prototipo fotográfico — reutiliza
-    // buildPOIBackgroundCanvas() TAL CUAL (mismo color, mismo gradiente,
-    // mismo grosor de borde relativo al canvas), solo bajo un id propio
-    // (poi-photo-bg-cerro-chico) para no interferir con poi-bg-${categoryId},
-    // que sigue usando exclusivamente el resto de POIs.
+       // Aro dedicado exclusivamente al prototipo fotográfico — variante propia
+    // (buildCerroChicoRingCanvas), NO buildPOIBackgroundCanvas() directamente,
+    // para poder afinar el grosor del anillo sin tocar el sistema general
+    // (que sigue usando poi-bg-${categoryId} sin ningún cambio).
     if (!map.hasImage('poi-photo-bg-cerro-chico')){
       const aventuraColor = getComputedStyle(document.documentElement).getPropertyValue('--exp-aventura').trim();
-      map.addImage('poi-photo-bg-cerro-chico', buildPOIBackgroundCanvas(aventuraColor));
+      map.addImage('poi-photo-bg-cerro-chico', buildCerroChicoRingCanvas(aventuraColor));
     }
 
     // Capa de aro dedicada, debajo de la foto — mismo icon-size que
