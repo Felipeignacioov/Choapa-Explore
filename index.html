@@ -4604,11 +4604,42 @@ function ensureCerroChicoPhotoLayer(){
       paint:{ 'icon-opacity': POI_ICON_FADE_OPACITY },
     }, 'poi-label-layer');
 
-    map.addLayer({
+       map.addLayer({
       id:'poi-photo-layer', type:'symbol', source:'poi-photo-source',
       minzoom: ZOOM_DETAIL,
       layout:{ 'icon-image':'poi-photo-cerro-chico', 'icon-size':CERRO_CHICO_PHOTO_ICON_SIZE, 'icon-allow-overlap':true, 'icon-ignore-placement':true },
       paint:{ 'icon-opacity': POI_ICON_FADE_OPACITY },
+    }, 'poi-label-layer');
+
+    // Etiqueta DEDICADA — reutiliza la misma cápsula (poi-label-bg, sin tocar
+    // su generación) pero con offset/padding/tamaño propios, calculados
+    // proporcionalmente a CERRO_CHICO_PHOTO_ICON_SIZE (0.251 ≈ 91% del 0.276
+    // estándar). poi-label-layer sigue intacta para el resto de POIs; a este
+    // id puntual se le oculta su entrada ahí (ver applyFeature) para no
+    // duplicar la etiqueta.
+    map.addLayer({
+      id:'poi-photo-label-layer', type:'symbol', source:'poi-photo-source',
+      minzoom: ZOOM_DETAIL,
+      layout:{
+        'icon-image':'poi-label-bg',
+        'icon-text-fit':'both',
+        'icon-text-fit-padding':[2, 6, 2, 6],
+        'icon-anchor':'bottom',
+        'icon-allow-overlap':true,
+        'text-field':['get','name'],
+        'text-font': getStyleTextFont(),
+        'text-size':7.6,
+        'text-offset':[0, -1.96],
+        'text-anchor':'bottom',
+        'text-allow-overlap':true,
+        'text-optional':false,
+        'icon-optional':false,
+      },
+      paint:{
+        'text-color':'#F4F7FA',
+        'icon-opacity': POI_LABEL_FADE_OPACITY,
+        'text-opacity': POI_LABEL_FADE_OPACITY,
+      },
     }, 'poi-label-layer');
   }
   console.log('[PHOTO SUPABASE] photo source:', !!map.getSource('poi-photo-source'));
@@ -4624,11 +4655,17 @@ function ensureCerroChicoPhotoLayer(){
     return;
   }
 
-  const applyFeature = () => {
+   const applyFeature = () => {
     map.getSource('poi-photo-source').setData({
       type:'FeatureCollection',
-      features:[{ type:'Feature', properties:{}, geometry:{ type:'Point', coordinates:[place.lng, place.lat] } }],
+      features:[{ type:'Feature', properties:{ name: place.name }, geometry:{ type:'Point', coordinates:[place.lng, place.lat] } }],
     });
+    // Filtro por id EXACTO — oculta la etiqueta de este único POI en el
+    // sistema compartido (reemplazada por poi-photo-label-layer arriba), sin
+    // alterar el comportamiento de poi-label-layer para ningún otro marcador.
+    if (map.getLayer('poi-label-layer')){
+      map.setFilter('poi-label-layer', ['!=', ['get','id'], place.id]);
+    }
   };
 
   if (map.hasImage('poi-photo-cerro-chico')){
