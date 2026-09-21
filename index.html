@@ -4375,7 +4375,7 @@ function poiColorToRgba(hex, alpha){
 // Mismas proporciones relativas que el diseño viejo (highlight arriba-izquierda,
 // stop de color al 35%, borde propio, disco interior al 82% del radio) — se
 // genera UNA sola vez por categoría, nunca por feature.
-function buildPOIBackgroundCanvas(colorHex, sizePx = 96){
+function buildPOIBackgroundCanvas(colorHex, sizePx = 192){
   const canvas = document.createElement('canvas');
   canvas.width = sizePx; canvas.height = sizePx;
   const ctx = canvas.getContext('2d');
@@ -4437,7 +4437,7 @@ function buildPOIBackgroundCanvas(colorHex, sizePx = 96){
 // lo que angosta el anillo de color visible ~sutilmente, sin cambiar el
 // radio exterior (r, mismo 0.35 * sizePx de siempre) ni el diámetro total
 // del marcador. buildPOIBackgroundCanvas() en sí queda intacta.
-function buildCerroChicoRingCanvas(colorHex, sizePx = 96){
+function buildCerroChicoRingCanvas(colorHex, sizePx = 192){
   const canvas = document.createElement('canvas');
   canvas.width = sizePx; canvas.height = sizePx;
   const ctx = canvas.getContext('2d');
@@ -4512,7 +4512,7 @@ function registerPOIBackgroundImages(){
 // el aro de categoría sin necesidad de calcular ningún offset a mano. Radio
 // intencionalmente menor (0.78x) al del aro exterior, para que el color de
 // categoría siga asomando como anillo visible alrededor de la foto.
-function buildCircularPhotoCanvas(img, sizePx = 96){
+function buildCircularPhotoCanvas(img, sizePx = 192){
   const canvas = document.createElement('canvas');
   canvas.width = sizePx; canvas.height = sizePx;
   const ctx = canvas.getContext('2d');
@@ -4852,30 +4852,29 @@ const POI_LABEL_FADE_OPACITY = ['interpolate', ['linear'], ['zoom'], ZOOM_POI_NA
    — esta segunda la necesita startPOIBreathingAnimation() para no pisar la
    curva con un valor fijo en cada tick (ver esa función más abajo). */
 const POI_GROWTH_ZOOM_START = ZOOM_DETAIL;
-const POI_GROWTH_ZOOM_MID = ZOOM_DETAIL + (ZOOM_POI_NAME - ZOOM_DETAIL) * 0.6;
 const POI_GROWTH_ZOOM_END = ZOOM_POI_NAME;
-const POI_GROWTH_EASE_MID = 0.85;
+// Base < 1 = interpolación exponencial "ease-out" nativa de MapLibre (crece
+// rápido al inicio, se estabiliza suave hacia el final) — reemplaza el punto
+// medio lineal anterior (que generaba un quiebre de pendiente perceptible)
+// por una curva matemáticamente continua entre los dos mismos extremos.
+const POI_GROWTH_EASE_BASE = 0.45;
 
 function buildPOIGrowthExpression(initial, final){
-  const mid = initial + (final - initial) * POI_GROWTH_EASE_MID;
-  return ['interpolate', ['linear'], ['zoom'],
+  return ['interpolate', ['exponential', POI_GROWTH_EASE_BASE], ['zoom'],
     POI_GROWTH_ZOOM_START, initial,
-    POI_GROWTH_ZOOM_MID, mid,
     POI_GROWTH_ZOOM_END, final,
   ];
 }
+// Réplica en JS de la misma fórmula exponencial que evalúa MapLibre — se
+// mantiene por si algo más la referenciara; ya no la usa startPOIBreathingAnimation()
+// (esa función modula icon-opacity, no icon-size, desde el fix anterior).
 function evalPOIGrowth(zoom, initial, final){
-  const mid = initial + (final - initial) * POI_GROWTH_EASE_MID;
   if (zoom <= POI_GROWTH_ZOOM_START) return initial;
   if (zoom >= POI_GROWTH_ZOOM_END) return final;
-  if (zoom <= POI_GROWTH_ZOOM_MID){
-    const t = (zoom - POI_GROWTH_ZOOM_START) / (POI_GROWTH_ZOOM_MID - POI_GROWTH_ZOOM_START);
-    return initial + (mid - initial) * t;
-  }
-  const t = (zoom - POI_GROWTH_ZOOM_MID) / (POI_GROWTH_ZOOM_END - POI_GROWTH_ZOOM_MID);
-  return mid + (final - mid) * t;
+  const span = POI_GROWTH_ZOOM_END - POI_GROWTH_ZOOM_START;
+  const t = (Math.pow(POI_GROWTH_EASE_BASE, zoom - POI_GROWTH_ZOOM_START) - 1) / (Math.pow(POI_GROWTH_EASE_BASE, span) - 1);
+  return initial + (final - initial) * t;
 }
-
 // Tamaños finales = EXACTAMENTE los valores actuales de cada capa (sin
 // tocar). Iniciales = ~55% de cada uno.
 const POI_BG_SIZE_FINAL = 0.276, POI_BG_SIZE_INITIAL = 0.152;
