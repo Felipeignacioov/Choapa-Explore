@@ -4525,15 +4525,41 @@ function findCerroChicoPlace(){
 // existe, esta función no hace nada todavía y se reintentará sola la
 // próxima vez que corresponda (ensurePOINativeLayers al entrar a esa
 // localidad, o el próximo applySupabaseData).
+// Escala global del marcador fotográfico completo (~9% más chico que el
+// 0.276 anterior) — usada por AMBAS capas dedicadas (aro + foto) para que
+// se reduzcan de forma coherente y sigan perfectamente alineadas entre sí.
+// No toca poi-bg-layer/poi-icon-layer (compartidas con el resto de POIs).
+const CERRO_CHICO_PHOTO_ICON_SIZE = 0.251;
+
 function ensureCerroChicoPhotoLayer(){
   if (!map.getLayer('poi-label-layer')) return;
 
   if (!map.getSource('poi-photo-source')){
     map.addSource('poi-photo-source', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
+
+    // Aro dedicado exclusivamente al prototipo fotográfico — reutiliza
+    // buildPOIBackgroundCanvas() TAL CUAL (mismo color, mismo gradiente,
+    // mismo grosor de borde relativo al canvas), solo bajo un id propio
+    // (poi-photo-bg-cerro-chico) para no interferir con poi-bg-${categoryId},
+    // que sigue usando exclusivamente el resto de POIs.
+    if (!map.hasImage('poi-photo-bg-cerro-chico')){
+      const aventuraColor = getComputedStyle(document.documentElement).getPropertyValue('--exp-aventura').trim();
+      map.addImage('poi-photo-bg-cerro-chico', buildPOIBackgroundCanvas(aventuraColor));
+    }
+
+    // Capa de aro dedicada, debajo de la foto — mismo icon-size que
+    // poi-photo-layer para quedar perfectamente centradas y alineadas.
+    map.addLayer({
+      id:'poi-photo-bg-layer', type:'symbol', source:'poi-photo-source',
+      minzoom: ZOOM_DETAIL,
+      layout:{ 'icon-image':'poi-photo-bg-cerro-chico', 'icon-size':CERRO_CHICO_PHOTO_ICON_SIZE, 'icon-allow-overlap':true, 'icon-ignore-placement':true },
+      paint:{ 'icon-opacity': POI_ICON_FADE_OPACITY },
+    }, 'poi-label-layer');
+
     map.addLayer({
       id:'poi-photo-layer', type:'symbol', source:'poi-photo-source',
       minzoom: ZOOM_DETAIL,
-      layout:{ 'icon-image':'poi-photo-cerro-chico', 'icon-size':0.276, 'icon-allow-overlap':true, 'icon-ignore-placement':true },
+      layout:{ 'icon-image':'poi-photo-cerro-chico', 'icon-size':CERRO_CHICO_PHOTO_ICON_SIZE, 'icon-allow-overlap':true, 'icon-ignore-placement':true },
       paint:{ 'icon-opacity': POI_ICON_FADE_OPACITY },
     }, 'poi-label-layer');
   }
