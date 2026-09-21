@@ -4468,7 +4468,12 @@ function buildCircularPhotoCanvas(img, sizePx = 96){
   canvas.width = sizePx; canvas.height = sizePx;
   const ctx = canvas.getContext('2d');
   const cx = sizePx / 2, cy = sizePx / 2;
-  const r = sizePx * 0.35 * 0.78;
+  // Proporción foto/aro subida de 0.78 a 0.92 (radio del aro sigue siendo
+  // sizePx*0.35, SIN tocar buildPOIBackgroundCanvas) — la foto gana
+  // protagonismo mientras el aro de categoría se mantiene como un anillo
+  // fino pero claramente visible, en vez del margen ancho anterior. El
+  // tamaño exterior del marcador (icon-size de las capas) no cambia.
+  const r = sizePx * 0.35 * 0.92;
 
   ctx.save();
   ctx.beginPath();
@@ -4484,9 +4489,12 @@ function buildCircularPhotoCanvas(img, sizePx = 96){
   ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
   ctx.restore();
 
+  // Borde afinado (0.02 → 0.012) — con el radio de foto ya más grande, un
+  // borde tan grueso restaba área visible innecesariamente; sigue separando
+  // limpiamente foto y aro, solo más fino.
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.lineWidth = sizePx * 0.02;
+  ctx.lineWidth = sizePx * 0.012;
   ctx.strokeStyle = 'rgba(7,19,31,0.55)';
   ctx.stroke();
 
