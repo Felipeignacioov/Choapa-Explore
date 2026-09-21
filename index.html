@@ -4579,6 +4579,7 @@ function findCerroChicoPlace(){
 // se reduzcan de forma coherente y sigan perfectamente alineadas entre sí.
 // No toca poi-bg-layer/poi-icon-layer (compartidas con el resto de POIs).
 const CERRO_CHICO_PHOTO_ICON_SIZE = 0.251;
+const CERRO_CHICO_PHOTO_ICON_SIZE_INITIAL = 0.138; // ~55% de 0.251, mismo criterio que el sistema general
 
 function ensureCerroChicoPhotoLayer(){
   if (!map.getLayer('poi-label-layer')) return;
@@ -4597,20 +4598,24 @@ function ensureCerroChicoPhotoLayer(){
 
     // Capa de aro dedicada, debajo de la foto — mismo icon-size que
     // poi-photo-layer para quedar perfectamente centradas y alineadas.
+        // Misma curva de crecimiento del sistema general, aplicada a ambas capas
+    // dedicadas con el mismo valor de initial/final — foto y aro escalan
+    // como una sola unidad, sin alterar la proporción 0.92/0.012 ya aprobada
+    // (esas viven dentro del canvas, son relativas a icon-size, no absolutas).
+    const cerroChicoGrowth = buildPOIGrowthExpression(CERRO_CHICO_PHOTO_ICON_SIZE_INITIAL, CERRO_CHICO_PHOTO_ICON_SIZE);
     map.addLayer({
       id:'poi-photo-bg-layer', type:'symbol', source:'poi-photo-source',
       minzoom: ZOOM_DETAIL,
-      layout:{ 'icon-image':'poi-photo-bg-cerro-chico', 'icon-size':CERRO_CHICO_PHOTO_ICON_SIZE, 'icon-allow-overlap':true, 'icon-ignore-placement':true },
+      layout:{ 'icon-image':'poi-photo-bg-cerro-chico', 'icon-size':cerroChicoGrowth, 'icon-allow-overlap':true, 'icon-ignore-placement':true },
       paint:{ 'icon-opacity': POI_ICON_FADE_OPACITY },
     }, 'poi-label-layer');
 
-       map.addLayer({
+    map.addLayer({
       id:'poi-photo-layer', type:'symbol', source:'poi-photo-source',
       minzoom: ZOOM_DETAIL,
-      layout:{ 'icon-image':'poi-photo-cerro-chico', 'icon-size':CERRO_CHICO_PHOTO_ICON_SIZE, 'icon-allow-overlap':true, 'icon-ignore-placement':true },
+      layout:{ 'icon-image':'poi-photo-cerro-chico', 'icon-size':cerroChicoGrowth, 'icon-allow-overlap':true, 'icon-ignore-placement':true },
       paint:{ 'icon-opacity': POI_ICON_FADE_OPACITY },
     }, 'poi-label-layer');
-
     // Etiqueta DEDICADA — reutiliza la misma cápsula (poi-label-bg, sin tocar
     // su generación) pero con offset/padding/tamaño propios, calculados
     // proporcionalmente a CERRO_CHICO_PHOTO_ICON_SIZE (0.251 ≈ 91% del 0.276
@@ -4837,6 +4842,45 @@ const POI_ZOOM_FADE_SPAN = 0.05;
 const POI_ICON_FADE_OPACITY = ['interpolate', ['linear'], ['zoom'], ZOOM_DETAIL, 0, ZOOM_DETAIL + POI_ZOOM_FADE_SPAN, 1];
 const POI_LABEL_FADE_OPACITY = ['interpolate', ['linear'], ['zoom'], ZOOM_POI_NAME, 0, ZOOM_POI_NAME + POI_ZOOM_FADE_SPAN, 1];
 
+/* ---------- Jerarquía visual por zoom: LEJANO → EXPLORACIÓN → DETALLE ----------
+   La curva vive en el único rango donde un POI ya es visible hoy
+   (ZOOM_DETAIL → ZOOM_POI_NAME, ambos umbrales SIN tocar). Tamaño inicial
+   ~55% del final, con un stop intermedio (ease-out: 85% del recorrido a un
+   60% del rango de zoom) para que el crecimiento se sienta suave y no
+   lineal-brusco. Misma fórmula expresada dos veces a propósito: una para
+   MapLibre (buildPOIGrowthExpression) y otra evaluable en JS (evalPOIGrowth)
+   — esta segunda la necesita startPOIBreathingAnimation() para no pisar la
+   curva con un valor fijo en cada tick (ver esa función más abajo). */
+const POI_GROWTH_ZOOM_START = ZOOM_DETAIL;
+const POI_GROWTH_ZOOM_MID = ZOOM_DETAIL + (ZOOM_POI_NAME - ZOOM_DETAIL) * 0.6;
+const POI_GROWTH_ZOOM_END = ZOOM_POI_NAME;
+const POI_GROWTH_EASE_MID = 0.85;
+
+function buildPOIGrowthExpression(initial, final){
+  const mid = initial + (final - initial) * POI_GROWTH_EASE_MID;
+  return ['interpolate', ['linear'], ['zoom'],
+    POI_GROWTH_ZOOM_START, initial,
+    POI_GROWTH_ZOOM_MID, mid,
+    POI_GROWTH_ZOOM_END, final,
+  ];
+}
+function evalPOIGrowth(zoom, initial, final){
+  const mid = initial + (final - initial) * POI_GROWTH_EASE_MID;
+  if (zoom <= POI_GROWTH_ZOOM_START) return initial;
+  if (zoom >= POI_GROWTH_ZOOM_END) return final;
+  if (zoom <= POI_GROWTH_ZOOM_MID){
+    const t = (zoom - POI_GROWTH_ZOOM_START) / (POI_GROWTH_ZOOM_MID - POI_GROWTH_ZOOM_START);
+    return initial + (mid - initial) * t;
+  }
+  const t = (zoom - POI_GROWTH_ZOOM_MID) / (POI_GROWTH_ZOOM_END - POI_GROWTH_ZOOM_MID);
+  return mid + (final - mid) * t;
+}
+
+// Tamaños finales = EXACTAMENTE los valores actuales de cada capa (sin
+// tocar). Iniciales = ~55% de cada uno.
+const POI_BG_SIZE_FINAL = 0.276, POI_BG_SIZE_INITIAL = 0.152;
+const POI_ICON_SIZE_FINAL = 0.299, POI_ICON_SIZE_INITIAL = 0.164;
+
 function ensurePOINativeLayers(){
   if (map.getSource('poi-source')){ bindPOINativeClickHandlers(); return; }
   map.addSource('poi-source', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
@@ -4863,14 +4907,15 @@ function ensurePOINativeLayers(){
       'circle-translate-anchor':'viewport',
     },
   });
-     map.addLayer({
+      map.addLayer({
     id:'poi-bg-layer', type:'symbol', source:'poi-source',
     minzoom: ZOOM_DETAIL,
     layout:{
       'icon-image':['get','bgIcon'],
-      // Subido ~15% (0.24 → 0.276) — círculo con más presencia, mismo
-      // gradiente/proporciones de siempre, solo más grande en pantalla.
-      'icon-size':0.276,
+      // Antes valor fijo (0.276) — ahora crece de ~55% a 100% entre
+      // ZOOM_DETAIL y ZOOM_POI_NAME (estado LEJANO→EXPLORACIÓN→DETALLE).
+      // El valor final (0.276) es idéntico al de siempre.
+      'icon-size': buildPOIGrowthExpression(POI_BG_SIZE_INITIAL, POI_BG_SIZE_FINAL),
       'icon-allow-overlap':true,
       'icon-ignore-placement':true,
     },
@@ -4881,14 +4926,15 @@ function ensurePOINativeLayers(){
   // Ícono + nombre en la misma capa symbol. text-opacity con 'step' reemplaza
   // la clase .show-name; text-allow-overlap:false + text-optional:true
   // reemplaza el sistema manual de colisión (resolveLabelCollisions) para POIs.
-        map.addLayer({
+            map.addLayer({
     id:'poi-icon-layer', type:'symbol', source:'poi-source',
     minzoom: ZOOM_DETAIL,
     layout:{
       'icon-image':['get','icon'],
-      // Mismo factor +15% que poi-bg-layer, para mantener intacta la
-      // proporción glifo/círculo ya corregida antes.
-      'icon-size':0.299,
+      // Misma curva de crecimiento que poi-bg-layer — proporción
+      // glifo/círculo se mantiene en cualquier punto del rango, porque
+      // ambas capas escalan con la misma fórmula (solo cambian initial/final).
+      'icon-size': buildPOIGrowthExpression(POI_ICON_SIZE_INITIAL, POI_ICON_SIZE_FINAL),
       'icon-allow-overlap':true,
       'icon-ignore-placement':true,
     },
@@ -4963,12 +5009,17 @@ const POI_BREATHE_BASE_ICON_SIZE = 0.276;
 const POI_HALO_BASE_RADIUS = 7.2;
 function startPOIBreathingAnimation(){
   setInterval(() => {
-    if (!map.getLayer('poi-bg-layer')) return;
+       if (!map.getLayer('poi-bg-layer')) return;
     const wobble = (Math.sin(performance.now() / 700) + 1) / 2; // 0 → 1, ciclo ~4.4s
-    // icon-size es propiedad de layout, no de paint — a diferencia de
-    // circle-radius del círculo plano que reemplaza.
-    map.setLayoutProperty('poi-bg-layer', 'icon-size', POI_BREATHE_BASE_ICON_SIZE + wobble * (POI_BREATHE_BASE_ICON_SIZE * 0.035));
-
+    // Antes respiraba alrededor de un tamaño FIJO (POI_BREATHE_BASE_ICON_SIZE)
+    // — con la curva de crecimiento por zoom ya aplicada en el layout inicial
+    // de la capa, este setInterval la sobreescribía 4 veces por segundo y la
+    // anulaba. Ahora la base de la respiración es evalPOIGrowth(zoom actual),
+    // la MISMA curva que ya define el tamaño por zoom — mismo ±3.5% de
+    // siempre, ahora respirando alrededor del tamaño correcto en cada punto
+    // del rango LEJANO→EXPLORACIÓN→DETALLE, no de un valor arbitrario.
+    const bgGrowthSize = evalPOIGrowth(map.getZoom(), POI_BG_SIZE_INITIAL, POI_BG_SIZE_FINAL);
+    map.setLayoutProperty('poi-bg-layer', 'icon-size', bgGrowthSize + wobble * (bgGrowthSize * 0.035));
     if (map.getLayer('poi-ambient-halo-layer')){
       // Ciclo propio ~4.2s (divisor distinto), a propósito desfasado del de
       // arriba. Ahora es una sombra, no un glow — la respiración se reduce a
