@@ -4581,6 +4581,60 @@ function findCerroChicoPlace(){
 const CERRO_CHICO_PHOTO_ICON_SIZE = 0.251;
 const CERRO_CHICO_PHOTO_ICON_SIZE_INITIAL = 0.138; // ~55% de 0.251, mismo criterio que el sistema general
 
+// Última color aplicado al aro dedicado — evita reconstruir el canvas si no
+// cambió, ya que map.removeImage/addImage tiene un costo no gratuito.
+let cerroChicoLastRingColor = null;
+
+// Visibilidad y color del POI fotográfico según el filtro de categoría
+// activo — usa EXCLUSIVAMENTE datos reales ya existentes: place.experiences
+// (las categorías reales del lugar, vía experience_categories) y
+// computePOIDisplayColor() (la MISMA función que ya usa poi-bg-layer para
+// calcular el color correcto según el filtro activo o la categoría primaria).
+// No hardcodea ninguna categoría ni color — si Cerro Chico ganara una
+// categoría nueva en Supabase, place.experiences ya la incluiría, y este
+// chequeo la reconocería automáticamente sin tocar código.
+function updateCerroChicoPhotoVisual(){
+  if (!map.getSource('poi-photo-source')) return; // aún no se crearon las capas del prototipo
+  const place = findCerroChicoPlace();
+  if (!place) return;
+
+  const belongsToFilter = state.activeExperience === 'todos' ||
+    (place.experiences || []).includes(state.activeExperience);
+  const photoReady = map.hasImage('poi-photo-cerro-chico');
+
+  if (belongsToFilter && photoReady){
+    map.getSource('poi-photo-source').setData({
+      type:'FeatureCollection',
+      features:[{ type:'Feature', properties:{ name: place.name }, geometry:{ type:'Point', coordinates:[place.lng, place.lat] } }],
+    });
+    if (map.getLayer('poi-label-layer')){
+      map.setFilter('poi-label-layer', ['!=', ['get','id'], place.id]);
+    }
+  } else {
+    // No pertenece a la categoría filtrada (o la foto aún no cargó) — se
+    // vacía la fuente dedicada, así ninguna capa fotográfica dibuja nada. El
+    // sistema general (poi-bg-layer/poi-icon-layer) sigue mostrando el POI
+    // normalmente, con su color ya correcto para ese filtro — mismo
+    // comportamiento de siempre para cualquier otro POI.
+    map.getSource('poi-photo-source').setData({ type:'FeatureCollection', features:[] });
+    if (map.getLayer('poi-label-layer')){
+      map.setFilter('poi-label-layer', null);
+    }
+  }
+
+  // El aro dedicado se regenera con el MISMO color que el sistema general ya
+  // calcula para este lugar bajo el filtro activo — nunca queda fijo en la
+  // categoría primaria mientras hay un filtro distinto seleccionado.
+  if (photoReady){
+    const ringColor = computePOIDisplayColor(place);
+    if (ringColor !== cerroChicoLastRingColor){
+      cerroChicoLastRingColor = ringColor;
+      if (map.hasImage('poi-photo-bg-cerro-chico')) map.removeImage('poi-photo-bg-cerro-chico');
+      map.addImage('poi-photo-bg-cerro-chico', buildCerroChicoRingCanvas(ringColor));
+    }
+  }
+}
+
 function ensureCerroChicoPhotoLayer(){
   if (!map.getLayer('poi-label-layer')) return;
 
@@ -4660,25 +4714,11 @@ function ensureCerroChicoPhotoLayer(){
     return;
   }
 
-   const applyFeature = () => {
-    map.getSource('poi-photo-source').setData({
-      type:'FeatureCollection',
-      features:[{ type:'Feature', properties:{ name: place.name }, geometry:{ type:'Point', coordinates:[place.lng, place.lat] } }],
-    });
-    // Filtro por id EXACTO — oculta la etiqueta de este único POI en el
-    // sistema compartido (reemplazada por poi-photo-label-layer arriba), sin
-    // alterar el comportamiento de poi-label-layer para ningún otro marcador.
-    if (map.getLayer('poi-label-layer')){
-      map.setFilter('poi-label-layer', ['!=', ['get','id'], place.id]);
-    }
-  };
-
-  if (map.hasImage('poi-photo-cerro-chico')){
+     if (map.hasImage('poi-photo-cerro-chico')){
     console.log('[PHOTO SUPABASE] map image: ya registrada, se reutiliza');
-    applyFeature();
+    updateCerroChicoPhotoVisual();
     return;
   }
-
      // map.loadImage() no completaba su callback para esta URL externa de
   // Supabase Storage (confirmado por diagnóstico: new Image() sí cargaba
   // correctamente la misma URL). Se reemplaza únicamente el mecanismo de
@@ -4692,8 +4732,8 @@ function ensureCerroChicoPhotoLayer(){
       if (!map.hasImage('poi-photo-cerro-chico')){
         map.addImage('poi-photo-cerro-chico', buildCircularPhotoCanvas(photoImg));
       }
-      console.log('[PHOTO SUPABASE] map image: registrada');
-      applyFeature();
+            console.log('[PHOTO SUPABASE] map image: registrada');
+      updateCerroChicoPhotoVisual();
     } catch(e){
       console.warn('[Prototipo Cerro Chico] Error preparando la foto circular — se conserva el ícono de categoría.', e);
     }
@@ -8021,6 +8061,7 @@ function setActiveExperience(id){
   updateZonePrompt();
   applyMoodAtmosphere(id);
   updateFilterAccent();
+  updateCerroChicoPhotoVisual();
   document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.exp === id));
   searchInput.placeholder = SEARCH_PLACEHOLDERS[id] || SEARCH_PLACEHOLDERS.todos;
   renderPOIs();
