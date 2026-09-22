@@ -2265,29 +2265,11 @@ img{-webkit-user-drag:none; user-select:none;}
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
       </button>
     </div>
-    <div class="comuna-panel-rail" id="comunaPanelRail">
-      <div class="comuna-mini-card">
-        <div class="cmc-photo" style="background-image:url(https://images.unsplash.com/photo-1454391304352-2bf4678b1a7a?w=300&q=60)"></div>
-        <div class="cmc-info">
-          <div class="cmc-name">Cerro Chico</div>
-          <span class="cmc-tag" style="color:#E8C24D"><span class="dot"></span>Aventura</span>
-        </div>
-      </div>
-      <div class="comuna-mini-card">
-        <div class="cmc-photo" style="background-image:url(https://images.unsplash.com/photo-1600891964092-4316c288032e?w=300&q=60)"></div>
-        <div class="cmc-info">
-          <div class="cmc-name">Mesa del Valle</div>
-          <span class="cmc-tag" style="color:#C99A52"><span class="dot"></span>Gastronomía</span>
-        </div>
-      </div>
-      <div class="comuna-mini-card">
-        <div class="cmc-photo" style="background-image:url(https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=300&q=60)"></div>
-        <div class="cmc-info">
-          <div class="cmc-name">Cielo Estrellado</div>
-          <span class="cmc-tag" style="color:#8B7CF0"><span class="dot"></span>Noche</span>
-        </div>
-      </div>
-        </div>
+       <!-- Vacío a propósito: renderComunaPanelRail() reemplaza este contenido
+         por completo (rail.innerHTML = ...) apenas se entra a una comuna real,
+         con datos de Supabase. Nunca queda vacío en pantalla — solo antes de
+         la primera llamada, que ya ocurre en showComunaPanel(). -->
+    <div class="comuna-panel-rail" id="comunaPanelRail"></div>
         <div class="comuna-panel-list-wrap" id="comunaPanelListWrap">
       <div class="comuna-panel-list" id="comunaPanelList"></div>
     </div>
