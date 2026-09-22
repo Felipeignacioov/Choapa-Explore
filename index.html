@@ -4598,11 +4598,16 @@ function updateCerroChicoPhotoVisual(){
   const place = findCerroChicoPlace();
   if (!place) return;
 
-  const belongsToFilter = state.activeExperience === 'todos' ||
+   const belongsToFilter = state.activeExperience === 'todos' ||
     (place.experiences || []).includes(state.activeExperience);
+  // Misma fuente de verdad que ya usa el sistema general de POIs
+  // (poiSourceFeatures) para restringir por localidad — activeLocalityAliases()
+  // ya existe, no se duplica ni se inventa un segundo estado de "localidad actual".
+  const aliases = activeLocalityAliases();
+  const belongsToLocality = !aliases || aliases.includes(place.locality);
   const photoReady = map.hasImage('poi-photo-cerro-chico');
 
-  if (belongsToFilter && photoReady){
+  if (belongsToFilter && belongsToLocality && photoReady){
     map.getSource('poi-photo-source').setData({
       type:'FeatureCollection',
       features:[{ type:'Feature', properties:{ name: place.name }, geometry:{ type:'Point', coordinates:[place.lng, place.lat] } }],
@@ -5195,9 +5200,11 @@ function renderPOIsNative(){
   // Mismo criterio que antes: sin nada durante navegación activa.
   if (state.nav.active){
     src.setData({ type:'FeatureCollection', features:[] });
+    updateCerroChicoPhotoVisual(); // mismo apagado que el resto de POIs durante la ruta
     return;
   }
   src.setData({ type:'FeatureCollection', features: poiSourceFeatures() });
+  updateCerroChicoPhotoVisual(); // recalcula geografía+categoría cada vez que el sistema general lo hace — único punto de verdad
 }
 
 function clearPOIMarkers(){
