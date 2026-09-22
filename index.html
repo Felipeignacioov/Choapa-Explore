@@ -2851,12 +2851,9 @@ const DEMO_PLACES = [];
 // TEST_CATEGORY_PLACES eliminado — Supabase es la única fuente de
 // experiencias; ya no hay datos de prueba insertados en DEMO_PLACES.
 
-const FEATURED_EXPERIENCES = [
-  { iconKey:'sunset',  title:'Atardecer en', bold:'Los Vilos', experience:'tranquilo' },
-  { iconKey:'cielos',  title:'Cielos del', bold:'Choapa', experience:'noche' },
-  { iconKey:'grapes',  title:'Ruta del', bold:'Vino', experience:'gastronomia' },
-  { iconKey:'aventura',title:'Aventura en', bold:'Naturaleza', experience:'aventura' },
-];
+// FEATURED_EXPERIENCES eliminado — eran 4 sugerencias de búsqueda hardcodeadas
+// que no apuntaban a ningún POI real. El buscador sigue funcionando igual con
+// localidades, categorías (EXPERIENCE_TAGS) y experiencias de DEMO_PLACES.
 
 /* ---------- LOCALIDADES — puntos de entrada del Nivel 1/2 de exploración ---------- */
 // Coordenadas aproximadas de los centros urbanos reales de cada localidad del Choapa.
@@ -8772,15 +8769,10 @@ function buildSearchIndex(){
     keywords:loc.name.toLowerCase(),
     action:() => enterLocality(loc, { fly:true }),
   }));
-  EXPERIENCE_TAGS.filter(e => e.id !== 'todos').forEach(exp => idx.push({
+   EXPERIENCE_TAGS.filter(e => e.id !== 'todos').forEach(exp => idx.push({
     icon:exp.icon, label:exp.label, sub:'Experiencia',
     keywords:(EXPERIENCE_SYNONYMS[exp.id] || '') + ' ' + exp.label.toLowerCase(),
     action:() => setActiveExperience(exp.id),
-  }));
-  FEATURED_EXPERIENCES.forEach(exp => idx.push({
-    icon:icon(exp.iconKey, 15), label:`${exp.title} ${exp.bold}`, sub:'Experiencia',
-    keywords:(exp.title + ' ' + exp.bold + ' ' + (EXPERIENCE_SYNONYMS[exp.experience] || '')).toLowerCase(),
-    action:() => setActiveExperience(exp.experience),
   }));
    DEMO_PLACES.forEach(p => {
     const expLabels = p.experiences.map(id => expById(id)?.label || '').join(' ');
