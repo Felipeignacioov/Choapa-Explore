@@ -2848,43 +2848,8 @@ function makePlace({ id, name, category, locality, lat, lng, image, images=[], d
 // registro real de "Cerro Chico" llega desde ahí, ya no de un seed local.
 const DEMO_PLACES = [];
 
-/* ---------- 2B. DATOS DE PRUEBA — categoría principal + categorías compatibles ----------
-   Bloque temporal, aislado a propósito de DEMO_PLACES para poder eliminarlo entero más
-   adelante sin tocar los datos de arriba. Sirve para probar el sistema de color por
-   categoría: cada experiencia tiene una `categoryPrimary` (identidad visual estable —
-   se usa siempre que el filtro esté en "Todos") y un arreglo `experiences` más amplio
-   (categorías compatibles: determina en qué filtros aparece y de qué color se pinta
-   cuando alguno de esos filtros está activo). Todas viven en Salamanca → Salamanca centro.
-   NINGUNO de estos lugares es real — bórrese este bloque completo (y la línea
-   DEMO_PLACES.push de abajo) cuando se reemplace por datos verificados. */
-const TEST_CATEGORY_PLACES = [
-  makePlace({ id:'test1', name:'Atardecer para Dos', category:'naturaleza', locality:'Salamanca', lat:-31.7745, lng:-70.9625,
-    image:'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&q=60',
-    description:'Dato de prueba — no es un lugar real. Sirve para validar el sistema de colores por categoría.',
-    categoryPrimary:'cita', experiences:['cita','tranquilo'], isTestData:true }),
-
-  makePlace({ id:'test3', name:'Mirador del Valle', category:'naturaleza', locality:'Salamanca', lat:-31.7738, lng:-70.9605,
-    image:'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&q=60',
-    description:'Dato de prueba — no es un lugar real. Sirve para validar el sistema de colores por categoría.',
-    categoryPrimary:'tranquilo', experiences:['tranquilo','naturaleza'], isTestData:true }),
-    makePlace({ id:'test4', name:'Tarde en Familia', category:'familia', locality:'Salamanca', lat:-31.7768, lng:-70.9648,
-    image:'https://images.unsplash.com/photo-1477587458883-47145ed94245?w=400&q=60',
-    description:'Dato de prueba — no es un lugar real. Sirve para validar el sistema de colores por categoría.',
-    categoryPrimary:'familia', experiences:['familia','tranquilo'], isTestData:true }),
-   makePlace({ id:'test5', name:'Descenso Extremo', category:'adrenalina', locality:'Salamanca', lat:-31.7788, lng:-70.9598,
-    image:'https://images.unsplash.com/photo-1548625149-fc4a29cf7092?w=400&q=60',
-    description:'Dato de prueba — no es un lugar real. Sirve para validar el sistema de colores por categoría.',
-    categoryPrimary:'adrenalina', experiences:['adrenalina','aventura'], isTestData:true }),
-   makePlace({ id:'test6', name:'Mesa del Valle', category:'gastronomia', locality:'Salamanca', lat:-31.7752, lng:-70.9672,
-    image:'https://images.unsplash.com/photo-1600891964092-4316c288032e?w=400&q=60',
-    description:'Dato de prueba — no es un lugar real. Sirve para validar el sistema de colores por categoría.',
-    categoryPrimary:'gastronomia', experiences:['gastronomia','cita'], isTestData:true }),
-    makePlace({ id:'test7', name:'Cielo Estrellado', category:'noche', locality:'Salamanca', lat:-31.7722, lng:-70.9638,
-    image:'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=400&q=60',
-    description:'Dato de prueba — no es un lugar real. Sirve para validar el sistema de colores por categoría.',
-    categoryPrimary:'noche', experiences:['noche','tranquilo'], isTestData:true }),
-];
-DEMO_PLACES.push(...TEST_CATEGORY_PLACES);
+// TEST_CATEGORY_PLACES eliminado — Supabase es la única fuente de
+// experiencias; ya no hay datos de prueba insertados en DEMO_PLACES.
 
 const FEATURED_EXPERIENCES = [
   { iconKey:'sunset',  title:'Atardecer en', bold:'Los Vilos', experience:'tranquilo' },
