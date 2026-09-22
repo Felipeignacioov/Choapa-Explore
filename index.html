@@ -8365,10 +8365,25 @@ const COMUNA_HERO_IMAGES = {
   losvilos: null,
 };
 function updateSheetHero(){
-  const localityId = state.currentLocality ? state.currentLocality.id : null;
-  const img = localityId ? COMUNA_HERO_IMAGES[localityId] : null;
-  if (img) sheetHero.style.setProperty('--hero-img', `url('${img}')`);
-  else sheetHero.style.removeProperty('--hero-img');
+  if (state.currentLocality){
+    // Mismo criterio que ya usan "Sigue explorando"/cierre editorial
+    // (communeHeroImage) — reutilizado tal cual: imagen manual de
+    // COMUNA_HERO_IMAGES si existe, si no la primera experiencia real de esa
+    // comuna vía placesInLocality (ya 100% Supabase), si no, cadena vacía.
+    const img = communeHeroImage(state.currentLocality);
+    if (img){
+      sheetHero.style.setProperty('--hero-img', `url('${img}')`);
+    } else {
+      // 'none' explícito, no removeProperty — con removeProperty el CSS cae
+      // a su valor por defecto (--hero-img fija con la foto de Cerro Chico
+      // en .sheet-hero), que es justo la imagen incorrecta que se evita acá.
+      sheetHero.style.setProperty('--hero-img', 'none');
+    }
+  } else {
+    // Sin comuna seleccionada (vista general del Choapa): mismo
+    // comportamiento de siempre, el CSS por defecto de .sheet-hero decide.
+    sheetHero.style.removeProperty('--hero-img');
+  }
   renderClosingFeature(); // el cierre editorial sigue a la comuna que se explora
 }
 // Primer render de las 3 secciones editoriales — recién acá COMUNA_HERO_IMAGES
