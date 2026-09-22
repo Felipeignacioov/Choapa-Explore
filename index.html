@@ -2842,89 +2842,11 @@ function makePlace({ id, name, category, locality, lat, lng, image, images=[], d
   };
 }
 
-const DEMO_PLACES = [
-  makePlace({ id:'p1', name:'Mirador de ejemplo', category:'naturaleza', locality:'Salamanca', lat:-31.640, lng:-70.870,
-    image:'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&q=60',
-    description:'Marcador de posición — vista panorámica del valle. Datos reales pendientes de verificación.',
-    experiences:['tranquilo','cita'] }),
-makePlace({ id:'p2', name:'Restaurante de ejemplo', category:'gastronomia', locality:'Illapel', lat:-31.6308, lng:-71.1642,
-    image:'https://images.unsplash.com/photo-1600891964092-4316c288032e?w=400&q=60',
-    description:'Marcador de posición — cocina local. Datos reales pendientes de verificación.',
-    categoryPrimary:'gastronomia', experiences:['gastronomia','cita'] }),
-    makePlace({ id:'p3', name:'Observatorio de ejemplo', category:'noche', locality:'Canela', lat:-31.390, lng:-71.457,
-    image:'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=400&q=60',
-    description:'Marcador de posición — cielos despejados del Norte Chico. Datos reales pendientes de verificación.',
-    categoryPrimary:'noche', experiences:['noche','cita'] }),
-  makePlace({ id:'p4', name:'Viña de ejemplo', category:'gastronomia', locality:'Salamanca', lat:-31.83, lng:-71.02,
-    image:'https://images.unsplash.com/photo-1560493676-04071c5f467b?w=400&q=60',
-    description:'Marcador de posición — viñas del valle del Choapa. Datos reales pendientes de verificación.',
-    categoryPrimary:'gastronomia', experiences:['gastronomia','tranquilo','cita'] }),
-    makePlace({ id:'p5', name:'Iglesia de ejemplo', category:'tranquilo', locality:'Salamanca', lat:-31.7792, lng:-70.9639,
-    image:'https://images.unsplash.com/photo-1548625149-fc4a29cf7092?w=400&q=60',
-    description:'Marcador de posición — patrimonio religioso local. Datos reales pendientes de verificación.',
-    categoryPrimary:'tranquilo', experiences:['tranquilo','familia'] }),
-    makePlace({ id:'p6', name:'Alojamiento de ejemplo', category:'tranquilo', locality:'Los Vilos', lat:-31.909, lng:-71.513,
-    image:'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&q=60',
-    description:'Marcador de posición — hospedaje costero. Datos reales pendientes de verificación.',
-    categoryPrimary:'tranquilo', experiences:['tranquilo','familia'] }),
-  makePlace({ id:'p7', name:'Restaurante de ejemplo', category:'gastronomia', locality:'Los Vilos', lat:-31.905, lng:-71.510,
-    image:'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=60',
-    description:'Marcador de posición — sabores de mar. Datos reales pendientes de verificación.',
-    categoryPrimary:'gastronomia', experiences:['gastronomia','familia'] }),
-  makePlace({ id:'p8', name:'Sendero de ejemplo', category:'naturaleza', locality:'Canela Baja', lat:-31.365, lng:-71.29,
-    image:'https://images.unsplash.com/photo-1454391304352-2bf4678b1a7a?w=400&q=60',
-    description:'Marcador de posición — ruta de senderismo. Datos reales pendientes de verificación.',
-    experiences:['aventura','adrenalina'] }),
-makePlace({ id:'p9', name:'Punto patrimonial de ejemplo', category:'familia', locality:'Salamanca', lat:-31.700, lng:-71.02,
-    image:'https://images.unsplash.com/photo-1477587458883-47145ed94245?w=400&q=60',
-    description:'Marcador de posición — historia local. Datos reales pendientes de verificación.',
-    categoryPrimary:'familia', experiences:['familia','tranquilo'] }),
-  makePlace({ id:'p10', name:'Mirador de ejemplo', category:'naturaleza', locality:'Chalinga', lat:-31.7715, lng:-70.9805,
-    image:'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&q=60',
-    description:'Marcador de posición — cerros y quebradas. Datos reales pendientes de verificación.',
-    experiences:['aventura','tranquilo'] }),
-
-  // El Tambo — set de ejemplo para demostrar el Nivel 3 (Localidad → Experiencias).
-  // Nombres genéricos "de ejemplo", NO negocios reales — misma política que el resto.
-  makePlace({ id:'p11', name:'Mirador de ejemplo', category:'naturaleza', locality:'El Tambo', lat:-31.7845, lng:-71.0198,
-    image:'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&q=60',
-    description:'Marcador de posición — vista sobre el valle del Choapa. Datos reales pendientes de verificación.',
-    experiences:['tranquilo','cita'] }),
-  makePlace({ id:'p12', name:'Sendero de ejemplo', category:'naturaleza', locality:'El Tambo', lat:-31.7897, lng:-71.0258,
-    image:'https://images.unsplash.com/photo-1454391304352-2bf4678b1a7a?w=400&q=60',
-    description:'Marcador de posición — ruta de trekking por los cerros. Datos reales pendientes de verificación.',
-    experiences:['aventura','adrenalina'] }),
- makePlace({ id:'p13', name:'Restaurante de ejemplo', category:'gastronomia', locality:'El Tambo', lat:-31.7868, lng:-71.0208,
-    image:'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=60',
-    description:'Marcador de posición — cocina local junto al río. Datos reales pendientes de verificación.',
-    categoryPrimary:'gastronomia', experiences:['gastronomia','familia'] }),
-   makePlace({ id:'p14', name:'Observatorio de ejemplo', category:'noche', locality:'El Tambo', lat:-31.7828, lng:-71.0248,
-    image:'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=400&q=60',
-    description:'Marcador de posición — cielos despejados, ideal para observación nocturna. Datos reales pendientes de verificación.',
-    categoryPrimary:'noche', experiences:['noche','cita'] }),
-  makePlace({ id:'p15', name:'Rincón de ejemplo', category:'naturaleza', locality:'El Tambo', lat:-31.7902, lng:-71.0188,
-    image:'https://images.unsplash.com/photo-1477587458883-47145ed94245?w=400&q=60',
-    description:'Marcador de posición — paseo tranquilo junto al agua. Datos reales pendientes de verificación.',
-    experiences:['tranquilo'] }),
-
-  // ---------- PRIMER POI REAL ----------
-  makePlace({
-    id:'cerro-chico', name:'Cerro Chico', category:'naturaleza', locality:'Salamanca',
-    lat:-31.78234814769401, lng:-70.95937796622286,
-   image:'assets/cerro-chico/02-vista-aerea.jpg',
-    images:[
-      'assets/cerro-chico/02-vista-aerea.jpg',
-      'assets/cerro-chico/04-.jpg',
-      'assets/cerro-chico/03-.jpg',
-      'assets/cerro-chico/06-.jpg',
-      'assets/cerro-chico/05-.jpg',
-      'assets/cerro-chico/01-petrogrifo.jpg',
-    ],
-    description:'Cerro emblemático de Salamanca, con senderos hasta la cumbre y vistas panorámicas sobre el valle del Choapa. Conserva petroglifos originarios en su ladera.',
-    categoryPrimary:'aventura', experiences:['aventura','naturaleza','tranquilo'],
-    isDemo:false,
-  }),
-];
+// Arranca vacío a propósito: Supabase es la única fuente de datos de producto.
+// applySupabaseData() rellena este mismo array (DEMO_PLACES.length = 0;
+// DEMO_PLACES.push(...newPlaces)) apenas la sincronización resuelve — el
+// registro real de "Cerro Chico" llega desde ahí, ya no de un seed local.
+const DEMO_PLACES = [];
 
 /* ---------- 2B. DATOS DE PRUEBA — categoría principal + categorías compatibles ----------
    Bloque temporal, aislado a propósito de DEMO_PLACES para poder eliminarlo entero más
@@ -2980,12 +2902,10 @@ const FEATURED_EXPERIENCES = [
 function makeLocality({ id, name, lat, lng, aliases }){
   return { id, name, lat, lng, aliases };
 }
-const LOCALITIES = [
-  makeLocality({ id:'salamanca', name:'Salamanca', lat:-31.776, lng:-70.964, aliases:['Salamanca','Chalinga','Tahuinco','El Tambo','El Tebal','San Agustín','Higuerilla','Panguesillo','Quelén','Coirón','Chillepín','Tranquilla','Cuncumén'] }),
-  makeLocality({ id:'illapel',   name:'Illapel',    lat:-31.6308, lng:-71.1642, aliases:['Illapel','Cuz Cuz','Huintil','Asiento Viejo','Limahuida','Peralillo','Canelillo','Tunga','Choapa','Pintacura','Las Cañas','Socavón'] }),
-  makeLocality({ id:'losvilos',  name:'Los Vilos',  lat:-31.9089, lng:-71.5133, aliases:['Los Vilos','Pichidangui','Quilimarí','Caimanes','Guangualí','Tilama','Pangalillo'] }),
-  makeLocality({ id:'canela',    name:'Canela',     lat:-31.390, lng:-71.457, aliases:['Canela','Canela Baja','Canela Alta','Huentelauquén','Mincha','Puerto Oscuro','El Chical','Agua Fría','Los Pozos','Atelcura'] }),
-];
+// Arranca vacío — mismo criterio que DEMO_PLACES. applySupabaseData() lo
+// repuebla (LOCALITIES.length = 0; LOCALITIES.push(...newLocalities)) con
+// las comunas reales que trae `communes` de Supabase.
+const LOCALITIES = [];
 function placesInLocality(locality){
   return DEMO_PLACES.filter(p => locality.aliases.includes(p.locality));
 }
@@ -3006,79 +2926,10 @@ function placesInLocality(locality){
 function makeSublocality({ id, name, lat, lng, aliases, tier='secondary' }){
   return { id, name, lat, lng, aliases, tier };
 }
-const SUBLOCALITIES = {
-  // Coordenadas verificadas, provistas directamente por Felipe (12/08/2026) —
-  // ya NO son estimaciones: reemplazan las posiciones aproximadas anteriores.
-  salamanca: [
-    makeSublocality({ id:'salamanca-centro', name:'Salamanca (centro)', lat:-31.776, lng:-70.964, aliases:['Salamanca'], tier:'primary' }),
-    makeSublocality({ id:'chalinga',    name:'Chalinga',    lat:-31.76875625115217, lng:-70.97732101185743, aliases:['Chalinga'] }),
-    makeSublocality({ id:'tahuinco',    name:'Tahuinco',    lat:-31.788986506744983, lng:-71.0594996885501,   aliases:['Tahuinco'] }),
-    makeSublocality({ id:'el-tambo',    name:'El Tambo',    lat:-31.786488520168078, lng:-71.02231994437052,  aliases:['El Tambo'] }),
-    makeSublocality({ id:'el-tebal',    name:'El Tebal',    lat:-31.754825069179297, lng:-70.97824336294946,  aliases:['El Tebal'] }),
-    makeSublocality({ id:'san-agustin', name:'San Agustín', lat:-31.731047327387206, lng:-70.83343064411805,  aliases:['San Agustín'] }),
-    makeSublocality({ id:'higuerilla',  name:'Higuerilla',  lat:-31.830886694851593, lng:-70.90648840879838,  aliases:['Higuerilla'] }),
-    makeSublocality({ id:'panguesillo', name:'Panguesillo', lat:-31.84077554609745,  lng:-70.87577582910205,  aliases:['Panguesillo'] }),
-    makeSublocality({ id:'quelen',      name:'Quelén',      lat:-31.864629592744024, lng:-70.84293953022792,  aliases:['Quelén'] }),
-    makeSublocality({ id:'coiron',      name:'Coirón',      lat:-31.903800138739705, lng:-70.77790580405502,  aliases:['Coirón'] }),
-    makeSublocality({ id:'chillepin',   name:'Chillepín',   lat:-31.881576165376654, lng:-70.72959839386769,  aliases:['Chillepín'] }),
-    makeSublocality({ id:'tranquilla',  name:'Tranquilla',  lat:-31.89868267815262,  lng:-70.6788615530538,   aliases:['Tranquilla'] }),
-    makeSublocality({ id:'cuncumen',    name:'Cuncumén',    lat:-31.896909570661066, lng:-70.62788856081204,  aliases:['Cuncumén'] }),
-  ],
- // Los Vilos — coordenadas obtenidas por geocodificación (Google Places / fuentes
-  // públicas como Wikipedia y GORE Coquimbo) el 17/08/2026. Pichidangui, Quilimarí,
-  // Caimanes, Guangualí y Tilama son coincidencias directas y confiables.
-  // Pangalillo es un caserío muy pequeño sin geocodificación exacta disponible —
-  // posición aproximada en su zona real (interior, entre Los Vilos y Tilama),
-  // pendiente de reemplazo por coordenadas verificadas.
-  losvilos: [
-      makeSublocality({ id:'losvilos-centro', name:'Los Vilos (centro)', lat:-31.912162, lng:-71.511739, aliases:['Los Vilos'], tier:'primary' }),
-    makeSublocality({ id:'pichidangui',     name:'Pichidangui',        lat:-32.140611, lng:-71.525551, aliases:['Pichidangui'] }),
-    makeSublocality({ id:'quilimari',       name:'Quilimarí',          lat:-32.119003, lng:-71.499741, aliases:['Quilimarí'] }),
-    makeSublocality({ id:'caimanes',        name:'Caimanes',           lat:-31.932205422997175, lng:-71.13452849598387, aliases:['Caimanes'] }),
-    makeSublocality({ id:'guangualí',       name:'Guangualí',          lat:-32.134229, lng:-71.369651, aliases:['Guangualí'] }),
-    makeSublocality({ id:'tilama',          name:'Tilama',             lat:-32.086601, lng:-71.167124, aliases:['Tilama'] }),
-    makeSublocality({ id:'pangalillo',      name:'Pangalillo',         lat:-32.05,     lng:-71.20,     aliases:['Pangalillo'] }),
-  ],
-  // Canela — coordenadas obtenidas por geocodificación el 17/08/2026. Canela Baja,
-  // Canela Alta, Huentelauquén, Mincha y Puerto Oscuro son coincidencias directas.
-  // El Chical, Agua Fría, Los Pozos y Atelcura son caseríos/sectores rurales muy
-  // pequeños — posiciones aproximadas en su zona real, pendientes de coordenadas
-  // exactas verificadas.
-  canela: [
-        // Canela no tiene una localidad "(centro)" propia declarada — se asume
-    // Canela Baja como la principal por ser el pueblo más grande de la
-    // comuna. Supuesto ajustable: basta con cambiar 'primary' por otra
-    // localidad de este mismo bloque si no coincide con el criterio real.
-    makeSublocality({ id:'canela-baja',     name:'Canela Baja',   lat:-31.399101, lng:-71.457397, aliases:['Canela Baja'], tier:'primary' }),
-    makeSublocality({ id:'canela-alta',     name:'Canela Alta',   lat:-31.390009, lng:-71.384799, aliases:['Canela Alta'] }),
-    makeSublocality({ id:'huentelauquen',   name:'Huentelauquén', lat:-31.578181, lng:-71.535603, aliases:['Huentelauquén'] }),
-    makeSublocality({ id:'mincha',          name:'Mincha',        lat:-31.587389, lng:-71.447773, aliases:['Mincha'] }),
-   makeSublocality({ id:'puerto-oscuro',   name:'Puerto Oscuro', lat:-31.422815977346584, lng:-71.59317196791481, aliases:['Puerto Oscuro'] }),
-    makeSublocality({ id:'el-chical',       name:'El Chical',     lat:-31.404,    lng:-71.457,    aliases:['El Chical'] }),
-    makeSublocality({ id:'agua-fria',       name:'Agua Fría',     lat:-31.537435, lng:-71.378245, aliases:['Agua Fría'] }),
-    makeSublocality({ id:'los-pozos',       name:'Los Pozos',     lat:-31.348363, lng:-71.504277, aliases:['Los Pozos'] }),
-    makeSublocality({ id:'atelcura',        name:'Atelcura',      lat:-31.565743, lng:-71.323421, aliases:['Atelcura'] }),
-  ],
-  // Illapel — coordenadas obtenidas por geocodificación el 17/08/2026, cruzadas con
-  // el artículo de Wikipedia "Illapel" (listado de localidades rurales de la comuna).
-  // Choapa es un caserío confirmado ~11 km al surponiente de Illapel, frente a
-  // Pintacura, en la ribera sur del río Choapa — posición aproximada dado que no
-  // tiene geocodificación exacta disponible, pendiente de coordenadas verificadas.
-  illapel: [
-      makeSublocality({ id:'illapel-centro', name:'Illapel (centro)', lat:-31.630646, lng:-71.165438, aliases:['Illapel'], tier:'primary' }),
-    makeSublocality({ id:'cuz-cuz',        name:'Cuz Cuz',          lat:-31.640022, lng:-71.192173, aliases:['Cuz Cuz'] }),
-    makeSublocality({ id:'huintil',        name:'Huintil',          lat:-31.568723, lng:-70.981813, aliases:['Huintil'] }),
-    makeSublocality({ id:'asiento-viejo',  name:'Asiento Viejo',    lat:-31.603735, lng:-71.131639, aliases:['Asiento Viejo'] }),
-    makeSublocality({ id:'limahuida',      name:'Limahuida',        lat:-31.638844, lng:-71.189544, aliases:['Limahuida'] }),
-    makeSublocality({ id:'peralillo',      name:'Peralillo',        lat:-31.727731, lng:-71.123927, aliases:['Peralillo'] }),
-    makeSublocality({ id:'canelillo',      name:'Canelillo',        lat:-31.725110, lng:-71.269523, aliases:['Canelillo'] }),
-    makeSublocality({ id:'tunga',          name:'Tunga',            lat:-31.627571, lng:-71.364899, aliases:['Tunga'] }),
-    makeSublocality({ id:'choapa',         name:'Choapa',           lat:-31.705,    lng:-71.260,    aliases:['Choapa'] }),
-    makeSublocality({ id:'pintacura',      name:'Pintacura',        lat:-31.699010, lng:-71.246405, aliases:['Pintacura'] }),
-    makeSublocality({ id:'las-canas',      name:'Las Cañas',        lat:-31.731364, lng:-71.253985, aliases:['Las Cañas'] }),
-    makeSublocality({ id:'socavon',        name:'Socavón',          lat:-31.809005, lng:-71.159392, aliases:['Socavón'] }),
-  ],
-};
+// Arranca vacío — mismo criterio que LOCALITIES/DEMO_PLACES. applySupabaseData()
+// lo repuebla (delete de cada clave + Object.assign(SUBLOCALITIES, newSublocalities))
+// con las localidades reales que trae `localities` de Supabase.
+const SUBLOCALITIES = {};
 
 /* ---------- 3. TERRITORIO — límites reales del Choapa ---------- */
 // Provincia del Choapa: Salamanca, Illapel, Los Vilos, Canela, Caimanes.
@@ -4016,30 +3867,39 @@ function renderTerrainDepth(){
     // updateLosVilosReflection(), enganchada a enterLocality/exitLocality más
     // abajo). fill-translate es un desplazamiento puramente visual — no mueve
     // ninguna geometría real ni afecta interactividad.
+        // Guard obligatorio ahora que LOCALITIES arranca vacío hasta que Supabase
+    // sincroniza — sin esto, losVilos es undefined en la carga inicial y
+    // losVilos.lng lanza un TypeError que corta el resto de map.on('load').
+    // Efecto secundario conocido: esta capa (y su reflejo animado) NO se crea
+    // en la carga inicial; como renderTerrainDepth() solo corre una vez, el
+    // reflejo de Los Vilos queda inactivo para toda la sesión hasta que se
+    // aborde en una etapa posterior (no rediseño el loading en esta etapa).
     const losVilos = LOCALITIES.find(l => l.id === 'losvilos');
-    map.addSource('losvilos-reflection', {
-      type:'geojson',
-      data:{ type:'Feature', properties:{}, geometry:{ type:'Point', coordinates:[losVilos.lng, losVilos.lat] } },
-    });
-   map.addLayer({
-      id:'losvilos-reflection-layer', type:'circle', source:'losvilos-reflection',
-      paint:{
-        // Radio ~22% más chico (dentro del rango 20-25% pedido).
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 47, 13, 125],
-        'circle-color': '#BFEFF2',
-        'circle-opacity': 0, // se activa solo al entrar a Los Vilos
-        'circle-opacity-transition': { duration:700 },
-        // Blur reducido (1 → 0.7): el brillo se concentra más cerca de la costa
-        // y se desvanece antes hacia mar abierto, en vez de difuminarse ancho.
-        'circle-blur': 0.7,
-        'circle-pitch-alignment':'map',
-      },
-    }, coastBeforeId);
-          setInterval(() => {
-      if (!map.getLayer('losvilos-reflection-layer')) return;
-      const drift = Math.sin(performance.now() / 2800) * 14; // px, horizontal, muy lento
-      map.setPaintProperty('losvilos-reflection-layer', 'circle-translate', [drift, 0]);
-    }, 260);
+    if (losVilos){
+      map.addSource('losvilos-reflection', {
+        type:'geojson',
+        data:{ type:'Feature', properties:{}, geometry:{ type:'Point', coordinates:[losVilos.lng, losVilos.lat] } },
+      });
+     map.addLayer({
+        id:'losvilos-reflection-layer', type:'circle', source:'losvilos-reflection',
+        paint:{
+          // Radio ~22% más chico (dentro del rango 20-25% pedido).
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 47, 13, 125],
+          'circle-color': '#BFEFF2',
+          'circle-opacity': 0, // se activa solo al entrar a Los Vilos
+          'circle-opacity-transition': { duration:700 },
+          // Blur reducido (1 → 0.7): el brillo se concentra más cerca de la costa
+          // y se desvanece antes hacia mar abierto, en vez de difuminarse ancho.
+          'circle-blur': 0.7,
+          'circle-pitch-alignment':'map',
+        },
+      }, coastBeforeId);
+            setInterval(() => {
+        if (!map.getLayer('losvilos-reflection-layer')) return;
+        const drift = Math.sin(performance.now() / 2800) * 14; // px, horizontal, muy lento
+        map.setPaintProperty('losvilos-reflection-layer', 'circle-translate', [drift, 0]);
+      }, 260);
+    }
   }
 
   // ---- 3) Río Choapa con protagonismo sutil ----
