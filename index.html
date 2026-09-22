@@ -2790,18 +2790,9 @@ const EXPERIENCE_TAGS = [
 const expById = id => EXPERIENCE_TAGS.find(e => e.id === id);
 
 // Título + bajada del panel inferior cuando hay una experiencia filtrada activa.
-const EXPERIENCE_PANEL_COPY = {
-  cita:        { title:'Experiencias para una cita', tagline:'Momentos especiales para descubrir juntos.' },
-  aventura:    { title:'Aventura en el Choapa',        tagline:'Explora, camina y descubre.' },
-  naturaleza:  { title:'Naturaleza del Choapa',         tagline:'Conecta con los paisajes del Choapa.' },
-  tranquilo:   { title:'Planes tranquilos',             tagline:'Planes para bajar el ritmo.' },
-  familia:     { title:'Planes en familia',             tagline:'Momentos para compartir en familia.' },
-  adrenalina:  { title:'Adrenalina en el Choapa',       tagline:'Sube el ritmo, vive la intensidad.' },
-  gastronomia: { title:'Gastronomía del Choapa',        tagline:'Sabores que valen el viaje.' },
-    noche:       { title:'Noches del Choapa',             tagline:'Cielos despejados, planes nocturnos.' },
-  cultura:     { title:'Cultura del Choapa',             tagline:'Historia e identidad del valle.' },
-};
-
+// EXPERIENCE_PANEL_COPY eliminado — su único consumidor (dentro de
+// renderPlacesRail) estaba detrás de un `if (!placesRail) return;` que ya lo
+// hacía inalcanzable, porque #placesRail no existe en el HTML actual.
 /* ---------- 2. MODELO Place ---------- */
 // Estructura escalable: 20 -> 100 -> 500 lugares sin rediseñar.
 // isDemo:true = dato de marcador de posición, NO un negocio/lugar real.
@@ -8121,10 +8112,12 @@ function renderPlacesRail(){
     placesSectionTitle.innerHTML = `${icon('pin', 15)} Explorando ${deepest.name}`;
     placesSubtitle.textContent = `${total} lugar${total === 1 ? '' : 'es'} por descubrir` + (filtering ? ` · ${exp.label.toLowerCase()}` : '');
     placesSubtitle.style.display = 'block';
-  } else if (filtering){
-    const copy = EXPERIENCE_PANEL_COPY[state.activeExperience];
-    placesSectionTitle.innerHTML = `${exp.icon} ${copy ? copy.title : exp.label}`;
-    placesSubtitle.textContent = copy ? copy.tagline : '';
+   } else if (filtering){
+    // Rama inalcanzable hoy (placesRail es null, ver el guard al inicio de
+    // esta función) — se conserva la estructura y el fallback de siempre
+    // (exp.label), solo sin la referencia a EXPERIENCE_PANEL_COPY eliminado.
+    placesSectionTitle.innerHTML = `${exp.icon} ${exp.label}`;
+    placesSubtitle.textContent = '';
     placesSubtitle.style.display = 'block';
   } else {
     placesSectionTitle.innerHTML = `Recomendados para ti`;
