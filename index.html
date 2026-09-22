@@ -2793,27 +2793,12 @@ const expById = id => EXPERIENCE_TAGS.find(e => e.id === id);
 // EXPERIENCE_PANEL_COPY eliminado — su único consumidor (dentro de
 // renderPlacesRail) estaba detrás de un `if (!placesRail) return;` que ya lo
 // hacía inalcanzable, porque #placesRail no existe en el HTML actual.
-/* ---------- 2. MODELO Place ---------- */
-// Estructura escalable: 20 -> 100 -> 500 lugares sin rediseñar.
-// isDemo:true = dato de marcador de posición, NO un negocio/lugar real.
-// Fase 2 reemplazará esto por una base verificada (nombre, coords, fotos reales).
-// `category` = tipo de lugar (fijo, 1 valor) · `experiences` = planes que ofrece (0..N valores)
-// `images` (plural, opcional) prepara la arquitectura para una futura galería en la
-// ficha del POI. Ningún lugar existente necesita tocarse: si no se pasa `images`,
-// se deriva automáticamente de `image` (un solo elemento) — mismo comportamiento
-// de siempre para los 22 lugares de ejemplo que ya existen.
-// duration/difficulty: opcionales, vacíos por defecto. Cuando haya datos reales
-// verificados para una experiencia, se pasan aquí (ej. duration:'2-3 h',
-// difficulty:'Media') y la sección "Información práctica" de la ficha los muestra
-// automáticamente — hasta entonces, esos campos simplemente no aparecen.
-function makePlace({ id, name, category, locality, lat, lng, image, images=[], description='', experiences=[], categoryPrimary=null, isDemo=true, isTestData=false, duration='', difficulty='' }) {
-  const gallery = images.length ? images : (image ? [image] : []);
-  return {
-    id, name, category, locality, lat, lng, image, images:gallery, isDemo, experiences, categoryPrimary, isTestData,
-    description, address:'', openingHours:'', priceRange:'', duration, difficulty,
-    phone:'', website:'', instagram:'', tags:[]
-  };
-}
+/* ---------- 2. MODELO Place ----------
+   La forma del objeto Place la define ahora transformSupabaseData(), que
+   construye cada experiencia directamente como literal a partir de las filas
+   de Supabase — mismo shape (id/name/category/categoryPrimary/locality/lat/
+   lng/image/images/experiences/description/address/openingHours/priceRange/
+   duration/difficulty/...) que antes armaba este constructor local. */
 
 // Arranca vacío a propósito: Supabase es la única fuente de datos de producto.
 // applySupabaseData() rellena este mismo array (DEMO_PLACES.length = 0;
@@ -2828,42 +2813,23 @@ const DEMO_PLACES = [];
 // que no apuntaban a ningún POI real. El buscador sigue funcionando igual con
 // localidades, categorías (EXPERIENCE_TAGS) y experiencias de DEMO_PLACES.
 
-/* ---------- LOCALIDADES — puntos de entrada del Nivel 1/2 de exploración ---------- */
-// Coordenadas aproximadas de los centros urbanos reales de cada localidad del Choapa.
-// Son estimaciones geográficas razonables para navegación, no direcciones verificadas
-// dato a dato — cuando tengamos datos catastrales exactos, se reemplazan aquí.
-// `aliases` conecta cada localidad con los valores de `Place.locality` usados en los POIs,
-// incluyendo caseríos/sectores cercanos que cuentan como parte de esa localidad.
-function makeLocality({ id, name, lat, lng, aliases }){
-  return { id, name, lat, lng, aliases };
-}
-// Arranca vacío — mismo criterio que DEMO_PLACES. applySupabaseData() lo
-// repuebla (LOCALITIES.length = 0; LOCALITIES.push(...newLocalities)) con
-// las comunas reales que trae `communes` de Supabase.
+/* ---------- LOCALIDADES — puntos de entrada del Nivel 1/2 de exploración ----------
+   Poblado exclusivamente por applySupabaseData() a partir de `communes` de
+   Supabase — `aliases` conecta cada localidad con los valores de
+   `Place.locality` usados en los POIs, misma forma que ya construye
+   transformSupabaseData(). */
 const LOCALITIES = [];
 function placesInLocality(locality){
   return DEMO_PLACES.filter(p => locality.aliases.includes(p.locality));
 }
 
 /* ---------- NIVEL 2 — localidades DENTRO de una comuna ("zona de influencia") ----------
-   Igual que arriba: coordenadas aproximadas orientadas a navegación, no un catastro
-   verificado localidad por localidad. Los nombres y posiciones relativas (ej. El Tambo
-   al oeste de Salamanca, sobre el río Choapa; Cuncumén al este, hacia la cordillera)
-   están confirmados por fuentes públicas; la posición exacta dentro de cada pueblo es
-   una estimación pendiente de reemplazo por datos catastrales reales.
-   Solo Salamanca tiene Nivel 2 cargado por ahora — el resto de las comunas cae de
-   forma automática y transparente al comportamiento anterior (Nivel 1 → POIs directo)
-   hasta que carguemos sus localidades. */
+   Poblado exclusivamente por applySupabaseData() a partir de `localities` de
+   Supabase. */
 // tier: 'primary' | 'secondary' (default) — jerarquía visual de este marcador
 // en el nivel de localidad. Campo puramente local por ahora (punto 7):
 // ninguna tabla de Supabase se toca, los datos cargados desde el backend
 // simplemente no traen este campo y caen al default 'secondary'.
-function makeSublocality({ id, name, lat, lng, aliases, tier='secondary' }){
-  return { id, name, lat, lng, aliases, tier };
-}
-// Arranca vacío — mismo criterio que LOCALITIES/DEMO_PLACES. applySupabaseData()
-// lo repuebla (delete de cada clave + Object.assign(SUBLOCALITIES, newSublocalities))
-// con las localidades reales que trae `localities` de Supabase.
 const SUBLOCALITIES = {};
 
 /* ---------- 3. TERRITORIO — límites reales del Choapa ---------- */
