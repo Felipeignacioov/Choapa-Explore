@@ -2656,7 +2656,7 @@ function transformSupabaseData(communesRows, localitiesRows, experiencesRows){
       .map(im => im.url);
     const locality = localityById.get(row.locality_id);
     const primaryId = categoryPrimary || tagIds[0] || 'todos';
-    return {
+      return {
       id: row.id,
       name: row.name,
       category: primaryId,
@@ -2665,7 +2665,6 @@ function transformSupabaseData(communesRows, localitiesRows, experiencesRows){
       lat: row.lat, lng: row.lng,
       image: images[0] || '',
       images,
-      isDemo: false, isTestData: false,
       experiences: tagIds,
       description: row.description || '',
       address: row.address || '', openingHours: row.opening_hours || '', priceRange: row.price_range || '',
@@ -6282,9 +6281,7 @@ function selectPlace(place, el){
   const memoryBtn = document.getElementById('poiDetailMemoryBtn');
   memoryBtn.classList.toggle('saved', !!MemoryStore.get(place.id));
 
-   document.getElementById('poiDetailDemoNote').textContent = place.isDemo ? '● Lugar de ejemplo — datos reales próximamente' : '';
-
-  // Acercamiento intencional hacia el POI tocado — confirmación visual de
+    // Acercamiento intencional hacia el POI tocado — confirmación visual de
   // "esto es lo que elegiste" antes de que la ficha tape el mapa. No es el
   // reencuadre que había antes (aquel perseguía dejar el POI en un borde
   // específico de la pantalla, algo que dejó de tener sentido cuando la ficha
