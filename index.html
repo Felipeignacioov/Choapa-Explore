@@ -9146,16 +9146,12 @@ document.getElementById('mdDelete').addEventListener('click', () => {
    funcionando exactamente igual que hoy — ese es el fallback.
    ============================================================ */
 function applySupabaseData({ newLocalities, newSublocalities, newPlaces }){
-  // Guarda de seguridad: si la consulta "tiene éxito" pero devuelve 0
-  // experiencias (ej. un problema de esquema/embed que PostgREST responde
-  // como lista vacía en vez de error — visto durante la migración a
-  // experience_categories), esto ya no vacía DEMO_PLACES sin reemplazo. Antes
-  // este vaciado era incondicional, y era la causa real de "desaparecen
-  // todos los POIs tras el refresh". Los datos locales de ejemplo quedan
-  // intactos en este caso, igual que si Supabase no estuviera configurado.
+  // Supabase es la única fuente de verdad: se sincroniza siempre, incluso con
+  // 0 experiencias — ya no existen datos locales/demo que "conservar" en ese
+  // caso. Comunas y localidades se actualizan igual, sin depender de si hay
+  // experiencias publicadas o no.
   if (!newPlaces.length){
-    console.warn('[Supabase] La sincronización devolvió 0 experiencias — se mantienen los datos locales para no vaciar el mapa.');
-    return;
+    console.warn('[Supabase] La sincronización devolvió 0 experiencias — el estado de experiencias queda vacío.');
   }
   DEMO_PLACES.length = 0; DEMO_PLACES.push(...newPlaces);
   LOCALITIES.length = 0; LOCALITIES.push(...newLocalities);
