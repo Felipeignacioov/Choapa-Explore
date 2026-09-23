@@ -9181,15 +9181,15 @@ function applySupabaseData({ newLocalities, newSublocalities, newPlaces }){
 }
 
 function initSupabaseSync(){
-  if (!supabaseClient){
-    console.info('[Supabase] Sin credenciales configuradas (SUPABASE_URL/SUPABASE_ANON_KEY) — usando datos locales de ejemplo.');
+   if (!supabaseClient){
+    console.info('[Supabase] Sin credenciales configuradas (SUPABASE_URL/SUPABASE_ANON_KEY) — no se pueden cargar datos remotos.');
     return;
   }
   SupabaseDataLayer.loadAll().then(result => {
     if (map.isStyleLoaded()) applySupabaseData(result);
     else map.once('load', () => applySupabaseData(result));
-  }).catch(err => {
-    console.error('[Supabase] No se pudo cargar datos remotos — se mantienen los datos locales de ejemplo.', err);
+   }).catch(err => {
+    console.error('[Supabase] No se pudieron cargar los datos remotos.', err);
   });
 }
 initSupabaseSync();
