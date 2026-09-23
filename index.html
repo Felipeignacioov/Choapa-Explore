@@ -298,6 +298,12 @@ img{-webkit-user-drag:none; user-select:none;}
 .map-controls.nav-voy-hidden{
   display:none;
 }
+/* Buscador superior oculto mientras hay una comuna/localidad activa — clase
+   propia, independiente de nav-voy-hidden, para que ambos disparadores
+   (navegación GPS y contexto de comuna) no se pisen entre sí. */
+.search-wrap.locality-hidden{
+  display:none;
+}
 /* .breadcrumb-pill ya alterna display:none/flex vía su propia clase
    .visible — !important necesario solo para poder forzar el ocultamiento
    por encima de esa clase mientras dura la navegación activa. */
@@ -5583,9 +5589,20 @@ mapCanvas.addEventListener('pointermove', handleTerritoryGlowPointerMove, { pass
 window.addEventListener('pointerup', handleTerritoryGlowPointerUp, { passive:true });
 window.addEventListener('pointercancel', handleTerritoryGlowPointerUp, { passive:true });
 
+// Buscador superior — visible solo en el estado global (sin comuna activa).
+// state.currentLocality es la misma fuente de verdad que ya usa el resto del
+// sistema (breadcrumb, zone-prompt, panel "En [Comuna]"). state.currentSublocality
+// nunca se activa sin state.currentLocality, y toda selección de POI ya pasa
+// antes por enterLocality() — así que esta única condición cubre los 3 casos
+// (comuna / localidad / POI seleccionado) sin hooks adicionales.
+function updateSearchBarVisibility(){
+  document.querySelector('.search-wrap').classList.toggle('locality-hidden', !!state.currentLocality);
+}
+
 function enterLocality(locality, { fly }){
   state.currentLocality = locality;
   state.currentSublocality = null;
+  updateSearchBarVisibility(); // buscador oculto mientras hay una comuna activa
   updateZonePrompt();
   updateSheetHero();
   updateLosVilosReflection();
@@ -5637,6 +5654,7 @@ function exitLocality({ fly }){
   state.currentLocality = null;
   state.currentSublocality = null;
   comunaPanelAutoMinimized = false;
+  updateSearchBarVisibility(); // vuelve al estado global: buscador reaparece
   updateZonePrompt();
   updateSheetHero();
   updateLosVilosReflection();
