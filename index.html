@@ -1080,7 +1080,7 @@ img{-webkit-user-drag:none; user-select:none;}
 /* Hero contextual — reemplaza al viejo título suelto de la sección. Aquí vive el
    protagonismo del panel al abrirse. */
 .sheet-hero{
-  --hero-img: url('assets/cerro-chico/02-vista-aerea.jpg');
+  --hero-img: none;
   position:relative;
   padding:24px 20px 26px; min-height:190px;
   display:flex; flex-direction:column; justify-content:flex-end;
@@ -2680,12 +2680,33 @@ function transformSupabaseData(communesRows, localitiesRows, experiencesRows){
 // Supabase directamente.
 const SupabaseDataLayer = {
   async loadAll(){
-    const [communesRows, localitiesRows, experiencesRows] = await Promise.all([
+    // Promise.allSettled en vez de Promise.all: un fallo de experiences ya
+    // no debe arrastrar a communes/localities, que pueden haber funcionado
+    // perfectamente. communes y localities siguen siendo indispensables (si
+    // cualquiera falla, se relanza su error y loadAll() rechaza, igual que
+    // antes); experiences es la única que puede fallar sola — en ese caso se
+    // registra su error en consola y se continúa con un array vacío, nunca
+    // con datos locales.
+    const [communesResult, localitiesResult, experiencesResult] = await Promise.allSettled([
       fetchCommunesFromSupabase(),
       fetchLocalitiesFromSupabase(),
       fetchExperiencesFromSupabase(),
     ]);
+
+    if (communesResult.status === 'rejected') throw communesResult.reason;
+    if (localitiesResult.status === 'rejected') throw localitiesResult.reason;
+
+    const communesRows = communesResult.value;
+    const localitiesRows = localitiesResult.value;
     if (!communesRows.length) throw new Error('Supabase devolvió 0 comunas — revisa las políticas RLS o los datos cargados.');
+
+    let experiencesRows = [];
+    if (experiencesResult.status === 'fulfilled'){
+      experiencesRows = experiencesResult.value;
+    } else {
+      console.error('[Supabase] Error cargando experiences:', experiencesResult.reason);
+    }
+
     return transformSupabaseData(communesRows, localitiesRows, experiencesRows);
   },
 };
