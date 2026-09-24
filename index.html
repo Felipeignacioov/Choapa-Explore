@@ -717,11 +717,14 @@ img{-webkit-user-drag:none; user-select:none;}
 .breadcrumb-pill{
   position:absolute; left:16px; z-index:9;
   display:flex; align-items:center; gap:6px;
-  background:rgba(22,184,196,0.22); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
-  border:1px solid rgba(95,225,232,0.35);
-  box-shadow:var(--shadow-float), 0 3px 10px rgba(2,8,15,0.28);
+  /* Más translúcido/delicado — mismo tono turquesa de "Todos" (--turquoise-
+     bright, equivalente a --exp-todos), solo con menos peso de fondo y de
+     borde, para integrarse al territorio en vez de flotar como un botón. */
+  background:rgba(22,184,196,0.13); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  border:1px solid rgba(95,225,232,0.22);
+  box-shadow:var(--shadow-float), 0 2px 8px rgba(2,8,15,0.22);
   border-radius:var(--radius-pill);
-  padding:7px 13px 7px 10px; color:var(--turquoise-bright); font-size:11.5px; font-weight:700;
+  padding:6px 12px 6px 9px; color:var(--turquoise-bright); font-size:11.5px; font-weight:700;
   display:none;
   /* Acento de color por categoría (ver updateFilterAccent) — border-color y
      background se sobreescriben inline vía JS solo cuando hay un filtro de
@@ -5827,8 +5830,11 @@ function updateFilterAccent(){
     : null;
 
   if (color){
-    breadcrumb.style.borderColor = `${color}59`;
-    breadcrumb.style.background = `${color}24`;
+       // Mismo ajuste de intensidad aplicado al estado por defecto en CSS —
+    // el color sigue siendo exactamente expById().color (sin cambios), solo
+    // baja el alfa de fondo/borde para que se sienta más ligero.
+    breadcrumb.style.borderColor = `${color}38`;
+    breadcrumb.style.background = `${color}16`;
     breadcrumb.style.color = color;
     panelPill.style.borderColor = `${color}59`;
   } else {
