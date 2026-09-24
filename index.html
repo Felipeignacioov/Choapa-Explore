@@ -805,9 +805,9 @@ img{-webkit-user-drag:none; user-select:none;}
      luz) sumándolo a mano, en vez de solo agregar una sombra por encima. */
   box-shadow:0 22px 46px rgba(2,8,15,0.5), 0 6px 16px rgba(2,8,15,0.32), inset 0 1px 0 rgba(255,255,255,0.05);
   border-radius:var(--radius-l);
-     /* Compactación priorizando protagonismo del mapa — el panel debe sentirse
+       /* Compactación priorizando protagonismo del mapa — el panel debe sentirse
      como una selección pequeña sobre el mapa, no un bloque que lo tapa. */
-  padding:3px 0 5px;
+  padding:2px 0 4px;
   transition:opacity .24s ease, transform .24s cubic-bezier(.2,.9,.28,1.1);
   /* Layout de bloque normal, sin flex. El intento anterior (columna flex +
      max-height + overflow:hidden en el panel, altura del wrapper resuelta
@@ -853,7 +853,7 @@ img{-webkit-user-drag:none; user-select:none;}
 .comuna-panel.hidden{opacity:0; transform:translateY(10px) scale(0.97); pointer-events:none;}
 .comuna-panel-header{
   display:flex; align-items:center; justify-content:space-between; gap:14px;
-  padding:2px 14px 5px;
+  padding:1px 14px 4px;
 }
 .comuna-panel-title{
   font-family:var(--font-display); font-size:13.5px; font-weight:700; color:var(--text-primary);
@@ -898,7 +898,7 @@ img{-webkit-user-drag:none; user-select:none;}
    distintas por tarjeta (delay negativo = arranca a mitad de ciclo) para que
    las 3 respiren de forma orgánica, nunca sincronizadas como un solo bloque. */
 .comuna-mini-card .cmc-photo{
-  position:relative; height:42px; width:100%; /* protagonista pero compacta — prioriza altura total del panel */
+  position:relative; height:34px; width:100%; /* protagonista pero compacta — prioriza altura total del panel */
   background:var(--surface-elevated) center/cover no-repeat;
   animation: comuna-cmc-kenburns 19s ease-in-out infinite;
   will-change:transform;
@@ -914,10 +914,10 @@ img{-webkit-user-drag:none; user-select:none;}
   content:''; position:absolute; inset:0;
   background:linear-gradient(to bottom, rgba(7,19,31,0) 55%, rgba(7,19,31,0.55) 100%);
 }
-.comuna-mini-card .cmc-info{padding:4px 7px 5px;}
+.comuna-mini-card .cmc-info{padding:3px 7px 4px;}
 .comuna-mini-card .cmc-name{
   font-size:10.5px; font-weight:700; color:var(--text-primary);
-  line-height:1.2; margin-bottom:2px; letter-spacing:-0.05px;
+  line-height:1.15; margin-bottom:1.5px; letter-spacing:-0.05px;
   display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
   overflow:hidden;
 }
@@ -930,9 +930,9 @@ img{-webkit-user-drag:none; user-select:none;}
 .comuna-mini-card .cmc-tag .dot{width:4px; height:4px; border-radius:50%; background:currentColor;}
 
 .comuna-panel-more{
-  width:calc(100% - 24px); margin:5px 12px 0;
+  width:calc(100% - 24px); margin:4px 12px 0;
   display:flex; align-items:center; justify-content:center; gap:6px;
-  padding:6.5px; border-radius:var(--radius-m);
+  padding:5px; border-radius:var(--radius-m);
   /* Tinte turquesa tenue por defecto (no solo en .at-bottom) — se lee de
      entrada como una acción, no como un botón fantasma con texto de color. */
   background:rgba(95,225,232,0.07);
