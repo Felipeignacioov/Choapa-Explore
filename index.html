@@ -5274,6 +5274,14 @@ function resolveLabelCollisions(){
     return a.dist - b.dist;
   });
 
+   // Margen de aire exclusivo para sub-localidades: exige una separación real
+  // entre pills, no solo "no tocarse" — sin esto, dos pills a 1-2px de
+  // distancia pasaban como "sin colisión" y se veían apiñadas (ej. "El Tebal"
+  // / "Chalinga" / "Salamanca Centro" muy pegadas entre sí). Solo infla el
+  // rect de la unidad sub-localidad (texto+punto); comunas y POIs conservan
+  // exactamente su criterio de colisión de siempre, sin margen extra.
+  const SUBLOCALITY_COLLISION_MARGIN_PX = 6;
+
   const placed = [];
   ranked.forEach(({ m }) => {
     const label = m._el.querySelector('.loc-label') || m._el.querySelector('.poi-name-label');
@@ -5290,6 +5298,12 @@ function resolveLabelCollisions(){
     if (isSublocalityUnit){
       const dot = m._el.querySelector('svg');
       if (dot) rect = unionRect(rect, dot.getBoundingClientRect());
+      rect = {
+        left: rect.left - SUBLOCALITY_COLLISION_MARGIN_PX,
+        right: rect.right + SUBLOCALITY_COLLISION_MARGIN_PX,
+        top: rect.top - SUBLOCALITY_COLLISION_MARGIN_PX,
+        bottom: rect.bottom + SUBLOCALITY_COLLISION_MARGIN_PX,
+      };
     }
     const collides = placed.some(r =>
       rect.left < r.right && rect.right > r.left && rect.top < r.bottom && rect.bottom > r.top
