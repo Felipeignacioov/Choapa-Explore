@@ -680,6 +680,17 @@ img{-webkit-user-drag:none; user-select:none;}
   0%,100%{ opacity:0.08; r:5.6; }
   50%{ opacity:0.26; r:5.9; }
 }
+/* Extiende la densidad al aro (2do círculo) y al núcleo (3er círculo) —
+   mismo --loc-halo-density ya calculado, rango más suave (0.75–1 vía calc,
+   nunca 0.55 como el halo) porque estos son la identidad visual central de
+   la burbuja y deben seguir siendo claramente legibles. filter:opacity
+   compone sin conflicto con el stroke-opacity que ya controla .ring-near
+   (propiedades distintas del mismo elemento). */
+.locality-marker.sublocality:not(.tier-primary) svg circle:nth-child(2),
+.locality-marker.sublocality:not(.tier-primary) svg circle:nth-child(3){
+  filter: opacity(calc(0.75 + var(--loc-halo-density, 1) * 0.25));
+  transition: filter .4s ease;
+}
 /* Densidad visual del halo — atenúa el halo (NUNCA el núcleo/aro/tamaño/
    posición) cuando hay varias sub-localidades SECUNDARIAS muy próximas en
    pantalla, para evitar que sus halos se acumulen en una mancha. Se compone
@@ -693,7 +704,14 @@ img{-webkit-user-drag:none; user-select:none;}
    cualquier marcador que aún no fue evaluado (aislado por defecto). */
 .locality-marker.sublocality:not(.tier-primary) .loc-halo{
   filter: opacity(var(--loc-halo-density, 1));
-  transition: filter .4s ease;
+  /* Contrae el halo, no solo lo atenúa — con densidad alta, dos halos
+     pegados dejan de tocarse físicamente, no solo se ven más tenues.
+     transform-origin:center, mismo patrón ya usado en comuna-halo-pulse
+     (spawn-scale) para el halo de comuna, compone sin conflicto con la
+     animación de 'r' de sublocality-halo-pulse (propiedades distintas). */
+  transform: scale(var(--loc-halo-density, 1));
+  transform-origin: center;
+  transition: filter .4s ease, transform .4s ease;
 }
 /* Breadcrumb — sustituye al pill de clima mientras se explora una localidad */
 .breadcrumb-pill{
