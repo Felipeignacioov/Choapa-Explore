@@ -680,6 +680,21 @@ img{-webkit-user-drag:none; user-select:none;}
   0%,100%{ opacity:0.08; r:5.6; }
   50%{ opacity:0.26; r:5.9; }
 }
+/* Densidad visual del halo — atenúa el halo (NUNCA el núcleo/aro/tamaño/
+   posición) cuando hay varias sub-localidades SECUNDARIAS muy próximas en
+   pantalla, para evitar que sus halos se acumulen en una mancha. Se compone
+   multiplicativamente con la respiración ya animada arriba (filter:opacity
+   sobre un elemento cuya propia opacity ya está animada por keyframes), sin
+   alterar ningún valor de esa animación. :not(.tier-primary) asegura que la
+   localidad primaria de cada comuna conserve exactamente su propio filter
+   (ver regla .tier-primary .loc-halo más abajo) — la jerarquía primary/
+   secondary no se toca. --loc-halo-density la actualiza JS
+   (updateSublocalityHaloDensity); el fallback 1 = intensidad normal para
+   cualquier marcador que aún no fue evaluado (aislado por defecto). */
+.locality-marker.sublocality:not(.tier-primary) .loc-halo{
+  filter: opacity(var(--loc-halo-density, 1));
+  transition: filter .4s ease;
+}
 /* Breadcrumb — sustituye al pill de clima mientras se explora una localidad */
 .breadcrumb-pill{
   position:absolute; left:16px; z-index:9;
@@ -5272,6 +5287,42 @@ function scheduleCollisionCheck(){
 }
 map.on('move', scheduleCollisionCheck);
 map.on('zoom', scheduleCollisionCheck);
+
+/* ---------- Densidad visual del halo de sub-localidad ----------
+   Aditivo y aislado: no toca resolveLabelCollisions(), scheduleCollisionCheck(),
+   ni ningún otro sistema — solo escribe --loc-halo-density por marcador, que la
+   regla CSS de arriba usa para atenuar el filter:opacity() del halo. Reutiliza
+   sublocalityMarkers (mismo array que ya usa el sistema de colisión) y
+   map.project() (posición en píxeles calculada por MapLibre, sin forzar
+   reflow del DOM) para estimar proximidad. */
+const HALO_DENSITY_RADIUS_PX = 65;  // radio de influencia entre burbujas vecinas
+const HALO_DENSITY_STEP = 0.16;     // cuánto resta cada vecino, ponderado por distancia
+const HALO_DENSITY_FLOOR = 0.55;    // nunca baja de esto — nunca se siente "apagada"
+
+function updateSublocalityHaloDensity(){
+  if (!sublocalityMarkers.length) return;
+  const points = sublocalityMarkers.map(m => map.project(m.getLngLat()));
+
+  sublocalityMarkers.forEach((marker, i) => {
+    let weight = 0;
+    points.forEach((p, j) => {
+      if (i === j) return;
+      const d = Math.hypot(points[i].x - p.x, points[i].y - p.y);
+      if (d < HALO_DENSITY_RADIUS_PX){
+        weight += 1 - (d / HALO_DENSITY_RADIUS_PX); // más peso cuanto más cerca, 0 en el borde del radio
+      }
+    });
+    const intensity = Math.max(HALO_DENSITY_FLOOR, 1 - weight * HALO_DENSITY_STEP);
+    marker.getElement().style.setProperty('--loc-halo-density', intensity.toFixed(3));
+  });
+}
+let haloDensityRaf = null;
+function scheduleHaloDensityCheck(){
+  if (haloDensityRaf) return;
+  haloDensityRaf = requestAnimationFrame(() => { haloDensityRaf = null; updateSublocalityHaloDensity(); });
+}
+map.on('move', scheduleHaloDensityCheck);
+map.on('zoom', scheduleHaloDensityCheck);
 
 /* ---------- CONTROLADOR DE NIVEL — 3 niveles, reacciona al zoom en ambas direcciones ---------- */
 let lastTier = null;
