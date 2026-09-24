@@ -958,12 +958,14 @@ img{-webkit-user-drag:none; user-select:none;}
   overflow:hidden;
 }
 .comuna-mini-card .cmc-tag{
-  /* Más sutil que el nombre — opacidad reducida, mismo color de categoría
-     (currentColor no se toca), para que quede claramente en segundo plano. */
   display:inline-flex; align-items:center; gap:4px;
   font-size:9px; font-weight:600; opacity:0.82;
+  /* Texto en color neutro/secundario del sistema — el color de categoría
+     queda únicamente en el punto (ver --tag-color más abajo), en vez de
+     competir con las otras 2 tarjetas cuando tienen categorías distintas. */
+  color:var(--text-secondary);
 }
-.comuna-mini-card .cmc-tag .dot{width:4px; height:4px; border-radius:50%; background:currentColor;}
+.comuna-mini-card .cmc-tag .dot{width:4px; height:4px; border-radius:50%; background:var(--tag-color, currentColor);}
 
 .comuna-panel-more{
   width:calc(100% - 24px); margin:4px 12px 0;
@@ -1041,8 +1043,8 @@ img{-webkit-user-drag:none; user-select:none;}
   font-size:12px; font-weight:700; color:var(--text-primary);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
-.comuna-list-item .cli-tag{display:inline-flex; align-items:center; gap:4px; font-size:9.5px; font-weight:600;}
-.comuna-list-item .cli-tag .dot{width:4px; height:4px; border-radius:50%; background:currentColor;}
+.comuna-list-item .cli-tag{display:inline-flex; align-items:center; gap:4px; font-size:9.5px; font-weight:600; color:var(--text-secondary);}
+.comuna-list-item .cli-tag .dot{width:4px; height:4px; border-radius:50%; background:var(--tag-color, currentColor);}
 
 /* Píldora minimizada del panel "En [Comuna]" — mismo lenguaje visual que
    .sheet-pill (misma superficie/blur/radius/shadow), pero es un elemento
@@ -8564,12 +8566,12 @@ function renderComunaPanelFullList(locality){
   list.innerHTML = all.map(place => {
     const tag = filterTag || primaryExperienceTag(place);
     const color = getComputedStyle(document.documentElement).getPropertyValue(tag.color.replace('var(','').replace(')','')).trim();
-    return `
+       return `
       <div class="comuna-list-item" data-place-id="${place.id}">
         <div class="cli-photo" style="background-image:url(${place.image})"></div>
         <div class="cli-info">
           <div class="cli-name">${place.name}</div>
-          <span class="cli-tag" style="color:${color}"><span class="dot"></span>${tag.label}</span>
+          <span class="cli-tag" style="--tag-color:${color}"><span class="dot"></span>${tag.label}</span>
         </div>
       </div>`;
   }).join('');
@@ -8664,12 +8666,12 @@ function renderComunaPanelRail(locality){
   rail.innerHTML = places.map(place => {
     const tag = filterTag || primaryExperienceTag(place);
     const color = getComputedStyle(document.documentElement).getPropertyValue(tag.color.replace('var(','').replace(')','')).trim();
-    return `
+       return `
       <div class="comuna-mini-card" data-place-id="${place.id}">
         <div class="cmc-photo" style="background-image:url(${place.image})"></div>
         <div class="cmc-info">
           <div class="cmc-name">${place.name}</div>
-          <span class="cmc-tag" style="color:${color}"><span class="dot"></span>${tag.label}</span>
+          <span class="cmc-tag" style="--tag-color:${color}"><span class="dot"></span>${tag.label}</span>
         </div>
       </div>`;
   }).join('');
