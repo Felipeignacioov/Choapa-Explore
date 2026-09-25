@@ -1559,7 +1559,11 @@ img{-webkit-user-drag:none; user-select:none;}
 .nav-item{
   position:relative;
   display:flex; flex-direction:column; align-items:center; gap:3px;
-  color:var(--text-tertiary); font-size:10px; font-weight:600; flex:1; padding:6px 4px;
+  /* Más legible que --text-tertiary (pensada para texto realmente secundario,
+     no para el control de navegación principal, siempre visible en pantalla) —
+     mismo tono, solo con más luminosidad. El color activo (turquesa, vía
+     .nav-item.active) y el resto de la app no se tocan. */
+  color:#7893A8; font-size:10px; font-weight:600; flex:1; padding:6px 4px;
   border-radius:var(--radius-s);
   transition:color .18s ease, transform .16s cubic-bezier(.34,1.56,.64,1);
 }
