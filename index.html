@@ -748,35 +748,38 @@ img{-webkit-user-drag:none; user-select:none;}
 .breadcrumb-pill:active{transform:scale(0.95);}
 
 .zone-prompt{
-  position:absolute; left:16px; right:16px; z-index:9;
-  display:flex; align-items:center; gap:10px;
-  padding:11px 14px;
-  background:rgba(16,36,56,0.82); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  /* Pill compacto — mismo lenguaje visual que .breadcrumb-pill ("‹ Salamanca"):
+     ancho ajustado al contenido (no right:16px fijo), así nunca puede invadir
+     el área de .map-controls (+/-), que comparte el mismo top:178px. */
+  position:absolute; left:16px; z-index:9;
+  display:inline-flex; align-items:center; gap:8px;
+  padding:7px 14px 7px 10px;
+  background:rgba(16,36,56,0.78); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
   border:1px solid rgba(255,255,255,0.12);
-  box-shadow:var(--shadow-float), inset 0 1px 0 rgba(255,255,255,0.1), 0 12px 30px rgba(2,8,15,0.38);
-  border-radius:var(--radius-m);
+  box-shadow:var(--shadow-float), 0 3px 10px rgba(2,8,15,0.28);
+  border-radius:var(--radius-pill);
   opacity:0; transform:translateY(-6px) scale(0.98); pointer-events:none;
-  /* border-color a 300ms — antes 200ms, el salto de un tono de categoría a
-     otro (asignado inline vía JS en updateZonePromptContent) se sentía brusco. */
+  max-width:calc(100% - 76px); /* seguro adicional: nunca llega al bloque de zoom aunque el texto sea largo */
   transition:opacity .28s ease, transform .28s cubic-bezier(.2,.9,.28,1.1), border-color .3s cubic-bezier(.4,0,.2,1);
 }
 .zone-prompt.visible{opacity:1; transform:translateY(0) scale(1); pointer-events:auto;}
-/* Cuando el breadcrumb ("< Salamanca") está visible, el banner de categoría baja
-   a una segunda fila en vez de superponerse — ambos comparten el mismo top:178px
-   inline y el mismo ancho, así que sin esto el banner tapaba por completo al
-   botón de volver. !important porque el top viene fijado por style inline en
-   el HTML del elemento. */
+/* zone-prompt y breadcrumb-pill son mutuamente excluyentes por estado (uno
+   solo aparece sin comuna activa, el otro solo con comuna/localidad activa),
+   así que esta regla ya no debería dispararse en uso normal — se conserva
+   sin tocar por si algún estado futuro los cruzara. */
 .zone-prompt.pushed-down{ top:234px !important; }
 .zone-prompt .zp-icon{flex-shrink:0; display:flex;}
 .zone-prompt .zp-text{display:flex; flex-direction:column; gap:1px; min-width:0;}
-.zone-prompt .zp-title{font-family:var(--font-display); font-size:13px; font-weight:700; color:var(--text-primary);}
-.zone-prompt .zp-sub{font-size:11px; color:var(--text-secondary);}
+.zone-prompt .zp-title{font-family:var(--font-display); font-size:12.5px; font-weight:700; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+/* Subtítulo retirado visualmente para caber en una sola línea de pill — el
+   HTML y updateZonePromptContent() no se tocan, el texto se sigue fijando
+   con normalidad, solo deja de renderizarse. */
+.zone-prompt .zp-sub{display:none;}
 .zone-prompt .zp-icon, .zone-prompt .zp-text{transition:opacity .14s ease;}
 /* Color del ícono se asigna inline vía JS al cambiar de categoría — sin esta
    transición el tinte saltaba de golpe junto con el borde de arriba. */
 .zone-prompt .zp-icon{transition:opacity .14s ease, color .3s cubic-bezier(.4,0,.2,1);}
 .zone-prompt.content-swap .zp-icon, .zone-prompt.content-swap .zp-text{opacity:0;}
-@media (min-width:640px){ .zone-prompt{max-width:608px; left:50%; transform:translateX(-50%) translateY(-6px) scale(0.98);} .zone-prompt.visible{transform:translateX(-50%) translateY(0) scale(1);} }
 
 /* ---------------- CLUSTERS ---------------- */
 .cluster-marker{
