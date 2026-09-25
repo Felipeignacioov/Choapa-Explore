@@ -529,8 +529,15 @@ img{-webkit-user-drag:none; user-select:none;}
      en el marcador raíz. filter:opacity() se aplica ENCIMA de la opacidad ya
      animada por comuna-halo-pulse (no se puede animar y fijar la misma
      propiedad 'opacity' a la vez), así el pulso sigue intacto, solo un poco
-     más o menos presente según el contenido real de esa comuna. */
-  filter: opacity(var(--comuna-halo-mult, 1));
+     más o menos presente según el contenido real de esa comuna.
+     drop-shadow(...) suma un matiz atmosférico del color de la categoría
+     activa — reutiliza --mood-glow, la MISMA variable que ya calcula y
+     actualiza applyMoodAtmosphere() (el color exacto de EXPERIENCE_TAGS,
+     'transparent' cuando el filtro es "Todos"), sin crear ningún color ni
+     estado nuevo. color-mix() solo reduce su opacidad a un 45% para que sea
+     un matiz sutil, nunca un halo dominante — el núcleo/ícono del marcador
+     (definidos en localitySVG(), aparte de este halo) no se tocan. */
+  filter: opacity(var(--comuna-halo-mult, 1)) drop-shadow(0 0 3px color-mix(in srgb, var(--mood-glow, transparent) 45%, transparent));
   /* Escala extra SOLO en el mismo rango de spawn ya reforzado en
      comuna-glow-layer (updateComunaHaloSpawnScale, 7.6→ZOOM_COMUNA_NEAR) —
      el halo de fondo ganó presencia con ese boost y este anillo propio del
@@ -538,6 +545,10 @@ img{-webkit-user-drag:none; user-select:none;}
      compite con la línea de arriba ni con la animación de r/opacidad. */
   transform: scale(var(--comuna-halo-spawn-scale, 1));
   transform-origin: center;
+  /* Transición suave al cambiar de categoría — mismo criterio de 600ms que
+     ya usa applyMoodAtmosphere() para el resto de las transiciones de mood
+     (fondo, glow territorial), así el cambio de matiz nunca se siente brusco. */
+  transition: filter .6s ease;
 }
 @keyframes comuna-halo-pulse{
   0%,100%{ opacity:0.05; r:10.5; }
