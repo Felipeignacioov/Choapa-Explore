@@ -3883,17 +3883,18 @@ function renderTerrainDepth(){
   const waterwayLayer = layers.find(l => l.id === 'waterway');
   if (waterwayLayer){
     const riverFilter = ['match', ['get','name'], ['Río Choapa', 'Rio Choapa'], true, false];
-   map.addLayer({
+    map.addLayer({
       id:'rio-choapa-halo', type:'line',
       source: waterwayLayer.source, 'source-layer': waterwayLayer['source-layer'],
       filter: riverFilter,
       paint:{
         'line-color': turquoise, 'line-opacity':0.10,
-        // Curva con un "valle" en zoom medio (~10-12, cuando se ven varias
-        // localidades a la vez): ahí el halo se reduce ~25% respecto a la curva
-        // lineal original. En los extremos (zoom lejano y zoom cercano al
-        // acercarse al río) el ancho queda exactamente igual que antes.
-        'line-width': ['interpolate', ['linear'], ['zoom'], 8, 3, 10, 4, 12, 5.7, 14, 10],
+        // Mismo "valle" en zoom medio que ya existía, más un tramo adicional
+        // dentro del rango de LOCALIDAD (ZOOM_SUBLOCALITY→ZOOM_DETAIL): el
+        // grosor se atenúa de forma continua (interpolate nativo, sin saltos)
+        // para que calles y POIs ganen protagonismo frente al río en ese
+        // rango. En zoom lejano (8) queda exactamente igual que antes.
+        'line-width': ['interpolate', ['linear'], ['zoom'], 8, 3, 10, 4, 12, 4.6, 14, 6.5],
         'line-blur': 4,
       },
     });
@@ -3903,10 +3904,22 @@ function renderTerrainDepth(){
       filter: riverFilter,
       paint:{
         'line-color': '#3E8FA8', 'line-opacity':0.85,
-        // Núcleo ~15% más delgado en todo el rango de zoom.
-        'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.68, 14, 1.87],
+        // Mismo criterio que el halo — tramo adicional en zoom 10-14 para
+        // que el núcleo también se afine dentro del rango de localidad.
+        'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.68, 10, 0.9, 12, 1.1, 14, 1.4],
       },
     });
+
+    // Atenuación adicional por zoom — 1 en zoom de comuna (sin cambios),
+    // decrece de forma continua entre ZOOM_SUBLOCALITY y ZOOM_DETAIL (el
+    // rango de LOCALIDAD) hasta un piso de 0.65, nunca desaparece. Se
+    // multiplica sobre los mismos valores de opacidad que ya fijan
+    // moveend/movestart/setInterval más abajo — no reemplaza esa lógica de
+    // "el río se atenúa al quedarse quieto", solo le suma este factor.
+    function riverZoomDamp(){
+      const t = Math.min(Math.max((map.getZoom() - ZOOM_SUBLOCALITY) / (ZOOM_DETAIL - ZOOM_SUBLOCALITY), 0), 1);
+      return 1 - t * 0.35;
+    }
 
     // El río mantiene protagonismo mientras el usuario navega; al quedarse quieto,
     // baja de brillo suavemente para que el foco vuelva a las experiencias.
@@ -3915,18 +3928,21 @@ function renderTerrainDepth(){
     let riverHaloBase = 0.10;
     map.on('moveend', () => {
       riverHaloBase = 0.05;
-      map.setPaintProperty('rio-choapa-core', 'line-opacity', 0.55);
+      map.setPaintProperty('rio-choapa-core', 'line-opacity', 0.55 * riverZoomDamp());
     });
     map.on('movestart', () => {
       riverHaloBase = 0.10;
-      map.setPaintProperty('rio-choapa-core', 'line-opacity', 0.85);
+      map.setPaintProperty('rio-choapa-core', 'line-opacity', 0.85 * riverZoomDamp());
     });
     // Brillo ambiental muy lento (ciclo de ~7s) sobre el halo del río — se suma,
-    // no reemplaza, al comportamiento de moveend/movestart de arriba.
+    // no reemplaza, al comportamiento de moveend/movestart de arriba. El
+    // factor de zoom se recalcula en cada tick (no solo al mover), así queda
+    // correcto incluso si el usuario cambia de zoom sin generar un gesto de
+    // arrastre completo (ej. botones +/-).
                        setInterval(() => {
       if (!map.getLayer('rio-choapa-halo')) return;
       const wobble = Math.sin(performance.now() / 3500) * 0.015;
-      map.setPaintProperty('rio-choapa-halo', 'line-opacity', Math.max(0, riverHaloBase + wobble));
+      map.setPaintProperty('rio-choapa-halo', 'line-opacity', Math.max(0, (riverHaloBase + wobble) * riverZoomDamp()));
     }, 220);
   }
 
