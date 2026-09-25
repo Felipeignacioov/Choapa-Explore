@@ -5807,10 +5807,13 @@ let comunaPanelAutoMinimized = false;
 const SUBLOCALITY_ENTER_ZOOM = 12.45;
 function enterSublocality(sub, { fly }){
   state.currentSublocality = sub;
-  if (!comunaPanel.classList.contains('hidden')){
-    minimizeComunaPanel();
-    comunaPanelAutoMinimized = true;
-  }
+  // El panel "En [Comuna]" pasa a representar la localidad — reutiliza
+  // exactamente el mismo showComunaPanel() que ya arma "En [Comuna]"
+  // (curación de 3 destacadas, rail, paginación, animación de entrada);
+  // sub.name ya es el nombre real de la localidad ("Salamanca Centro"), sin
+  // ningún dato nuevo. showComunaPanel() ya minimiza solo si hay navegación
+  // activa (state.nav.active), mismo criterio que usa para comunas.
+  showComunaPanel(sub);
   if (fly){
     map.flyTo({ center:[sub.lng, sub.lat], zoom:SUBLOCALITY_ENTER_ZOOM, duration:1300, curve:1.3, easing:t => t*(2-t) });
   }
@@ -5821,15 +5824,17 @@ function enterSublocality(sub, { fly }){
 
 function exitSublocality({ fly }){
   state.currentSublocality = null;
-  // El panel solo se restaura si el usuario también salió del flujo de ruta —
-  // sin esta guarda, un simple cruce de umbral de zoom durante la navegación
-  // activa (el encuadre panorámico al calcular la ruta, o el acercamiento al
-  // presionar "Ir ahora") disparaba este mismo evento y hacía reaparecer el
-  // panel completo por encima de la tarjeta de ruta.
+  // Mecanismo de restauración de navegación existente — se conserva sin
+  // tocar; hoy comunaPanelAutoMinimized ya no se fija desde enterSublocality
+  // (ver Cambio 1), así que este bloque queda como red de seguridad inerte,
+  // sin efecto sobre el flujo normal.
   if (comunaPanelAutoMinimized && !state.nav.active){
     expandComunaPanel();
     comunaPanelAutoMinimized = false;
   }
+  // El panel vuelve a representar la comuna — mismo showComunaPanel() de
+  // siempre, ahora con el objeto de comuna en vez del de localidad.
+  if (state.currentLocality) showComunaPanel(state.currentLocality);
   if (fly && state.currentLocality){
     map.flyTo({ center:[state.currentLocality.lng, state.currentLocality.lat], zoom:10.6, duration:1100, curve:1.3, easing:t => t*(2-t) });
   }
@@ -7989,20 +7994,19 @@ function setActiveExperience(id){
   // vuelva a entrar a esa comuna. Fase 5 — el conteo de paginación también se
   // reinicia: la lista expandida bajo el filtro viejo no tiene sentido para
   // el filtro nuevo (universos de experiencias distintos).
-    if (state.currentLocality){
+      // Mismo criterio que activeLocalityAliases() — la sub-localidad activa
+    // manda sobre la comuna. Antes esto siempre usaba state.currentLocality,
+    // así que cambiar de categoría dentro de una localidad hacía que el panel
+    // mostrara experiencias de toda la comuna en vez de las de esa localidad.
+    const filterPanelContext = state.currentSublocality || state.currentLocality;
+    if (filterPanelContext){
     comunaPanelVisibleCount = 3;
               const list = document.getElementById('comunaPanelList');
     list.innerHTML = '';
-    // 'expanded' vive en el WRAPPER (comunaPanelListWrap), no en la lista —
-    // quitarla de 'list' no tenía ningún efecto real. Sin esto, el wrapper
-    // seguía marcado como expandido, y el guard de updateComunaPanelScrollHighlight
-    // (que depende de esa misma clase para saber si debe ignorar eventos de
-    // scroll fantasma) nunca se activaba acá — dejando la puerta abierta al
-    // mismo bug del reset tardío ya corregido para el cambio de comuna.
     document.getElementById('comunaPanelListWrap').classList.remove('expanded'); // la lista bajo el filtro viejo no aplica al nuevo
     document.getElementById('comunaPanelRail').classList.remove('rail-hidden'); // nuevo filtro: vuelve al estado inicial (rail)
     document.getElementById('comunaPanelMore').classList.remove('at-bottom'); // el glow del filtro anterior no debe sobrevivir
-    renderComunaPanelRail(state.currentLocality);
+    renderComunaPanelRail(filterPanelContext);
   }
   // si el lugar seleccionado ya no pertenece a esta experiencia, cerramos su panel
    if (state.selectedPlace && id !== 'todos' && !state.selectedPlace.experiences.includes(id)){
@@ -8556,10 +8560,13 @@ comunaPanelListEl.addEventListener('scroll', updateComunaPanelScrollHighlight, {
 // estado actual — así no hace falta reasignar el listener cada vez que
 // renderComunaPanelRail() reescribe el innerHTML del botón.
 document.getElementById('comunaPanelMore').addEventListener('click', () => {
-  const locality = state.currentLocality;
-  if (!locality) return; // salvaguarda — no debería ocurrir con el botón visible
+  // Mismo criterio que activeLocalityAliases(): la sub-localidad activa
+  // manda sobre la comuna — el botón debe operar sobre el nivel geográfico
+  // que el panel está mostrando en este momento.
+  const context = state.currentSublocality || state.currentLocality;
+  if (!context) return; // salvaguarda — no debería ocurrir con el botón visible
 
-    const total = comunaPanelTotalAvailable(locality);
+    const total = comunaPanelTotalAvailable(context);
   if (comunaPanelVisibleCount >= total){
     // "Seguir explorando [Comuna]" — pasa a la exploración geográfica
     // tradicional, pero el panel no debe perderse: se minimiza al mismo
@@ -8567,7 +8574,10 @@ document.getElementById('comunaPanelMore').addEventListener('click', () => {
     // dejando las sub-localidades del mapa visibles y libres para tocar, sin
     // descartar el panel de descubrimiento — el usuario puede reabrirlo
     // tocando la píldora "En [Comuna]" si quiere seguir viendo la lista.
-    minimizeComunaPanel();
+    // Para localidad, este estado ya es inalcanzable por click (el botón se
+    // oculta antes, ver updateComunaPanelMoreButton) — el guard queda solo
+    // como defensa adicional.
+    if (!('tier' in context)) minimizeComunaPanel();
   } else {
     // Carga progresiva — misma función de curaduría (curateComunaPanelPlaces),
     // ahora con un límite mayor. A partir de este primer clic, el rail
@@ -8575,7 +8585,7 @@ document.getElementById('comunaPanelMore').addEventListener('click', () => {
     // a ser la única superficie visible, mostrando TODO desde el principio
     // (incluidas esas 3) — nunca coexisten rail y lista al mismo tiempo.
     comunaPanelVisibleCount = Math.min(comunaPanelVisibleCount + COMUNA_PANEL_PAGE_SIZE, total);
-    renderComunaPanelFullList(locality);
+    renderComunaPanelFullList(context);
   }
 });
 
@@ -8721,6 +8731,16 @@ function updateComunaPanelMoreButton(locality, shownCount){
   const total = comunaPanelTotalAvailable(locality);
   const atEnd = shownCount >= total;
   const chevron = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="m9 18 6-6-6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  // Sub-localidades siempre traen `tier` (comunas nunca) — dato real, no
+  // inferido. La localidad ya es el nivel inmediatamente anterior a la
+  // experiencia/POI, así que al llegar al final de su lista el botón se
+  // retira en vez de ofrecer "Seguir explorando", que no aplica ahí.
+  const isSublocalityContext = 'tier' in locality;
+  if (atEnd && isSublocalityContext){
+    btn.style.display = 'none';
+    return;
+  }
+  btn.style.display = '';
   btn.innerHTML = atEnd
     ? `Seguir explorando ${locality.name} ${chevron}`
     : `Ver más experiencias ${chevron}`;
