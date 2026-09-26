@@ -4279,13 +4279,14 @@ function buildPOIBackgroundCanvas(colorHex, sizePx = 96){
   return ctx.getImageData(0, 0, sizePx, sizePx);
 }
 
-// Variante de buildPOIBackgroundCanvas() EXCLUSIVA del aro dedicado de Cerro
-// Chico — misma estructura visual (gradiente, highlight, disco oscuro
-// interior), pero con el disco interior más grande (0.82 → 0.90 del radio),
-// lo que angosta el anillo de color visible ~sutilmente, sin cambiar el
-// radio exterior (r, mismo 0.35 * sizePx de siempre) ni el diámetro total
-// del marcador. buildPOIBackgroundCanvas() en sí queda intacta.
-function buildCerroChicoRingCanvas(colorHex, sizePx = 96){
+// Variante de buildPOIBackgroundCanvas() para el aro del sistema fotográfico
+// — misma estructura visual (gradiente, highlight, disco oscuro interior),
+// pero con el disco interior más grande (0.82 → 0.90 del radio), lo que
+// angosta el anillo de color visible ~sutilmente para dejarle más
+// protagonismo a la fotografía que va encima, sin cambiar el radio exterior
+// (r, mismo 0.35 * sizePx de siempre) ni el diámetro total del marcador.
+// buildPOIBackgroundCanvas() en sí queda intacta — la usan los lugares sin foto.
+function buildPOIPhotoRingCanvas(colorHex, sizePx = 96){
   const canvas = document.createElement('canvas');
   canvas.width = sizePx; canvas.height = sizePx;
   const ctx = canvas.getContext('2d');
@@ -4339,21 +4340,27 @@ function registerPOIBackgroundImages(){
   });
 }
 
-/* ---------- PROTOTIPO VISUAL — foto circular SOLO para Cerro Chico ----------
-   Acotado a propósito a un único POI, para evaluar el diseño antes de
-   generalizarlo. No toca poiSourceFeatures() ni ningún otro POI: vive en una
-   fuente/capa 100% propia y separada (mismo patrón ya usado por
-   poi-selected-source/nav-dest-marker), superpuesta sobre poi-icon-layer.
-   Sin carga por viewport, sin liberación de memoria, sin generalizar a otros
-   POIs — deliberadamente fuera de alcance de este prototipo.
-
-   SUPABASE ES LA FUENTE DE VERDAD: la identificación de Cerro Chico ya NO
-   depende de un id local hardcodeado ni de coincidencia sensible a
-   mayúsculas contra el name — se busca por nombre NORMALIZADO (minúsculas,
-   sin acentos, sin espacios), y a partir de ahí SIEMPRE se usa place.id, el
-   identificador real del registro encontrado (el UUID de Supabase una vez
-   sincronizado, o el slug local 'cerro-chico' mientras solo existen los
-   datos de ejemplo). No se inventa ni se hardcodea ningún UUID. */
+// Análoga, para el aro del sistema fotográfico — un aro por categoría, NUNCA
+// por lugar. ['get','ringIcon'] en poi-photo-bg-layer ya resuelve el color
+// correcto según el filtro activo (mismo criterio que bgIcon en
+// poiSourceFeatures()), así que jamás hace falta recolorear nada por lugar
+// individual, ni al cambiar de filtro ni al cargar una experiencia nueva.
+function registerPOIPhotoRingImages(){
+  EXPERIENCE_TAGS.filter(e => e.id !== 'todos').forEach(exp => {
+    const imgId = `poi-photo-bg-${exp.id}`;
+    if (map.hasImage(imgId)) return;
+    const color = getComputedStyle(document.documentElement).getPropertyValue(exp.color.replace('var(','').replace(')','')).trim();
+    map.addImage(imgId, buildPOIPhotoRingCanvas(color));
+  });
+}
+/* ---------- SISTEMA FOTOGRÁFICO DE POIs — generalizado a TODAS las experiencias ----------
+   Antes acotado a un único POI (Cerro Chico) para validar el diseño; ahora
+   es el tratamiento estándar de cualquier experiencia cuya foto ya esté
+   cargada. Vive en una fuente/capa 100% propia y separada (poi-photo-source
+   — ver ensurePOIPhotoLayers más abajo), nunca condicionada por id ni por
+   nombre de lugar: la carga es lazy, por lugar visible (ver
+   ensurePOIPhotoImage), y la elegibilidad depende únicamente de si
+   place.image existe y cargó con éxito. */
 
 // Mismo canvas base (96px) e icon-size que buildPOIBackgroundCanvas/poi-bg-layer
 // — al compartir tamaño y centro, la foto queda perfectamente alineada sobre
@@ -4386,7 +4393,7 @@ function buildCircularPhotoCanvas(img, sizePx = 96){
   ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
   ctx.restore();
 
-  // Borde afinado (0.02 → 0.012) — con el radio de foto ya más grande, un
+   // Borde afinado (0.02 → 0.012) — con el radio de foto ya más grande, un
   // borde tan grueso restaba área visible innecesariamente; sigue separando
   // limpiamente foto y aro, solo más fino.
   ctx.beginPath();
@@ -4398,204 +4405,121 @@ function buildCircularPhotoCanvas(img, sizePx = 96){
   return ctx.getImageData(0, 0, sizePx, sizePx);
 }
 
-// Normaliza un nombre para comparar sin sensibilidad a mayúsculas, acentos ni
-// espacios — mismo criterio ya usado para el tier de localidades
-// (normalizeForTierMatch en transformSupabaseData). No es una segunda fuente
-// de verdad: solo ayuda a ENCONTRAR el registro real dentro de DEMO_PLACES,
-// que sigue siendo la única fuente (local o, tras sincronizar, Supabase).
-function normalizeExperienceName(s){
-  return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\s-]/g, '');
-}
-function findCerroChicoPlace(){
-  const target = normalizeExperienceName('Cerro Chico');
-  // El id local 'cerro-chico' queda solo como respaldo secundario, útil
-  // mientras siguen activos los datos de ejemplo (antes de que Supabase
-  // sincronice) — el mecanismo principal es el nombre normalizado.
-  return DEMO_PLACES.find(p => normalizeExperienceName(p.name) === target || p.id === 'cerro-chico');
-}
+// Escala global del marcador fotográfico — usada por AMBAS capas dedicadas
+// (aro + foto) para que crezcan/decrezcan de forma coherente y sigan
+// perfectamente alineadas entre sí. No toca poi-bg-layer/poi-icon-layer (el
+// diseño estándar, el que usan los lugares que todavía no tienen foto
+// lista). Generalizado — antes exclusivo de Cerro Chico.
+const POI_PHOTO_ICON_SIZE = 0.251;
+const POI_PHOTO_ICON_SIZE_INITIAL = 0.138; // ~55% de 0.251, mismo criterio que el sistema general
 
-// Idempotente — puede llamarse muchas veces (cada vez que Supabase re-
-// sincroniza, y cada vez que se renderizan POIs nativos) sin duplicar
-// layers/imágenes ni generar errores. Se protege contra el único riesgo real
-// de ciclo de vida: poi-label-layer se crea de forma PEREZOSA (recién cuando
-// el usuario llega al zoom de detalle de una localidad) — si todavía no
-// existe, esta función no hace nada todavía y se reintentará sola la
-// próxima vez que corresponda (ensurePOINativeLayers al entrar a esa
-// localidad, o el próximo applySupabaseData).
-// Escala global del marcador fotográfico completo (~9% más chico que el
-// 0.276 anterior) — usada por AMBAS capas dedicadas (aro + foto) para que
-// se reduzcan de forma coherente y sigan perfectamente alineadas entre sí.
-// No toca poi-bg-layer/poi-icon-layer (compartidas con el resto de POIs).
-const CERRO_CHICO_PHOTO_ICON_SIZE = 0.251;
-const CERRO_CHICO_PHOTO_ICON_SIZE_INITIAL = 0.138; // ~55% de 0.251, mismo criterio que el sistema general
-
-// Última color aplicado al aro dedicado — evita reconstruir el canvas si no
-// cambió, ya que map.removeImage/addImage tiene un costo no gratuito.
-let cerroChicoLastRingColor = null;
-
-// Visibilidad y color del POI fotográfico según el filtro de categoría
-// activo — usa EXCLUSIVAMENTE datos reales ya existentes: place.experiences
-// (las categorías reales del lugar, vía experience_categories) y
-// computePOIDisplayColor() (la MISMA función que ya usa poi-bg-layer para
-// calcular el color correcto según el filtro activo o la categoría primaria).
-// No hardcodea ninguna categoría ni color — si Cerro Chico ganara una
-// categoría nueva en Supabase, place.experiences ya la incluiría, y este
-// chequeo la reconocería automáticamente sin tocar código.
-function updateCerroChicoPhotoVisual(){
-  if (!map.getSource('poi-photo-source')) return; // aún no se crearon las capas del prototipo
-  const place = findCerroChicoPlace();
+/* ---------- Carga lazy de la fotografía — por lugar, generalizada ----------
+   Se llama desde applyPOIRenderSplit() (más abajo) para cada lugar visible
+   en este momento — nunca precarga toda la base de datos por adelantado.
+   Sin place.image válido, el lugar queda marcado como "intentado" y sigue
+   usando el diseño estándar (fallback) para siempre, sin reintentos ni
+   contenido inventado. Con imagen válida, se intenta UNA vez por sesión;
+   éxito o error quedan marcados para no repetir la carga en cada render. */
+const poiPhotoReadyIds = new Set();
+const poiPhotoAttempted = new Set();
+function ensurePOIPhotoImage(place){
   if (!place) return;
+  const imgId = `poi-photo-${place.id}`;
+  if (map.hasImage(imgId)){ poiPhotoReadyIds.add(place.id); return; }
+  if (poiPhotoAttempted.has(place.id)) return;
+  if (!place.image){ poiPhotoAttempted.add(place.id); return; } // sin imagen válida — fallback permanente, sin inventar nada
 
-   const belongsToFilter = state.activeExperience === 'todos' ||
-    (place.experiences || []).includes(state.activeExperience);
-  // Misma fuente de verdad que ya usa el sistema general de POIs
-  // (poiSourceFeatures) para restringir por localidad — activeLocalityAliases()
-  // ya existe, no se duplica ni se inventa un segundo estado de "localidad actual".
-  const aliases = activeLocalityAliases();
-  const belongsToLocality = !aliases || aliases.includes(place.locality);
-  const photoReady = map.hasImage('poi-photo-cerro-chico');
-
-  if (belongsToFilter && belongsToLocality && photoReady){
-    map.getSource('poi-photo-source').setData({
-      type:'FeatureCollection',
-      features:[{ type:'Feature', properties:{ name: place.name }, geometry:{ type:'Point', coordinates:[place.lng, place.lat] } }],
-    });
-    if (map.getLayer('poi-label-layer')){
-      map.setFilter('poi-label-layer', ['!=', ['get','id'], place.id]);
-    }
-  } else {
-    // No pertenece a la categoría filtrada (o la foto aún no cargó) — se
-    // vacía la fuente dedicada, así ninguna capa fotográfica dibuja nada. El
-    // sistema general (poi-bg-layer/poi-icon-layer) sigue mostrando el POI
-    // normalmente, con su color ya correcto para ese filtro — mismo
-    // comportamiento de siempre para cualquier otro POI.
-    map.getSource('poi-photo-source').setData({ type:'FeatureCollection', features:[] });
-    if (map.getLayer('poi-label-layer')){
-      map.setFilter('poi-label-layer', null);
-    }
-  }
-
-  // El aro dedicado se regenera con el MISMO color que el sistema general ya
-  // calcula para este lugar bajo el filtro activo — nunca queda fijo en la
-  // categoría primaria mientras hay un filtro distinto seleccionado.
-  if (photoReady){
-    const ringColor = computePOIDisplayColor(place);
-    if (ringColor !== cerroChicoLastRingColor){
-      cerroChicoLastRingColor = ringColor;
-      if (map.hasImage('poi-photo-bg-cerro-chico')) map.removeImage('poi-photo-bg-cerro-chico');
-      map.addImage('poi-photo-bg-cerro-chico', buildCerroChicoRingCanvas(ringColor));
-    }
-  }
-}
-
-function ensureCerroChicoPhotoLayer(){
-  if (!map.getLayer('poi-label-layer')) return;
-
-  if (!map.getSource('poi-photo-source')){
-    map.addSource('poi-photo-source', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
-
-       // Aro dedicado exclusivamente al prototipo fotográfico — variante propia
-    // (buildCerroChicoRingCanvas), NO buildPOIBackgroundCanvas() directamente,
-    // para poder afinar el grosor del anillo sin tocar el sistema general
-    // (que sigue usando poi-bg-${categoryId} sin ningún cambio).
-    if (!map.hasImage('poi-photo-bg-cerro-chico')){
-      const aventuraColor = getComputedStyle(document.documentElement).getPropertyValue('--exp-aventura').trim();
-      map.addImage('poi-photo-bg-cerro-chico', buildCerroChicoRingCanvas(aventuraColor));
-    }
-
-    // Capa de aro dedicada, debajo de la foto — mismo icon-size que
-    // poi-photo-layer para quedar perfectamente centradas y alineadas.
-        // Misma curva de crecimiento del sistema general, aplicada a ambas capas
-    // dedicadas con el mismo valor de initial/final — foto y aro escalan
-    // como una sola unidad, sin alterar la proporción 0.92/0.012 ya aprobada
-    // (esas viven dentro del canvas, son relativas a icon-size, no absolutas).
-       const cerroChicoGrowth = buildPOIGrowthExpression(CERRO_CHICO_PHOTO_ICON_SIZE_INITIAL * POI_LOCALITY_SIZE_BOOST, CERRO_CHICO_PHOTO_ICON_SIZE);
-    map.addLayer({
-      id:'poi-photo-bg-layer', type:'symbol', source:'poi-photo-source',
-      minzoom: ZOOM_DETAIL,
-      layout:{ 'icon-image':'poi-photo-bg-cerro-chico', 'icon-size':cerroChicoGrowth, 'icon-allow-overlap':true, 'icon-ignore-placement':true },
-      paint:{ 'icon-opacity': POI_ICON_FADE_OPACITY },
-    }, 'poi-label-layer');
-
-    map.addLayer({
-      id:'poi-photo-layer', type:'symbol', source:'poi-photo-source',
-      minzoom: ZOOM_DETAIL,
-      layout:{ 'icon-image':'poi-photo-cerro-chico', 'icon-size':cerroChicoGrowth, 'icon-allow-overlap':true, 'icon-ignore-placement':true },
-      paint:{ 'icon-opacity': POI_ICON_FADE_OPACITY },
-    }, 'poi-label-layer');
-    // Etiqueta DEDICADA — reutiliza la misma cápsula (poi-label-bg, sin tocar
-    // su generación) pero con offset/padding/tamaño propios, calculados
-    // proporcionalmente a CERRO_CHICO_PHOTO_ICON_SIZE (0.251 ≈ 91% del 0.276
-    // estándar). poi-label-layer sigue intacta para el resto de POIs; a este
-    // id puntual se le oculta su entrada ahí (ver applyFeature) para no
-    // duplicar la etiqueta.
-    map.addLayer({
-      id:'poi-photo-label-layer', type:'symbol', source:'poi-photo-source',
-      minzoom: ZOOM_DETAIL,
-      layout:{
-        'icon-image':'poi-label-bg',
-        'icon-text-fit':'both',
-        'icon-text-fit-padding':[2, 6, 2, 6],
-        'icon-anchor':'bottom',
-        'icon-allow-overlap':true,
-        'text-field':['get','name'],
-        'text-font': getStyleTextFont(),
-        'text-size':7.6,
-        'text-offset':[0, -1.96],
-        'text-anchor':'bottom',
-        'text-allow-overlap':true,
-        'text-optional':false,
-        'icon-optional':false,
-      },
-      paint:{
-        'text-color':'#F4F7FA',
-        'icon-opacity': POI_LABEL_FADE_OPACITY,
-        'text-opacity': POI_LABEL_FADE_OPACITY,
-      },
-    }, 'poi-label-layer');
-  }
-  console.log('[PHOTO SUPABASE] photo source:', !!map.getSource('poi-photo-source'));
-  console.log('[PHOTO SUPABASE] photo layer:', !!map.getLayer('poi-photo-layer'));
-
-  const place = findCerroChicoPlace();
-  console.log('[PHOTO SUPABASE] experience:', place);
-  console.log('[PHOTO SUPABASE] experience id:', place ? place.id : null);
-  console.log('[PHOTO SUPABASE] image:', place ? place.image : null);
-
-  if (!place || !place.image){
-    console.log('[PHOTO SUPABASE] map image: sin lugar o sin foto — se conserva el ícono de categoría');
-    return;
-  }
-
-     if (map.hasImage('poi-photo-cerro-chico')){
-    console.log('[PHOTO SUPABASE] map image: ya registrada, se reutiliza');
-    updateCerroChicoPhotoVisual();
-    return;
-  }
-     // map.loadImage() no completaba su callback para esta URL externa de
-  // Supabase Storage (confirmado por diagnóstico: new Image() sí cargaba
-  // correctamente la misma URL). Se reemplaza únicamente el mecanismo de
-  // carga por Image() nativo — el resto del flujo (canvas circular,
-  // addImage, applyFeature, fallback al ícono de categoría) queda igual.
-  console.log('[PHOTO SUPABASE] cargando imagen vía Image():', place.image);
+  poiPhotoAttempted.add(place.id);
   const photoImg = new Image();
   photoImg.crossOrigin = 'anonymous';
   photoImg.onload = () => {
     try{
-      if (!map.hasImage('poi-photo-cerro-chico')){
-        map.addImage('poi-photo-cerro-chico', buildCircularPhotoCanvas(photoImg));
-      }
-            console.log('[PHOTO SUPABASE] map image: registrada');
-      updateCerroChicoPhotoVisual();
+      if (!map.hasImage(imgId)) map.addImage(imgId, buildCircularPhotoCanvas(photoImg));
+      poiPhotoReadyIds.add(place.id);
+      renderPOIs(); // recién cargó — se recalcula el render para pasar de fallback a foto
     } catch(e){
-      console.warn('[Prototipo Cerro Chico] Error preparando la foto circular — se conserva el ícono de categoría.', e);
+      console.warn(`[POI foto] Error preparando la foto circular de "${place.name}" — se conserva el ícono de categoría.`, e);
     }
   };
-  photoImg.onerror = (e) => {
-    console.warn('[Prototipo Cerro Chico] No se pudo cargar la foto — se conserva el ícono de categoría.', e);
-    console.log('[PHOTO SUPABASE] map image: carga fallida');
+  photoImg.onerror = () => {
+    console.warn(`[POI foto] No se pudo cargar la foto de "${place.name}" — se conserva el ícono de categoría.`);
   };
   photoImg.src = place.image;
+}
+
+// updateCerroChicoPhotoVisual() fue reemplazada por applyPOIRenderSplit()
+// (definida junto al resto del sistema de separación visual, más abajo) —
+// generaliza exactamente lo mismo, pero para cualquier lugar, no solo Cerro
+// Chico, y ya no necesita recolorear ningún aro a mano (ver
+// registerPOIPhotoRingImages: un aro por categoría, no por lugar).
+/* ---------- SISTEMA FOTOGRÁFICO DE POIs — fuente/capas generalizadas ----------
+   Antes exclusivo de Cerro Chico. Crea poi-photo-source y sus 4 capas UNA
+   sola vez (idempotente); la carga de cada fotografía individual la maneja
+   ensurePOIPhotoImage() por separado, disparada desde applyPOIRenderSplit()
+   para cada lugar visible — nunca hay una lista ni una condición por id acá. */
+function ensurePOIPhotoLayers(){
+  if (map.getSource('poi-photo-source')) return;
+  map.addSource('poi-photo-source', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
+
+  registerPOIPhotoRingImages(); // un aro por categoría — no por lugar
+
+  // Limpieza defensiva: si una sesión anterior (antes de esta
+  // generalización) dejó activo el filtro que excluía específicamente a
+  // Cerro Chico de poi-label-layer, se retira acá — ya no hace falta ningún
+  // filtro, porque poi-source simplemente no incluye lugares con foto lista
+  // (ver applyPOIRenderSplit), así que su etiqueta estándar nunca llega a
+  // dibujarse para ellos.
+  if (map.getLayer('poi-label-layer')) map.setFilter('poi-label-layer', null);
+
+  map.addLayer({
+    id:'poi-photo-ambient-halo-layer', type:'circle', source:'poi-photo-source',
+    minzoom: ZOOM_DETAIL,
+    paint:{
+      'circle-radius':7.2, 'circle-color':'#020609', 'circle-opacity':0.30,
+      'circle-blur':1.3, 'circle-translate':[0, 2], 'circle-translate-anchor':'viewport',
+    },
+  }, 'poi-label-layer');
+
+  const photoGrowth = buildPOIGrowthExpression(POI_PHOTO_ICON_SIZE_INITIAL * POI_LOCALITY_SIZE_BOOST, POI_PHOTO_ICON_SIZE);
+
+  map.addLayer({
+    id:'poi-photo-bg-layer', type:'symbol', source:'poi-photo-source',
+    minzoom: ZOOM_DETAIL,
+    layout:{ 'icon-image':['get','ringIcon'], 'icon-size':photoGrowth, 'icon-allow-overlap':true, 'icon-ignore-placement':true },
+    paint:{ 'icon-opacity': POI_ICON_FADE_OPACITY },
+  }, 'poi-label-layer');
+
+  map.addLayer({
+    id:'poi-photo-layer', type:'symbol', source:'poi-photo-source',
+    minzoom: ZOOM_DETAIL,
+    layout:{ 'icon-image':['get','photoIcon'], 'icon-size':photoGrowth, 'icon-allow-overlap':true, 'icon-ignore-placement':true },
+    paint:{ 'icon-opacity': POI_ICON_FADE_OPACITY },
+  }, 'poi-label-layer');
+
+  map.addLayer({
+    id:'poi-photo-label-layer', type:'symbol', source:'poi-photo-source',
+    minzoom: ZOOM_DETAIL,
+    layout:{
+      'icon-image':'poi-label-bg',
+      'icon-text-fit':'both',
+      'icon-text-fit-padding':[2, 6, 2, 6],
+      'icon-anchor':'bottom',
+      'icon-allow-overlap':true,
+      'text-field':['get','name'],
+      'text-font': getStyleTextFont(),
+      'text-size':7.6,
+      'text-offset':[0, -1.96],
+      'text-anchor':'bottom',
+      'text-allow-overlap':true,
+      'text-optional':false,
+      'icon-optional':false,
+    },
+    paint:{
+      'text-color':'#F4F7FA',
+      'icon-opacity': POI_LABEL_FADE_OPACITY,
+      'text-opacity': POI_LABEL_FADE_OPACITY,
+    },
+  }, 'poi-label-layer');
 }
 
 // Fondo tipo "pill" para las etiquetas de nombre de POI — reemplaza el
@@ -4897,7 +4821,7 @@ function ensurePOINativeLayers(){
       'text-opacity': POI_LABEL_FADE_OPACITY,
     },
   });
-    ensureCerroChicoPhotoLayer(); // prototipo acotado — ver definición arriba
+        ensurePOIPhotoLayers(); // sistema fotográfico generalizado — ver definición arriba
   bindPOINativeClickHandlers();
 }
 
@@ -4933,6 +4857,18 @@ function startPOIBreathingAnimation(){
       POI_ICON_FADE_OPACITY,
       breatheOpacityWobble,
     ]);
+    // Mismo pulso, aplicado ahora también al aro de los POIs fotográficos
+    // (poi-photo-bg-layer, el equivalente de poi-bg-layer para ese sistema)
+    // — mismo wobble, así ambos tratamientos laten en sincronía. La foto en
+    // sí (poi-photo-layer) queda estática, igual que el glifo (poi-icon-layer)
+    // nunca respira en el diseño estándar.
+    if (map.getLayer('poi-photo-bg-layer')){
+      map.setPaintProperty('poi-photo-bg-layer', 'icon-opacity', [
+        '*',
+        POI_ICON_FADE_OPACITY,
+        breatheOpacityWobble,
+      ]);
+    }
     if (map.getLayer('poi-ambient-halo-layer')){
       // Ciclo propio ~4.2s (divisor distinto), a propósito desfasado del de
       // arriba. Ahora es una sombra, no un glow — la respiración se reduce a
@@ -4946,6 +4882,11 @@ function startPOIBreathingAnimation(){
       const haloZoomFade = Math.min(Math.max((map.getZoom() - ZOOM_DETAIL) / POI_ZOOM_FADE_SPAN, 0), 1);
       map.setPaintProperty('poi-ambient-halo-layer', 'circle-radius', POI_HALO_BASE_RADIUS + haloWobble * (POI_HALO_BASE_RADIUS * 0.03));
       map.setPaintProperty('poi-ambient-halo-layer', 'circle-opacity', (0.28 + haloWobble * 0.025) * haloZoomFade);
+      // Misma sombra, reutilizada para los POIs fotográficos.
+      if (map.getLayer('poi-photo-ambient-halo-layer')){
+        map.setPaintProperty('poi-photo-ambient-halo-layer', 'circle-radius', POI_HALO_BASE_RADIUS + haloWobble * (POI_HALO_BASE_RADIUS * 0.03));
+        map.setPaintProperty('poi-photo-ambient-halo-layer', 'circle-opacity', (0.28 + haloWobble * 0.025) * haloZoomFade);
+      }
     }
   }, 250);
 }
@@ -4967,6 +4908,19 @@ function bindPOINativeClickHandlers(){
   map.on('mouseleave', 'poi-icon-layer', () => { map.getCanvas().style.cursor = ''; });
   map.on('mouseenter', 'poi-circle-layer', () => { map.getCanvas().style.cursor = 'pointer'; });
   map.on('mouseleave', 'poi-circle-layer', () => { map.getCanvas().style.cursor = ''; });
+  // POIs fotográficos — mismo handlePOINativeClick (lee el id desde
+  // e.features[0].properties.id y busca en DEMO_PLACES, funciona igual sin
+  // importar de qué fuente venga el feature). Antes no hacía falta esto:
+  // Cerro Chico también existía en poi-source, y el click se resolvía ahí
+  // por debajo de la foto. Ahora que cada lugar vive en una sola fuente a la
+  // vez, los POIs fotográficos necesitan su propio binding para seguir
+  // siendo clicables.
+  map.on('click', 'poi-photo-layer', (e) => { e.originalEvent.stopPropagation(); handlePOINativeClick(e); });
+  map.on('click', 'poi-photo-bg-layer', (e) => { e.originalEvent.stopPropagation(); handlePOINativeClick(e); });
+  map.on('mouseenter', 'poi-photo-layer', () => { map.getCanvas().style.cursor = 'pointer'; });
+  map.on('mouseleave', 'poi-photo-layer', () => { map.getCanvas().style.cursor = ''; });
+  map.on('mouseenter', 'poi-photo-bg-layer', () => { map.getCanvas().style.cursor = 'pointer'; });
+  map.on('mouseleave', 'poi-photo-bg-layer', () => { map.getCanvas().style.cursor = ''; });
 }
 
 /* ---------- Fase 3 de la migración: estado "seleccionado" (capa nativa) ----------
@@ -5060,11 +5014,12 @@ function updateSelectedPOILayer(place){
    (la misma que ya calculaba poiSourceFeatures()); en cada pasada se parte
    de esa geometría real, se calcula un desplazamiento en PANTALLA (píxeles)
    y recién al final se convierte de vuelta a lng/lat vía map.unproject() —
-   solo para la copia que se dibuja en poi-source, nunca se escribe en
-   ningún dato persistente ni se acumula entre pasadas.
-   Cerro Chico queda excluido a propósito: tiene una capa de foto aparte
-   (poi-photo-source) anclada a su coordenada real, y moverlo desincronizaría
-   esa foto del círculo de categoría que hay debajo. */
+   solo para la copia que se dibuja, nunca se escribe en ningún dato
+   persistente ni se acumula entre pasadas. Se aplica parejo a TODOS los
+   POIs, incluidos los que usan el sistema fotográfico — foto, aro y halo de
+   un mismo lugar viajan siempre juntos porque los tres se leen de la MISMA
+   geometría ya desplazada (ver applyPOIRenderSplit), así que ya no hace
+   falta ninguna excepción por id para mantenerlos alineados. */
 let lastPOIBaseFeatures = [];
 const POI_SPREAD_MAX_PUSH_PX = 13;   // tope de separación — nunca más que esto
 const POI_SPREAD_ITERATIONS = 2;     // resuelve cadenas de 3+ POIs muy juntos, sin spiderfy
@@ -5087,9 +5042,6 @@ function computePOISpreadFeatures(baseFeatures, zoom){
     return baseFeatures;
   }
 
-  const cerroChicoPlace = findCerroChicoPlace();
-  const cerroChicoId = cerroChicoPlace ? cerroChicoPlace.id : null;
-
   // Diámetro visual aproximado del marcador en este zoom — mismo cálculo de
   // tamaño que ya usa poi-bg-layer (evalPOIGrowth), así la distancia mínima
   // exigida crece/decrece junto con el propio tamaño del marcador, nunca un
@@ -5102,9 +5054,7 @@ function computePOISpreadFeatures(baseFeatures, zoom){
 
   for (let iter = 0; iter < POI_SPREAD_ITERATIONS; iter++){
     for (let i = 0; i < points.length; i++){
-      if (baseFeatures[i].properties.id === cerroChicoId) continue;
       for (let j = i + 1; j < points.length; j++){
-        if (baseFeatures[j].properties.id === cerroChicoId) continue;
         const pi = { x: points[i].x + offsets[i].x, y: points[i].y + offsets[i].y };
         const pj = { x: points[j].x + offsets[j].x, y: points[j].y + offsets[j].y };
         const dx = pj.x - pi.x, dy = pj.y - pi.y;
@@ -5132,6 +5082,43 @@ function computePOISpreadFeatures(baseFeatures, zoom){
   return anyOffset ? spreadFeatures : baseFeatures;
 }
 
+// Reparte la geometría YA desplazada entre los dos sistemas visuales: la
+// fuente fotográfica (poi-photo-source) para lugares cuya foto ya está
+// registrada, y la estándar (poi-source) para el resto — incluye a
+// cualquier lugar mientras su foto todavía está cargando o no tiene imagen
+// válida, así el fallback es siempre el diseño ya existente, nunca un hueco
+// vacío ni contenido inventado. Ambos buckets nacen del MISMO array de
+// coordenadas ya separadas por computePOISpreadFeatures, así que foto, aro
+// y halo de un mismo POI no pueden desalinearse entre sí.
+function applyPOIRenderSplit(features){
+  const src = map.getSource('poi-source');
+  const photoSrc = map.getSource('poi-photo-source');
+  if (!src) return;
+
+  const standardFeatures = [];
+  const photoFeatures = [];
+  features.forEach(f => {
+    const place = DEMO_PLACES.find(p => p.id === f.properties.id);
+    if (place) ensurePOIPhotoImage(place); // dispara/continúa la carga lazy — no-op si ya se intentó
+    if (photoSrc && poiPhotoReadyIds.has(f.properties.id)){
+      photoFeatures.push({
+        type:'Feature',
+        properties:{
+          id: f.properties.id, name: f.properties.name,
+          photoIcon: `poi-photo-${f.properties.id}`,
+          ringIcon: f.properties.bgIcon.replace('poi-bg-', 'poi-photo-bg-'),
+        },
+        geometry: f.geometry,
+      });
+    } else {
+      standardFeatures.push(f);
+    }
+  });
+
+  src.setData({ type:'FeatureCollection', features: standardFeatures });
+  if (photoSrc) photoSrc.setData({ type:'FeatureCollection', features: photoFeatures });
+}
+
 // Recalcula SOLO la separación visual en cada pan/zoom — a diferencia de un
 // cambio de filtro o de localidad, un simple pellizco de zoom dentro del
 // mismo nivel ('detalle') no dispara renderPOIsNative() por sí solo, así que
@@ -5146,9 +5133,7 @@ function schedulePOISpreadUpdate(){
   if (poiSpreadRaf) return;
   poiSpreadRaf = requestAnimationFrame(() => {
     poiSpreadRaf = null;
-    const src = map.getSource('poi-source');
-    if (!src) return;
-    src.setData({ type:'FeatureCollection', features: computePOISpreadFeatures(lastPOIBaseFeatures, map.getZoom()) });
+    applyPOIRenderSplit(computePOISpreadFeatures(lastPOIBaseFeatures, map.getZoom()));
   });
 }
 map.on('move', schedulePOISpreadUpdate);
@@ -5156,17 +5141,14 @@ map.on('zoom', schedulePOISpreadUpdate);
 
 function renderPOIsNative(){
   ensurePOINativeLayers();
-  const src = map.getSource('poi-source');
   // Mismo criterio que antes: sin nada durante navegación activa.
   if (state.nav.active){
     lastPOIBaseFeatures = [];
-    src.setData({ type:'FeatureCollection', features:[] });
-    updateCerroChicoPhotoVisual(); // mismo apagado que el resto de POIs durante la ruta
+    applyPOIRenderSplit([]);
     return;
   }
   lastPOIBaseFeatures = poiSourceFeatures();
-  src.setData({ type:'FeatureCollection', features: computePOISpreadFeatures(lastPOIBaseFeatures, map.getZoom()) });
-  updateCerroChicoPhotoVisual(); // recalcula geografía+categoría cada vez que el sistema general lo hace — único punto de verdad
+  applyPOIRenderSplit(computePOISpreadFeatures(lastPOIBaseFeatures, map.getZoom()));
 }
 
 function clearPOIMarkers(){
@@ -9456,13 +9438,11 @@ function applySupabaseData({ newLocalities, newSublocalities, newPlaces }){
   renderCollectionsRail();
   renderClosingFeature();
 
-  // Prototipo Cerro Chico — solo relevante si el usuario ya había navegado
-  // hasta el zoom de detalle de una localidad ANTES de que Supabase
-  // terminara de sincronizar (poi-label-layer ya existiría en ese caso).
-  // Si aún no existe, la función no hace nada (se protege internamente) y
-  // ensurePOINativeLayers() la ejecutará de nuevo, ya con los datos remotos
-  // aplicados, la próxima vez que el usuario llegue a ese zoom.
-  ensureCerroChicoPhotoLayer();
+   // El sistema fotográfico generalizado ya no necesita un gancho aparte acá:
+  // cada vez que renderPOIsNative() vuelve a correr (disparado más arriba
+  // por updateExplorationLevel()), la carga de fotos se evalúa por lugar
+  // visible — cualquier experiencia nueva sincronizada desde Supabase queda
+  // cubierta automáticamente, sin lista ni condición manual.
 
   console.info(`[Supabase] Datos remotos aplicados: ${newPlaces.length} experiencias, ${newLocalities.length} comunas.`);
 }
