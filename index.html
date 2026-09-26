@@ -4509,7 +4509,7 @@ function ensureCerroChicoPhotoLayer(){
     // dedicadas con el mismo valor de initial/final — foto y aro escalan
     // como una sola unidad, sin alterar la proporción 0.92/0.012 ya aprobada
     // (esas viven dentro del canvas, son relativas a icon-size, no absolutas).
-    const cerroChicoGrowth = buildPOIGrowthExpression(CERRO_CHICO_PHOTO_ICON_SIZE_INITIAL, CERRO_CHICO_PHOTO_ICON_SIZE);
+       const cerroChicoGrowth = buildPOIGrowthExpression(CERRO_CHICO_PHOTO_ICON_SIZE_INITIAL * POI_LOCALITY_SIZE_BOOST, CERRO_CHICO_PHOTO_ICON_SIZE);
     map.addLayer({
       id:'poi-photo-bg-layer', type:'symbol', source:'poi-photo-source',
       minzoom: ZOOM_DETAIL,
@@ -4773,6 +4773,18 @@ function evalPOIGrowth(zoom, initial, final){
 const POI_BG_SIZE_FINAL = 0.276, POI_BG_SIZE_INITIAL = 0.152;
 const POI_ICON_SIZE_FINAL = 0.299, POI_ICON_SIZE_INITIAL = 0.164;
 
+// ---------- Legibilidad en nivel LOCALIDAD — solo el arranque de la curva ----------
+// POI_LOCALITY_SIZE_BOOST sube únicamente el punto de PARTIDA de
+// buildPOIGrowthExpression (initial) — el punto de LLEGADA (final, el
+// tamaño que ya existía en zoom de detalle) no se toca. Resultado: los POIs
+// se ven más grandes justo al entrar a una localidad (zoom cercano a
+// ZOOM_DETAIL, donde hoy se ven chicos) y la curva converge sola al tamaño
+// de siempre a medida que el usuario se acerca a ZOOM_POI_NAME — nunca
+// agranda los POIs ya en vista de detalle, nunca es un cambio global.
+const POI_LOCALITY_SIZE_BOOST = 1.2; // +20%, dentro del rango 15–25% pedido
+const POI_BG_SIZE_INITIAL_LOCALITY = POI_BG_SIZE_INITIAL * POI_LOCALITY_SIZE_BOOST;
+const POI_ICON_SIZE_INITIAL_LOCALITY = POI_ICON_SIZE_INITIAL * POI_LOCALITY_SIZE_BOOST;
+
 function ensurePOINativeLayers(){
   if (map.getSource('poi-source')){ bindPOINativeClickHandlers(); return; }
   map.addSource('poi-source', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
@@ -4807,7 +4819,7 @@ function ensurePOINativeLayers(){
       // Antes valor fijo (0.276) — ahora crece de ~55% a 100% entre
       // ZOOM_DETAIL y ZOOM_POI_NAME (estado LEJANO→EXPLORACIÓN→DETALLE).
       // El valor final (0.276) es idéntico al de siempre.
-      'icon-size': buildPOIGrowthExpression(POI_BG_SIZE_INITIAL, POI_BG_SIZE_FINAL),
+           'icon-size': buildPOIGrowthExpression(POI_BG_SIZE_INITIAL_LOCALITY, POI_BG_SIZE_FINAL),
       'icon-allow-overlap':true,
       'icon-ignore-placement':true,
     },
@@ -4826,7 +4838,7 @@ function ensurePOINativeLayers(){
       // Misma curva de crecimiento que poi-bg-layer — proporción
       // glifo/círculo se mantiene en cualquier punto del rango, porque
       // ambas capas escalan con la misma fórmula (solo cambian initial/final).
-      'icon-size': buildPOIGrowthExpression(POI_ICON_SIZE_INITIAL, POI_ICON_SIZE_FINAL),
+            'icon-size': buildPOIGrowthExpression(POI_ICON_SIZE_INITIAL_LOCALITY, POI_ICON_SIZE_FINAL),
       'icon-allow-overlap':true,
       'icon-ignore-placement':true,
     },
@@ -5042,16 +5054,118 @@ function updateSelectedPOILayer(place){
   });
 }
 
+/* ---------- Separación visual entre POIs cercanos — SOLO en nivel LOCALIDAD ----------
+   Puramente de render: nunca toca place.lat/place.lng ni ningún dato de
+   Supabase/DEMO_PLACES. lastPOIBaseFeatures guarda siempre la geometría REAL
+   (la misma que ya calculaba poiSourceFeatures()); en cada pasada se parte
+   de esa geometría real, se calcula un desplazamiento en PANTALLA (píxeles)
+   y recién al final se convierte de vuelta a lng/lat vía map.unproject() —
+   solo para la copia que se dibuja en poi-source, nunca se escribe en
+   ningún dato persistente ni se acumula entre pasadas.
+   Cerro Chico queda excluido a propósito: tiene una capa de foto aparte
+   (poi-photo-source) anclada a su coordenada real, y moverlo desincronizaría
+   esa foto del círculo de categoría que hay debajo. */
+let lastPOIBaseFeatures = [];
+const POI_SPREAD_MAX_PUSH_PX = 13;   // tope de separación — nunca más que esto
+const POI_SPREAD_ITERATIONS = 2;     // resuelve cadenas de 3+ POIs muy juntos, sin spiderfy
+const POI_BG_CANVAS_PX = 96;         // mismo lienzo base que ya usa buildPOIBackgroundCanvas()
+
+// Intensidad del efecto según el zoom: 1 justo al entrar a una localidad
+// (ZOOM_DETAIL), 0 ya en el zoom de detalle de POI individual
+// (ZOOM_POI_NAME) — mismo rango que el aumento de tamaño de arriba, así
+// ambos efectos aparecen y desaparecen juntos, de forma progresiva, a
+// medida que el usuario hace zoom.
+function poiLocalityIntensity(zoom){
+  return 1 - Math.min(Math.max((zoom - ZOOM_DETAIL) / (ZOOM_POI_NAME - ZOOM_DETAIL), 0), 1);
+}
+
+let poiSpreadWasApplied = false;
+function computePOISpreadFeatures(baseFeatures, zoom){
+  const intensity = poiLocalityIntensity(zoom);
+  if (intensity <= 0 || baseFeatures.length < 2){
+    poiSpreadWasApplied = false;
+    return baseFeatures;
+  }
+
+  const cerroChicoPlace = findCerroChicoPlace();
+  const cerroChicoId = cerroChicoPlace ? cerroChicoPlace.id : null;
+
+  // Diámetro visual aproximado del marcador en este zoom — mismo cálculo de
+  // tamaño que ya usa poi-bg-layer (evalPOIGrowth), así la distancia mínima
+  // exigida crece/decrece junto con el propio tamaño del marcador, nunca un
+  // valor fijo desconectado del diseño real.
+  const bgSizeNow = evalPOIGrowth(zoom, POI_BG_SIZE_INITIAL_LOCALITY, POI_BG_SIZE_FINAL);
+  const minDistPx = (bgSizeNow * POI_BG_CANVAS_PX) * 0.92;
+
+  const points = baseFeatures.map(f => map.project(f.geometry.coordinates));
+  const offsets = points.map(() => ({ x:0, y:0 }));
+
+  for (let iter = 0; iter < POI_SPREAD_ITERATIONS; iter++){
+    for (let i = 0; i < points.length; i++){
+      if (baseFeatures[i].properties.id === cerroChicoId) continue;
+      for (let j = i + 1; j < points.length; j++){
+        if (baseFeatures[j].properties.id === cerroChicoId) continue;
+        const pi = { x: points[i].x + offsets[i].x, y: points[i].y + offsets[i].y };
+        const pj = { x: points[j].x + offsets[j].x, y: points[j].y + offsets[j].y };
+        const dx = pj.x - pi.x, dy = pj.y - pi.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist >= minDistPx) continue;
+        const overlap = (minDistPx - dist) / 2;
+        const ux = dist === 0 ? 1 : dx / dist;
+        const uy = dist === 0 ? 0 : dy / dist;
+        const push = Math.min(overlap, POI_SPREAD_MAX_PUSH_PX) * intensity;
+        offsets[i].x -= ux * push; offsets[i].y -= uy * push;
+        offsets[j].x += ux * push; offsets[j].y += uy * push;
+      }
+    }
+  }
+
+  let anyOffset = false;
+  const spreadFeatures = baseFeatures.map((f, i) => {
+    const o = offsets[i];
+    if (o.x === 0 && o.y === 0) return f;
+    anyOffset = true;
+    const p = map.unproject([points[i].x + o.x, points[i].y + o.y]);
+    return { ...f, geometry:{ type:'Point', coordinates:[p.lng, p.lat] } };
+  });
+  poiSpreadWasApplied = anyOffset;
+  return anyOffset ? spreadFeatures : baseFeatures;
+}
+
+// Recalcula SOLO la separación visual en cada pan/zoom — a diferencia de un
+// cambio de filtro o de localidad, un simple pellizco de zoom dentro del
+// mismo nivel ('detalle') no dispara renderPOIsNative() por sí solo, así que
+// sin esto la separación quedaría congelada en el valor del último cambio de
+// estado. Se auto-descarta de inmediato apenas no hay nada que recalcular
+// (fuera del rango de localidad y sin ninguna separación previa aplicada) —
+// mismo patrón de scheduleCollisionCheck ya usado en el proyecto.
+let poiSpreadRaf = null;
+function schedulePOISpreadUpdate(){
+  if (!map.getSource('poi-source') || !lastPOIBaseFeatures.length) return;
+  if (poiLocalityIntensity(map.getZoom()) <= 0 && !poiSpreadWasApplied) return;
+  if (poiSpreadRaf) return;
+  poiSpreadRaf = requestAnimationFrame(() => {
+    poiSpreadRaf = null;
+    const src = map.getSource('poi-source');
+    if (!src) return;
+    src.setData({ type:'FeatureCollection', features: computePOISpreadFeatures(lastPOIBaseFeatures, map.getZoom()) });
+  });
+}
+map.on('move', schedulePOISpreadUpdate);
+map.on('zoom', schedulePOISpreadUpdate);
+
 function renderPOIsNative(){
   ensurePOINativeLayers();
   const src = map.getSource('poi-source');
   // Mismo criterio que antes: sin nada durante navegación activa.
   if (state.nav.active){
+    lastPOIBaseFeatures = [];
     src.setData({ type:'FeatureCollection', features:[] });
     updateCerroChicoPhotoVisual(); // mismo apagado que el resto de POIs durante la ruta
     return;
   }
-  src.setData({ type:'FeatureCollection', features: poiSourceFeatures() });
+  lastPOIBaseFeatures = poiSourceFeatures();
+  src.setData({ type:'FeatureCollection', features: computePOISpreadFeatures(lastPOIBaseFeatures, map.getZoom()) });
   updateCerroChicoPhotoVisual(); // recalcula geografía+categoría cada vez que el sistema general lo hace — único punto de verdad
 }
 
