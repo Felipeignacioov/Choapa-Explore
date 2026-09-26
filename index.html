@@ -8080,7 +8080,6 @@ function setActiveExperience(id){
   updateZonePrompt();
   applyMoodAtmosphere(id);
   updateFilterAccent();
-  updateCerroChicoPhotoVisual();
   document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.exp === id));
   searchInput.placeholder = SEARCH_PLACEHOLDERS[id] || SEARCH_PLACEHOLDERS.todos;
   renderPOIs();
