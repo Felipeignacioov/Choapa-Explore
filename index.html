@@ -4496,7 +4496,7 @@ function ensurePOIPhotoLayers(){
     paint:{ 'icon-opacity': POI_ICON_FADE_OPACITY },
   }, 'poi-label-layer');
 
-  map.addLayer({
+   map.addLayer({
     id:'poi-photo-label-layer', type:'symbol', source:'poi-photo-source',
     minzoom: ZOOM_DETAIL,
     layout:{
@@ -4504,13 +4504,20 @@ function ensurePOIPhotoLayers(){
       'icon-text-fit':'both',
       'icon-text-fit-padding':[2, 6, 2, 6],
       'icon-anchor':'bottom',
-      'icon-allow-overlap':true,
+      // Antes true en ambos (icon/text) — la etiqueta se dibujaba siempre,
+      // sin importar si chocaba con otra. Ahora, mismo criterio que ya usa
+      // poi-label-layer: cuando dos etiquetas colisionan, MapLibre oculta la
+      // de menor prioridad en vez de superponerlas ilegibles. La colisión es
+      // global entre capas de símbolo, así que esto también resuelve el
+      // choque contra etiquetas de POIs sin foto (poi-label-layer), no solo
+      // entre POIs fotográficos.
+      'icon-allow-overlap':false,
       'text-field':['get','name'],
       'text-font': getStyleTextFont(),
       'text-size':7.6,
       'text-offset':[0, -1.96],
       'text-anchor':'bottom',
-      'text-allow-overlap':true,
+      'text-allow-overlap':false,
       'text-optional':false,
       'icon-optional':false,
     },
