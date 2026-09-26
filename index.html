@@ -5039,13 +5039,23 @@ const POI_SPREAD_MAX_PUSH_RATIO = 0.65; // hasta 65% de la distancia mínima exi
 const POI_SPREAD_ITERATIONS = 2;     // resuelve cadenas de 3+ POIs muy juntos, sin spiderfy
 const POI_BG_CANVAS_PX = 96;         // mismo lienzo base que ya usa buildPOIBackgroundCanvas()
 
-// Intensidad del efecto según el zoom: 1 justo al entrar a una localidad
-// (ZOOM_DETAIL), 0 ya en el zoom de detalle de POI individual
-// (ZOOM_POI_NAME) — mismo rango que el aumento de tamaño de arriba, así
-// ambos efectos aparecen y desaparecen juntos, de forma progresiva, a
-// medida que el usuario hace zoom.
+// Antes decaía linealmente durante TODO el rango ZOOM_DETAIL→ZOOM_POI_NAME
+// — el mismo rango en el que buildPOIGrowthExpression() hace crecer el
+// ícono. Resultado: justo cuando el POI llegaba a su tamaño más grande, casi
+// no quedaba empuje aplicándose, y dos POIs cercanos se veían "juntarse" al
+// acercar el zoom en vez de separarse. Ahora la intensidad se ata al mismo
+// hito que ya usa el crecimiento del ícono (POI_GROWTH_ZOOM_END === ZOOM_POI_NAME):
+// fuerza completa mientras el ícono todavía está creciendo, y solo empieza a
+// apagarse DESPUÉS de que terminó de crecer — ahí es cuando el usuario ya
+// está mirando un POI individual de cerca, no la localidad. El "volver
+// progresivamente a la posición normal cuando hay espacio" sigue intacto:
+// lo sigue resolviendo el propio cálculo de solapamiento por par (overlap
+// ya tiende a 0 por sí solo cuando la distancia real en pantalla alcanza
+// minDistPx), esto solo evita que un segundo freno lo apague de más.
+const POI_SPREAD_FADE_OUT_SPAN = 0.6; // unidades de zoom, más allá de ZOOM_POI_NAME, para apagar el empuje del todo
 function poiLocalityIntensity(zoom){
-  return 1 - Math.min(Math.max((zoom - ZOOM_DETAIL) / (ZOOM_POI_NAME - ZOOM_DETAIL), 0), 1);
+  if (zoom <= ZOOM_POI_NAME) return 1;
+  return 1 - Math.min(Math.max((zoom - ZOOM_POI_NAME) / POI_SPREAD_FADE_OUT_SPAN, 0), 1);
 }
 
 let poiSpreadWasApplied = false;
