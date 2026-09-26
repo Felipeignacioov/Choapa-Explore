@@ -5028,7 +5028,14 @@ function updateSelectedPOILayer(place){
    geometría ya desplazada (ver applyPOIRenderSplit), así que ya no hace
    falta ninguna excepción por id para mantenerlos alineados. */
 let lastPOIBaseFeatures = [];
-const POI_SPREAD_MAX_PUSH_PX = 13;   // tope de separación — nunca más que esto
+// Antes un tope fijo en píxeles (13) — quedaba desactualizado cada vez que
+// el tamaño visual del POI cambiaba (ej. el aumento de tamaño en localidad),
+// porque la distancia mínima exigida (minDistPx, más abajo) crecía pero el
+// tope de empuje no. Ahora es una PROPORCIÓN de esa misma distancia mínima,
+// calculada en cada pasada dentro de computePOISpreadFeatures — se
+// auto-ajusta si el tamaño de POI vuelve a cambiar en el futuro, sin tener
+// que volver a tocar este número a mano.
+const POI_SPREAD_MAX_PUSH_RATIO = 0.65; // hasta 65% de la distancia mínima exigida, por POI
 const POI_SPREAD_ITERATIONS = 2;     // resuelve cadenas de 3+ POIs muy juntos, sin spiderfy
 const POI_BG_CANVAS_PX = 96;         // mismo lienzo base que ya usa buildPOIBackgroundCanvas()
 
@@ -5053,8 +5060,11 @@ function computePOISpreadFeatures(baseFeatures, zoom){
   // tamaño que ya usa poi-bg-layer (evalPOIGrowth), así la distancia mínima
   // exigida crece/decrece junto con el propio tamaño del marcador, nunca un
   // valor fijo desconectado del diseño real.
-  const bgSizeNow = evalPOIGrowth(zoom, POI_BG_SIZE_INITIAL_LOCALITY, POI_BG_SIZE_FINAL);
+    const bgSizeNow = evalPOIGrowth(zoom, POI_BG_SIZE_INITIAL_LOCALITY, POI_BG_SIZE_FINAL);
   const minDistPx = (bgSizeNow * POI_BG_CANVAS_PX) * 0.92;
+  // Tope de empuje proporcional a la distancia mínima exigida en ESTE
+  // zoom/tamaño — nunca un número fijo desconectado del diseño real.
+  const maxPushPx = minDistPx * POI_SPREAD_MAX_PUSH_RATIO;
 
   const points = baseFeatures.map(f => map.project(f.geometry.coordinates));
   const offsets = points.map(() => ({ x:0, y:0 }));
@@ -5070,7 +5080,7 @@ function computePOISpreadFeatures(baseFeatures, zoom){
         const overlap = (minDistPx - dist) / 2;
         const ux = dist === 0 ? 1 : dx / dist;
         const uy = dist === 0 ? 0 : dy / dist;
-        const push = Math.min(overlap, POI_SPREAD_MAX_PUSH_PX) * intensity;
+                const push = Math.min(overlap, maxPushPx) * intensity;
         offsets[i].x -= ux * push; offsets[i].y -= uy * push;
         offsets[j].x += ux * push; offsets[j].y += uy * push;
       }
