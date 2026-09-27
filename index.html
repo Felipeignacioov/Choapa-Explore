@@ -193,13 +193,17 @@ img{-webkit-user-drag:none; user-select:none;}
   border:1px solid var(--border-glass);
   border-radius:var(--radius-pill);
   padding:10.5px 16px;
-  box-shadow:var(--shadow-float);
+  /* Highlight superior sutil (línea de luz en el borde de arriba) — mismo
+     lenguaje "glass premium" que ya usan los pines de POI (highlight blanco
+     esquina superior-izquierda dentro del gradiente radial). Se suma al
+     box-shadow existente, nunca lo reemplaza. */
+  box-shadow:var(--shadow-float), inset 0 1px 0 rgba(255,255,255,0.06);
   transition:border-color .2s ease, box-shadow .2s ease, background .2s ease, border-radius .2s ease, padding .28s cubic-bezier(.4,0,.2,1);
 }
 .searchbar:focus-within{
   border-color:rgba(95,225,232,0.5);
   background:rgba(20,43,61,0.85);
-  box-shadow:var(--shadow-float), 0 0 0 3px rgba(22,184,196,0.14);
+  box-shadow:var(--shadow-float), 0 0 0 3px rgba(22,184,196,0.14), inset 0 1px 0 rgba(255,255,255,0.06);
 }
 .searchbar svg{flex-shrink:0; color:var(--text-secondary); transition:color .2s ease;}
 .searchbar:focus-within svg{color:var(--turquoise-bright);}
@@ -247,7 +251,10 @@ img{-webkit-user-drag:none; user-select:none;}
   flex-shrink:0; display:flex; align-items:center; gap:6px;
   padding:8.5px 14px; border-radius:var(--radius-pill);
   background:rgba(16,36,56,0.68); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
-  border:1px solid var(--border-glass); box-shadow:var(--shadow-float);
+  border:1px solid var(--border-glass);
+  /* Mismo highlight superior que el buscador — sumado al box-shadow ya
+     existente, sin reemplazarlo. */
+  box-shadow:var(--shadow-float), inset 0 1px 0 rgba(255,255,255,0.07);
   font-size:13px; font-weight:600; color:var(--text-secondary);
   /* Color/fondo/borde ahora a 300ms (antes 160ms, casi instantáneo) para que el
      cambio de tinte al elegir categoría se sienta como un fundido suave. La
@@ -258,10 +265,25 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 .chip .dot{width:6px; height:6px; border-radius:50%; background:currentColor; opacity:.85;}
 .chip svg{display:block; flex-shrink:0;}
+/* Chip INACTIVO de categoría — antes borde siempre neutro hasta activarse;
+   ahora un tinte casi imperceptible (30%) del color propio de esa categoría,
+   usando la MISMA variable --chip-active-bg que JS ya fija por chip (nunca
+   se crea ningún color nuevo). "Todos" no tiene esa variable asignada
+   (nunca se le fija en JS), así que cae al fallback --border-glass sin
+   ningún cambio visible. Mayor especificidad que la regla base .chip de
+   arriba (dos clases equivalentes vs una), así gana sin depender del orden. */
+.chip:not(.active){
+  border-color: color-mix(in srgb, var(--chip-active-bg, var(--border-glass)) 30%, var(--border-glass));
+}
 .chip.active{
-  color:var(--chip-active-color, #04222A); background:var(--chip-active-bg, var(--turquoise-bright));
+  color:var(--chip-active-color, #04222A);
+  /* Antes un fill sólido y plano — ahora un degradado sutil (más claro
+     arriba, tono base de categoría abajo), mismo lenguaje que ya usan los
+     círculos de POI (radialGradient con highlight), traído a los chips vía
+     CSS puro. Usa la MISMA --chip-active-bg de siempre — ningún color nuevo. */
+  background:linear-gradient(180deg, color-mix(in srgb, var(--chip-active-bg, var(--turquoise-bright)) 82%, white 18%), var(--chip-active-bg, var(--turquoise-bright)));
   border-color:var(--chip-active-bg, var(--turquoise-bright));
-  box-shadow:0 4px 14px var(--chip-active-shadow, rgba(95,225,232,0.32));
+  box-shadow:0 4px 14px var(--chip-active-shadow, rgba(95,225,232,0.32)), inset 0 1px 0 rgba(255,255,255,0.45);
   transform:translateY(-1px);
 }
 .chip:active{transform:scale(0.95);}
