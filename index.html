@@ -6311,10 +6311,15 @@ function getSunTimes(date, lat, lng){
   const M = solarMeanAnomaly(ds), L = eclipticLongitude(M);
   const dec = declination(L, 0);
   const Jnoon = solarTransitJ(ds, M, L);
-  const w = hourAngle(rad * -0.833, phi, dec);
+   const w = hourAngle(rad * -0.833, phi, dec);
   const Jset = solarTransitJ(approxTransit(w, lw, n), M, L);
   const Jrise = Jnoon - (Jset - Jnoon);
-  return { sunrise: fromJulian(Jrise), sunset: fromJulian(Jset) };
+  // solarNoon — el mediodía solar REAL para estas coordenadas (no es lo
+  // mismo que las 12:00 del reloj, varía por longitud/época del año). Ya se
+  // calculaba internamente (Jnoon) pero no se exponía; se necesita para
+  // detectar el estado "midday" (ver getDayPeriod), un rango horario mucho
+  // más específico que "día" completo.
+  return { sunrise: fromJulian(Jrise), sunset: fromJulian(Jset), solarNoon: fromJulian(Jnoon) };
 }
 
 // 3 estados narrativos: "day" es el estado de siempre (sin tinte), "dusk" cubre
@@ -6323,18 +6328,34 @@ function getSunTimes(date, lat, lng){
 // parte de la paleta de marca, no un color ajeno al sistema.
 function getDayPeriod(){
   const now = new Date();
-  const { sunrise, sunset } = getSunTimes(now, CHOAPA_SUN_LAT, CHOAPA_SUN_LNG);
+  const { sunrise, sunset, solarNoon } = getSunTimes(now, CHOAPA_SUN_LAT, CHOAPA_SUN_LNG);
   const TWILIGHT_MS = 45 * 60 * 1000;
   if (Math.abs(now - sunrise) < TWILIGHT_MS || Math.abs(now - sunset) < TWILIGHT_MS) return 'dusk';
-  if (now > sunrise && now < sunset) return 'day';
+  if (now > sunrise && now < sunset){
+    // "midday" — solo el tramo central del día, cerca del sol más alto/
+    // directo (donde de verdad hace falta más luminosidad para leer la
+    // pantalla al aire libre). Antes todo el rango entre los dos crepúsculos
+    // contaba igual como "day", con el mismo ajuste sutil (8%) sin importar
+    // si eran las 8am o el mediodía con sol pegando de lleno.
+    const MIDDAY_MS = 150 * 60 * 1000; // ±2.5h alrededor del mediodía solar real
+    if (Math.abs(now - solarNoon) < MIDDAY_MS) return 'midday';
+    return 'day';
+  }
   return 'night';
 }
 const TIME_ATMOSPHERE = {
-  // dayLift: única clave nueva — cuánto se mezcla la paleta base (vegetación/
-  // residencial/edificios) hacia DAY_LIGHT_TINT. 0 en dusk/night preserva su
+  // dayLift: cuánto se mezcla la paleta base (vegetación/residencial/
+  // edificios/agua) hacia DAY_LIGHT_TINT. 0 en dusk/night preserva su
   // apariencia exactamente igual a como está hoy; el resto de las claves
   // (bgTint, bgAmount, glowAmount, glowOpacity, illum) no se toca.
   day:   { bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.08 },
+  // midday — mismo resto de valores que "day" (nunca cambia el mood de
+  // categoría, el glow ni el ángulo de sombra), solo dayLift mucho más
+  // fuerte: de un matiz sutil (8%) a un salto real de luminosidad (42%),
+  // acotado a las mismas 4 capas de terreno que ya toca applyDayLightLift()
+  // — el chrome de la interfaz (header, buscador, chips, sheet) no se toca
+  // en este cambio.
+  midday:{ bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.42 },
   dusk:  { bgTint:'#E8A24D', bgAmount:0.05, glowAmount:0.22, glowOpacity:0.055, illum:305, dayLift:0 },
   night: { bgTint:'#8B7CF0', bgAmount:0.06, glowAmount:0.28, glowOpacity:0.032, illum:300, dayLift:0 },
 };
