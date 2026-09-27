@@ -3973,7 +3973,7 @@ function renderTerrainDepth(){
         'line-blur': 4,
       },
     });
-    map.addLayer({
+       map.addLayer({
       id:'rio-choapa-core', type:'line',
       source: waterwayLayer.source, 'source-layer': waterwayLayer['source-layer'],
       filter: riverFilter,
@@ -3984,6 +3984,44 @@ function renderTerrainDepth(){
         'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.68, 10, 0.9, 12, 1.1, 14, 1.4],
       },
     });
+
+    // ---- Halo turquesa en carreteras principales — mismo lenguaje visual del río ----
+    // Reutiliza EXACTAMENTE el mismo patrón que rio-choapa-halo (línea ancha,
+    // muy difusa, opacidad baja) debajo de las capas ya existentes de vías
+    // principales — nunca reemplaza highway_major_inner/casing/subtle ni
+    // highway_motorway_inner/casing/subtle (ya calibradas para jerarquía y
+    // legibilidad en tintMapLayers), solo les suma un brillo ambiental por
+    // debajo. source/source-layer/filter se toman directo de las capas
+    // 'casing' ya existentes — mismo criterio de qué vías cuentan como
+    // "principales" que ya usa el resto de la app, sin inventar un filtro
+    // nuevo. Insertado ANTES de su propia capa 'casing' para que inner+casing
+    // sigan dibujándose por encima del halo, nunca tapados por él.
+    const majorRoadCasingLayer = layers.find(l => l.id === 'highway_major_casing');
+    if (majorRoadCasingLayer){
+      map.addLayer({
+        id:'road-glow-major', type:'line',
+        source: majorRoadCasingLayer.source, 'source-layer': majorRoadCasingLayer['source-layer'],
+        filter: majorRoadCasingLayer.filter || null,
+        paint:{
+          'line-color': turquoise, 'line-opacity':0.08,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 8, 5, 12, 8, 16, 15, 18, 19],
+          'line-blur': 5,
+        },
+      }, 'highway_major_casing');
+    }
+    const motorwayCasingLayer = layers.find(l => l.id === 'highway_motorway_casing');
+    if (motorwayCasingLayer){
+      map.addLayer({
+        id:'road-glow-motorway', type:'line',
+        source: motorwayCasingLayer.source, 'source-layer': motorwayCasingLayer['source-layer'],
+        filter: motorwayCasingLayer.filter || null,
+        paint:{
+          'line-color': turquoise, 'line-opacity':0.08,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 6, 5.5, 12, 8.5, 16, 16, 20, 21],
+          'line-blur': 5,
+        },
+      }, 'highway_motorway_casing');
+    }
 
     // Atenuación adicional por zoom — 1 en zoom de comuna (sin cambios),
     // decrece de forma continua entre ZOOM_SUBLOCALITY y ZOOM_DETAIL (el
@@ -6417,7 +6455,7 @@ function applyMoodAtmosphere(expId){
   // El color "viaja" del halo hacia el núcleo: el halo cambia de inmediato, el
   // núcleo lo sigue ~110ms después — la sensación de un tinte que se asienta
   // progresivamente, no un salto instantáneo en las dos capas a la vez.
-  if (map.getLayer('rio-choapa-core')){
+   if (map.getLayer('rio-choapa-core')){
     map.setPaintProperty('rio-choapa-core', 'line-color-transition', { duration:350 });
     map.setPaintProperty('rio-choapa-halo', 'line-color-transition', { duration:350 });
     map.setPaintProperty('rio-choapa-halo', 'line-color', blendHex(turquoiseBase, tint, active ? 0.4 : 0));
@@ -6426,6 +6464,17 @@ function applyMoodAtmosphere(expId){
         map.setPaintProperty('rio-choapa-core', 'line-color', blendHex('#3E8FA8', tint, active ? 0.22 : 0));
       }
     }, 110);
+  }
+  // Halo de carreteras — mismo tratamiento y misma mezcla (40% hacia el
+  // color de categoría activa) que ya recibe el halo del río, así ambos
+  // elementos "brillan" en el mismo tono cuando hay un filtro activo.
+  if (map.getLayer('road-glow-major')){
+    map.setPaintProperty('road-glow-major', 'line-color-transition', { duration:350 });
+    map.setPaintProperty('road-glow-major', 'line-color', blendHex(turquoiseBase, tint, active ? 0.4 : 0));
+  }
+  if (map.getLayer('road-glow-motorway')){
+    map.setPaintProperty('road-glow-motorway', 'line-color-transition', { duration:350 });
+    map.setPaintProperty('road-glow-motorway', 'line-color', blendHex(turquoiseBase, tint, active ? 0.4 : 0));
   }
   // Degradado exterior (territory-fade-layer) — el canvas ya está generado UNA
   // sola vez (renderTerritoryFade) y nunca se regenera acá. Solo se rota
