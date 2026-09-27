@@ -3327,7 +3327,13 @@ compassBtn.addEventListener('click', () => {
    usuario con el mapa. */
 const topUI = document.querySelector('.top-ui');
 let headerCompactTimer = null;
-const HEADER_COMPACT_IDLE_MS = 900; // sin gesto nuevo durante este tiempo → el header vuelve a expandirse
+// Antes 900ms — con capturas separadas por pocos segundos, el header podía
+// volver a expandirse sin que el usuario sintiera una pausa real de
+// exploración, leyéndose como un parpadeo sin causa aparente. Subido a 2800ms
+// para que la vuelta al estado expandido solo ocurra tras una pausa
+// claramente deliberada — mismo mecanismo, mismo disparador, sin tocar nada
+// más.
+const HEADER_COMPACT_IDLE_MS = 2800; // sin gesto nuevo durante este tiempo → el header vuelve a expandirse
 function compactHeader(){
   clearTimeout(headerCompactTimer);
   if (!topUI.classList.contains('compact')){
