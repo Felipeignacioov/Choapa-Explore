@@ -3089,6 +3089,20 @@ window.addEventListener('orientationchange', () => setTimeout(requestViewportCha
 // vigilar.
 let mapReady = false;
 
+// Promesa resuelta UNA sola vez, exactamente cuando el evento 'load' del
+// mapa dispara — reemplaza el chequeo map.isStyleLoaded() que usaba
+// initSupabaseSync() más abajo. isStyleLoaded() podía devolver false incluso
+// DESPUÉS de que 'load' ya había ocurrido (ej. mientras las tiles de
+// terrain-dem seguían descargándose en segundo plano), y en ese caso el
+// código caía a `map.once('load', ...)` — pero 'load' solo ocurre UNA vez en
+// toda la vida del mapa; si ya había disparado, ese listener nunca corría, y
+// los datos de Supabase quedaban cargados en memoria pero sin aplicarse
+// jamás. Una promesa no tiene ese problema: si Supabase responde antes de
+// 'load', .then() espera; si responde después, corre de inmediato — sin
+// ninguna carrera posible entre ambos tiempos de red.
+let resolveMapLoad;
+const mapLoadPromise = new Promise(resolve => { resolveMapLoad = resolve; });
+
 map.on('load', () => {
   map.once('moveend', () => { mapReady = true; });
   document.getElementById('mapLoading').style.opacity = '0';
@@ -3103,9 +3117,10 @@ map.on('load', () => {
   applyMoodAtmosphere('todos'); // sin categoría activa: --mood-glow queda 'transparent', sin halo extra
   applyDayLightLift(); // aumento de luminosidad diurna — aplica el estado real al cargar
   setInterval(updateDayPeriod, 3 * 60 * 1000);
-  renderTerritoryFade();
+   renderTerritoryFade();
   renderLocalityMarkers();
   updateExplorationLevel();
+  resolveMapLoad(); // el mapa terminó su carga inicial — desbloquea cualquier applySupabaseData() en espera
 });
 map.on('zoom', updateExplorationLevel);
 map.on('zoom', updateZonePrompt);
@@ -9478,9 +9493,8 @@ function initSupabaseSync(){
     console.info('[Supabase] Sin credenciales configuradas (SUPABASE_URL/SUPABASE_ANON_KEY) — no se pueden cargar datos remotos.');
     return;
   }
-  SupabaseDataLayer.loadAll().then(result => {
-    if (map.isStyleLoaded()) applySupabaseData(result);
-    else map.once('load', () => applySupabaseData(result));
+    SupabaseDataLayer.loadAll().then(result => {
+    mapLoadPromise.then(() => applySupabaseData(result));
    }).catch(err => {
     console.error('[Supabase] No se pudieron cargar los datos remotos.', err);
   });
