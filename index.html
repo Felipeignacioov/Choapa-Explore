@@ -3874,7 +3874,15 @@ function renderTerrainDepth(){
        puramente visual, igual que coast-glow/ocean-depth-*. Se apaga por
        completo (opacity 0) desde zoom 10, donde el usuario ya está mirando
        una comuna de cerca y esta profundidad regional deja de ser relevante. */
-    const oceanDeepLng = CHOAPA_BOUNDS[0][0] - (CHOAPA_BOUNDS[0][0] - CHOAPA_MAX_BOUNDS[0][0]) * 0.55;
+       // Antes al 55% del camino entre el borde real y el límite de navegación
+    // — caía DENTRO del área que el usuario ve con solo un poco de scroll,
+    // leyéndose como una raya visible con agua más clara todavía más allá de
+    // ella (justo el efecto reportado). Movida al 92%, pegada al límite de
+    // navegación real — ahí es exactamente donde territory-fade-layer YA
+    // oscurece el mapa entero por el borde del territorio, así que esta
+    // línea se funde con ese oscurecimiento en vez de crear una segunda zona
+    // oscura aislada a mitad del mar.
+    const oceanDeepLng = CHOAPA_BOUNDS[0][0] - (CHOAPA_BOUNDS[0][0] - CHOAPA_MAX_BOUNDS[0][0]) * 0.92;
     map.addSource('ocean-deep-water', {
       type:'geojson',
       data:{
@@ -3890,9 +3898,13 @@ function renderTerrainDepth(){
       layout:{ 'line-cap':'round' },
       paint:{
         'line-color': '#04141B',
-        'line-opacity': ['interpolate', ['linear'], ['zoom'], 7, 0.24, 8.8, 0.10, 10, 0],
-        'line-width': ['interpolate', ['linear'], ['zoom'], 7, 170, 10, 50],
-        'line-blur': 26,
+        // Pico de opacidad bajado (0.24→0.14) y blur casi triplicado — ya no
+        // debe leerse como un borde con dos lados, sino como una oscuridad
+        // muy gradual que se funde con el propio fade de territorio, sin
+        // ningún punto de quiebre visible.
+        'line-opacity': ['interpolate', ['linear'], ['zoom'], 7, 0.14, 8.8, 0.06, 10, 0],
+        'line-width': ['interpolate', ['linear'], ['zoom'], 7, 220, 10, 60],
+        'line-blur': 70,
       },
     }, coastBeforeId);
 
