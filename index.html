@@ -2172,6 +2172,129 @@ img{-webkit-user-drag:none; user-select:none;}
   .locate-btn{right:calc(50% - 320px + 16px);}
   .compass-btn{right:calc(50% - 320px + 16px);}
 }
+
+/* ================= PANTALLA DE BIENVENIDA / AUTENTICACIÓN (Fase 1) =================
+   Full-screen, NO deslizable, por encima de todo lo demás (z-index más alto
+   de la app) — aparece al entrar, antes que el mapa quede interactivo.
+   AUTH_SCREEN_ENABLED (en el <script>) decide si se muestra; hoy en true. */
+.auth-screen{
+  position:fixed; inset:0; z-index:95;
+  background:var(--bg-primary);
+  display:flex; flex-direction:column;
+  opacity:1; pointer-events:auto;
+  transition:opacity .4s ease;
+}
+.auth-screen.dismissed{ opacity:0; pointer-events:none; }
+.auth-view{ display:none; flex-direction:column; height:100%; }
+.auth-view.active{ display:flex; }
+
+/* ---- Vista de bienvenida ---- */
+.auth-hero{
+  position:relative; flex:0 0 auto; min-height:46vh;
+  background:
+    linear-gradient(180deg, rgba(7,19,31,0.15) 0%, rgba(7,19,31,0.35) 55%, var(--bg-primary) 100%),
+    url('assets/cerro-chico/02-vista-aerea.jpg') center 38%/cover no-repeat;
+  display:flex; align-items:flex-end; justify-content:center;
+  padding: calc(48px + var(--safe-top)) 24px 34px;
+}
+.auth-hero-overlay{ position:absolute; inset:0; background:radial-gradient(ellipse at 50% 0%, rgba(7,19,31,0) 30%, rgba(7,19,31,0.55) 100%); pointer-events:none; }
+.auth-hero-content{ position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; text-align:center; gap:14px; }
+
+.auth-logo-badge{
+  width:62px; height:62px; border-radius:50%;
+  border:1.5px solid rgba(95,225,232,0.4);
+  background:rgba(7,19,31,0.4); backdrop-filter:blur(6px);
+  display:flex; align-items:center; justify-content:center; position:relative;
+  color:var(--turquoise-bright);
+  box-shadow:0 0 0 1px rgba(95,225,232,0.08), 0 8px 24px rgba(2,8,15,0.5);
+}
+.auth-logo-badge svg:first-child{ position:absolute; top:6px; opacity:0.9; }
+.auth-logo-badge svg:last-child{ margin-top:8px; }
+.auth-logo-badge-sm{ width:40px; height:40px; margin-bottom:4px; }
+.auth-logo-badge-sm svg:first-child{ top:4px; }
+.auth-logo-badge-sm svg:last-child{ margin-top:5px; }
+
+.auth-brand{ display:flex; flex-direction:column; align-items:center; gap:6px; }
+.auth-brand-choapa{ font-family:var(--font-display); font-size:34px; font-weight:800; letter-spacing:1px; color:var(--text-primary); text-shadow:0 2px 10px rgba(2,8,15,0.5); }
+.auth-brand-explore-row{ display:flex; align-items:center; gap:10px; }
+.auth-brand-rule{ width:22px; height:1px; background:rgba(95,225,232,0.5); }
+.auth-brand-explore{ font-family:var(--font-display); font-size:13px; font-weight:700; letter-spacing:5px; color:var(--turquoise-bright); }
+
+.auth-tagline{ font-size:14.5px; color:var(--text-secondary); line-height:1.5; margin-top:2px; }
+.auth-tagline .accent{ color:var(--turquoise-bright); font-weight:700; }
+
+.auth-sheet{ flex:1; display:flex; flex-direction:column; padding:22px 22px calc(22px + var(--safe-bottom)); overflow-y:auto; gap:16px; }
+
+.auth-categories{ display:flex; justify-content:space-between; gap:6px; }
+.auth-cat-item{ display:flex; flex-direction:column; align-items:center; gap:7px; flex:1; min-width:0; }
+.auth-cat-icon{ width:44px; height:44px; border-radius:50%; background:rgba(255,255,255,0.04); border:1px solid var(--border-glass); display:flex; align-items:center; justify-content:center; }
+.auth-cat-label{ font-size:10px; font-weight:600; color:var(--text-secondary); text-align:center; white-space:nowrap; }
+
+.auth-info-card{
+  display:flex; align-items:flex-start; gap:11px; padding:15px 16px; border-radius:var(--radius-l);
+  background:rgba(16,36,56,0.55); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  border:1px solid var(--border-glass); box-shadow:var(--shadow-card), inset 0 1px 0 rgba(255,255,255,0.04);
+}
+.auth-info-icon{ flex-shrink:0; margin-top:1px; }
+.auth-info-title{ font-family:var(--font-display); font-size:14px; font-weight:700; color:var(--text-primary); margin-bottom:3px; }
+.auth-info-sub{ font-size:12px; color:var(--text-secondary); line-height:1.45; }
+
+.auth-btn-primary{
+  width:100%; padding:15px; border-radius:var(--radius-m);
+  background:linear-gradient(135deg, var(--turquoise-bright), var(--turquoise));
+  color:#04222A; font-family:var(--font-display); font-size:14.5px; font-weight:800; letter-spacing:0.3px;
+  box-shadow:0 8px 22px rgba(22,184,196,0.32), inset 0 1px 0 rgba(255,255,255,0.4);
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1), box-shadow .18s ease;
+}
+.auth-btn-primary:active{ transform:scale(0.98); box-shadow:0 4px 14px rgba(22,184,196,0.26), inset 0 1px 0 rgba(255,255,255,0.4); }
+
+.auth-btn-secondary{
+  width:100%; padding:14px; border-radius:var(--radius-m);
+  background:rgba(95,225,232,0.06); border:1.5px solid rgba(95,225,232,0.4);
+  color:var(--turquoise-bright); font-family:var(--font-display); font-size:14.5px; font-weight:700;
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1), background .18s ease;
+}
+.auth-btn-secondary:active{ transform:scale(0.98); background:rgba(95,225,232,0.12); }
+
+.auth-guest-row{ display:flex; align-items:center; justify-content:center; gap:6px; font-size:12.5px; color:var(--text-secondary); flex-wrap:wrap; }
+.auth-guest-link{ display:inline-flex; align-items:center; gap:3px; color:var(--turquoise-bright); font-weight:700; }
+.auth-guest-link:active{ opacity:0.7; }
+
+.auth-trust-row{ display:flex; align-items:center; justify-content:center; gap:7px; margin-top:2px; padding-top:14px; border-top:1px solid var(--border-glass); font-size:11px; color:var(--text-tertiary); }
+
+/* ---- Vista de formulario (registro / ingreso, misma vista, alterna por modo) ---- */
+.auth-view-form{ background:linear-gradient(180deg, var(--bg-night) 0%, var(--bg-primary) 60%); padding: calc(18px + var(--safe-top)) 22px calc(22px + var(--safe-bottom)); }
+.auth-form-back{
+  width:36px; height:36px; border-radius:50%; flex-shrink:0; margin-bottom:18px;
+  background:rgba(16,36,56,0.7); border:1px solid var(--border-glass);
+  display:flex; align-items:center; justify-content:center; color:var(--text-primary);
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1);
+}
+.auth-form-back:active{ transform:scale(0.9); }
+.auth-form-inner{ flex:1; display:flex; flex-direction:column; }
+.auth-form-header{ display:flex; flex-direction:column; align-items:center; text-align:center; margin-bottom:26px; }
+.auth-form-title{ font-family:var(--font-display); font-size:21px; font-weight:800; color:var(--text-primary); }
+.auth-form-sub{ font-size:12.5px; color:var(--text-secondary); margin-top:5px; max-width:260px; }
+
+.auth-form{ display:flex; flex-direction:column; gap:14px; }
+.auth-field{ display:flex; flex-direction:column; gap:6px; }
+.auth-field-label{ font-size:11.5px; font-weight:700; color:var(--text-secondary); letter-spacing:0.2px; }
+.auth-field input{
+  width:100%; padding:13px 15px; border-radius:var(--radius-m);
+  background:rgba(16,36,56,0.6); border:1px solid var(--border-glass);
+  color:var(--text-primary); font-size:14px; outline:none;
+  transition:border-color .18s ease, background .18s ease;
+}
+.auth-field input::placeholder{ color:var(--text-tertiary); }
+.auth-field input:focus{ border-color:rgba(95,225,232,0.5); background:rgba(20,43,61,0.85); }
+.auth-field.hidden{ display:none; }
+
+.auth-form-status{ padding:11px 13px; border-radius:var(--radius-m); font-size:12px; line-height:1.5; background:rgba(95,225,232,0.08); border:1px solid rgba(95,225,232,0.25); color:var(--turquoise-bright); }
+.auth-form-status.error{ background:rgba(240,98,91,0.08); border-color:rgba(240,98,91,0.3); color:#F0625B; }
+
+.auth-form-submit{ margin-top:4px; }
+.auth-form-switch{ margin-top:20px; text-align:center; font-size:12.5px; color:var(--text-secondary); }
+.auth-form-switch span{ color:var(--turquoise-bright); font-weight:700; }
 </style>
 </head>
 <body>
@@ -2578,11 +2701,97 @@ img{-webkit-user-drag:none; user-select:none;}
   </div>
 
   <!-- Confirmación breve de llegada — reutiliza el mismo estilo de memory-toast -->
-  <div class="memory-toast" id="arrivalToast">
+   <div class="memory-toast" id="arrivalToast">
     <span class="mt-icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5c.7 4 2.4 6.9 5.9 9.5-3.5 2.6-5.2 5.5-5.9 9.5-.7-4-2.4-6.9-5.9-9.5 3.5-2.6 5.2-5.5 5.9-9.5Z" fill="currentColor" stroke="none"/></svg></span>
     <div class="mt-text">
       <div class="mt-title">¡Llegaste a tu destino!</div>
       <div class="mt-sub" id="arrivalToastSub">—</div>
+    </div>
+  </div>
+
+  <!-- ================= PANTALLA DE BIENVENIDA / AUTENTICACIÓN (Fase 1 — solo UI) =================
+       Sin Supabase todavía: los formularios no crean ni autentican nada real.
+       Toda la lógica vive detrás de AuthService (ver <script>) — hoy funciones
+       vacías, listas para reemplazar por Supabase Auth sin tocar esta UI. -->
+  <div class="auth-screen" id="authScreen">
+
+    <div class="auth-view auth-view-welcome active" id="authWelcomeView">
+      <div class="auth-hero">
+        <div class="auth-hero-overlay"></div>
+        <div class="auth-hero-content">
+          <div class="auth-logo-badge">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2.5c.7 4 2.4 6.9 5.9 9.5-3.5 2.6-5.2 5.5-5.9 9.5-.7-4-2.4-6.9-5.9-9.5 3.5-2.6 5.2-5.5 5.9-9.5Z" fill="currentColor" stroke="none"/></svg>
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19 9.5 8l3.2 5 2-2.6L20 19Z"/></svg>
+          </div>
+          <div class="auth-brand">
+            <span class="auth-brand-choapa">CHOAPA</span>
+            <div class="auth-brand-explore-row"><span class="auth-brand-rule"></span><span class="auth-brand-explore">EXPLORE</span><span class="auth-brand-rule"></span></div>
+          </div>
+          <p class="auth-tagline">Descubre experiencias únicas<br>en el <span class="accent">Valle del Choapa</span></p>
+        </div>
+      </div>
+
+      <div class="auth-sheet">
+        <div class="auth-categories" id="authCategories"></div>
+
+        <div class="auth-info-card">
+          <span class="auth-info-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 2.5c.7 4 2.4 6.9 5.9 9.5-3.5 2.6-5.2 5.5-5.9 9.5-.7-4-2.4-6.9-5.9-9.5 3.5-2.6 5.2-5.5 5.9-9.5Z" fill="var(--turquoise-bright)" stroke="none"/></svg></span>
+          <div class="auth-info-text">
+            <div class="auth-info-title">¿Qué hacer hoy en el Choapa?</div>
+            <div class="auth-info-sub">Tú eliges el mood, nosotros te mostramos el plan perfecto.</div>
+          </div>
+        </div>
+
+        <button class="auth-btn-primary" id="authRegisterBtn">Registrarse</button>
+        <button class="auth-btn-secondary" id="authLoginBtn">Ingresar</button>
+
+        <div class="auth-guest-row">
+          <span>¿Prefieres explorar sin cuenta?</span>
+          <button class="auth-guest-link" id="authGuestBtn">Continuar <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        </div>
+
+        <div class="auth-trust-row">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5.2" y="10.7" width="13.6" height="9.3" rx="2.2"/><path d="M8.2 10.7V7.3a3.8 3.8 0 0 1 7.6 0v3.4"/></svg>
+          <span>Tu información está segura contigo</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="auth-view auth-view-form" id="authFormView">
+      <button class="auth-form-back" id="authFormBack" aria-label="Volver">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></svg>
+      </button>
+      <div class="auth-form-inner">
+        <div class="auth-form-header">
+          <div class="auth-logo-badge auth-logo-badge-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2.5c.7 4 2.4 6.9 5.9 9.5-3.5 2.6-5.2 5.5-5.9 9.5-.7-4-2.4-6.9-5.9-9.5 3.5-2.6 5.2-5.5 5.9-9.5Z" fill="currentColor" stroke="none"/></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19 9.5 8l3.2 5 2-2.6L20 19Z"/></svg>
+          </div>
+          <div class="auth-form-title" id="authFormTitle">Crear cuenta</div>
+          <div class="auth-form-sub" id="authFormSub">Guarda tus experiencias y recuerdos del Choapa.</div>
+        </div>
+
+        <form id="authForm" class="auth-form" novalidate>
+          <label class="auth-field">
+            <span class="auth-field-label">Correo electrónico</span>
+            <input type="email" id="authEmail" autocomplete="email" placeholder="tucorreo@ejemplo.com" required>
+          </label>
+          <label class="auth-field">
+            <span class="auth-field-label">Contraseña</span>
+            <input type="password" id="authPassword" autocomplete="new-password" placeholder="••••••••" required minlength="6">
+          </label>
+          <label class="auth-field" id="authConfirmField">
+            <span class="auth-field-label">Confirmar contraseña</span>
+            <input type="password" id="authPasswordConfirm" autocomplete="new-password" placeholder="••••••••">
+          </label>
+
+          <div class="auth-form-status" id="authFormStatus" style="display:none;"></div>
+
+          <button type="submit" class="auth-btn-primary auth-form-submit" id="authFormSubmit">Crear cuenta</button>
+        </form>
+
+        <button class="auth-form-switch" id="authFormSwitch">¿Ya tienes cuenta? <span>Ingresar</span></button>
+      </div>
     </div>
   </div>
 </div>
@@ -9685,6 +9894,130 @@ function initSupabaseSync(){
     console.error('[Supabase] No se pudieron cargar los datos remotos.', err);
   });
 }
+/* ============================================================
+   PANTALLA DE BIENVENIDA / AUTENTICACIÓN — Fase 1 (solo UI)
+   ============================================================
+   AUTH_SCREEN_ENABLED controla si esta pantalla se muestra al entrar. Hoy
+   en true para poder revisarla; cuando se quiera que la app abra directo al
+   mapa para usuarios reales, basta con pasarlo a false.
+   AuthService es la ÚNICA capa que sabrá hablar con el backend de auth. Hoy
+   son funciones vacías/stub — no crean, no guardan ni simulan ninguna cuenta
+   real. Cuando Supabase Auth esté definido, se reemplaza el INTERIOR de
+   estas 3 funciones (supabase.auth.signUp/signInWithPassword/getSession) —
+   ningún consumidor de UI necesita cambiar.
+   ============================================================ */
+const AUTH_SCREEN_ENABLED = true;
+
+const AuthService = {
+  async register(email, password){
+    console.info('[Auth] register() — aún no conectado a un backend real.', { email });
+    return { ok:false, reason:'not_configured' };
+  },
+  async login(email, password){
+    console.info('[Auth] login() — aún no conectado a un backend real.', { email });
+    return { ok:false, reason:'not_configured' };
+  },
+  getCurrentUser(){
+    return null; // sin sesión real todavía — la app siempre corre en modo invitado
+  },
+};
+
+const authScreen = document.getElementById('authScreen');
+const authWelcomeView = document.getElementById('authWelcomeView');
+const authFormView = document.getElementById('authFormView');
+const authCategories = document.getElementById('authCategories');
+const authForm = document.getElementById('authForm');
+const authFormTitle = document.getElementById('authFormTitle');
+const authFormSub = document.getElementById('authFormSub');
+const authFormSubmit = document.getElementById('authFormSubmit');
+const authFormStatus = document.getElementById('authFormStatus');
+const authConfirmField = document.getElementById('authConfirmField');
+const authPasswordConfirm = document.getElementById('authPasswordConfirm');
+let authFormMode = 'register';
+
+// Preview de categorías — reutiliza EXACTAMENTE EXPERIENCE_TAGS (mismos
+// íconos/colores de marca que ya usan los chips y el mapa), nunca un set
+// de íconos aparte inventado para esta pantalla.
+const AUTH_PREVIEW_CATEGORY_IDS = ['cita', 'naturaleza', 'aventura', 'tranquilo', 'familia'];
+function renderAuthCategoriesPreview(){
+  authCategories.innerHTML = AUTH_PREVIEW_CATEGORY_IDS.map(id => {
+    const exp = expById(id);
+    if (!exp) return '';
+    const color = getComputedStyle(document.documentElement).getPropertyValue(exp.color.replace('var(','').replace(')','')).trim();
+    return `
+      <div class="auth-cat-item">
+        <span class="auth-cat-icon" style="color:${color}">${icon(exp.iconKey, 20)}</span>
+        <span class="auth-cat-label">${exp.label}</span>
+      </div>`;
+  }).join('');
+}
+
+function showAuthWelcome(){
+  authWelcomeView.classList.add('active');
+  authFormView.classList.remove('active');
+}
+function showAuthForm(mode){
+  authFormMode = mode;
+  const isRegister = mode === 'register';
+  authFormTitle.textContent = isRegister ? 'Crear cuenta' : 'Iniciar sesión';
+  authFormSub.textContent = isRegister
+    ? 'Guarda tus experiencias y recuerdos del Choapa.'
+    : 'Vuelve a tus experiencias y recuerdos guardados.';
+  authConfirmField.classList.toggle('hidden', !isRegister);
+  authPasswordConfirm.required = isRegister;
+  authFormSubmit.textContent = isRegister ? 'Crear cuenta' : 'Ingresar';
+  document.getElementById('authFormSwitch').innerHTML = isRegister
+    ? '¿Ya tienes cuenta? <span>Ingresar</span>'
+    : '¿Aún no tienes cuenta? <span>Registrarse</span>';
+  authFormStatus.style.display = 'none';
+  authFormStatus.className = 'auth-form-status';
+  authForm.reset();
+  authWelcomeView.classList.remove('active');
+  authFormView.classList.add('active');
+}
+function closeAuthScreen(){
+  authScreen.classList.add('dismissed');
+  setTimeout(() => { authScreen.style.display = 'none'; }, 420); // tras el fade — libera el DOM de interacción
+}
+
+document.getElementById('authRegisterBtn').addEventListener('click', () => showAuthForm('register'));
+document.getElementById('authLoginBtn').addEventListener('click', () => showAuthForm('login'));
+document.getElementById('authGuestBtn').addEventListener('click', closeAuthScreen);
+document.getElementById('authFormBack').addEventListener('click', showAuthWelcome);
+document.getElementById('authFormSwitch').addEventListener('click', () => showAuthForm(authFormMode === 'register' ? 'login' : 'register'));
+
+authForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+
+  if (authFormMode === 'register' && password !== authPasswordConfirm.value){
+    authFormStatus.textContent = 'Las contraseñas no coinciden.';
+    authFormStatus.className = 'auth-form-status error';
+    authFormStatus.style.display = 'block';
+    return;
+  }
+
+  authFormStatus.style.display = 'none';
+  const result = authFormMode === 'register'
+    ? await AuthService.register(email, password)
+    : await AuthService.login(email, password);
+
+  if (!result.ok){
+    // Fase 1 — sin backend todavía: mensaje honesto, nunca se simula una
+    // cuenta creada ni una sesión iniciada.
+    authFormStatus.textContent = 'Muy pronto vas a poder crear tu cuenta — estamos terminando de preparar esta función.';
+    authFormStatus.className = 'auth-form-status';
+    authFormStatus.style.display = 'block';
+  }
+});
+
+if (AUTH_SCREEN_ENABLED){
+  renderAuthCategoriesPreview();
+} else {
+  authScreen.style.display = 'none';
+}
+
 initSupabaseSync();
 </script>
 </body>
