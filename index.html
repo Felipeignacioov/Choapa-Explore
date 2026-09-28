@@ -265,14 +265,12 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 .chip .dot{width:6px; height:6px; border-radius:50%; background:currentColor; opacity:.85;}
 .chip svg{display:block; flex-shrink:0;}
-/* Chip INACTIVO de categoría — antes borde siempre neutro hasta activarse;
-   ahora un tinte casi imperceptible (30%) del color propio de esa categoría,
-   usando la MISMA variable --chip-active-bg que JS ya fija por chip (nunca
-   se crea ningún color nuevo). "Todos" no tiene esa variable asignada
-   (nunca se le fija en JS), así que cae al fallback --border-glass sin
-   ningún cambio visible. Mayor especificidad que la regla base .chip de
-   arriba (dos clases equivalentes vs una), así gana sin depender del orden. */
-.chip:not(.active){
+/* Chips inactivos: borde neutro y uniforme para todos (el de la regla base
+   .chip, --border-glass). El color de categoría se reserva únicamente para
+   el estado activo y para los POIs del mapa — con 9 categorías visibles a
+   la vez, un tinte de borde por chip inactivo se leía como una fila
+   arcoíris y no como un sistema unificado. */
+.chip.active{
   border-color: color-mix(in srgb, var(--chip-active-bg, var(--border-glass)) 30%, var(--border-glass));
 }
 .chip.active{
