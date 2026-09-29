@@ -2277,6 +2277,11 @@ img{-webkit-user-drag:none; user-select:none;}
 .auth-form-sub{ font-size:12.5px; color:var(--text-secondary); margin-top:5px; max-width:260px; }
 
 .auth-form{ display:flex; flex-direction:column; gap:14px; }
+/* Oculta el formulario tras un registro con confirmación de email pendiente
+   — el mensaje de estado y el enlace "Ingresar" (#authFormSwitch, vive
+   FUERA de #authForm) permanecen visibles, así siempre hay una forma clara
+   de continuar. */
+.auth-form.hidden{ display:none; }
 .auth-field{ display:flex; flex-direction:column; gap:6px; }
 .auth-field-label{ font-size:11.5px; font-weight:700; color:var(--text-secondary); letter-spacing:0.2px; }
 .auth-field input{
@@ -2778,7 +2783,7 @@ img{-webkit-user-drag:none; user-select:none;}
           </label>
           <label class="auth-field">
             <span class="auth-field-label">Contraseña</span>
-            <input type="password" id="authPassword" autocomplete="new-password" placeholder="••••••••" required minlength="6">
+            <input type="password" id="authPassword" autocomplete="new-password" placeholder="••••••••" required minlength="8">
           </label>
           <label class="auth-field" id="authConfirmField">
             <span class="auth-field-label">Confirmar contraseña</span>
@@ -9906,21 +9911,69 @@ function initSupabaseSync(){
    estas 3 funciones (supabase.auth.signUp/signInWithPassword/getSession) —
    ningún consumidor de UI necesita cambiar.
    ============================================================ */
+// currentAuthUser — única fuente de verdad de la sesión en memoria,
+// actualizada EXCLUSIVAMENTE por el listener onAuthStateChange de abajo.
+// AuthService.getCurrentUser() sigue siendo la forma correcta de
+// consultarla desde fuera de este bloque; nada más escribe esta variable.
+let currentAuthUser = null;
+
+// Traduce errores reales de Supabase a mensajes legibles para una persona
+// normal — nunca inventa errores que Supabase no haya devuelto; si el
+// mensaje no calza con ningún caso conocido, cae a uno genérico sin
+// exponer texto técnico.
+function mapAuthError(error){
+  const msg = ((error && error.message) || '').toLowerCase();
+  if (msg.includes('already registered') || msg.includes('already exists') || msg.includes('user already')) return 'Ese correo ya tiene una cuenta registrada.';
+  if (msg.includes('invalid login credentials')) return 'Correo o contraseña incorrectos.';
+  if (msg.includes('email not confirmed')) return 'Debes confirmar tu correo antes de ingresar — revisa tu bandeja de entrada.';
+  if (msg.includes('password') && (msg.includes('short') || msg.includes('weak') || msg.includes('at least') || msg.includes('6 character'))) return 'La contraseña es demasiado débil — usa al menos 8 caracteres.';
+  if (msg.includes('unable to validate email') || msg.includes('invalid email')) return 'El correo ingresado no es válido.';
+  if (msg.includes('rate limit') || msg.includes('too many')) return 'Demasiados intentos — espera unos minutos e inténtalo de nuevo.';
+  return 'No pudimos completar la solicitud. Inténtalo nuevamente.';
+}
+
 const AUTH_SCREEN_ENABLED = true;
 
 const AuthService = {
   async register(email, password){
-    console.info('[Auth] register() — aún no conectado a un backend real.', { email });
-    return { ok:false, reason:'not_configured' };
+    if (!supabaseClient) return { ok:false, error:'La autenticación no está disponible en este momento.' };
+    const { data, error } = await supabaseClient.auth.signUp({
+      email, password,
+      options:{ emailRedirectTo:'https://felipeignacioov.github.io/Choapa-Explore/' },
+    });
+    if (error) return { ok:false, error: mapAuthError(error) };
+    // Confirm email = ON en este proyecto: un registro correcto siempre
+    // debería devolver un user SIN session todavía — nunca se inicia
+    // sesión manualmente ni se trata este caso como ya autenticado.
+    const pendingConfirmation = !!(data.user && !data.session);
+    return { ok:true, pendingConfirmation };
   },
   async login(email, password){
-    console.info('[Auth] login() — aún no conectado a un backend real.', { email });
-    return { ok:false, reason:'not_configured' };
+    if (!supabaseClient) return { ok:false, error:'La autenticación no está disponible en este momento.' };
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) return { ok:false, error: mapAuthError(error) };
+    return { ok:true, user: data.user };
   },
-  getCurrentUser(){
-    return null; // sin sesión real todavía — la app siempre corre en modo invitado
+  async getCurrentUser(){
+    if (!supabaseClient) return null;
+    const { data } = await supabaseClient.auth.getSession();
+    return data.session ? data.session.user : null;
+  },
+  async logout(){
+    if (!supabaseClient) return;
+    await supabaseClient.auth.signOut();
   },
 };
+
+// Listener único de cambios de sesión — cubre SIGNED_IN/SIGNED_OUT/
+// INITIAL_SESSION (y cualquier evento futuro) sin lógica especial por
+// ahora; solo mantiene currentAuthUser al día. Se registra una sola vez,
+// porque este bloque corre una sola vez al cargar el script.
+if (supabaseClient){
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    currentAuthUser = session ? session.user : null;
+  });
+}
 
 const authScreen = document.getElementById('authScreen');
 const authWelcomeView = document.getElementById('authWelcomeView');
@@ -9969,8 +10022,9 @@ function showAuthForm(mode){
   document.getElementById('authFormSwitch').innerHTML = isRegister
     ? '¿Ya tienes cuenta? <span>Ingresar</span>'
     : '¿Aún no tienes cuenta? <span>Registrarse</span>';
-  authFormStatus.style.display = 'none';
+    authFormStatus.style.display = 'none';
   authFormStatus.className = 'auth-form-status';
+  authForm.classList.remove('hidden'); // por si quedó oculto tras un registro con confirmación pendiente
   authForm.reset();
   authWelcomeView.classList.remove('active');
   authFormView.classList.add('active');
@@ -9999,24 +10053,60 @@ authForm.addEventListener('submit', async (e) => {
   }
 
   authFormStatus.style.display = 'none';
+  authFormSubmit.disabled = true;
   const result = authFormMode === 'register'
     ? await AuthService.register(email, password)
     : await AuthService.login(email, password);
+  authFormSubmit.disabled = false;
 
   if (!result.ok){
-    // Fase 1 — sin backend todavía: mensaje honesto, nunca se simula una
-    // cuenta creada ni una sesión iniciada.
-    authFormStatus.textContent = 'Muy pronto vas a poder crear tu cuenta — estamos terminando de preparar esta función.';
-    authFormStatus.className = 'auth-form-status';
+    authFormStatus.textContent = result.error || 'No pudimos completar la solicitud. Inténtalo nuevamente.';
+    authFormStatus.className = 'auth-form-status error';
     authFormStatus.style.display = 'block';
+    return;
   }
+
+  if (authFormMode === 'register'){
+    if (result.pendingConfirmation){
+      // Cuenta creada pero SIN sesión todavía (Confirm email = ON) — se
+      // comunica el estado con el mismo sistema visual existente
+      // (.auth-form-status, sin la clase .error, ya se lee como
+      // informativo/turquesa) y se oculta el formulario; el enlace
+      // "Ingresar" de #authFormSwitch (fuera de #authForm, sigue visible)
+      // es la forma clara de volver al login una vez confirmado el correo.
+      authForm.classList.add('hidden');
+      authFormStatus.textContent = 'Revisa tu correo — te enviamos un enlace para confirmar tu cuenta antes de ingresar.';
+      authFormStatus.className = 'auth-form-status';
+      authFormStatus.style.display = 'block';
+    } else {
+      // Red de seguridad — con Confirm email ON este camino no debería
+      // ocurrir en producción, pero si Supabase devolviera sesión
+      // inmediata, se respeta como login real en vez de dejar la pantalla
+      // en un estado inconsistente.
+      closeAuthScreen();
+    }
+    return;
+  }
+
+  // Login exitoso — la sesión real ya quedó registrada por Supabase
+  // (onAuthStateChange actualiza currentAuthUser); se cierra la pantalla y
+  // la aplicación continúa con su navegación normal, sin tocar nada más.
+  closeAuthScreen();
 });
 
-if (AUTH_SCREEN_ENABLED){
-  renderAuthCategoriesPreview();
-} else {
+async function initAuthScreen(){
+  if (!AUTH_SCREEN_ENABLED){ authScreen.style.display = 'none'; return; }
+  // Oculta la pantalla mientras se confirma si ya existe una sesión real —
+  // evita mostrarla un instante y ocultarla apenas Supabase confirma que el
+  // usuario ya estaba logueado. renderAuthCategoriesPreview() sigue
+  // corriendo igual, sin relación con la sesión.
   authScreen.style.display = 'none';
+  renderAuthCategoriesPreview();
+  const user = await AuthService.getCurrentUser();
+  if (user) return; // sesión válida — la pantalla de auth nunca se muestra
+  authScreen.style.display = ''; // sin sesión — vuelve al comportamiento normal (CSS por defecto)
 }
+initAuthScreen();
 
 initSupabaseSync();
 </script>
