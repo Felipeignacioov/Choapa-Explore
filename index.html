@@ -2790,12 +2790,18 @@ img{-webkit-user-drag:none; user-select:none;}
             <input type="password" id="authPasswordConfirm" autocomplete="new-password" placeholder="••••••••">
           </label>
 
-          <div class="auth-form-status" id="authFormStatus" style="display:none;"></div>
-
-          <button type="submit" class="auth-btn-primary auth-form-submit" id="authFormSubmit">Crear cuenta</button>
+                    <button type="submit" class="auth-btn-primary auth-form-submit" id="authFormSubmit">Crear cuenta</button>
         </form>
 
-               <button class="auth-form-switch" id="authFormSwitch">¿Ya tienes cuenta? <span>Ingresar</span></button>
+        <!-- Movido FUERA de #authForm — antes vivía dentro del <form>, así
+             que al ocultar el formulario completo (authForm.classList.add
+             ('hidden'), tras un registro con confirmación pendiente) este
+             mensaje desaparecía junto con los campos, dejando la pantalla
+             sin ninguna indicación de "revisa tu correo". Como hermano del
+             form, ahora permanece visible aunque el form se oculte. -->
+        <div class="auth-form-status" id="authFormStatus" style="display:none;"></div>
+
+        <button class="auth-form-switch" id="authFormSwitch">¿Ya tienes cuenta? <span>Ingresar</span></button>
       </div>
     </div>
   </div>
