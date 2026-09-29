@@ -2300,6 +2300,66 @@ img{-webkit-user-drag:none; user-select:none;}
 .auth-form-submit{ margin-top:4px; }
 .auth-form-switch{ margin-top:20px; text-align:center; font-size:12.5px; color:var(--text-secondary); }
 .auth-form-switch span{ color:var(--turquoise-bright); font-weight:700; }
+
+/* ================= MENÚ DE PERFIL ================= */
+.profile-menu-backdrop{position:fixed; inset:0; z-index:49; display:none;}
+.profile-menu-backdrop.visible{display:block;}
+.profile-menu{
+  position:absolute; top:calc(60px + var(--safe-top)); right:16px; z-index:50;
+  width:236px;
+  background:rgba(16,36,56,0.94); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  border:1px solid var(--border-glass); border-radius:var(--radius-l);
+  box-shadow:var(--shadow-modal), inset 0 1px 0 rgba(255,255,255,0.06);
+  overflow:hidden;
+  transform:translateY(-10px) scale(0.95); opacity:0; pointer-events:none;
+  transition:transform .22s cubic-bezier(.2,.9,.28,1.1), opacity .18s ease;
+}
+.profile-menu.visible{transform:translateY(0) scale(1); opacity:1; pointer-events:auto;}
+.profile-menu-header{padding:14px 16px 12px; border-bottom:1px solid var(--border-glass);}
+.profile-menu-name{font-family:var(--font-display); font-size:12.5px; font-weight:700; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.profile-menu-sub{font-size:10.5px; color:var(--text-tertiary); margin-top:2px;}
+.profile-menu-items{padding:6px;}
+.profile-menu-item{
+  width:100%; display:flex; align-items:center; gap:10px;
+  padding:10px 10px; border-radius:var(--radius-m);
+  font-size:13px; font-weight:600; color:var(--text-primary);
+  transition:background .14s ease;
+}
+.profile-menu-item svg{color:var(--turquoise-bright); flex-shrink:0;}
+.profile-menu-item:active{background:rgba(95,225,232,0.1);}
+.profile-menu-item.danger{color:#F0625B;}
+.profile-menu-item.danger svg{color:#F0625B;}
+.profile-menu-divider{height:1px; background:var(--border-glass); margin:6px 6px;}
+@media (min-width:640px){ .profile-menu{right:calc(50% - 320px + 16px);} }
+
+/* ================= ACERCA DE ================= */
+.about-modal{
+  position:fixed; inset:0; z-index:80;
+  background:rgba(2,8,15,0.72); backdrop-filter:blur(6px);
+  display:flex; align-items:center; justify-content:center; padding:20px;
+  opacity:0; pointer-events:none; transition:opacity .24s ease;
+}
+.about-modal.visible{opacity:1; pointer-events:auto;}
+.about-modal-card{
+  position:relative; width:100%; max-width:340px; border-radius:var(--radius-l);
+  background:var(--surface-elevated); border:1px solid var(--border-glass);
+  box-shadow:var(--shadow-modal), inset 0 1px 0 rgba(255,255,255,0.06);
+  padding:30px 22px 24px; text-align:center;
+  transform:scale(0.94) translateY(10px); transition:transform .3s cubic-bezier(.2,.9,.28,1.1);
+}
+.about-modal.visible .about-modal-card{transform:scale(1) translateY(0);}
+.about-modal-close{
+  position:absolute; top:10px; right:10px; width:28px; height:28px; border-radius:50%;
+  background:rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; color:var(--text-secondary);
+}
+.about-modal-badge{
+  width:44px; height:44px; border-radius:50%; margin:0 auto 14px;
+  background:rgba(95,225,232,0.1); border:1px solid rgba(95,225,232,0.3);
+  display:flex; align-items:center; justify-content:center; color:var(--turquoise-bright);
+}
+.about-modal-title{font-family:var(--font-display); font-size:17px; font-weight:800; color:var(--text-primary); margin-bottom:8px;}
+.about-modal-text{font-size:12.5px; color:var(--text-secondary); line-height:1.55; margin-bottom:14px;}
+.about-modal-version{font-size:10.5px; color:var(--text-tertiary); font-family:var(--font-mono);}
 </style>
 </head>
 <body>
@@ -2809,11 +2869,36 @@ img{-webkit-user-drag:none; user-select:none;}
   <!-- Toast de bienvenida al iniciar sesión — reutiliza la clase .memory-toast
        ya existente (mismo lenguaje visual que "Recuerdo guardado" y
        "¡Llegaste a tu destino!"), sin ningún estilo nuevo. -->
-  <div class="memory-toast" id="authWelcomeToast">
+    <div class="memory-toast" id="authWelcomeToast">
     <span class="mt-icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5c.7 4 2.4 6.9 5.9 9.5-3.5 2.6-5.2 5.5-5.9 9.5-.7-4-2.4-6.9-5.9-9.5 3.5-2.6 5.2-5.5 5.9-9.5Z" fill="currentColor" stroke="none"/></svg></span>
     <div class="mt-text">
       <div class="mt-title">¡Bienvenido de vuelta!</div>
       <div class="mt-sub" id="authWelcomeToastSub">—</div>
+    </div>
+  </div>
+
+  <!-- ================= MENÚ DE PERFIL ================= -->
+  <div class="profile-menu-backdrop" id="profileMenuBackdrop"></div>
+  <div class="profile-menu" id="profileMenu">
+    <div class="profile-menu-header">
+      <div class="profile-menu-name" id="profileMenuName">—</div>
+      <div class="profile-menu-sub" id="profileMenuSub">—</div>
+    </div>
+    <div class="profile-menu-items" id="profileMenuItems"></div>
+  </div>
+
+  <!-- ================= ACERCA DE ================= -->
+  <div class="about-modal" id="aboutModal">
+    <div class="about-modal-card">
+      <button class="about-modal-close" id="aboutModalClose" aria-label="Cerrar">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <div class="about-modal-badge">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2.5c.7 4 2.4 6.9 5.9 9.5-3.5 2.6-5.2 5.5-5.9 9.5-.7-4-2.4-6.9-5.9-9.5 3.5-2.6 5.2-5.5 5.9-9.5Z" fill="currentColor" stroke="none"/></svg>
+      </div>
+      <div class="about-modal-title">Choapa Explore</div>
+      <div class="about-modal-text">Descubre experiencias curadas en el Valle del Choapa — Salamanca, Illapel, Los Vilos y Canela.</div>
+      <div class="about-modal-version">Versión 1.0</div>
     </div>
   </div>
 </div>
@@ -10142,6 +10227,98 @@ async function initAuthScreen(){
   authScreen.style.display = ''; // sin sesión — vuelve al comportamiento normal (CSS por defecto)
 }
 initAuthScreen();
+
+/* ================= MENÚ DE PERFIL ================= */
+const profileMenu = document.getElementById('profileMenu');
+const profileMenuBackdrop = document.getElementById('profileMenuBackdrop');
+const profileMenuName = document.getElementById('profileMenuName');
+const profileMenuSub = document.getElementById('profileMenuSub');
+const profileMenuItems = document.getElementById('profileMenuItems');
+const aboutModal = document.getElementById('aboutModal');
+
+// Set propio de íconos para este menú — trazos simples en línea, mismo
+// lenguaje que ICON_PATHS (viewBox 24x24, stroke uniforme), sin tocar ese
+// objeto compartido por el mapa.
+const PROFILE_ICONS = {
+  person:   `<path d="M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9Z"/><path d="M4 20c1.4-3.8 4.6-6 8-6s6.6 2.2 8 6"/>`,
+  gear:     `<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82A1.65 1.65 0 0 0 3 13.09H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/>`,
+  info:     `<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/>`,
+  logout:   `<path d="M15 4H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8"/><path d="M19 12H9M19 12l-3.5-3.5M19 12l-3.5 3.5"/>`,
+  login:    `<path d="M9 4h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9"/><path d="M13 12H3M13 12l-3.5-3.5M13 12l-3.5 3.5"/>`,
+  register: `<circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c.9-4 3.6-6.2 6.5-6.2s5.6 2.2 6.5 6.2"/><path d="M18 8v5M15.5 10.5h5"/>`,
+};
+function profileIcon(key){
+  return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${PROFILE_ICONS[key] || ''}</svg>`;
+}
+
+// Reabre la pantalla de auth YA construida — reutiliza showAuthForm()/
+// showAuthWelcome() existentes, nunca reconstruye nada.
+function reopenAuthScreen(mode){
+  closeProfileMenu();
+  authScreen.style.display = '';
+  authScreen.classList.remove('dismissed');
+  if (mode) showAuthForm(mode); else showAuthWelcome();
+}
+
+function openAboutModal(){ closeProfileMenu(); aboutModal.classList.add('visible'); }
+function closeAboutModal(){ aboutModal.classList.remove('visible'); }
+
+// Se recalcula en CADA apertura — currentAuthUser (mantenido al día por
+// onAuthStateChange, ya existente) es la única fuente de verdad de sesión,
+// así el menú nunca puede mostrar un estado desincronizado.
+function renderProfileMenu(){
+  const items = [];
+  if (currentAuthUser){
+    profileMenuName.textContent = currentAuthUser.email || 'Tu cuenta';
+    profileMenuSub.textContent = 'Sesión iniciada';
+    // Perfil/Configuración: placeholders honestos — reutilizan el toast ya
+    // existente (showMemoryToast) en vez de simular una función que no
+    // existe todavía.
+    items.push({ icon:'person', label:'Perfil', action:() => { closeProfileMenu(); showMemoryToast('Perfil', 'Próximamente'); } });
+    items.push({ icon:'gear', label:'Configuración', action:() => { closeProfileMenu(); showMemoryToast('Configuración', 'Próximamente'); } });
+    items.push({ icon:'info', label:'Acerca de', action:openAboutModal });
+    items.push({ divider:true });
+    items.push({ icon:'logout', label:'Cerrar sesión', danger:true, action: async () => {
+      closeProfileMenu();
+      await AuthService.logout(); // real — supabaseClient.auth.signOut()
+      showMemoryToast('Sesión cerrada', '');
+    }});
+  } else {
+    profileMenuName.textContent = 'Explorando como invitado';
+    profileMenuSub.textContent = 'Inicia sesión para guardar tus recuerdos';
+    items.push({ icon:'login', label:'Ingresar', action:() => reopenAuthScreen('login') });
+    items.push({ icon:'register', label:'Registrarse', action:() => reopenAuthScreen('register') });
+    items.push({ divider:true });
+    items.push({ icon:'info', label:'Acerca de', action:openAboutModal });
+  }
+
+  profileMenuItems.innerHTML = items.map(it => it.divider
+    ? `<div class="profile-menu-divider"></div>`
+    : `<button class="profile-menu-item${it.danger ? ' danger' : ''}">${profileIcon(it.icon)}<span>${it.label}</span></button>`
+  ).join('');
+
+  const buttons = profileMenuItems.querySelectorAll('.profile-menu-item');
+  const actionable = items.filter(it => !it.divider);
+  buttons.forEach((btn, i) => btn.addEventListener('click', actionable[i].action));
+}
+
+function openProfileMenu(){
+  renderProfileMenu();
+  profileMenu.classList.add('visible');
+  profileMenuBackdrop.classList.add('visible');
+}
+function closeProfileMenu(){
+  profileMenu.classList.remove('visible');
+  profileMenuBackdrop.classList.remove('visible');
+}
+document.getElementById('btnProfileHeader').addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (profileMenu.classList.contains('visible')) closeProfileMenu();
+  else openProfileMenu();
+});
+profileMenuBackdrop.addEventListener('click', closeProfileMenu);
+document.getElementById('aboutModalClose').addEventListener('click', closeAboutModal);
+aboutModal.addEventListener('click', (e) => { if (e.target === aboutModal) closeAboutModal(); });
 
 initSupabaseSync();
 </script>
