@@ -2795,8 +2795,19 @@ img{-webkit-user-drag:none; user-select:none;}
           <button type="submit" class="auth-btn-primary auth-form-submit" id="authFormSubmit">Crear cuenta</button>
         </form>
 
-        <button class="auth-form-switch" id="authFormSwitch">¿Ya tienes cuenta? <span>Ingresar</span></button>
+               <button class="auth-form-switch" id="authFormSwitch">¿Ya tienes cuenta? <span>Ingresar</span></button>
       </div>
+    </div>
+  </div>
+
+  <!-- Toast de bienvenida al iniciar sesión — reutiliza la clase .memory-toast
+       ya existente (mismo lenguaje visual que "Recuerdo guardado" y
+       "¡Llegaste a tu destino!"), sin ningún estilo nuevo. -->
+  <div class="memory-toast" id="authWelcomeToast">
+    <span class="mt-icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5c.7 4 2.4 6.9 5.9 9.5-3.5 2.6-5.2 5.5-5.9 9.5-.7-4-2.4-6.9-5.9-9.5 3.5-2.6 5.2-5.5 5.9-9.5Z" fill="currentColor" stroke="none"/></svg></span>
+    <div class="mt-text">
+      <div class="mt-title">¡Bienvenido de vuelta!</div>
+      <div class="mt-sub" id="authWelcomeToastSub">—</div>
     </div>
   </div>
 </div>
@@ -9935,17 +9946,22 @@ function mapAuthError(error){
 const AUTH_SCREEN_ENABLED = true;
 
 const AuthService = {
-  async register(email, password){
+   async register(email, password){
     if (!supabaseClient) return { ok:false, error:'La autenticación no está disponible en este momento.' };
     const { data, error } = await supabaseClient.auth.signUp({
       email, password,
       options:{ emailRedirectTo:'https://felipeignacioov.github.io/Choapa-Explore/' },
     });
+    // Diagnóstico temporal — revisa la consola del navegador tras un
+    // registro para confirmar exactamente qué devuelve Supabase (data.user/
+    // data.session) si el mensaje de confirmación sigue sin aparecer.
+    console.log('[Auth] signUp resultado:', { data, error });
     if (error) return { ok:false, error: mapAuthError(error) };
-    // Confirm email = ON en este proyecto: un registro correcto siempre
-    // debería devolver un user SIN session todavía — nunca se inicia
-    // sesión manualmente ni se trata este caso como ya autenticado.
-    const pendingConfirmation = !!(data.user && !data.session);
+    // Antes exigía data.user Y !data.session — más frágil de lo necesario.
+    // Confirm email = ON implica que CUALQUIER registro correcto sin sesión
+    // activa (sin importar si data.user viene truthy en esa respuesta
+    // puntual) debe tratarse como "pendiente de confirmación".
+    const pendingConfirmation = !data.session;
     return { ok:true, pendingConfirmation };
   },
   async login(email, password){
@@ -10040,6 +10056,18 @@ document.getElementById('authGuestBtn').addEventListener('click', closeAuthScree
 document.getElementById('authFormBack').addEventListener('click', showAuthWelcome);
 document.getElementById('authFormSwitch').addEventListener('click', () => showAuthForm(authFormMode === 'register' ? 'login' : 'register'));
 
+// Toast de bienvenida al iniciar sesión — MISMA clase CSS .memory-toast ya
+// existente (sin ningún estilo nuevo), como segunda instancia del
+// componente, igual patrón que arrivalToast ya es respecto a memoryToast.
+// Timer propio para no interferir con el de los recuerdos guardados.
+let authWelcomeToastTimer = null;
+function showAuthWelcomeToast(email){
+  document.getElementById('authWelcomeToastSub').textContent = email || 'Sesión iniciada correctamente';
+  document.getElementById('authWelcomeToast').classList.add('visible');
+  clearTimeout(authWelcomeToastTimer);
+  authWelcomeToastTimer = setTimeout(() => document.getElementById('authWelcomeToast').classList.remove('visible'), 2600);
+}
+
 authForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const email = document.getElementById('authEmail').value.trim();
@@ -10088,9 +10116,10 @@ authForm.addEventListener('submit', async (e) => {
     return;
   }
 
-  // Login exitoso — la sesión real ya quedó registrada por Supabase
+    // Login exitoso — la sesión real ya quedó registrada por Supabase
   // (onAuthStateChange actualiza currentAuthUser); se cierra la pantalla y
   // la aplicación continúa con su navegación normal, sin tocar nada más.
+  showAuthWelcomeToast(result.user && result.user.email);
   closeAuthScreen();
 });
 
