@@ -6881,9 +6881,61 @@ function updateDayPeriod(){
   applyMoodAtmosphere(state.activeExperience);
 }
 
-const SAVED_KEY = 'choapa_explore_saved_places';
-let savedPlaceIds = new Set(JSON.parse(localStorage.getItem(SAVED_KEY) || '[]'));
+// SAVED_KEY/localStorage retirados de Guardados — public.saved_places (vía
+// Supabase) es ahora la única fuente de verdad. savedPlaceIds se conserva
+// como el mismo Set en memoria que ya usa el resto de la UI (selectPlace,
+// savedPlaces(), renderGuardadosGrid), solo que ahora se llena/vacía desde
+// Supabase en vez de leerse de localStorage al cargar el script.
+let savedPlaceIds = new Set();
 
+// Única función que carga los guardados del usuario actual — se llama desde
+// el listener onAuthStateChange ya existente (sección de sincronización de
+// sesión, más abajo) y desde openGuardados(). Sin sesión, no hace ninguna
+// consulta y deja el Set vacío — así un usuario sin sesión nunca ejecuta un
+// SELECT contra saved_places.
+async function loadSavedPlaces(){
+  savedPlaceIds.clear();
+  if (!currentAuthUser) return;
+
+  const { data, error } = await supabaseClient
+    .from('saved_places')
+    .select('experience_id')
+    .eq('user_id', currentAuthUser.id);
+
+  if (error){
+    console.error('[Guardados] Error cargando saved_places:', error);
+    return; // nunca se recurre a localStorage ni se inventa un estado — el Set queda vacío
+  }
+
+  (data || []).forEach(row => savedPlaceIds.add(row.experience_id));
+}
+
+// Única función de escritura para guardar/quitar — reemplaza la lógica que
+// antes vivía duplicada en #poiDetailSave y en el botón de quitar de
+// renderGuardadosGrid(). savedPlaceIds SOLO se actualiza después de que
+// Supabase confirme la operación (nunca de forma optimista) — así el Set en
+// memoria nunca puede desincronizarse de lo que realmente hay en la tabla.
+async function toggleSavedPlace(placeId){
+  if (!currentAuthUser) return { ok:false };
+
+  if (savedPlaceIds.has(placeId)){
+    const { error } = await supabaseClient
+      .from('saved_places')
+      .delete()
+      .eq('user_id', currentAuthUser.id)
+      .eq('experience_id', placeId);
+    if (error){ console.error('[Guardados] Error eliminando guardado:', error); return { ok:false }; }
+    savedPlaceIds.delete(placeId);
+    return { ok:true, saved:false };
+  } else {
+    const { error } = await supabaseClient
+      .from('saved_places')
+      .insert({ user_id: currentAuthUser.id, experience_id: placeId });
+    if (error){ console.error('[Guardados] Error guardando experiencia:', error); return { ok:false }; }
+    savedPlaceIds.add(placeId);
+    return { ok:true, saved:true };
+  }
+}
 /* ============================================================
    MI ÁLBUM DEL CHOAPA — capa de datos
    ============================================================
@@ -7108,12 +7160,16 @@ function selectPlace(place, el){
 
 document.getElementById('poiDetailSave').addEventListener('click', (e) => {
   e.stopPropagation();
-  requireAuth(() => {
+  requireAuth(async () => {
     if (!state.selectedPlace) return;
     const id = state.selectedPlace.id;
-    if (savedPlaceIds.has(id)) savedPlaceIds.delete(id); else savedPlaceIds.add(id);
-    localStorage.setItem(SAVED_KEY, JSON.stringify([...savedPlaceIds]));
-    e.currentTarget.classList.toggle('saved', savedPlaceIds.has(id));
+    const btn = e.currentTarget;
+    await toggleSavedPlace(id);
+    // El botón se actualiza recién después del await, leyendo el estado
+    // REAL ya confirmado por Supabase en savedPlaceIds — mismo
+    // classList.toggle de siempre, mismo comportamiento visual, sin cambiar
+    // íconos ni animaciones.
+    btn.classList.toggle('saved', savedPlaceIds.has(id));
   });
 });
 
@@ -8156,10 +8212,12 @@ const guardadosGrid = document.getElementById('guardadosGrid');
 const guardadosEmpty = document.getElementById('guardadosEmpty');
 let guardadosActiveFilter = 'todos';
 
+// Sin cambios de lógica — savedPlaceIds sigue siendo el Set en memoria que
+// se filtra contra DEMO_PLACES (ya cargado por SupabaseDataLayer); solo su
+// origen cambió (antes localStorage, ahora saved_places vía loadSavedPlaces()).
 function savedPlaces(){
   return DEMO_PLACES.filter(p => savedPlaceIds.has(p.id));
 }
-
 function renderGuardadosFilters(){
   const all = savedPlaces();
   guardadosFilters.innerHTML = '';
@@ -8225,10 +8283,10 @@ function renderGuardadosGrid(){
         </div>
       </div>`;
     card.addEventListener('click', () => { closeGuardados(); selectPlaceById(place.id); });
-    card.querySelector('.gd-save-btn').addEventListener('click', (e) => {
+      card.querySelector('.gd-save-btn').addEventListener('click', async (e) => {
       e.stopPropagation();
-      savedPlaceIds.delete(place.id);
-      localStorage.setItem(SAVED_KEY, JSON.stringify([...savedPlaceIds]));
+      const result = await toggleSavedPlace(place.id);
+      if (!result.ok) return; // Supabase falló — no se toca el Set ni la UI, mismo criterio de "no inventar estado"
       if (state.selectedPlace && state.selectedPlace.id === place.id){
         document.getElementById('poiDetailSave').classList.remove('saved');
       }
@@ -8252,11 +8310,17 @@ function renderGuardados(){
 }
 
 function openGuardados(){
-  return requireAuth(() => {
+  // Mismo gate requireAuth() de siempre, sin reemplazarlo — solo el
+  // callback autenticado pasa a ser async, para poder esperar
+  // loadSavedPlaces() antes de renderizar. Sin sesión, el comportamiento es
+  // idéntico a antes: requireAuth ya se encarga de abrir el login y no
+  // ejecuta nada de lo de abajo.
+  return requireAuth(async () => {
     guardadosActiveFilter = 'todos';
     nearbyScreen.classList.remove('visible');
     document.getElementById('albumScreen').classList.remove('visible');
     document.getElementById('guardadosEmptyIcon').innerHTML = icon('bookmark', 34);
+    await loadSavedPlaces(); // espera la carga real antes de pintar — evita el "vacío" transitorio
     renderGuardados();
     guardadosScreen.classList.add('visible');
     document.querySelectorAll('.bottom-nav .nav-item').forEach(n => n.classList.remove('active'));
@@ -10090,6 +10154,14 @@ const AuthService = {
 if (supabaseClient){
   supabaseClient.auth.onAuthStateChange((event, session) => {
     currentAuthUser = session ? session.user : null;
+    // Único punto donde Guardados se sincroniza con la sesión — mismo
+    // listener ya existente, sin crear uno nuevo. Con sesión válida
+    // (SIGNED_IN, o INITIAL_SESSION si ya había una sesión persistida),
+    // carga los guardados de ESE usuario; sin sesión (SIGNED_OUT, o
+    // INITIAL_SESSION sin sesión), vacía el Set — así nunca quedan
+    // guardados de un usuario anterior en memoria.
+    if (currentAuthUser) loadSavedPlaces();
+    else savedPlaceIds.clear();
   });
 }
 
