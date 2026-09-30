@@ -3196,6 +3196,25 @@ const EXPERIENCE_TAGS = [
 ];
 const expById = id => EXPERIENCE_TAGS.find(e => e.id === id);
 
+// Caché de colores de categoría — --exp-* son valores FIJOS del CSS (nunca
+// cambian en tiempo real, a diferencia de --mood-glow), pero se estaban
+// resolviendo con getComputedStyle().getPropertyValue() en cada llamada:
+// una de las operaciones más caras del DOM, forzando un recálculo síncrono
+// de estilos cada vez que se pintaba un POI, un chip, una tarjeta, etc. Se
+// resuelve UNA sola vez por categoría (la primera vez que se pide) y queda
+// cacheado el resto de la sesión — mismo color exacto, cero recomputo
+// repetido. Puramente una optimización de fluidez: ningún valor visual
+// cambia.
+const EXP_COLOR_CACHE = {};
+function expColor(exp){
+  if (!exp) return '#16B8C4';
+  const varName = exp.color.replace('var(','').replace(')','');
+  if (!EXP_COLOR_CACHE[varName]){
+    EXP_COLOR_CACHE[varName] = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  }
+  return EXP_COLOR_CACHE[varName];
+}
+
 // Título + bajada del panel inferior cuando hay una experiencia filtrada activa.
 // EXPERIENCE_PANEL_COPY eliminado — su único consumidor (dentro de
 // renderPlacesRail) estaba detrás de un `if (!placesRail) return;` que ya lo
@@ -5113,17 +5132,13 @@ function poiSourceFeatures(){
     (!filtering || p.experiences.includes(state.activeExperience)) &&
     (!aliases || aliases.includes(p.locality))
   );
-  const activeExpColor = filtering
-    ? getComputedStyle(document.documentElement).getPropertyValue(expById(state.activeExperience).color.replace('var(','').replace(')','')).trim()
-    : null;
-   return visible.map(place => {
+  const activeExpColor = filtering ? expColor(expById(state.activeExperience)) : null;
+  return visible.map(place => {
     const primaryTag = primaryExperienceTag(place);
     // Misma regla que displayColor: con filtro activo, el fondo usa la
     // categoría del filtro; si no, la categoría propia del lugar.
     const bgExpId = filtering ? state.activeExperience : primaryTag.id;
-    const displayColor = activeExpColor
-      || getComputedStyle(document.documentElement).getPropertyValue(primaryTag.color.replace('var(','').replace(')','')).trim()
-      || '#16B8C4';
+    const displayColor = activeExpColor || expColor(primaryTag) || '#16B8C4';
     return {
       type:'Feature',
       properties:{ id:place.id, name:place.name, icon:`poi-icon-${primaryTag.iconKey}`, bgIcon:`poi-bg-${bgExpId}`, displayColor },
@@ -5423,13 +5438,9 @@ function bindPOINativeClickHandlers(){
    estado queda como tamaño mayor + halo fijo, sin animación. */
 function computePOIDisplayColor(place){
   const filtering = state.activeExperience !== 'todos';
-  const activeExpColor = filtering
-    ? getComputedStyle(document.documentElement).getPropertyValue(expById(state.activeExperience).color.replace('var(','').replace(')','')).trim()
-    : null;
+  const activeExpColor = filtering ? expColor(expById(state.activeExperience)) : null;
   const primaryTag = primaryExperienceTag(place);
-  return activeExpColor
-    || getComputedStyle(document.documentElement).getPropertyValue(primaryTag.color.replace('var(','').replace(')','')).trim()
-    || '#16B8C4';
+  return activeExpColor || expColor(primaryTag) || '#16B8C4';
 }
 
 function ensurePOISelectedLayer(){
@@ -7068,8 +7079,8 @@ function selectPlace(place, el){
   // ícono/color en el mapa (Fase 1), corrigiendo la inconsistencia donde esta
   // función tenía su propia lógica (catById + categoryPrimary a mano) que
   // podía no coincidir con lo que se veía pintado en el mapa.
-  const tagInfo = primaryExperienceTag(place);
-  const color = getComputedStyle(document.documentElement).getPropertyValue(tagInfo.color.replace('var(','').replace(')','')).trim();
+   const tagInfo = primaryExperienceTag(place);
+  const color = expColor(tagInfo);
 
  document.getElementById('poiDetailThumb').style.backgroundImage = `url(${place.image})`;
   document.getElementById('poiDetailName').textContent = place.name;
@@ -7270,9 +7281,9 @@ function navDestinationColor(place){
   let colorVar = null;
   if (place.categoryPrimary){
     const primaryExp = expById(place.categoryPrimary);
-    if (primaryExp) colorVar = getComputedStyle(document.documentElement).getPropertyValue(primaryExp.color.replace('var(','').replace(')','')).trim();
+    if (primaryExp) colorVar = expColor(primaryExp);
   }
-  return colorVar || getComputedStyle(document.documentElement).getPropertyValue(cat.color.replace('var(','').replace(')','')).trim() || '#16B8C4';
+  return colorVar || expColor(cat) || '#16B8C4';
 }
 function renderNavDestinationMarker(place){
   clearNavDestinationMarker();
@@ -8228,9 +8239,9 @@ function renderGuardadosFilters(){
     chip.className = 'chip gd-chip' + (exp.id === guardadosActiveFilter ? ' active' : '');
     chip.innerHTML = `<span class="gd-chip-top">${exp.icon}<span>${exp.label}</span></span><span class="gd-chip-count">${count}</span>`;
     if (exp.id !== 'todos'){
-      const color = getComputedStyle(document.documentElement).getPropertyValue(exp.color.replace('var(','').replace(')','')).trim();
-      chip.style.setProperty('--chip-active-bg', color);
-      chip.style.setProperty('--chip-active-shadow', `${color}52`);
+         const color = expColor(exp);
+    chip.style.setProperty('--chip-active-bg', color);
+    chip.style.setProperty('--chip-active-shadow', `${color}52`);
     }
     chip.addEventListener('click', () => { guardadosActiveFilter = exp.id; renderGuardados(); });
     guardadosFilters.appendChild(chip);
@@ -8260,10 +8271,10 @@ function renderGuardadosGrid(){
   }
 
     filtered.forEach(place => {
-    const cat = expById(place.category);
+       const cat = expById(place.category);
     const primaryExp = place.categoryPrimary ? expById(place.categoryPrimary) : null;
     const tagInfo = primaryExp || cat;
-    const color = getComputedStyle(document.documentElement).getPropertyValue(tagInfo.color.replace('var(','').replace(')','')).trim();
+    const color = expColor(tagInfo);
     const comuna = LOCALITIES.find(l => l.aliases.includes(place.locality));
 
     const card = document.createElement('div');
@@ -8374,10 +8385,10 @@ function renderNearbyFilters(){
   nearbyFilters.innerHTML = '';
   EXPERIENCE_TAGS.forEach(exp => {
     const chip = document.createElement('button');
-    chip.className = 'chip gd-chip' + (exp.id === nearbyActiveFilter ? ' active' : '');
+       chip.className = 'chip gd-chip' + (exp.id === nearbyActiveFilter ? ' active' : '');
     chip.innerHTML = `<span class="gd-chip-top">${exp.icon}<span>${exp.label}</span></span>`;
     if (exp.id !== 'todos'){
-      const color = getComputedStyle(document.documentElement).getPropertyValue(exp.color.replace('var(','').replace(')','')).trim();
+      const color = expColor(exp);
       chip.style.setProperty('--chip-active-bg', color);
       chip.style.setProperty('--chip-active-shadow', `${color}52`);
     }
@@ -8392,7 +8403,7 @@ function buildNearbyCard(place, distanceLabel){
   const cat = expById(place.category);
   const primaryExp = place.categoryPrimary ? expById(place.categoryPrimary) : null;
   const tagInfo = primaryExp || cat;
-  const color = getComputedStyle(document.documentElement).getPropertyValue(tagInfo.color.replace('var(','').replace(')','')).trim();
+  const color = expColor(tagInfo);
   const comuna = LOCALITIES.find(l => l.aliases.includes(place.locality));
 
   const card = document.createElement('div');
@@ -8655,10 +8666,10 @@ const chipsRow = document.getElementById('chipsRow');
 EXPERIENCE_TAGS.forEach(exp => {
   const chip = document.createElement('button');
   chip.className = 'chip' + (exp.id === 'todos' ? ' active' : '');
-  chip.dataset.exp = exp.id;
+    chip.dataset.exp = exp.id;
   chip.innerHTML = `<span>${exp.icon}</span><span>${exp.label}</span>`;
   if (exp.id !== 'todos'){
-    const color = getComputedStyle(document.documentElement).getPropertyValue(exp.color.replace('var(','').replace(')','')).trim();
+    const color = expColor(exp);
     chip.style.setProperty('--chip-active-bg', color);
     chip.style.setProperty('--chip-active-shadow', `${color}52`);
   }
@@ -8827,7 +8838,7 @@ function buildTodayTagInfo(place){
   const cat = expById(place.category);
   const primaryExp = place.categoryPrimary ? expById(place.categoryPrimary) : null;
   const tagInfo = primaryExp || cat;
-  const color = getComputedStyle(document.documentElement).getPropertyValue(tagInfo.color.replace('var(','').replace(')','')).trim();
+  const color = expColor(tagInfo);
   return { tagInfo, color };
 }
 
@@ -8913,7 +8924,7 @@ function buildRecommendedCard(place){
   const cat = expById(place.category);
   const primaryExp = place.categoryPrimary ? expById(place.categoryPrimary) : null;
   const tagInfo = primaryExp || cat;
-  const color = getComputedStyle(document.documentElement).getPropertyValue(tagInfo.color.replace('var(','').replace(')','')).trim();
+  const color = expColor(tagInfo);
   const card = document.createElement('div');
   card.className = 'gd-card';
   card.innerHTML = `
@@ -8959,9 +8970,9 @@ function renderPlacesRail(){
     const cat = expById(place.category);
     // Igual que en la ficha del POI / "¿Qué hacer hoy?" / Guardados / Cerca de ti:
     // la experiencia principal manda sobre el tipo de lugar cuando existe.
-    const primaryExp = place.categoryPrimary ? expById(place.categoryPrimary) : null;
+        const primaryExp = place.categoryPrimary ? expById(place.categoryPrimary) : null;
     const tagInfo = primaryExp || cat;
-    const color = getComputedStyle(document.documentElement).getPropertyValue(tagInfo.color.replace('var(','').replace(')','')).trim();
+    const color = expColor(tagInfo);
     const card = document.createElement('div');
     card.className = 'place-card';
     card.innerHTML = `
@@ -9055,9 +9066,9 @@ function renderCollectionsRail(){
   const ordered = [...COLLECTIONS].sort((a, b) =>
     (momentTags.includes(a.experience) ? 0 : 1) - (momentTags.includes(b.experience) ? 0 : 1)
   );
-  ordered.forEach(col => {
+    ordered.forEach(col => {
     const exp = expById(col.experience);
-    const color = getComputedStyle(document.documentElement).getPropertyValue(exp.color.replace('var(','').replace(')','')).trim();
+    const color = expColor(exp);
     const card = document.createElement('div');
     card.className = 'collection-card';
     card.style.setProperty('--col-color', color);
@@ -9312,9 +9323,9 @@ function renderComunaPanelFullList(locality){
   const all = curateComunaPanelPlaces(locality, comunaPanelVisibleCount);
   const filterTag = state.activeExperience !== 'todos' ? expById(state.activeExperience) : null;
 
-  list.innerHTML = all.map(place => {
+   list.innerHTML = all.map(place => {
     const tag = filterTag || primaryExperienceTag(place);
-    const color = getComputedStyle(document.documentElement).getPropertyValue(tag.color.replace('var(','').replace(')','')).trim();
+    const color = expColor(tag);
        return `
       <div class="comuna-list-item" data-place-id="${place.id}">
         <div class="cli-photo" style="background-image:url(${place.image})"></div>
@@ -9412,9 +9423,9 @@ function renderComunaPanelRail(locality){
   // correctamente pero mostraba una etiqueta distinta a la que el usuario
   // acababa de elegir, dando la falsa impresión de que el filtro no funcionaba.
   const filterTag = state.activeExperience !== 'todos' ? expById(state.activeExperience) : null;
-  rail.innerHTML = places.map(place => {
+   rail.innerHTML = places.map(place => {
     const tag = filterTag || primaryExperienceTag(place);
-    const color = getComputedStyle(document.documentElement).getPropertyValue(tag.color.replace('var(','').replace(')','')).trim();
+    const color = expColor(tag);
        return `
       <div class="comuna-mini-card" data-place-id="${place.id}">
         <div class="cmc-photo" style="background-image:url(${place.image})"></div>
