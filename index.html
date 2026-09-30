@@ -7108,11 +7108,13 @@ function selectPlace(place, el){
 
 document.getElementById('poiDetailSave').addEventListener('click', (e) => {
   e.stopPropagation();
-  if (!state.selectedPlace) return;
-  const id = state.selectedPlace.id;
-  if (savedPlaceIds.has(id)) savedPlaceIds.delete(id); else savedPlaceIds.add(id);
-  localStorage.setItem(SAVED_KEY, JSON.stringify([...savedPlaceIds]));
-  e.currentTarget.classList.toggle('saved', savedPlaceIds.has(id));
+  requireAuth(() => {
+    if (!state.selectedPlace) return;
+    const id = state.selectedPlace.id;
+    if (savedPlaceIds.has(id)) savedPlaceIds.delete(id); else savedPlaceIds.add(id);
+    localStorage.setItem(SAVED_KEY, JSON.stringify([...savedPlaceIds]));
+    e.currentTarget.classList.toggle('saved', savedPlaceIds.has(id));
+  });
 });
 
 /* ---------- 12. NAVEGACIÓN REAL — Fase 1: selector de modo + permiso de ubicación ----------
@@ -8250,14 +8252,16 @@ function renderGuardados(){
 }
 
 function openGuardados(){
-  guardadosActiveFilter = 'todos';
-  nearbyScreen.classList.remove('visible');
-  document.getElementById('albumScreen').classList.remove('visible');
-  document.getElementById('guardadosEmptyIcon').innerHTML = icon('bookmark', 34);
-  renderGuardados();
-  guardadosScreen.classList.add('visible');
-  document.querySelectorAll('.bottom-nav .nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('navGuardados').classList.add('active');
+  return requireAuth(() => {
+    guardadosActiveFilter = 'todos';
+    nearbyScreen.classList.remove('visible');
+    document.getElementById('albumScreen').classList.remove('visible');
+    document.getElementById('guardadosEmptyIcon').innerHTML = icon('bookmark', 34);
+    renderGuardados();
+    guardadosScreen.classList.add('visible');
+    document.querySelectorAll('.bottom-nav .nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('navGuardados').classList.add('active');
+  });
 }
 function closeGuardados(){
   guardadosScreen.classList.remove('visible');
@@ -8456,16 +8460,18 @@ function showMemoryToast(title, subtitle){
 }
 document.getElementById('poiDetailMemoryBtn').addEventListener('click', (e) => {
   e.stopPropagation();
-  const place = state.selectedPlace;
-  if (!place) return;
-  const existing = MemoryStore.get(place.id);
-  if (existing){
-    openPlaceMemoryDetail(place); // ya tiene recuerdo → lo abre (permite reemplazar/eliminar)
-  } else {
-    memoryFileInput.dataset.contextType = 'place';
-    memoryFileInput.dataset.placeId = place.id;
-    memoryFileInput.click();
-  }
+  requireAuth(() => {
+    const place = state.selectedPlace;
+    if (!place) return;
+    const existing = MemoryStore.get(place.id);
+    if (existing){
+      openPlaceMemoryDetail(place); // ya tiene recuerdo → lo abre (permite reemplazar/eliminar)
+    } else {
+      memoryFileInput.dataset.contextType = 'place';
+      memoryFileInput.dataset.placeId = place.id;
+      memoryFileInput.click();
+    }
+  });
 });
 
 // Un solo input de archivo sirve a los 3 tipos de recuerdo (lugar, localidad libre,
@@ -9654,10 +9660,15 @@ let currentAlbumLocalityId = null;
 let currentAlbumIsPersonal = false;
 
 function openAlbum(){
-  showAlbumIndex();
-  albumScreen.classList.add('visible');
-  document.querySelectorAll('.bottom-nav .nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('navAlbum').classList.add('active');
+  // Todo el cuerpo original permanece exactamente igual, solo envuelto en
+  // requireAuth() — sin sesión, abre el login y ninguna línea de acá abajo
+  // se ejecuta; con sesión, corre tal cual siempre corrió.
+  return requireAuth(() => {
+    showAlbumIndex();
+    albumScreen.classList.add('visible');
+    document.querySelectorAll('.bottom-nav .nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('navAlbum').classList.add('active');
+  });
 }
 function closeAlbum(){
   albumScreen.classList.remove('visible');
@@ -10260,6 +10271,19 @@ function reopenAuthScreen(mode){
   if (mode) showAuthForm(mode); else showAuthWelcome();
 }
 
+// Único gate de autenticación para funciones personales — reutiliza
+// EXCLUSIVAMENTE currentAuthUser (la única fuente de verdad de sesión ya
+// existente, mantenida por el listener onAuthStateChange) y
+// reopenAuthScreen() (ya existente). No crea ningún estado de sesión nuevo,
+// ninguna instancia de Supabase nueva, ningún listener nuevo.
+function requireAuth(onAuthenticated){
+  if (currentAuthUser){
+    onAuthenticated();
+    return true;
+  }
+  reopenAuthScreen('login');
+  return false;
+}
 function openAboutModal(){ closeProfileMenu(); aboutModal.classList.add('visible'); }
 function closeAboutModal(){ aboutModal.classList.remove('visible'); }
 
