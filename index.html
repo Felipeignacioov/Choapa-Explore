@@ -4016,6 +4016,35 @@ function tintMapLayers(){
   });
 }
 
+/* ---------- CICLO AMBIENTAL ÚNICO — consolida 6 setInterval en 1 ----------
+   Antes: 6 temporizadores independientes (respiración de comunas, brillo del
+   agua, reflejo de Los Vilos, halo del río, respiración de carreteras,
+   respiración de POIs), cada uno programando su propio setInterval, cada uno
+   como evento de scheduling aparte para el navegador — costoso en un celular
+   de gama baja, sobre todo corriendo TODOS a la vez sin parar, incluso con
+   la app en segundo plano.
+   Ahora: cada bloque se registra como una función (registerAmbientTick), y
+   un único setInterval las ejecuta a todas en cada tick. Cada callback sigue
+   usando performance.now()/N exactamente igual que antes — el período real
+   de cada respiración no cambia, solo CÓMO se orquesta el disparo. Se pausa
+   por completo cuando la pestaña queda oculta (visibilitychange), algo que
+   ningún setInterval individual hacía. Ningún valor visual cambia. */
+const AMBIENT_TICK_MS = 240;
+const ambientTickCallbacks = [];
+function registerAmbientTick(fn){ ambientTickCallbacks.push(fn); }
+let ambientTickTimer = null;
+function startAmbientTicks(){
+  if (ambientTickTimer) return;
+  ambientTickTimer = setInterval(() => { ambientTickCallbacks.forEach(fn => fn()); }, AMBIENT_TICK_MS);
+}
+function stopAmbientTicks(){
+  if (ambientTickTimer){ clearInterval(ambientTickTimer); ambientTickTimer = null; }
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) stopAmbientTicks(); else startAmbientTicks();
+});
+startAmbientTicks();
+
 // Profundidad del territorio: relieve muy tenue + glow ambiental en las 4 comunas
 // + protagonismo sutil del Río Choapa. Todo por debajo de los POIs (que son
 // marcadores HTML, siempre por encima de cualquier capa del mapa) y sin tocar
@@ -4109,7 +4138,7 @@ function renderTerrainDepth(){
   });
   // Variación mínima (±2.5%) del radio — la comuna "respira" sin que se note
   // como una animación explícita.
-        setInterval(() => {
+       registerAmbientTick(() => {
     if (!map.getLayer('comuna-glow-layer')) return;
     const mult = 1 + Math.sin(performance.now() / 5200) * 0.025;
     // Mismo stop extra en zoom 8 que la curva inicial — la respiración debe
@@ -4117,7 +4146,7 @@ function renderTerrainDepth(){
     map.setPaintProperty('comuna-glow-layer', 'circle-radius', [
       'interpolate', ['linear'], ['zoom'], 7, 28 * mult, 8, 42 * mult, 10, 65 * mult, 13, 120 * mult,
     ]);
-  }, 260);
+  });
 
  // ---- 2b) Halo costero — más presencia del océano sin cambiar su color base ----
   // Mismo recurso que el halo del río: una línea ancha y muy difusa (line-blur)
@@ -4156,11 +4185,11 @@ function renderTerrainDepth(){
     // igual, pero mezclando desde el tono correcto en cada momento en vez de
     // siempre el mismo valor nocturno. Nada más de este bloque se toca:
     // mismo ciclo, misma amplitud (2.5%), mismos 240ms.
-    setInterval(() => {
+    registerAmbientTick(() => {
       if (!map.getLayer('water')) return;
       const wobble = (Math.sin(performance.now() / 1650) + 1) / 2 * 0.025; // 0 → 2.5%
       map.setPaintProperty('water', 'fill-color', blendHex(currentWaterBase, '#FFFFFF', wobble));
-    }, 240);
+    });
 
     // 2) Textura costera — una segunda línea, más fina y difusa que coast-glow,
     // casi invisible lejos y apenas perceptible en zoom medio/cercano — lectura
@@ -4296,11 +4325,11 @@ function renderTerrainDepth(){
           'circle-pitch-alignment':'map',
         },
       }, coastBeforeId);
-            setInterval(() => {
+            registerAmbientTick(() => {
         if (!map.getLayer('losvilos-reflection-layer')) return;
         const drift = Math.sin(performance.now() / 2800) * 14; // px, horizontal, muy lento
         map.setPaintProperty('losvilos-reflection-layer', 'circle-translate', [drift, 0]);
-      }, 260);
+      });
     }
   }
 
@@ -4407,11 +4436,11 @@ function renderTerrainDepth(){
     // factor de zoom se recalcula en cada tick (no solo al mover), así queda
     // correcto incluso si el usuario cambia de zoom sin generar un gesto de
     // arrastre completo (ej. botones +/-).
-                       setInterval(() => {
+    registerAmbientTick(() => {
       if (!map.getLayer('rio-choapa-halo')) return;
       const wobble = Math.sin(performance.now() / 3500) * 0.015;
       map.setPaintProperty('rio-choapa-halo', 'line-opacity', Math.max(0, (riverHaloBase + wobble) * riverZoomDamp()));
-    }, 220);
+    });
   }
 
   // Respiración ambiental de la vía principal en vista de comuna lejana
@@ -4420,11 +4449,11 @@ function renderTerrainDepth(){
   // variación mínima, nunca percibida como animación explícita). Base 0.62,
   // la misma opacidad fija que ya tenía en tintMapLayers(); esto solo le
   // suma un wobble de ±0.02 encima.
-  setInterval(() => {
+ registerAmbientTick(() => {
     if (!map.getLayer('highway_major_subtle')) return;
     const wobble = Math.sin(performance.now() / 4100) * 0.02;
     map.setPaintProperty('highway_major_subtle', 'line-opacity', 0.62 + wobble);
-  }, 240);
+  });
 }
 
 // Difumina el mapa hacia el azul-noche de marca a medida que el usuario se acerca
@@ -5344,7 +5373,7 @@ const POI_BREATHE_BASE_ICON_SIZE = 0.276; // ya no se usa para icon-size (ver st
 const POI_HALO_BASE_RADIUS = 7.2;
 const POI_BREATHE_OPACITY_AMPLITUDE = 0.05; // amplitud de la respiración, ahora vía opacidad en vez de tamaño
 function startPOIBreathingAnimation(){
-  setInterval(() => {
+  registerAmbientTick(() => {
            if (!map.getLayer('poi-bg-layer')) return;
     const wobble = (Math.sin(performance.now() / 700) + 1) / 2; // 0 → 1, ciclo ~4.4s
     // FIX de fluidez: icon-size ya NO se toca acá — quedaba congelado en un
@@ -5390,12 +5419,12 @@ function startPOIBreathingAnimation(){
       map.setPaintProperty('poi-ambient-halo-layer', 'circle-radius', POI_HALO_BASE_RADIUS + haloWobble * (POI_HALO_BASE_RADIUS * 0.03));
       map.setPaintProperty('poi-ambient-halo-layer', 'circle-opacity', (0.28 + haloWobble * 0.025) * haloZoomFade);
       // Misma sombra, reutilizada para los POIs fotográficos.
-      if (map.getLayer('poi-photo-ambient-halo-layer')){
+          if (map.getLayer('poi-photo-ambient-halo-layer')){
         map.setPaintProperty('poi-photo-ambient-halo-layer', 'circle-radius', POI_HALO_BASE_RADIUS + haloWobble * (POI_HALO_BASE_RADIUS * 0.03));
         map.setPaintProperty('poi-photo-ambient-halo-layer', 'circle-opacity', (0.28 + haloWobble * 0.025) * haloZoomFade);
       }
     }
-  }, 250);
+  });
 }
 // ---------- Fase 2 de la migración: click nativo → ficha de detalle ----------
 function handlePOINativeClick(e){
