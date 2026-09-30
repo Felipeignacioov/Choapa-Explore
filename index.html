@@ -6957,27 +6957,54 @@ function updateDayPeriod(){
 // savedPlaces(), renderGuardadosGrid), solo que ahora se llena/vacía desde
 // Supabase en vez de leerse de localStorage al cargar el script.
 let savedPlaceIds = new Set();
+// savedPlacesLoaded: true cuando no hay ninguna carga pendiente (sin sesión
+// aún resuelta, o la carga de la sesión actual ya terminó). false mientras
+// una carga real está en curso. savedPlacesLoadPromise: la promesa de esa
+// carga en curso, para que cualquier consumidor (selectPlace, openGuardados)
+// la REUTILICE en vez de disparar una segunda consulta a Supabase.
+let savedPlacesLoaded = true;
+let savedPlacesLoadPromise = null;
 
 // Única función que carga los guardados del usuario actual — se llama desde
-// el listener onAuthStateChange ya existente (sección de sincronización de
-// sesión, más abajo) y desde openGuardados(). Sin sesión, no hace ninguna
-// consulta y deja el Set vacío — así un usuario sin sesión nunca ejecuta un
-// SELECT contra saved_places.
+// el listener onAuthStateChange ya existente y desde openGuardados() (sin
+// tocar ninguna de las dos). Sin sesión, no hace ninguna consulta y deja el
+// Set vacío. Si ya hay una carga en curso, devuelve la MISMA promesa en vez
+// de iniciar una nueva — es la pieza que elimina el riesgo de consultas
+// duplicadas cuando onAuthStateChange y openGuardados()/selectPlace()
+// coinciden en una ventana muy corta de tiempo.
 async function loadSavedPlaces(){
-  savedPlaceIds.clear();
-  if (!currentAuthUser) return;
-
-  const { data, error } = await supabaseClient
-    .from('saved_places')
-    .select('experience_id')
-    .eq('user_id', currentAuthUser.id);
-
-  if (error){
-    console.error('[Guardados] Error cargando saved_places:', error);
-    return; // nunca se recurre a localStorage ni se inventa un estado — el Set queda vacío
+  if (!currentAuthUser){
+    savedPlaceIds.clear();
+    savedPlacesLoaded = true;
+    savedPlacesLoadPromise = null;
+    return;
   }
+  if (savedPlacesLoadPromise) return savedPlacesLoadPromise;
 
-  (data || []).forEach(row => savedPlaceIds.add(row.experience_id));
+  savedPlacesLoaded = false;
+  savedPlacesLoadPromise = (async () => {
+    savedPlaceIds.clear();
+    const { data, error } = await supabaseClient
+      .from('saved_places')
+      .select('experience_id')
+      .eq('user_id', currentAuthUser.id);
+
+    if (error){
+      console.error('[Guardados] Error cargando saved_places:', error);
+      // No se marca como cargada correctamente ante un error — mismo
+      // criterio que antes (nunca se recurre a localStorage, nunca se
+      // inventa un estado); el Set queda vacío y savedPlacesLoaded
+      // permanece false, coherente con el manejo de error ya existente.
+      savedPlacesLoadPromise = null;
+      return;
+    }
+
+    (data || []).forEach(row => savedPlaceIds.add(row.experience_id));
+    savedPlacesLoaded = true;
+    savedPlacesLoadPromise = null;
+  })();
+
+  return savedPlacesLoadPromise;
 }
 
 // Única función de escritura para guardar/quitar — reemplaza la lógica que
@@ -7193,10 +7220,24 @@ function selectPlace(place, el){
   idealWrap.innerHTML = idealTags.map(t => `<span class="pd-tag">${t.icon} ${t.label}</span>`).join('');
   document.getElementById('poiDetailIdealSection').style.display = idealTags.length ? 'block' : 'none';
 
-  // Guardado (persistido localmente) — mismo estado de Guardados, ahora con etiqueta
+    // Guardado — mismo Set en memoria de siempre. Si hay sesión y la carga
+  // inicial de saved_places todavía está en curso (condición de carrera
+  // login→apertura de POI), se pinta el estado por defecto (no guardado) y
+  // se corrige en cuanto la MISMA promesa (savedPlacesLoadPromise, nunca una
+  // nueva) resuelva — sin volver selectPlace() async y sin ninguna consulta
+  // adicional a Supabase. El chequeo state.selectedPlace.id evita corregir
+  // un botón que ya pertenece a otro POI si el usuario navegó rápido.
   const saveBtn = document.getElementById('poiDetailSave');
-  saveBtn.classList.toggle('saved', savedPlaceIds.has(place.id));
-
+  if (currentAuthUser && !savedPlacesLoaded && savedPlacesLoadPromise){
+    saveBtn.classList.remove('saved');
+    savedPlacesLoadPromise.then(() => {
+      if (state.selectedPlace && state.selectedPlace.id === place.id){
+        saveBtn.classList.toggle('saved', savedPlaceIds.has(place.id));
+      }
+    });
+  } else {
+    saveBtn.classList.toggle('saved', savedPlaceIds.has(place.id));
+  }
   // Recuerdo (foto personal asociada a este lugar)
   const memoryBtn = document.getElementById('poiDetailMemoryBtn');
   memoryBtn.classList.toggle('saved', !!MemoryStore.get(place.id));
@@ -10225,13 +10266,17 @@ if (supabaseClient){
   supabaseClient.auth.onAuthStateChange((event, session) => {
     currentAuthUser = session ? session.user : null;
     // Único punto donde Guardados se sincroniza con la sesión — mismo
-    // listener ya existente, sin crear uno nuevo. Con sesión válida
-    // (SIGNED_IN, o INITIAL_SESSION si ya había una sesión persistida),
-    // carga los guardados de ESE usuario; sin sesión (SIGNED_OUT, o
-    // INITIAL_SESSION sin sesión), vacía el Set — así nunca quedan
-    // guardados de un usuario anterior en memoria.
-    if (currentAuthUser) loadSavedPlaces();
-    else savedPlaceIds.clear();
+    // listener ya existente, sin crear uno nuevo. Con sesión válida,
+    // loadSavedPlaces() ya gestiona internamente savedPlacesLoaded/
+    // savedPlacesLoadPromise (y evita duplicar la consulta si openGuardados()
+    // ya la había iniciado); sin sesión, se limpia todo de inmediato.
+    if (currentAuthUser){
+      loadSavedPlaces();
+    } else {
+      savedPlaceIds.clear();
+      savedPlacesLoaded = true;
+      savedPlacesLoadPromise = null;
+    }
   });
 }
 
