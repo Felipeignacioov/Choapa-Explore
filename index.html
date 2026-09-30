@@ -5678,18 +5678,48 @@ function applyPOIRenderSplit(features){
 // estado. Se auto-descarta de inmediato apenas no hay nada que recalcular
 // (fuera del rango de localidad y sin ninguna separación previa aplicada) —
 // mismo patrón de scheduleCollisionCheck ya usado en el proyecto.
+//
+// Rate-limit agregado — computePOISpreadFeatures recorre todos los pares de
+// POIs visibles; durante un gesto rápido (arrastre veloz, zoom con los
+// dedos) 'move'/'zoom' disparan en cada frame, lo que antes recalculaba ese
+// costo completo en cada frame también — notorio en un celular de gama
+// baja. POI_SPREAD_THROTTLE_MS impone un mínimo entre recálculos reales
+// mientras el gesto está en curso; nunca cambia el resultado (el cálculo es
+// siempre determinístico contra lastPOIBaseFeatures + zoom actual), solo
+// espacia CUÁNDO se repite. poiSpreadPendingRun asegura que, apenas el gesto
+// se detiene (o pasa el intervalo), corra una última vez con el estado más
+// reciente — nunca se pierde el recálculo final.
 let poiSpreadRaf = null;
+let poiSpreadLastRun = 0;
+let poiSpreadPendingRun = false;
+const POI_SPREAD_THROTTLE_MS = 90;
 function schedulePOISpreadUpdate(){
   if (!map.getSource('poi-source') || !lastPOIBaseFeatures.length) return;
   if (poiLocalityIntensity(map.getZoom()) <= 0 && !poiSpreadWasApplied) return;
+  poiSpreadPendingRun = true;
   if (poiSpreadRaf) return;
-  poiSpreadRaf = requestAnimationFrame(() => {
+  poiSpreadRaf = requestAnimationFrame(function step(){
     poiSpreadRaf = null;
+    const now = performance.now();
+    if (now - poiSpreadLastRun < POI_SPREAD_THROTTLE_MS){
+      // Todavía dentro de la ventana de throttle — reintenta más adelante
+      // sin ejecutar el cálculo pesado, manteniendo poiSpreadPendingRun
+      // en true para no perder la corrida final.
+      poiSpreadRaf = requestAnimationFrame(step);
+      return;
+    }
+    poiSpreadLastRun = now;
+    poiSpreadPendingRun = false;
     applyPOIRenderSplit(computePOISpreadFeatures(lastPOIBaseFeatures, map.getZoom()));
   });
 }
 map.on('move', schedulePOISpreadUpdate);
 map.on('zoom', schedulePOISpreadUpdate);
+// Al terminar el gesto, si quedó pendiente una corrida que el throttle
+// pausó, se ejecuta una última vez con el estado final real — garantiza
+// que el resultado visible siempre quede exacto, nunca "atrasado".
+map.on('moveend', () => { if (poiSpreadPendingRun) schedulePOISpreadUpdate(); });
+map.on('zoomend', () => { if (poiSpreadPendingRun) schedulePOISpreadUpdate(); });
 
 function renderPOIsNative(){
   ensurePOINativeLayers();
