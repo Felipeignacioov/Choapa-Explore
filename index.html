@@ -1833,8 +1833,9 @@ img{-webkit-user-drag:none; user-select:none;}
    tenue de fondo, casi grabado, en vez de un candado genérico. Se siente como un
    hueco del mapa esperando ser llenado, no como un error de carga. */
 .album-card.locked{
-  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0;
-  border-style:dashed; border-color:var(--border-glass);
+  display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
+  border-style:solid; border-color:rgba(95,225,232,0.16);
+  padding-bottom:14px;
 }
 .album-card.locked .lock-badge{
   width:52px; height:52px; border-radius:50%; margin-bottom:10px;
@@ -1843,7 +1844,6 @@ img{-webkit-user-drag:none; user-select:none;}
   color:var(--text-tertiary); opacity:0.4;
 }
 .album-card.locked .lock-label{font-size:10px; color:var(--text-tertiary); font-weight:600; text-align:center; padding:0 8px;}
-
 .album-card.add-tile{
   display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
   border-style:dashed; border-color:var(--turquoise); color:var(--turquoise-bright);
@@ -1907,15 +1907,30 @@ img{-webkit-user-drag:none; user-select:none;}
   border-style:solid; border-color:rgba(95,225,232,0.16);
 }
 .album-card.locked .ac-locked-photo{
-  position:absolute; inset:-4px; background-size:cover; background-position:center;
-  filter:blur(7px) brightness(0.55) saturate(0.85);
+  /* Blur eliminado — la foto oficial queda nítida y reconocible. Se
+     mantiene inset:0 (ya no -4px, que existía solo para disimular el
+     borde difuminado del blur, innecesario ahora). */
+  position:absolute; inset:0; background-size:cover; background-position:center;
+  filter:brightness(0.6) saturate(0.9);
 }
 .album-card.locked .ac-locked-overlay{
   position:absolute; inset:0;
-  background:linear-gradient(180deg, rgba(7,19,31,0.3) 0%, rgba(7,19,31,0.78) 100%);
+  background:linear-gradient(180deg, rgba(7,19,31,0.22) 0%, rgba(7,19,31,0.68) 100%);
 }
-.album-card.locked .ac-chain{position:relative; z-index:1; color:var(--turquoise-bright); display:flex; margin-bottom:9px;}
-.album-card.locked .lock-label{position:relative; z-index:1; color:var(--text-primary); opacity:0.85;}
+/* Dos cadenas cruzadas en X — mismo ícono/color/lenguaje visual de marca de
+   siempre (icon('chain', ...), turquesa), cada una rotada 45°/-45° y
+   centrada sobre la tarjeta vía position:absolute, sin agrandar el ícono. */
+.album-card.locked .ac-chain-cross{
+  position:absolute; inset:0; z-index:1;
+  display:flex; align-items:center; justify-content:center;
+}
+.album-card.locked .ac-chain-cross svg{
+  position:absolute; color:var(--turquoise-bright);
+  filter:drop-shadow(0 2px 5px rgba(2,8,15,0.5));
+}
+.album-card.locked .ac-chain-cross svg:first-child{ transform:rotate(45deg); }
+.album-card.locked .ac-chain-cross svg:last-child{ transform:rotate(-45deg); }
+.album-card.locked .lock-label{position:relative; z-index:1; color:var(--text-primary); opacity:0.9;}
 
 /* Detalle de un recuerdo */
 .memory-detail{
@@ -9269,12 +9284,15 @@ function selectPlaceById(id){
     return;
   }
 
-  const marker = markers.find(m => m._place.id === id);
-  if (marker) selectPlace(marker._place, marker._el);
-  else requestAnimationFrame(() => {
-    const retry = markers.find(m => m._place.id === id);
-    if (retry) selectPlace(retry._place, retry._el);
-  });
+   // Antes buscaba en `markers` — array que ya NO se llena para POIs desde la
+  // migración a capa nativa MapLibre (los POIs viven en fuentes/capas
+  // GeoJSON, no como maplibregl.Marker), así que esta búsqueda siempre
+  // fallaba en silencio y la ficha nunca llegaba a abrirse. selectPlace(place,
+  // null) es la MISMA función que ya usa el click nativo de un POI
+  // (handlePOINativeClick) — acepta el segundo argumento null por diseño, y
+  // por sí sola ya centra la cámara en la coordenada real del lugar y abre
+  // su ficha. No depende de markers ni de ningún elemento DOM del POI.
+  selectPlace(place, null);
 }
 
 /* ---------- 9. PÍLDORA + BOTTOM SHEET (pill ↔ abierto ↔ expandido) ---------- */
@@ -10055,11 +10073,11 @@ function renderLocalityAlbum(localityId){
       // un ícono de cadena turquesa — identidad de marca, no estética gaming.
       // Mismo comportamiento de siempre al tocarla: vuelve al mapa sobre esa
       // experiencia (selectPlaceById) — el desbloqueo real es Fase 2.
-      card.className = 'album-card locked';
+            card.className = 'album-card locked';
       card.innerHTML = `
         <div class="ac-locked-photo" style="background-image:url(${place.image})"></div>
         <div class="ac-locked-overlay"></div>
-        <span class="ac-chain">${icon('chain', 22)}</span>
+        <span class="ac-chain-cross">${icon('chain', 26)}${icon('chain', 26)}</span>
         <span class="lock-label">Aún por descubrir</span>`;
       card.addEventListener('click', () => { closeAlbum(); selectPlaceById(place.id); });
     }
