@@ -1762,6 +1762,7 @@ img{-webkit-user-drag:none; user-select:none;}
 .chapter-cover .cc-row{position:relative; z-index:1; width:100%; display:flex; align-items:flex-end; justify-content:space-between; gap:12px;}
 .chapter-cover .cc-name{font-family:var(--font-display); font-size:17px; font-weight:800; color:#fff;}
 .chapter-cover .cc-count{font-size:11.5px; color:var(--turquoise-bright); font-weight:600; margin-top:3px;}
+.chapter-cover .cc-status{font-size:10.5px; color:var(--text-tertiary); margin-top:2px; font-weight:500;}
 .chapter-cover .cc-arrow{color:rgba(255,255,255,0.8); display:flex; flex-shrink:0; transition:transform .16s ease;}
 .chapter-cover:active .cc-arrow{transform:translateX(3px);}
 .chapter-cover.personal .cc-name{color:var(--text-primary);}
@@ -1897,6 +1898,25 @@ img{-webkit-user-drag:none; user-select:none;}
 .album-card.locked .lock-type{opacity:0.3; display:flex; color:var(--text-tertiary);}
 .album-card.locked .lock-label{font-size:10px; color:var(--text-tertiary); font-weight:600; text-align:center; padding:0 8px;}
 
+/* FASE 1 — nuevo tratamiento "aún por descubrir": fotografía oficial real de
+   la experiencia, difuminada/oscurecida, con cadena turquesa de marca (NO
+   candado genérico, NO estética gaming). Las reglas de arriba (dashed/
+   lock-badge) quedan sin efecto para este caso porque la nueva estructura
+   HTML ya no incluye .lock-badge — se sobreescribe solo lo necesario. */
+.album-card.locked{
+  border-style:solid; border-color:rgba(95,225,232,0.16);
+}
+.album-card.locked .ac-locked-photo{
+  position:absolute; inset:-4px; background-size:cover; background-position:center;
+  filter:blur(7px) brightness(0.55) saturate(0.85);
+}
+.album-card.locked .ac-locked-overlay{
+  position:absolute; inset:0;
+  background:linear-gradient(180deg, rgba(7,19,31,0.3) 0%, rgba(7,19,31,0.78) 100%);
+}
+.album-card.locked .ac-chain{position:relative; z-index:1; color:var(--turquoise-bright); display:flex; margin-bottom:9px;}
+.album-card.locked .lock-label{position:relative; z-index:1; color:var(--text-primary); opacity:0.85;}
+
 /* Detalle de un recuerdo */
 .memory-detail{
   position:absolute; inset:0; z-index:70;
@@ -1922,6 +1942,17 @@ img{-webkit-user-drag:none; user-select:none;}
 .md-loc{font-size:12.5px; color:var(--text-secondary); margin-top:2px;}
 .md-caption{font-size:13px; color:var(--turquoise-bright); font-style:italic; margin-top:10px;}
 .md-date{font-size:10.5px; color:var(--text-tertiary); margin-top:5px; font-family:var(--font-mono);}
+.md-status-row{margin-top:8px;}
+.md-status-badge{
+  display:inline-flex; align-items:center; gap:5px;
+  font-size:10.5px; font-weight:700; letter-spacing:0.3px;
+  padding:4px 10px; border-radius:var(--radius-pill);
+  background:rgba(95,225,232,0.1); border:1px solid rgba(95,225,232,0.3); color:var(--turquoise-bright);
+}
+.md-section-title{
+  font-family:var(--font-display); font-size:11px; font-weight:700; letter-spacing:0.3px;
+  color:var(--text-secondary); text-transform:uppercase; margin-top:18px; margin-bottom:2px;
+}
 .md-actions{display:flex; gap:9px; margin-top:16px;}
 .md-btn{
   flex:1; padding:11px; border-radius:var(--radius-m); font-size:12.5px; font-weight:600; text-align:center;
@@ -2672,10 +2703,14 @@ img{-webkit-user-drag:none; user-select:none;}
       </button>
       <div class="md-photo" id="mdPhoto"></div>
       <div class="md-body">
-        <div class="md-name" id="mdName">—</div>
+                <div class="md-name" id="mdName">—</div>
         <div class="md-loc" id="mdLoc">—</div>
+        <div class="md-status-row" id="mdStatusRow" style="display:none;">
+          <span class="md-status-badge" id="mdStatusBadge">Descubierta</span>
+        </div>
         <div class="md-caption" id="mdCaption">"Yo estuve aquí."</div>
         <div class="md-date" id="mdDate">—</div>
+        <div class="md-section-title" id="mdRecuerdosTitle" style="display:none;">Mis recuerdos</div>
                <div class="md-actions">
           <button class="md-btn" id="mdReplace">Reemplazar foto</button>
           <button class="md-btn md-btn-danger" id="mdDelete">Eliminar recuerdo</button>
@@ -3155,7 +3190,8 @@ compassRose:  `<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="1" fill
    bookmark:     `<path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4Z"/>`,
   camera:       `<path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13.5" r="3.3"/>`,
   filter:       `<path d="M4 6h16M7 12h10M10.5 18h3"/>`,
-  mountain:     `<path d="M3 19 9.5 8l3.2 5 2-2.6L20 19Z"/>`,
+   mountain:     `<path d="M3 19 9.5 8l3.2 5 2-2.6L20 19Z"/>`,
+  chain:        `<path d="M9.5 14.5a3.5 3.5 0 0 1 0-5l2-2a3.5 3.5 0 0 1 5 5l-1 1"/><path d="M14.5 9.5a3.5 3.5 0 0 1 0 5l-2 2a3.5 3.5 0 0 1-5-5l1-1"/>`,
   navArrow:      `<path d="M12 3 6 20l6-3.5L18 20Z" fill="currentColor" stroke="none"/>`,
   navRoundabout: `<circle cx="12" cy="12" r="6.5"/><path d="M12 5.7 14 8 12 5.7Z" fill="currentColor" stroke="none"/>`,
 };
@@ -9903,13 +9939,20 @@ function renderAlbumIndex(){
       <circle class="ap-track" cx="18" cy="18" r="${R}"/>
       <circle class="ap-fill" cx="18" cy="18" r="${R}" stroke-dasharray="${C * pct} ${C}"/>
     </svg>
-    <span class="ap-text"><b>${doneUnits}</b> de ${totalUnits} lugares descubiertos</span>`;
+       <span class="ap-text"><b>${doneUnits}</b> de ${totalUnits} experiencias descubiertas</span>`;
 
   albumChapters.innerHTML = '';
 
   LOCALITIES.forEach(locality => {
-    const count = placesInLocality(locality).filter(p => memories[p.id]).length + LocalityMemoryStore.count(locality.id);
-    const cover = chapterCoverImage(locality, memories);
+    // Discovered/total ahora se mide en EXPERIENCIAS de la comuna (mismo
+    // criterio de "descubierto" de siempre: MemoryStore.get(place.id)) — ya
+    // no en "recuerdos" sueltos. communeHeroImage() es la MISMA función ya
+    // usada en otras partes de la app (p. ej. cierre editorial) para
+    // resolver una imagen oficial real de la comuna sin inventar ninguna.
+    const localityPlaces = placesInLocality(locality);
+    const discoveredCount = localityPlaces.filter(p => memories[p.id]).length;
+    const total = localityPlaces.length;
+    const cover = communeHeroImage(locality);
     const chapter = document.createElement('div');
     chapter.className = 'chapter-cover' + (cover ? ' has-memories' : ' blueprint');
     if (cover){
@@ -9920,7 +9963,8 @@ function renderAlbumIndex(){
       <div class="cc-row">
         <div>
           <div class="cc-name">${locality.name}</div>
-          <div class="cc-count">${count ? `${count} recuerdo${count === 1 ? '' : 's'}` : 'Aún sin explorar'}</div>
+          <div class="cc-count">${discoveredCount}/${total} experiencia${total === 1 ? '' : 's'}</div>
+          ${discoveredCount === 0 ? `<div class="cc-status">Aún sin explorar</div>` : ''}
         </div>
         <span class="cc-arrow">${CHEVRON_RIGHT}</span>
       </div>`;
@@ -9979,55 +10023,44 @@ function primaryExperienceTag(place){
 function renderLocalityAlbum(localityId){
   const locality = LOCALITIES.find(l => l.id === localityId);
   if (!locality) return;
-    const memories = MemoryStore.getAll();
+  const memories = MemoryStore.getAll();
   albumDetailGrid.innerHTML = '';
 
   const localityPlaces = placesInLocality(locality);
   const discoveredInLocality = localityPlaces.filter(p => memories[p.id]).length;
   const progressEl = document.getElementById('albumDetailProgress');
   progressEl.style.display = 'block';
-  progressEl.textContent = `${discoveredInLocality}/${localityPlaces.length} en ${locality.name}`;
+  progressEl.textContent = `${discoveredInLocality}/${localityPlaces.length} experiencias descubiertas`;
 
-  const addTile = document.createElement('div');
-  addTile.className = 'album-card add-tile';
-  addTile.innerHTML = `${icon('sparkle',20)}<span>Agregar recuerdo libre</span>`;
-  addTile.addEventListener('click', () => {
-    memoryFileInput.dataset.contextType = 'locality';
-    memoryFileInput.dataset.localityId = localityId;
-    memoryFileInput.click();
-  });
-  albumDetailGrid.appendChild(addTile);
-
-  LocalityMemoryStore.getAll(localityId).forEach(memory => {
-    const card = document.createElement('div');
-    card.className = 'album-card unlocked';
-    card.style.backgroundImage = `url(${memory.photoUrl})`;
-    card.innerHTML = `<div class="ac-info"><div class="ac-name">${locality.name}</div></div>`;
-    card.addEventListener('click', () => openLocalityMemoryDetail(locality, memory));
-    albumDetailGrid.appendChild(card);
-  });
-
-    placesInLocality(locality).forEach(place => {
+  // FASE 1 — esta grilla representa EXCLUSIVAMENTE las experiencias reales
+  // de la comuna (ver placesInLocality, misma fuente que ya usa el mapa).
+  // Se retiró el tile "Agregar recuerdo libre" y las tarjetas de recuerdos
+  // sin POI asociado (antes vía LocalityMemoryStore) — esos datos siguen
+  // intactos en su store y siguen contando en las estadísticas de la
+  // portada del álbum, solo dejan de mostrarse en esta vista específica.
+  localityPlaces.forEach(place => {
     const memory = memories[place.id];
-    const tag = primaryExperienceTag(place); // una de las 8 categorías reales — nunca CATEGORIES
+    const tag = primaryExperienceTag(place); // una de las 8 categorías reales
     const card = document.createElement('div');
     if (memory){
+      // DESCUBIERTA — tratamiento normal: foto (personal, ya que "descubierta"
+      // implica que existe una), nombre, y categoría como info secundaria.
       card.className = 'album-card unlocked';
       card.style.backgroundImage = `url(${memory.photoUrl})`;
-      card.innerHTML = `<div class="ac-info"><div class="ac-name">${place.name}</div></div>`;
+      card.innerHTML = `<div class="ac-info"><div class="ac-name">${place.name}</div><div class="ac-loc">${tag.label}</div></div>`;
       card.addEventListener('click', () => openPlaceMemoryDetail(place));
     } else {
+      // AÚN POR DESCUBRIR — fotografía oficial de la experiencia (place.image,
+      // dato real existente, nunca inventado) difuminada/oscurecida detrás de
+      // un ícono de cadena turquesa — identidad de marca, no estética gaming.
+      // Mismo comportamiento de siempre al tocarla: vuelve al mapa sobre esa
+      // experiencia (selectPlaceById) — el desbloqueo real es Fase 2.
       card.className = 'album-card locked';
-      // Tinte sutil de la categoría real de experiencia (mismo sistema de
-      // colores --exp-* que usa el resto de la app) sobre ícono, borde y fondo
-      // — da una pista de qué tipo de experiencia es, sin revelar nombre, foto
-      // ni ubicación.
-           const tagColor = getComputedStyle(document.documentElement).getPropertyValue(tag.color.replace('var(','').replace(')','')).trim();
-      card.style.borderColor = `${tagColor}55`;
-      card.style.background = `${tagColor}1C`;
       card.innerHTML = `
-        <span class="lock-badge" style="color:${tagColor}; border-color:${tagColor}80; background:${tagColor}22;">${icon(tag.iconKey, 22)}</span>
-        <span class="lock-label">Aún sin descubrir</span>`;
+        <div class="ac-locked-photo" style="background-image:url(${place.image})"></div>
+        <div class="ac-locked-overlay"></div>
+        <span class="ac-chain">${icon('chain', 22)}</span>
+        <span class="lock-label">Aún por descubrir</span>`;
       card.addEventListener('click', () => { closeAlbum(); selectPlaceById(place.id); });
     }
     albumDetailGrid.appendChild(card);
@@ -10069,12 +10102,18 @@ function renderPersonalAlbum(){
 const memoryDetail = document.getElementById('memoryDetail');
 let memoryDetailContext = null;
 
-function populateMemoryDetail({ photoUrl, name, loc, caption, createdAt }){
+function populateMemoryDetail({ photoUrl, name, loc, caption, createdAt, showExperienceDetail }){
   document.getElementById('mdPhoto').style.backgroundImage = `url(${photoUrl})`;
   document.getElementById('mdName').textContent = name;
   document.getElementById('mdLoc').textContent = loc || '';
   document.getElementById('mdCaption').textContent = caption ? `"${caption}"` : '';
   document.getElementById('mdDate').textContent = new Date(createdAt).toLocaleDateString('es-CL', { day:'numeric', month:'long', year:'numeric' });
+  // "Descubierta" + "Mis recuerdos" — estructura preparada para el detalle
+  // real de experiencia (FASE 1, solo visual); únicamente para el contexto
+  // 'place' (openPlaceMemoryDetail). Recuerdos libres/personales conservan
+  // exactamente su comportamiento anterior, sin estos dos elementos.
+  document.getElementById('mdStatusRow').style.display = showExperienceDetail ? 'block' : 'none';
+  document.getElementById('mdRecuerdosTitle').style.display = showExperienceDetail ? 'block' : 'none';
   memoryDetail.classList.add('visible');
 }
 
@@ -10082,7 +10121,8 @@ function openPlaceMemoryDetail(place){
   const memory = MemoryStore.get(place.id);
   if (!memory) return;
   memoryDetailContext = { type:'place', placeId:place.id };
-  populateMemoryDetail({ photoUrl:memory.photoUrl, name:place.name, loc:place.locality, caption:memory.caption, createdAt:memory.createdAt });
+  const tag = primaryExperienceTag(place);
+  populateMemoryDetail({ photoUrl:memory.photoUrl, name:place.name, loc:`${tag.label} · ${place.locality}`, caption:memory.caption, createdAt:memory.createdAt, showExperienceDetail:true });
 }
 function openLocalityMemoryDetail(locality, memory){
   memoryDetailContext = { type:'locality', localityId:locality.id, memoryId:memory.id };
