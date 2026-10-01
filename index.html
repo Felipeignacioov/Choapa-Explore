@@ -7084,6 +7084,81 @@ async function toggleSavedPlace(placeId){
     return { ok:true, saved:true };
   }
 }
+
+/* ============================================================
+   FASE 2 — CAMBIO 1: SISTEMA BASE DE EXPERIENCIAS DESCUBIERTAS
+   ============================================================
+   Mismo patrón EXACTO ya validado en Guardados (Set en memoria + flags de
+   carga + promesa compartida) — concepto deliberadamente separado de
+   MemoryStore: "descubierta" (proximidad física + acción explícita, futuras
+   etapas) nunca es sinónimo de "tiene foto personal". MemoryStore no se
+   toca, no se migra, no se mezcla con este sistema. */
+let discoveredExperienceIds = new Set();
+let discoveredExperiencesLoaded = true;
+let discoveredExperiencesLoadPromise = null;
+
+// Carga los descubrimientos del usuario actual — mismo molde que
+// loadSavedPlaces(): sin sesión, limpia y termina sin consultar; con una
+// carga ya en curso, devuelve la MISMA promesa en vez de duplicar el
+// request; ante un error de Supabase, nunca inventa un estado, el Set queda
+// vacío y discoveredExperiencesLoaded permanece false.
+async function loadDiscoveredExperiences(){
+  if (!currentAuthUser){
+    discoveredExperienceIds.clear();
+    discoveredExperiencesLoaded = true;
+    discoveredExperiencesLoadPromise = null;
+    return;
+  }
+  if (discoveredExperiencesLoadPromise) return discoveredExperiencesLoadPromise;
+
+  discoveredExperiencesLoaded = false;
+  discoveredExperiencesLoadPromise = (async () => {
+    discoveredExperienceIds.clear();
+    const { data, error } = await supabaseClient
+      .from('discovered_experiences')
+      .select('experience_id')
+      .eq('user_id', currentAuthUser.id);
+
+    if (error){
+      console.error('[Álbum] Error cargando discovered_experiences:', error);
+      discoveredExperiencesLoadPromise = null;
+      return;
+    }
+
+    (data || []).forEach(row => discoveredExperienceIds.add(row.experience_id));
+    discoveredExperiencesLoaded = true;
+    discoveredExperiencesLoadPromise = null;
+  })();
+
+  return discoveredExperiencesLoadPromise;
+}
+
+// Función base de escritura — capa de datos para la SIGUIENTE etapa de Fase
+// 2 (GPS + botón "Desbloquear experiencia"). Deliberadamente NO conectada a
+// ningún botón, GPS ni flujo visible todavía — nadie la llama en este
+// cambio. El constraint único (user_id, experience_id) ya protege contra
+// duplicados en el servidor; el código 23505 (violación de unicidad) se
+// trata como éxito, ya que el estado final deseado (descubierta) ya es real.
+async function discoverExperience(experienceId){
+  if (!currentAuthUser) return { ok:false };
+  if (discoveredExperienceIds.has(experienceId)) return { ok:true, alreadyDiscovered:true };
+
+  const { error } = await supabaseClient
+    .from('discovered_experiences')
+    .insert({ user_id: currentAuthUser.id, experience_id: experienceId });
+
+  if (error){
+    if (error.code === '23505'){
+      discoveredExperienceIds.add(experienceId);
+      return { ok:true, alreadyDiscovered:true };
+    }
+    console.error('[Álbum] Error registrando descubrimiento:', error);
+    return { ok:false };
+  }
+
+  discoveredExperienceIds.add(experienceId);
+  return { ok:true, alreadyDiscovered:false };
+}
 /* ============================================================
    MI ÁLBUM DEL CHOAPA — capa de datos
    ============================================================
@@ -9933,23 +10008,29 @@ function chapterCoverImage(locality, memories){
 
 function renderAlbumIndex(){
   const memories = MemoryStore.getAll();
+  // memoryPlaces se conserva EXCLUSIVAMENTE para statMemories (recuerdos/
+  // fotos guardadas) — ya no decide "descubierta" en ningún punto de esta
+  // función. discoveredPlaces es la nueva fuente de verdad, separada.
   const memoryPlaces = Object.keys(memories).map(id => DEMO_PLACES.find(p => p.id === id)).filter(Boolean);
+  const discoveredPlaces = [...discoveredExperienceIds].map(id => DEMO_PLACES.find(p => p.id === id)).filter(Boolean);
   const freeformTotal = LOCALITIES.reduce((sum, l) => sum + LocalityMemoryStore.count(l.id), 0);
   const personalTotal = PersonalMemoryStore.count();
 
-  const exploredLocalities = new Set([
-    ...memoryPlaces.map(p => (LOCALITIES.find(l => l.aliases.includes(p.locality)) || {}).id).filter(Boolean),
-    ...LOCALITIES.filter(l => LocalityMemoryStore.count(l.id) > 0).map(l => l.id),
-  ]);
+  // Localidad explorada = al menos una experiencia descubierta en ella —
+  // definición acordada para esta etapa; ya no depende de MemoryStore ni de
+  // LocalityMemoryStore.
+  const exploredLocalities = new Set(
+    discoveredPlaces.map(p => (LOCALITIES.find(l => l.aliases.includes(p.locality)) || {}).id).filter(Boolean)
+  );
 
-  document.getElementById('statExperiences').textContent = `${memoryPlaces.length}/${DEMO_PLACES.length}`;
+  document.getElementById('statExperiences').textContent = `${discoveredPlaces.length}/${DEMO_PLACES.length}`;
   document.getElementById('statLocalities').textContent = exploredLocalities.size;
   document.getElementById('statMemories').textContent = memoryPlaces.length + freeformTotal + personalTotal;
 
-  // Anillo de progreso — mismo dato que ya usa el primer stat (X/Y), solo que acá
-  // se lee de un vistazo en vez de tener que leer la fracción.
+  // Anillo de progreso — mismo dato que ya usa el primer stat (X/Y), ahora
+  // basado en discoveredPlaces, no en fotos.
   const totalUnits = DEMO_PLACES.length;
-  const doneUnits = memoryPlaces.length;
+  const doneUnits = discoveredPlaces.length;
   const pct = totalUnits ? doneUnits / totalUnits : 0;
   const R = 15, C = 2 * Math.PI * R;
   document.getElementById('albumProgress').innerHTML = `
@@ -9961,14 +10042,9 @@ function renderAlbumIndex(){
 
   albumChapters.innerHTML = '';
 
-  LOCALITIES.forEach(locality => {
-    // Discovered/total ahora se mide en EXPERIENCIAS de la comuna (mismo
-    // criterio de "descubierto" de siempre: MemoryStore.get(place.id)) — ya
-    // no en "recuerdos" sueltos. communeHeroImage() es la MISMA función ya
-    // usada en otras partes de la app (p. ej. cierre editorial) para
-    // resolver una imagen oficial real de la comuna sin inventar ninguna.
+   LOCALITIES.forEach(locality => {
     const localityPlaces = placesInLocality(locality);
-    const discoveredCount = localityPlaces.filter(p => memories[p.id]).length;
+    const discoveredCount = localityPlaces.filter(p => discoveredExperienceIds.has(p.id)).length;
     const total = localityPlaces.length;
     const cover = communeHeroImage(locality);
     const chapter = document.createElement('div');
@@ -10041,30 +10117,33 @@ function primaryExperienceTag(place){
 function renderLocalityAlbum(localityId){
   const locality = LOCALITIES.find(l => l.id === localityId);
   if (!locality) return;
-  const memories = MemoryStore.getAll();
+  const memories = MemoryStore.getAll(); // sigue existiendo, exclusivamente para la foto a mostrar (si la hay), nunca para decidir el estado
   albumDetailGrid.innerHTML = '';
 
   const localityPlaces = placesInLocality(locality);
-  const discoveredInLocality = localityPlaces.filter(p => memories[p.id]).length;
+  // Fuente de verdad del estado "descubierta": discoveredExperienceIds —
+  // MemoryStore ya NO decide este estado, solo aporta la foto si existe.
+  const discoveredInLocality = localityPlaces.filter(p => discoveredExperienceIds.has(p.id)).length;
   const progressEl = document.getElementById('albumDetailProgress');
   progressEl.style.display = 'block';
   progressEl.textContent = `${discoveredInLocality}/${localityPlaces.length} experiencias descubiertas`;
 
-  // FASE 1 — esta grilla representa EXCLUSIVAMENTE las experiencias reales
-  // de la comuna (ver placesInLocality, misma fuente que ya usa el mapa).
-  // Se retiró el tile "Agregar recuerdo libre" y las tarjetas de recuerdos
-  // sin POI asociado (antes vía LocalityMemoryStore) — esos datos siguen
-  // intactos en su store y siguen contando en las estadísticas de la
-  // portada del álbum, solo dejan de mostrarse en esta vista específica.
   localityPlaces.forEach(place => {
     const memory = memories[place.id];
+    const isDiscovered = discoveredExperienceIds.has(place.id);
     const tag = primaryExperienceTag(place); // una de las 8 categorías reales
     const card = document.createElement('div');
-    if (memory){
-      // DESCUBIERTA — tratamiento normal: foto (personal, ya que "descubierta"
-      // implica que existe una), nombre, y categoría como info secundaria.
+    if (isDiscovered){
+      // DESCUBIERTA — mismo diseño visual de siempre, sin rediseñar. Puede
+      // existir DESCUBIERTA + SIN RECUERDO (el cambio conceptual central de
+      // este paso): en ese caso se usa la fotografía OFICIAL (place.image,
+      // dato real existente) como fondo, nunca una imagen inventada; con
+      // recuerdo personal, ese sigue siendo el fondo preferido, igual que
+      // antes. openPlaceMemoryDetail() ya maneja con seguridad el caso sin
+      // memoria (retorna sin abrir nada) — comportamiento preexistente, sin
+      // tocar.
       card.className = 'album-card unlocked';
-      card.style.backgroundImage = `url(${memory.photoUrl})`;
+      card.style.backgroundImage = `url(${memory ? memory.photoUrl : place.image})`;
       card.innerHTML = `<div class="ac-info"><div class="ac-name">${place.name}</div><div class="ac-loc">${tag.label}</div></div>`;
       card.addEventListener('click', () => openPlaceMemoryDetail(place));
     } else {
@@ -10328,12 +10407,16 @@ if (supabaseClient){
     // loadSavedPlaces() ya gestiona internamente savedPlacesLoaded/
     // savedPlacesLoadPromise (y evita duplicar la consulta si openGuardados()
     // ya la había iniciado); sin sesión, se limpia todo de inmediato.
-    if (currentAuthUser){
+       if (currentAuthUser){
       loadSavedPlaces();
+      loadDiscoveredExperiences(); // mismo listener único — sin crear uno nuevo
     } else {
       savedPlaceIds.clear();
       savedPlacesLoaded = true;
       savedPlacesLoadPromise = null;
+      discoveredExperienceIds.clear();
+      discoveredExperiencesLoaded = true;
+      discoveredExperiencesLoadPromise = null;
     }
   });
 }
