@@ -7475,10 +7475,17 @@ function selectPlace(place, el){
 
   // Ideal para — reutiliza EXACTAMENTE las experiencias/categorías ya existentes,
   // nada de un campo de etiquetas nuevo.
-  const idealWrap = document.getElementById('poiDetailIdeal');
+   const idealWrap = document.getElementById('poiDetailIdeal');
   const idealTags = (place.experiences || []).map(id => expById(id)).filter(Boolean);
   idealWrap.innerHTML = idealTags.map(t => `<span class="pd-tag">${t.icon} ${t.label}</span>`).join('');
   document.getElementById('poiDetailIdealSection').style.display = idealTags.length ? 'block' : 'none';
+
+  // Re-confirma el estado del CTA de desbloqueo GPS en cada apertura de
+  // ficha. updatePOIDiscoverUI() es idempotente (solo lee
+  // discoveredExperienceIds y ajusta un display) — si ya existiera otra
+  // llamada en este mismo flujo, esta no causa ningún efecto adicional, solo
+  // garantiza que la fila quede correctamente mostrada/ocultada.
+  if (typeof updatePOIDiscoverUI === 'function') updatePOIDiscoverUI(place);
 
     // Estado del CTA de desbloqueo — se recalcula en cada apertura de ficha,
   // mismo criterio que el resto de los botones de esta función.
