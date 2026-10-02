@@ -1494,6 +1494,25 @@ img{-webkit-user-drag:none; user-select:none;}
 .poi-card .meta-item{display:flex; align-items:center; gap:5px; font-size:11.5px; color:var(--text-tertiary); font-weight:500;}
 .poi-card .meta-row:empty{display:none; margin:0;}
 
+/* CTA de desbloqueo GPS — mismo radius/paleta/tipografía ya usados en el
+   resto de .poi-card, sin ningún componente/modal nuevo. */
+.pd-discover-row{margin-bottom:12px;}
+.pd-discover-btn{
+  width:100%; display:flex; align-items:center; justify-content:center; gap:8px;
+  background:rgba(95,225,232,0.1); border:1px solid rgba(95,225,232,0.3);
+  color:var(--turquoise-bright); font-weight:700; font-size:13px;
+  padding:11px; border-radius:var(--radius-m);
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1), opacity .16s ease;
+}
+.pd-discover-btn:active{transform:scale(0.98);}
+.pd-discover-btn:disabled{opacity:0.6;}
+.pd-discover-status{
+  margin-top:9px; padding:9px 12px; border-radius:var(--radius-m);
+  font-size:12px; color:var(--text-secondary);
+  background:rgba(255,255,255,0.04); border:1px solid var(--border-glass);
+}
+.pd-discover-status.error{color:#F0625B; border-color:rgba(240,98,91,0.3); background:rgba(240,98,91,0.08);}
+
 .poi-card .actions-row{display:flex; gap:9px; margin-top:2px;}
 .poi-card .btn-directions{
   flex:1; display:flex; align-items:center; justify-content:center; gap:7px;
@@ -2515,6 +2534,18 @@ img{-webkit-user-drag:none; user-select:none;}
       <div class="pd-section" id="poiDetailIdealSection" style="display:none;">
         <div class="pd-section-title">Ideal para</div>
         <div class="pd-tags" id="poiDetailIdeal"></div>
+      </div>
+
+           <!-- CTA de desbloqueo por proximidad GPS — oculto por defecto, se
+           muestra/oculta vía JS según discoveredExperienceIds.has(place.id).
+           Reutiliza el mismo lenguaje visual de la ficha, sin modal ni
+           componente nuevo. -->
+      <div class="pd-discover-row" id="poiDiscoverRow" style="display:none;">
+        <button class="pd-discover-btn" id="poiDiscoverBtn">
+          <span id="poiDiscoverBtnIcon"></span>
+          <span id="poiDiscoverBtnText">Desbloquear experiencia</span>
+        </button>
+        <div class="pd-discover-status" id="poiDiscoverStatus" style="display:none;"></div>
       </div>
 
       <div class="actions-row">
@@ -5570,6 +5601,104 @@ function ensurePOISelectedLayer(){
   });
 }
 
+/* ---------- FASE 2 — CHANGE 2: desbloqueo por proximidad GPS ---------- */
+let discoveryRequestInFlight = false; // evita múltiples solicitudes GPS simultáneas
+
+function updatePOIDiscoverUI(place){
+  const row = document.getElementById('poiDiscoverRow');
+  const statusEl = document.getElementById('poiDiscoverStatus');
+  statusEl.style.display = 'none';
+  statusEl.className = 'pd-discover-status';
+  if (!place || discoveredExperienceIds.has(place.id)){
+    // Ya descubierta (o sin lugar) — nunca se muestra el CTA, nunca se
+    // solicita GPS. El estado "descubierta" ya se comunica en otro punto
+    // de la ficha (sin tocar), este bloque solo deja de existir.
+    row.style.display = 'none';
+    return;
+  }
+  row.style.display = 'block';
+  setPOIDiscoverBtnState('idle');
+}
+
+function setPOIDiscoverBtnState(mode){
+  const btn = document.getElementById('poiDiscoverBtn');
+  const icon = document.getElementById('poiDiscoverBtnIcon');
+  const text = document.getElementById('poiDiscoverBtnText');
+  if (mode === 'loading'){
+    btn.disabled = true;
+    icon.innerHTML = '';
+    text.textContent = 'Comprobando ubicación…';
+  } else {
+    btn.disabled = false;
+    icon.innerHTML = '';
+    text.textContent = 'Desbloquear experiencia';
+  }
+}
+
+function showPOIDiscoverStatus(message, isError){
+  const statusEl = document.getElementById('poiDiscoverStatus');
+  statusEl.textContent = message;
+  statusEl.className = 'pd-discover-status' + (isError ? ' error' : '');
+  statusEl.style.display = 'block';
+}
+
+async function handleDiscoverClick(){
+  requireAuth(async () => {
+    const place = state.selectedPlace;
+    if (!place) return;
+    if (discoveredExperienceIds.has(place.id)) return; // ya descubierta — nunca solicita GPS
+    if (discoveryRequestInFlight) return; // evita solicitudes GPS simultáneas
+    if (!navigator.geolocation){
+      showPOIDiscoverStatus('Tu dispositivo no permite acceder a la ubicación.', true);
+      return;
+    }
+
+    discoveryRequestInFlight = true;
+    setPOIDiscoverBtnState('loading');
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        discoveryRequestInFlight = false;
+        // El POI pudo haber cambiado mientras se esperaba el GPS — se
+        // valida contra el seleccionado en este instante, no el de cuando
+        // se inició la solicitud.
+        if (!state.selectedPlace || state.selectedPlace.id !== place.id){
+          setPOIDiscoverBtnState('idle');
+          return;
+        }
+        const distanceM = distanceKm(pos.coords.latitude, pos.coords.longitude, place.lat, place.lng) * 1000;
+
+        if (distanceM > DISCOVERY_RADIUS_METERS){
+          setPOIDiscoverBtnState('idle');
+          showPOIDiscoverStatus('Aún no estás en el lugar.');
+          return;
+        }
+
+        const result = await discoverExperience(place.id);
+        if (!result.ok){
+          setPOIDiscoverBtnState('idle');
+          showPOIDiscoverStatus('No pudimos registrar tu descubrimiento. Inténtalo de nuevo.', true);
+          return;
+        }
+        // Éxito — se retira el CTA de inmediato, sin tocar MemoryStore, sin
+        // crear recuerdos, sin recargar la página. El resto de la ficha
+        // (botones de guardar/foto) no se toca en este cambio.
+        updatePOIDiscoverUI(place);
+      },
+      (err) => {
+        discoveryRequestInFlight = false;
+        setPOIDiscoverBtnState('idle');
+        if (err.code === 1) showPOIDiscoverStatus('Acepta el acceso a tu ubicación para desbloquear esta experiencia.', true);
+        else if (err.code === 2) showPOIDiscoverStatus('No pudimos obtener tu ubicación. Inténtalo de nuevo.', true);
+        else if (err.code === 3) showPOIDiscoverStatus('No pudimos obtener tu ubicación a tiempo. Inténtalo de nuevo.', true);
+        else showPOIDiscoverStatus('No pudimos obtener tu ubicación. Inténtalo de nuevo.', true);
+      },
+      { enableHighAccuracy:true, timeout:12000, maximumAge:0 }
+    );
+  });
+}
+document.getElementById('poiDiscoverBtn').addEventListener('click', handleDiscoverClick);
+
 // place=null limpia la selección. Un solo feature a la vez: setData() reemplaza
 // todo el FeatureCollection, así que elegir un POI nuevo deselecciona el anterior
 // automáticamente, sin lógica adicional.
@@ -7139,6 +7268,11 @@ async function loadDiscoveredExperiences(){
 // cambio. El constraint único (user_id, experience_id) ya protege contra
 // duplicados en el servidor; el código 23505 (violación de unicidad) se
 // trata como éxito, ya que el estado final deseado (descubierta) ya es real.
+// Radio único global del MVP — ver sección 1 del enunciado. Nunca hardcodeado
+// en más de un lugar; todo el cálculo de proximidad de esta fase lo
+// referencia desde acá.
+const DISCOVERY_RADIUS_METERS = 100;
+
 async function discoverExperience(experienceId){
   if (!currentAuthUser) return { ok:false };
   if (discoveredExperienceIds.has(experienceId)) return { ok:true, alreadyDiscovered:true };
@@ -7346,7 +7480,11 @@ function selectPlace(place, el){
   idealWrap.innerHTML = idealTags.map(t => `<span class="pd-tag">${t.icon} ${t.label}</span>`).join('');
   document.getElementById('poiDetailIdealSection').style.display = idealTags.length ? 'block' : 'none';
 
-    // Guardado — mismo Set en memoria de siempre. Si hay sesión y la carga
+    // Estado del CTA de desbloqueo — se recalcula en cada apertura de ficha,
+  // mismo criterio que el resto de los botones de esta función.
+  updatePOIDiscoverUI(place);
+
+  // Guardado — mismo Set en memoria de siempre. Si hay sesión y la carga
   // inicial de saved_places todavía está en curso (condición de carrera
   // login→apertura de POI), se pinta el estado por defecto (no guardado) y
   // se corrige en cuanto la MISMA promesa (savedPlacesLoadPromise, nunca una
