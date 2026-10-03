@@ -2073,6 +2073,14 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 .md-exp-empty-title{font-family:var(--font-display); font-size:15px; font-weight:700; color:var(--text-primary);}
 .md-exp-empty-sub{font-size:12.5px; color:var(--text-secondary); line-height:1.5; margin-top:6px; max-width:260px;}
+.md-exp-add{
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  margin-top:18px; padding:11px 20px; border-radius:var(--radius-pill);
+  background:rgba(95,225,232,0.1); border:1px solid rgba(95,225,232,0.35);
+  color:var(--turquoise-bright); font-size:13px; font-weight:700;
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1), background .18s ease;
+}
+.md-exp-add:active{transform:scale(0.97); background:rgba(95,225,232,0.18);}
 .md-exp-context{display:flex; align-items:center; gap:10px; margin-top:22px;}
 .md-exp-context-photo{
   width:44px; height:44px; border-radius:var(--radius-s); flex-shrink:0;
@@ -9087,7 +9095,11 @@ memoryFileInput.addEventListener('change', async (e) => {
       if (state.selectedPlace && state.selectedPlace.id === placeId){
         document.getElementById('poiDetailMemoryBtn').classList.add('saved');
       }
-      showMemoryToast(place.name, place.locality);
+          showMemoryToast(place.name, place.locality);
+      // Si "Mis recuerdos" de esta experiencia está abierto, se refresca en el mismo lugar.
+      if (memoryDetail.classList.contains('memory-detail--experience') && memoryDetailContext && memoryDetailContext.type === 'place' && memoryDetailContext.placeId === placeId){
+        renderMemoryExperience(place);
+      }
     } else if (contextType === 'locality'){
       const locality = LOCALITIES.find(l => l.id === localityId);
       if (!locality) return;
@@ -10536,7 +10548,8 @@ function renderMemoryExperience(place){
       <div class="md-exp-empty">
         <span class="md-exp-empty-icon">${icon('camera', 24)}</span>
         <div class="md-exp-empty-title">Aún no tienes recuerdos de esta experiencia.</div>
-        <div class="md-exp-empty-sub">Usa la cámara desde la experiencia para guardar el primero.</div>
+               <div class="md-exp-empty-sub">Guarda una foto para empezar tu historia en este lugar.</div>
+        <button class="md-exp-add" id="mdExpAdd">${icon('camera', 15)}<span>Añadir primer recuerdo</span></button>
       </div>
       ${place.image ? `
       <div class="md-exp-context">
@@ -10553,6 +10566,15 @@ function renderMemoryExperience(place){
       ${body}
     </div>`;
   wrap.scrollTop = 0;
+
+   // Primer recuerdo directo desde esta vista — reutiliza el mismo input/flujo de la cámara del POI.
+  const addBtn = wrap.querySelector('#mdExpAdd');
+  if (addBtn) addBtn.addEventListener('click', () => {
+    if (!discoveredExperienceIds.has(place.id)) return; // solo experiencias ya descubiertas
+    memoryFileInput.dataset.contextType = 'place';
+    memoryFileInput.dataset.placeId = place.id;
+    memoryFileInput.click();
+  });
 
   const cover = wrap.querySelector('#mdExpCover');
   if (cover) cover.addEventListener('click', () => openGallery(photos, 0));
