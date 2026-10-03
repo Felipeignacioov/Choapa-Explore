@@ -2770,7 +2770,7 @@ img{-webkit-user-drag:none; user-select:none;}
         <div class="md-caption" id="mdCaption">"Yo estuve aquí."</div>
         <div class="md-date" id="mdDate">—</div>
         <div class="md-section-title" id="mdRecuerdosTitle" style="display:none;">Mis recuerdos</div>
-               <div class="md-actions">
+               <div class="md-actions" id="mdActions">
           <button class="md-btn" id="mdReplace">Reemplazar foto</button>
           <button class="md-btn md-btn-danger" id="mdDelete">Eliminar recuerdo</button>
         </div>
@@ -5634,7 +5634,7 @@ function updatePOIDiscoverUI(place){
   const statusEl = document.getElementById('poiDiscoverStatus');
   statusEl.style.display = 'none';
   statusEl.className = 'pd-discover-status';
-  if (!place || discoveredExperienceIds.has(place.id)){
+   if (!place){
     // Ya descubierta (o sin lugar) — nunca se muestra el CTA, nunca se
     // solicita GPS. El estado "descubierta" ya se comunica en otro punto
     // de la ficha (sin tocar), este bloque solo deja de existir.
@@ -5642,7 +5642,7 @@ function updatePOIDiscoverUI(place){
     return;
   }
    row.style.display = 'block';
-  setPOIDiscoverBtnState('idle');
+  setPOIDiscoverBtnState(discoveredExperienceIds.has(place.id) ? 'memories' : 'idle');
 }
 
 // Candado del botón de recuerdo — depende EXCLUSIVAMENTE de
@@ -5671,15 +5671,19 @@ function showDiscoverSuccessToast(){
 
 function setPOIDiscoverBtnState(mode){
   const btn = document.getElementById('poiDiscoverBtn');
-  const icon = document.getElementById('poiDiscoverBtnIcon');
+  const iconEl = document.getElementById('poiDiscoverBtnIcon');
   const text = document.getElementById('poiDiscoverBtnText');
   if (mode === 'loading'){
     btn.disabled = true;
-    icon.innerHTML = '';
+    iconEl.innerHTML = '';
     text.textContent = 'Comprobando ubicación…';
+  } else if (mode === 'memories'){
+    btn.disabled = false;
+    iconEl.innerHTML = icon('book', 15);
+    text.textContent = 'Ver mis recuerdos';
   } else {
     btn.disabled = false;
-    icon.innerHTML = '';
+    iconEl.innerHTML = '';
     text.textContent = 'Desbloquear experiencia';
   }
 }
@@ -5695,7 +5699,7 @@ async function handleDiscoverClick(){
   requireAuth(async () => {
     const place = state.selectedPlace;
     if (!place) return;
-    if (discoveredExperienceIds.has(place.id)) return; // ya descubierta — nunca solicita GPS
+       if (discoveredExperienceIds.has(place.id)){ openPOIMemories(place); return; } // ya descubierta — nunca solicita GPS
     if (discoveryRequestInFlight) return; // evita solicitudes GPS simultáneas
     if (!navigator.geolocation){
       showPOIDiscoverStatus('Tu dispositivo no permite acceder a la ubicación.', true);
@@ -10407,12 +10411,14 @@ function renderPersonalAlbum(){
 const memoryDetail = document.getElementById('memoryDetail');
 let memoryDetailContext = null;
 
-function populateMemoryDetail({ photoUrl, name, loc, caption, createdAt, showExperienceDetail }){
+function populateMemoryDetail({ photoUrl, name, loc, caption, createdAt, showExperienceDetail, empty }){
   document.getElementById('mdPhoto').style.backgroundImage = `url(${photoUrl})`;
   document.getElementById('mdName').textContent = name;
   document.getElementById('mdLoc').textContent = loc || '';
   document.getElementById('mdCaption').textContent = caption ? `"${caption}"` : '';
-  document.getElementById('mdDate').textContent = new Date(createdAt).toLocaleDateString('es-CL', { day:'numeric', month:'long', year:'numeric' });
+   document.getElementById('mdDate').textContent = createdAt ? new Date(createdAt).toLocaleDateString('es-CL', { day:'numeric', month:'long', year:'numeric' }) : '';
+  document.getElementById('mdActions').style.display = empty ? 'none' : '';
+  if (empty) document.getElementById('mdCaption').textContent = 'Aún no tienes recuerdos de esta experiencia. Usa la cámara para guardar el primero.';
   // "Descubierta" + "Mis recuerdos" — estructura preparada para el detalle
   // real de experiencia (FASE 1, solo visual); únicamente para el contexto
   // 'place' (openPlaceMemoryDetail). Recuerdos libres/personales conservan
@@ -10428,6 +10434,16 @@ function openPlaceMemoryDetail(place){
   memoryDetailContext = { type:'place', placeId:place.id };
   const tag = primaryExperienceTag(place);
   populateMemoryDetail({ photoUrl:memory.photoUrl, name:place.name, loc:`${tag.label} · ${place.locality}`, caption:memory.caption, createdAt:memory.createdAt, showExperienceDetail:true });
+}
+// Entrada desde el CTA "Ver mis recuerdos" del POI. Reutiliza el detalle existente
+// si ya hay recuerdo; si no, abre el mismo modal en estado vacío (sin acciones,
+// sin cámara, sin escribir en MemoryStore).
+function openPOIMemories(place){
+  if (!place) return;
+  if (MemoryStore.get(place.id)){ openPlaceMemoryDetail(place); return; }
+  memoryDetailContext = null; // sin contexto: Reemplazar/Eliminar no hacen nada
+  const tag = primaryExperienceTag(place);
+  populateMemoryDetail({ photoUrl:place.image, name:place.name, loc:`${tag.label} · ${place.locality}`, caption:'', createdAt:null, showExperienceDetail:true, empty:true });
 }
 function openLocalityMemoryDetail(locality, memory){
   memoryDetailContext = { type:'locality', localityId:locality.id, memoryId:memory.id };
