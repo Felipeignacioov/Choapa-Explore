@@ -2031,6 +2031,13 @@ img{-webkit-user-drag:none; user-select:none;}
   background:rgba(16,36,56,0.7); border:1px solid var(--border-glass);
 }
 .md-exp-inner{max-width:520px; margin:0 auto;}
+/* Indicador de "hay más abajo": degradado fijo al borde inferior, no intercepta toques */
+.memory-detail--experience .memory-detail-card::after{
+  content:''; position:absolute; left:0; right:0; bottom:0; height:110px; z-index:2;
+  background:linear-gradient(to bottom, rgba(7,19,31,0), rgba(7,19,31,0.88) 70%, var(--bg-primary) 100%);
+  pointer-events:none; opacity:0; transition:opacity .3s ease;
+}
+.memory-detail--experience .memory-detail-card.md-exp-has-more::after{opacity:1;}
 .md-exp-eyebrow{
   font-size:10.5px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase;
   color:var(--turquoise-bright); margin:8px 0 10px; padding-right:48px;
@@ -10550,6 +10557,17 @@ function openPlaceMemoryDetail(place){
 // Pinta "Mis recuerdos" de una experiencia dentro de #mdExp. Solo fotos PERSONALES
 // (MemoryStore.getAllForPlace); la foto oficial únicamente aparece como contexto
 // discreto en el estado vacío.
+// Muestra la difuminación inferior solo si #mdExp se puede seguir deslizando hacia abajo.
+function updateMemoryExpScrollHint(){
+  const wrap = document.getElementById('mdExp');
+  const card = wrap.closest('.memory-detail-card');
+  if (!wrap || !card) return;
+  const more = wrap.scrollHeight - wrap.scrollTop - wrap.clientHeight > 8;
+  card.classList.toggle('md-exp-has-more', more);
+}
+document.getElementById('mdExp').addEventListener('scroll', updateMemoryExpScrollHint, { passive:true });
+window.addEventListener('resize', updateMemoryExpScrollHint);
+
 function renderMemoryExperience(place){
   const wrap = document.getElementById('mdExp');
   const photos = MemoryStore.getAllForPlace(place.id).map(m => m.photoUrl);
@@ -10587,7 +10605,8 @@ function renderMemoryExperience(place){
       <span class="md-status-badge">${check} Descubierta</span>
       ${body}
     </div>`;
-  wrap.scrollTop = 0;
+   wrap.scrollTop = 0;
+  requestAnimationFrame(updateMemoryExpScrollHint); // tras mostrarse la vista, ya hay medidas reales
 
    // Primer recuerdo directo desde esta vista — reutiliza el mismo input/flujo de la cámara del POI.
   const addBtn = wrap.querySelector('#mdExpAdd');
