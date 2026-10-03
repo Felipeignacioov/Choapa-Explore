@@ -2671,7 +2671,29 @@ img{-webkit-user-drag:none; user-select:none;}
     <div class="gallery-track" id="galleryTrack"></div>
   </div>
 
-  <input type="file" id="memoryFileInput" accept="image/*" capture="environment" style="display:none;">
+ <input type="file" id="memoryFileInput" accept="image/*" capture="environment" style="display:none;">
+  <input type="file" id="memoryGalleryInput" accept="image/*" style="display:none;">
+
+  <!-- Selector de origen del recuerdo (reutiliza el estilo del selector de transporte) -->
+  <div class="transport-sheet" id="memorySourceSheet">
+    <div class="transport-sheet-card">
+      <button class="close" id="memorySourceClose" aria-label="Cerrar">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <div class="transport-sheet-title">Añadir recuerdo</div>
+      <div class="transport-sheet-sub">Elige cómo quieres guardar tu foto.</div>
+      <div class="transport-modes">
+        <button class="transport-mode-btn" id="memorySourceCamera">
+          <span class="tm-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13.5" r="3.3"/></svg></span>
+          <span class="tm-label">Tomar foto</span>
+        </button>
+        <button class="transport-mode-btn" id="memorySourceGallery">
+          <span class="tm-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2.2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 17 5-4.5 3.5 3 2.5-2L20 17"/></svg></span>
+          <span class="tm-label">Elegir de galería</span>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- TOAST — confirmación al guardar un recuerdo -->
   <div class="memory-toast" id="memoryToast">
@@ -10570,10 +10592,10 @@ function renderMemoryExperience(place){
    // Primer recuerdo directo desde esta vista — reutiliza el mismo input/flujo de la cámara del POI.
   const addBtn = wrap.querySelector('#mdExpAdd');
   if (addBtn) addBtn.addEventListener('click', () => {
-    if (!discoveredExperienceIds.has(place.id)) return; // solo experiencias ya descubiertas
+       if (!discoveredExperienceIds.has(place.id)) return; // solo experiencias ya descubiertas
     memoryFileInput.dataset.contextType = 'place';
     memoryFileInput.dataset.placeId = place.id;
-    memoryFileInput.click();
+    openMemorySourceSheet();
   });
 
   const cover = wrap.querySelector('#mdExpCover');
@@ -10588,6 +10610,33 @@ function renderMemoryExperience(place){
   const del = wrap.querySelector('#mdExpDelete');
   if (del) del.addEventListener('click', () => document.getElementById('mdDelete').click());
 }
+
+// Selector "Tomar foto / Elegir de galería" — ambas rutas terminan en el MISMO handler
+// 'change' de memoryFileInput (compressImage → MemoryStore.save). La galería usa un input
+// sin `capture`; su archivo se traspasa al input principal para no duplicar el flujo.
+const memorySourceSheet = document.getElementById('memorySourceSheet');
+const memoryGalleryInput = document.getElementById('memoryGalleryInput');
+function openMemorySourceSheet(){ memorySourceSheet.classList.add('visible'); }
+function closeMemorySourceSheet(){ memorySourceSheet.classList.remove('visible'); }
+document.getElementById('memorySourceClose').addEventListener('click', closeMemorySourceSheet);
+memorySourceSheet.addEventListener('click', (e) => { if (e.target === memorySourceSheet) closeMemorySourceSheet(); });
+document.getElementById('memorySourceCamera').addEventListener('click', () => {
+  closeMemorySourceSheet();
+  memoryFileInput.click();
+});
+document.getElementById('memorySourceGallery').addEventListener('click', () => {
+  closeMemorySourceSheet();
+  memoryGalleryInput.click();
+});
+memoryGalleryInput.addEventListener('change', () => {
+  const file = memoryGalleryInput.files[0];
+  memoryGalleryInput.value = '';
+  if (!file) return;
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  memoryFileInput.files = dt.files;
+  memoryFileInput.dispatchEvent(new Event('change'));
+});
 
 // Entrada ÚNICA a "Mis recuerdos" de una experiencia (CTA del POI, Álbum, cámara con recuerdo).
 function openPOIMemories(place){
