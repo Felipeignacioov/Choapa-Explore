@@ -5487,8 +5487,10 @@ function applyPOILabelTextStyle(){
     map.setLayoutProperty(id, 'icon-text-fit', 'none');
     map.setLayoutProperty(id, 'text-field', ['get', 'label']);
     map.setLayoutProperty(id, 'text-size', 8.8);
-    map.setLayoutProperty(id, 'text-anchor', 'bottom');
-    map.setLayoutProperty(id, 'text-offset', [0, -2.2]);
+        map.setLayoutProperty(id, 'text-anchor', 'bottom');
+    // Arriba por defecto; si ahí choca con otro POI, prueba abajo y luego a los lados.
+    map.setLayoutProperty(id, 'text-variable-anchor', ['bottom', 'top', 'right', 'left']);
+    map.setLayoutProperty(id, 'text-radial-offset', 2.2); // misma distancia de siempre (2.2 em)
     map.setLayoutProperty(id, 'text-max-width', 30);
     map.setLayoutProperty(id, 'text-optional', false);
     map.setLayoutProperty(id, 'icon-optional', true);
@@ -5497,6 +5499,33 @@ function applyPOILabelTextStyle(){
     map.setPaintProperty(id, 'text-halo-color', 'rgba(7,19,31,0.95)');
     map.setPaintProperty(id, 'text-halo-width', 1.5);
     map.setPaintProperty(id, 'text-halo-blur', 0.3);
+  });
+}
+
+// Capas invisibles encima de las etiquetas, con el tamaño del círculo visible de cada POI.
+// MapLibre coloca primero las capas de más arriba, así que las etiquetas (debajo) las esquivan.
+// No dibujan nada (icon-opacity 0) y no capturan toques.
+function ensurePOILabelCollisionLayers(){
+  if (!map.hasImage('poi-collision')){
+    map.addImage('poi-collision', { width:96, height:96, data:new Uint8Array(96 * 96 * 4) });
+  }
+  const FIT = 0.72; // el círculo visible ocupa ~70% del lienzo de 96px
+  const defs = [
+    { id:'poi-collision-layer', source:'poi-source',
+      size: buildPOIGrowthExpression(POI_BG_SIZE_INITIAL_LOCALITY * FIT, POI_BG_SIZE_FINAL * FIT) },
+    { id:'poi-photo-collision-layer', source:'poi-photo-source',
+      size: buildPOIGrowthExpression(POI_PHOTO_ICON_SIZE_INITIAL * POI_LOCALITY_SIZE_BOOST * FIT, POI_PHOTO_ICON_SIZE * FIT) },
+  ];
+  defs.forEach(d => {
+    if (map.getLayer(d.id) || !map.getSource(d.source)) return;
+    map.addLayer({
+      id:d.id, type:'symbol', source:d.source, minzoom: ZOOM_DETAIL,
+      layout:{
+        'icon-image':'poi-collision', 'icon-size':d.size,
+        'icon-allow-overlap':true, 'icon-ignore-placement':false, 'icon-padding':2,
+      },
+      paint:{ 'icon-opacity':0 },
+    });
   });
 }
 
@@ -5613,7 +5642,8 @@ function ensurePOINativeLayers(){
     },
   });
         ensurePOIPhotoLayers(); // sistema fotográfico generalizado — ver definición arriba
-  applyPOILabelTextStyle(); // etiquetas como texto limpio (sobrescribe el estilo de píldora de las capas de arriba)
+   applyPOILabelTextStyle(); // etiquetas como texto limpio (sobrescribe el estilo de píldora de las capas de arriba)
+  ensurePOILabelCollisionLayers(); // las etiquetas esquivan los círculos de POI vecinos
   bindPOINativeClickHandlers();
 }
 
