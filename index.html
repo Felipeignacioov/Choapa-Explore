@@ -2008,6 +2008,83 @@ img{-webkit-user-drag:none; user-select:none;}
 .md-btn:active{transform:scale(0.96);}
 .md-btn-danger{color:#F0625B; border-color:rgba(240,98,91,0.3); background:rgba(240,98,91,0.08);}
 
+/* ================= MIS RECUERDOS — modo experiencia (solo memoryDetailContext.type === 'place') ================= */
+.md-exp{display:none;}
+.memory-detail.memory-detail--experience{
+  padding:0; align-items:stretch; justify-content:stretch;
+  background:linear-gradient(180deg, var(--bg-night) 0%, var(--bg-primary) 55%);
+  backdrop-filter:none; -webkit-backdrop-filter:none;
+}
+.memory-detail--experience .memory-detail-card{
+  position:relative; max-width:none; width:100%; height:100%;
+  border-radius:0; border:none; box-shadow:none; background:transparent;
+}
+.memory-detail--experience .md-photo,
+.memory-detail--experience .md-body{display:none;}
+.memory-detail--experience .md-exp{
+  display:block; height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch;
+  padding:calc(22px + var(--safe-top)) 20px calc(40px + var(--safe-bottom));
+}
+.memory-detail--experience .memory-detail-card .close{
+  top:calc(14px + var(--safe-top)); right:16px; margin:0; z-index:3;
+  width:34px; height:34px;
+  background:rgba(16,36,56,0.7); border:1px solid var(--border-glass);
+}
+.md-exp-inner{max-width:520px; margin:0 auto;}
+.md-exp-eyebrow{
+  font-size:10.5px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase;
+  color:var(--turquoise-bright); margin:8px 0 10px; padding-right:48px;
+}
+.md-exp-name{font-family:var(--font-display); font-size:24px; font-weight:800; letter-spacing:-0.3px; line-height:1.15; color:var(--text-primary);}
+.md-exp-meta{font-size:12.5px; color:var(--text-secondary); margin:6px 0 12px;}
+.md-exp-cover{
+  position:relative; margin-top:22px; height:min(52vh, 380px);
+  border-radius:var(--radius-l); overflow:hidden; cursor:pointer;
+  background:var(--surface) center/cover no-repeat;
+  border:1px solid var(--border-glass); box-shadow:var(--shadow-card);
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1);
+}
+.md-exp-cover:active{transform:scale(0.985);}
+.md-exp-cover::after{
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(to bottom, rgba(7,19,31,0) 60%, rgba(7,19,31,0.45) 100%);
+}
+.md-exp-section{
+  font-family:var(--font-display); font-size:11px; font-weight:700; letter-spacing:0.3px;
+  color:var(--text-secondary); text-transform:uppercase; margin:26px 0 12px;
+}
+.md-exp-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+.md-exp-thumb{
+  aspect-ratio:1/1.05; border-radius:var(--radius-m); cursor:pointer;
+  background:var(--surface) center/cover no-repeat;
+  border:1px solid var(--border-glass); box-shadow:var(--shadow-card);
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1);
+}
+.md-exp-thumb:active{transform:scale(0.96);}
+.md-exp-empty{
+  display:flex; flex-direction:column; align-items:center; text-align:center;
+  padding:34px 22px; border:1px dashed var(--border-glass); border-radius:var(--radius-l);
+  background:rgba(255,255,255,0.02);
+}
+.md-exp-empty-icon{
+  width:56px; height:56px; border-radius:50%; margin-bottom:14px;
+  border:1px dashed rgba(95,225,232,0.35); color:var(--turquoise-bright); opacity:0.85;
+  display:flex; align-items:center; justify-content:center;
+}
+.md-exp-empty-title{font-family:var(--font-display); font-size:15px; font-weight:700; color:var(--text-primary);}
+.md-exp-empty-sub{font-size:12.5px; color:var(--text-secondary); line-height:1.5; margin-top:6px; max-width:260px;}
+.md-exp-context{display:flex; align-items:center; gap:10px; margin-top:22px;}
+.md-exp-context-photo{
+  width:44px; height:44px; border-radius:var(--radius-s); flex-shrink:0;
+  background:var(--surface) center/cover no-repeat; filter:saturate(0.8) brightness(0.85);
+  border:1px solid var(--border-glass);
+}
+.md-exp-context-label{font-size:10.5px; font-weight:600; color:var(--text-tertiary);}
+.md-exp-actions{display:flex; gap:9px; margin-top:28px;}
+/* La galería (z-index 70, antes en el DOM) quedaba debajo de #memoryDetail (z-index 70, después) —
+   se sube SOLO mientras "Mis recuerdos" está abierto. */
+#app:has(.memory-detail--experience.visible) .gallery-screen{z-index:72;}
+
 /* ---------------- NAVEGACIÓN REAL — selector de modo (Fase 1) ---------------- */
 .transport-sheet{
   position:absolute; inset:0; z-index:75;
@@ -2761,6 +2838,7 @@ img{-webkit-user-drag:none; user-select:none;}
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       </button>
       <div class="md-photo" id="mdPhoto"></div>
+      <div class="md-exp" id="mdExp"></div>
       <div class="md-body">
                 <div class="md-name" id="mdName">—</div>
         <div class="md-loc" id="mdLoc">—</div>
@@ -7379,7 +7457,10 @@ const MemoryStore = {
   _read(){ try { return JSON.parse(localStorage.getItem(MEMORY_KEY) || '{}'); } catch(e){ return {}; } },
   _write(data){ try { localStorage.setItem(MEMORY_KEY, JSON.stringify(data)); } catch(e){ console.error('No se pudo guardar el recuerdo (almacenamiento lleno).', e); } },
   getAll(){ return this._read(); },
-  get(placeId){ return this._read()[placeId] || null; },
+   get(placeId){ return this._read()[placeId] || null; },
+  // Adaptador de colección: hoy [] o [memory] (modelo de 1 recuerdo por lugar).
+  // La UI de "Mis recuerdos" solo consume este método.
+  getAllForPlace(placeId){ const m = this._read()[placeId]; return m ? [m] : []; },
   async save(placeId, photoDataUrl){
     // Fase Supabase: subir `photoDataUrl` (o el File original) a Storage bucket
     // `memories/${userId}/${placeId}.jpg`, luego upsert en la tabla `memories`
@@ -10357,7 +10438,7 @@ function renderLocalityAlbum(localityId){
       card.className = 'album-card unlocked';
       card.style.backgroundImage = `url(${memory ? memory.photoUrl : place.image})`;
       card.innerHTML = `<div class="ac-info"><div class="ac-name">${place.name}</div><div class="ac-loc">${tag.label}</div></div>`;
-      card.addEventListener('click', () => openPlaceMemoryDetail(place));
+            card.addEventListener('click', () => openPOIMemories(place));
     } else {
       // AÚN POR DESCUBRIR — fotografía oficial de la experiencia (place.image,
       // dato real existente, nunca inventado) difuminada/oscurecida detrás de
@@ -10412,6 +10493,7 @@ const memoryDetail = document.getElementById('memoryDetail');
 let memoryDetailContext = null;
 
 function populateMemoryDetail({ photoUrl, name, loc, caption, createdAt, showExperienceDetail, empty }){
+  memoryDetail.classList.remove('memory-detail--experience'); // locality/personal siempre en su modo de siempre
   document.getElementById('mdPhoto').style.backgroundImage = `url(${photoUrl})`;
   document.getElementById('mdName').textContent = name;
   document.getElementById('mdLoc').textContent = loc || '';
@@ -10429,21 +10511,69 @@ function populateMemoryDetail({ photoUrl, name, loc, caption, createdAt, showExp
 }
 
 function openPlaceMemoryDetail(place){
-  const memory = MemoryStore.get(place.id);
-  if (!memory) return;
-  memoryDetailContext = { type:'place', placeId:place.id };
-  const tag = primaryExperienceTag(place);
-  populateMemoryDetail({ photoUrl:memory.photoUrl, name:place.name, loc:`${tag.label} · ${place.locality}`, caption:memory.caption, createdAt:memory.createdAt, showExperienceDetail:true });
+  openPOIMemories(place); // entrada única para "Mis recuerdos" de una experiencia
 }
-// Entrada desde el CTA "Ver mis recuerdos" del POI. Reutiliza el detalle existente
-// si ya hay recuerdo; si no, abre el mismo modal en estado vacío (sin acciones,
-// sin cámara, sin escribir en MemoryStore).
+// Pinta "Mis recuerdos" de una experiencia dentro de #mdExp. Solo fotos PERSONALES
+// (MemoryStore.getAllForPlace); la foto oficial únicamente aparece como contexto
+// discreto en el estado vacío.
+function renderMemoryExperience(place){
+  const wrap = document.getElementById('mdExp');
+  const photos = MemoryStore.getAllForPlace(place.id).map(m => m.photoUrl);
+  const tag = primaryExperienceTag(place);
+  const check = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 9.5 17 19 7"/></svg>`;
+
+  const body = photos.length ? `
+      <div class="md-exp-cover" id="mdExpCover" style="background-image:url(${photos[0]})"></div>
+      <div class="md-exp-section">Mis recuerdos</div>
+      <div class="md-exp-grid">
+        ${photos.map((src, i) => `<div class="md-exp-thumb" data-index="${i}" style="background-image:url(${src})"></div>`).join('')}
+      </div>
+      <div class="md-exp-actions">
+        <button class="md-btn" id="mdExpReplace">Reemplazar foto</button>
+        <button class="md-btn md-btn-danger" id="mdExpDelete">Eliminar recuerdo</button>
+      </div>` : `
+      <div class="md-exp-section">Mis recuerdos</div>
+      <div class="md-exp-empty">
+        <span class="md-exp-empty-icon">${icon('camera', 24)}</span>
+        <div class="md-exp-empty-title">Aún no tienes recuerdos de esta experiencia.</div>
+        <div class="md-exp-empty-sub">Usa la cámara desde la experiencia para guardar el primero.</div>
+      </div>
+      ${place.image ? `
+      <div class="md-exp-context">
+        <div class="md-exp-context-photo" style="background-image:url(${place.image})"></div>
+        <div class="md-exp-context-label">Foto oficial de la experiencia</div>
+      </div>` : ''}`;
+
+  wrap.innerHTML = `
+    <div class="md-exp-inner">
+      <div class="md-exp-eyebrow">Mis recuerdos</div>
+      <div class="md-exp-name">${place.name}</div>
+      <div class="md-exp-meta">${place.locality} · ${tag.label}</div>
+      <span class="md-status-badge">${check} Descubierta</span>
+      ${body}
+    </div>`;
+  wrap.scrollTop = 0;
+
+  const cover = wrap.querySelector('#mdExpCover');
+  if (cover) cover.addEventListener('click', () => openGallery(photos, 0));
+  wrap.querySelectorAll('.md-exp-thumb').forEach(t => {
+    t.addEventListener('click', () => openGallery(photos, parseInt(t.dataset.index, 10)));
+  });
+  // Reemplazar/Eliminar reutilizan los handlers existentes (#mdReplace / #mdDelete),
+  // que ya conocen memoryDetailContext — no se duplica lógica.
+  const rep = wrap.querySelector('#mdExpReplace');
+  if (rep) rep.addEventListener('click', () => document.getElementById('mdReplace').click());
+  const del = wrap.querySelector('#mdExpDelete');
+  if (del) del.addEventListener('click', () => document.getElementById('mdDelete').click());
+}
+
+// Entrada ÚNICA a "Mis recuerdos" de una experiencia (CTA del POI, Álbum, cámara con recuerdo).
 function openPOIMemories(place){
   if (!place) return;
-  if (MemoryStore.get(place.id)){ openPlaceMemoryDetail(place); return; }
-  memoryDetailContext = null; // sin contexto: Reemplazar/Eliminar no hacen nada
-  const tag = primaryExperienceTag(place);
-  populateMemoryDetail({ photoUrl:place.image, name:place.name, loc:`${tag.label} · ${place.locality}`, caption:'', createdAt:null, showExperienceDetail:true, empty:true });
+  memoryDetailContext = { type:'place', placeId:place.id };
+  renderMemoryExperience(place);
+  memoryDetail.classList.add('memory-detail--experience');
+  memoryDetail.classList.add('visible');
 }
 function openLocalityMemoryDetail(locality, memory){
   memoryDetailContext = { type:'locality', localityId:locality.id, memoryId:memory.id };
