@@ -5734,11 +5734,29 @@ function ensurePOISelectedLayer(){
     // Mismo fix que poi-icon-layer: el glifo debe ir coloreado con el color
     // propio del POI, no en oscuro fijo — sin esto queda invisible sobre el
     // fondo oscuro del estado seleccionado.
-    paint:{
+       paint:{
       'icon-color':['get','displayColor'],
       'icon-opacity-transition':{ duration:220 },
     },
   });
+  // POI con foto: la selección es la MISMA foto + aro de categoría, agrandada
+  // (mismas imágenes que ya registra el sistema fotográfico). Las capas de
+  // círculo/ícono de arriba se ocultan para estos POIs vía filtro.
+  const SELECTED_PHOTO_SIZE = 0.39; // ≈ 1.55x el tamaño normal del marcador fotográfico (POI_PHOTO_ICON_SIZE)
+  map.addLayer({
+    id:'poi-selected-photo-ring-layer', type:'symbol', source:'poi-selected-source',
+    layout:{ 'icon-image':['get','ringIcon'], 'icon-size':SELECTED_PHOTO_SIZE, 'icon-allow-overlap':true, 'icon-ignore-placement':true },
+  });
+  map.addLayer({
+    id:'poi-selected-photo-layer', type:'symbol', source:'poi-selected-source',
+    layout:{ 'icon-image':['get','photoIcon'], 'icon-size':SELECTED_PHOTO_SIZE, 'icon-allow-overlap':true, 'icon-ignore-placement':true },
+  });
+  const noPhotoFilter = ['!=', ['get','hasPhoto'], true];
+  const photoFilter = ['==', ['get','hasPhoto'], true];
+  map.setFilter('poi-selected-bg-layer', noPhotoFilter);
+  map.setFilter('poi-selected-icon-layer', noPhotoFilter);
+  map.setFilter('poi-selected-photo-ring-layer', photoFilter);
+  map.setFilter('poi-selected-photo-layer', photoFilter);
 }
 
 /* ---------- FASE 2 — CHANGE 2: desbloqueo por proximidad GPS ---------- */
@@ -5881,12 +5899,17 @@ function updateSelectedPOILayer(place){
     src.setData({ type:'FeatureCollection', features:[] });
     return;
   }
-  const primaryTag = primaryExperienceTag(place);
+   const primaryTag = primaryExperienceTag(place);
+  // Mismo criterio de aro que poiSourceFeatures(): con filtro activo manda la categoría del filtro.
+  const ringExpId = state.activeExperience !== 'todos' ? state.activeExperience : primaryTag.id;
+  const ringIcon = `poi-photo-bg-${ringExpId}`;
+  const photoIcon = `poi-photo-${place.id}`;
+  const hasPhoto = poiPhotoReadyIds.has(place.id) && map.hasImage(photoIcon) && map.hasImage(ringIcon);
   src.setData({
     type:'FeatureCollection',
     features:[{
       type:'Feature',
-      properties:{ id:place.id, icon:`poi-icon-${primaryTag.iconKey}`, displayColor: computePOIDisplayColor(place) },
+      properties:{ id:place.id, icon:`poi-icon-${primaryTag.iconKey}`, displayColor: computePOIDisplayColor(place), hasPhoto, photoIcon, ringIcon },
       geometry:{ type:'Point', coordinates:[place.lng, place.lat] },
     }],
   });
