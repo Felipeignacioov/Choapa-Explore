@@ -5392,7 +5392,7 @@ function poiSourceFeatures(){
     const displayColor = activeExpColor || expColor(primaryTag) || '#16B8C4';
     return {
       type:'Feature',
-      properties:{ id:place.id, name:place.name, icon:`poi-icon-${primaryTag.iconKey}`, bgIcon:`poi-bg-${bgExpId}`, displayColor },
+     properties:{ id:place.id, name:place.name, label:shortPOILabel(place.name), icon:`poi-icon-${primaryTag.iconKey}`, bgIcon:`poi-bg-${bgExpId}`, displayColor },
       geometry:{ type:'Point', coordinates:[place.lng, place.lat] },
     };
   });
@@ -5466,6 +5466,39 @@ const POI_ICON_SIZE_FINAL = 0.299, POI_ICON_SIZE_INITIAL = 0.164;
 const POI_LOCALITY_SIZE_BOOST = 1.2; // +20%, dentro del rango 15–25% pedido
 const POI_BG_SIZE_INITIAL_LOCALITY = POI_BG_SIZE_INITIAL * POI_LOCALITY_SIZE_BOOST;
 const POI_ICON_SIZE_INITIAL_LOCALITY = POI_ICON_SIZE_INITIAL * POI_LOCALITY_SIZE_BOOST;
+
+// Etiqueta corta para el mapa: una sola línea, cortada en límite de palabra si se puede.
+// El nombre completo sigue intacto en place.name (ficha, búsqueda, etc.).
+const POI_LABEL_MAX_CHARS = 20;
+function shortPOILabel(name){
+  const n = (name || '').trim();
+  if (n.length <= POI_LABEL_MAX_CHARS) return n;
+  const cut = n.slice(0, POI_LABEL_MAX_CHARS - 1);
+  const lastSpace = cut.lastIndexOf(' ');
+  return (lastSpace >= 10 ? cut.slice(0, lastSpace) : cut).trimEnd() + '…';
+}
+
+// Etiquetas de POI como texto limpio (sin placa): halo oscuro fino, una sola línea, encima del marcador.
+// Se aplica sobre las dos capas de etiqueta (ícono y foto) para que sean idénticas.
+function applyPOILabelTextStyle(){
+  ['poi-label-layer', 'poi-photo-label-layer'].forEach(id => {
+    if (!map.getLayer(id)) return;
+    map.setLayoutProperty(id, 'icon-image', null);
+    map.setLayoutProperty(id, 'icon-text-fit', 'none');
+    map.setLayoutProperty(id, 'text-field', ['get', 'label']);
+    map.setLayoutProperty(id, 'text-size', 8.8);
+    map.setLayoutProperty(id, 'text-anchor', 'bottom');
+    map.setLayoutProperty(id, 'text-offset', [0, -2.2]);
+    map.setLayoutProperty(id, 'text-max-width', 30);
+    map.setLayoutProperty(id, 'text-optional', false);
+    map.setLayoutProperty(id, 'icon-optional', true);
+    map.setLayoutProperty(id, 'text-allow-overlap', false);
+    map.setPaintProperty(id, 'text-color', '#F4F7FA');
+    map.setPaintProperty(id, 'text-halo-color', 'rgba(7,19,31,0.95)');
+    map.setPaintProperty(id, 'text-halo-width', 1.5);
+    map.setPaintProperty(id, 'text-halo-blur', 0.3);
+  });
+}
 
 function ensurePOINativeLayers(){
   if (map.getSource('poi-source')){ bindPOINativeClickHandlers(); return; }
@@ -5580,6 +5613,7 @@ function ensurePOINativeLayers(){
     },
   });
         ensurePOIPhotoLayers(); // sistema fotográfico generalizado — ver definición arriba
+  applyPOILabelTextStyle(); // etiquetas como texto limpio (sobrescribe el estilo de píldora de las capas de arriba)
   bindPOINativeClickHandlers();
 }
 
@@ -6031,7 +6065,7 @@ function applyPOIRenderSplit(features){
       photoFeatures.push({
         type:'Feature',
         properties:{
-          id: f.properties.id, name: f.properties.name,
+          id: f.properties.id, name: f.properties.name, label: f.properties.label,
           photoIcon: `poi-photo-${f.properties.id}`,
           ringIcon: f.properties.bgIcon.replace('poi-bg-', 'poi-photo-bg-'),
         },
