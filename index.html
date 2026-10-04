@@ -5487,10 +5487,8 @@ function applyPOILabelTextStyle(){
     map.setLayoutProperty(id, 'icon-text-fit', 'none');
     map.setLayoutProperty(id, 'text-field', ['get', 'label']);
     map.setLayoutProperty(id, 'text-size', 8.8);
-        map.setLayoutProperty(id, 'text-anchor', 'bottom');
-    // Arriba por defecto; si ahí choca con otro POI, prueba abajo y luego a los lados.
-    map.setLayoutProperty(id, 'text-variable-anchor', ['bottom', 'top', 'right', 'left']);
-    map.setLayoutProperty(id, 'text-radial-offset', 2.2); // misma distancia de siempre (2.2 em)
+            map.setLayoutProperty(id, 'text-anchor', 'bottom');
+    map.setLayoutProperty(id, 'text-offset', [0, -2.2]);
     map.setLayoutProperty(id, 'text-max-width', 30);
     map.setLayoutProperty(id, 'text-optional', false);
     map.setLayoutProperty(id, 'icon-optional', true);
