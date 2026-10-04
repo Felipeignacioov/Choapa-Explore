@@ -2088,6 +2088,17 @@ img{-webkit-user-drag:none; user-select:none;}
   transition:transform .16s cubic-bezier(.34,1.56,.64,1), background .18s ease;
 }
 .md-exp-add:active{transform:scale(0.97); background:rgba(95,225,232,0.18);}
+.md-exp-thumb{position:relative;}
+.md-exp-add.md-exp-add--wide{width:100%; margin-top:22px;}
+.md-exp-del{
+  position:absolute; top:10px; right:10px; z-index:2;
+  width:30px; height:30px; border-radius:50%;
+  background:rgba(8,19,31,0.72); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  border:1px solid var(--border-glass); color:#fff;
+  display:flex; align-items:center; justify-content:center;
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1);
+}
+.md-exp-del:active{transform:scale(0.85);}
 .md-exp-context{display:flex; align-items:center; gap:10px; margin-top:22px;}
 .md-exp-context-photo{
   width:44px; height:44px; border-radius:var(--radius-s); flex-shrink:0;
@@ -7576,27 +7587,53 @@ async function discoverExperience(experienceId){
 const MEMORY_KEY = 'choapa_explore_memories_v1';
 
 const MemoryStore = {
-  _read(){ try { return JSON.parse(localStorage.getItem(MEMORY_KEY) || '{}'); } catch(e){ return {}; } },
+  // Almacenamiento (misma clave de siempre): { [placeId]: [recuerdo, recuerdo, ...] }.
+  // Los datos antiguos (un solo objeto por placeId) se normalizan al leer, sin migración.
+  _read(){
+    let raw = {};
+    try { raw = JSON.parse(localStorage.getItem(MEMORY_KEY) || '{}') || {}; } catch(e){ raw = {}; }
+    const out = {};
+    Object.keys(raw).forEach(placeId => {
+      const v = raw[placeId];
+      const list = (Array.isArray(v) ? v : [v]).filter(m => m && m.photoUrl);
+      if (!list.length) return;
+      out[placeId] = list.map((m, i) => ({ ...m, placeId, id: m.id || `legacy_${placeId}_${i}` }));
+    });
+    return out;
+  },
   _write(data){ try { localStorage.setItem(MEMORY_KEY, JSON.stringify(data)); } catch(e){ console.error('No se pudo guardar el recuerdo (almacenamiento lleno).', e); } },
-  getAll(){ return this._read(); },
-   get(placeId){ return this._read()[placeId] || null; },
-  // Adaptador de colección: hoy [] o [memory] (modelo de 1 recuerdo por lugar).
-  // La UI de "Mis recuerdos" solo consume este método.
-  getAllForPlace(placeId){ const m = this._read()[placeId]; return m ? [m] : []; },
+  _sorted(list){ return (list || []).slice().sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || ''))); },
+  // Todos los recuerdos de una experiencia: del más antiguo (portada) al más reciente.
+  getAllForPlace(placeId){ return this._sorted(this._read()[placeId]); },
+  // Compatibilidad con el Álbum: { placeId: recuerdo de portada }.
+  getAll(){
+    const data = this._read(); const out = {};
+    Object.keys(data).forEach(id => { out[id] = this._sorted(data[id])[0]; });
+    return out;
+  },
+  get(placeId){ return this.getAllForPlace(placeId)[0] || null; },
+  // Ahora AÑADE un recuerdo; ya no reemplaza el existente.
   async save(placeId, photoDataUrl){
-    // Fase Supabase: subir `photoDataUrl` (o el File original) a Storage bucket
-    // `memories/${userId}/${placeId}.jpg`, luego upsert en la tabla `memories`
-    // con la URL pública/firmada resultante en vez del data URL.
     const data = this._read();
-    data[placeId] = {
+    const memory = {
+      id: `mem_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       placeId, photoUrl: photoDataUrl,
       caption: 'Yo estuve aquí.', isPrivate: true,
       createdAt: new Date().toISOString(),
     };
+    data[placeId] = [...(data[placeId] || []), memory];
     this._write(data);
-    return data[placeId];
+    return memory;
   },
- remove(placeId){
+  // Elimina solo un recuerdo; los demás no se tocan.
+  removeOne(placeId, memoryId){
+    const data = this._read();
+    const rest = (data[placeId] || []).filter(m => m.id !== memoryId);
+    if (rest.length) data[placeId] = rest; else delete data[placeId];
+    this._write(data);
+  },
+  // Elimina TODOS los recuerdos de la experiencia (se conserva por compatibilidad).
+  remove(placeId){
     const data = this._read();
     delete data[placeId];
     this._write(data);
@@ -9211,9 +9248,10 @@ memoryFileInput.addEventListener('change', async (e) => {
       }
           showMemoryToast(place.name, place.locality);
       // Si "Mis recuerdos" de esta experiencia está abierto, se refresca en el mismo lugar.
-      if (memoryDetail.classList.contains('memory-detail--experience') && memoryDetailContext && memoryDetailContext.type === 'place' && memoryDetailContext.placeId === placeId){
-        renderMemoryExperience(place);
+           if (memoryDetail.classList.contains('memory-detail--experience') && memoryDetailContext && memoryDetailContext.type === 'place' && memoryDetailContext.placeId === placeId){
+        renderMemoryExperience(place, true);
       }
+      refreshAlbumViewsAfterMemoryChange();
     } else if (contextType === 'locality'){
       const locality = LOCALITIES.find(l => l.id === localityId);
       if (!locality) return;
@@ -10653,27 +10691,39 @@ function updateMemoryExpScrollHint(){
 document.getElementById('mdExp').addEventListener('scroll', updateMemoryExpScrollHint, { passive:true });
 window.addEventListener('resize', updateMemoryExpScrollHint);
 
-function renderMemoryExperience(place){
+// Refresca las vistas del Álbum que puedan estar detrás tras añadir/eliminar un recuerdo.
+function refreshAlbumViewsAfterMemoryChange(){
+  if (currentAlbumLocalityId) renderLocalityAlbum(currentAlbumLocalityId);
+  else if (currentAlbumIsPersonal) renderPersonalAlbum();
+  else renderAlbumIndex();
+}
+
+// Pinta "Mis recuerdos" de una experiencia dentro de #mdExp. Solo fotos PERSONALES
+// (MemoryStore.getAllForPlace); la foto oficial únicamente aparece como contexto
+// discreto en el estado vacío. El primer recuerdo es la portada; el resto va en la grilla.
+function renderMemoryExperience(place, keepScroll){
   const wrap = document.getElementById('mdExp');
-  const photos = MemoryStore.getAllForPlace(place.id).map(m => m.photoUrl);
+  const prevScroll = wrap.scrollTop;
+  const memories = MemoryStore.getAllForPlace(place.id);
+  const photos = memories.map(m => m.photoUrl); // orden de la galería: portada primero
   const tag = primaryExperienceTag(place);
   const check = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 9.5 17 19 7"/></svg>`;
+  const trash = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 7h15M9.5 7V4.8h5V7M6.5 7l.8 12.2h9.4L17.5 7M10 11v5M14 11v5"/></svg>`;
+  const delBtn = m => `<button class="md-exp-del" data-memory-id="${m.id}" aria-label="Eliminar recuerdo">${trash}</button>`;
 
-  const body = photos.length ? `
-      <div class="md-exp-cover" id="mdExpCover" style="background-image:url(${photos[0]})"></div>
+  const body = memories.length ? `
+      <div class="md-exp-cover" id="mdExpCover" style="background-image:url(${memories[0].photoUrl})">${delBtn(memories[0])}</div>
+      ${memories.length > 1 ? `
       <div class="md-exp-section">Mis recuerdos</div>
       <div class="md-exp-grid">
-        ${photos.map((src, i) => `<div class="md-exp-thumb" data-index="${i}" style="background-image:url(${src})"></div>`).join('')}
-      </div>
-      <div class="md-exp-actions">
-        <button class="md-btn" id="mdExpReplace">Reemplazar foto</button>
-        <button class="md-btn md-btn-danger" id="mdExpDelete">Eliminar recuerdo</button>
-      </div>` : `
+        ${memories.slice(1).map((m, i) => `<div class="md-exp-thumb" data-index="${i + 1}" style="background-image:url(${m.photoUrl})">${delBtn(m)}</div>`).join('')}
+      </div>` : ''}
+      <button class="md-exp-add md-exp-add--wide" id="mdExpAdd">${icon('camera', 15)}<span>Añadir recuerdo</span></button>` : `
       <div class="md-exp-section">Mis recuerdos</div>
       <div class="md-exp-empty">
         <span class="md-exp-empty-icon">${icon('camera', 24)}</span>
         <div class="md-exp-empty-title">Aún no tienes recuerdos de esta experiencia.</div>
-               <div class="md-exp-empty-sub">Guarda una foto para empezar tu historia en este lugar.</div>
+        <div class="md-exp-empty-sub">Guarda una foto para empezar tu historia en este lugar.</div>
         <button class="md-exp-add" id="mdExpAdd">${icon('camera', 15)}<span>Añadir primer recuerdo</span></button>
       </div>
       ${place.image ? `
@@ -10690,13 +10740,13 @@ function renderMemoryExperience(place){
       <span class="md-status-badge">${check} Descubierta</span>
       ${body}
     </div>`;
-   wrap.scrollTop = 0;
+  wrap.scrollTop = keepScroll ? prevScroll : 0;
   requestAnimationFrame(updateMemoryExpScrollHint); // tras mostrarse la vista, ya hay medidas reales
 
-   // Primer recuerdo directo desde esta vista — reutiliza el mismo input/flujo de la cámara del POI.
+  // Añadir recuerdo (primero o siguientes): mismo selector "Tomar foto / Elegir de galería".
   const addBtn = wrap.querySelector('#mdExpAdd');
   if (addBtn) addBtn.addEventListener('click', () => {
-       if (!discoveredExperienceIds.has(place.id)) return; // solo experiencias ya descubiertas
+    if (!discoveredExperienceIds.has(place.id)) return; // solo experiencias ya descubiertas
     memoryFileInput.dataset.contextType = 'place';
     memoryFileInput.dataset.placeId = place.id;
     openMemorySourceSheet();
@@ -10707,12 +10757,21 @@ function renderMemoryExperience(place){
   wrap.querySelectorAll('.md-exp-thumb').forEach(t => {
     t.addEventListener('click', () => openGallery(photos, parseInt(t.dataset.index, 10)));
   });
-  // Reemplazar/Eliminar reutilizan los handlers existentes (#mdReplace / #mdDelete),
-  // que ya conocen memoryDetailContext — no se duplica lógica.
-  const rep = wrap.querySelector('#mdExpReplace');
-  if (rep) rep.addEventListener('click', () => document.getElementById('mdReplace').click());
-  const del = wrap.querySelector('#mdExpDelete');
-  if (del) del.addEventListener('click', () => document.getElementById('mdDelete').click());
+
+  // Eliminar UN recuerdo; si era la portada, el siguiente pasa a serlo automáticamente
+  // (la portada siempre es el primero del orden de MemoryStore.getAllForPlace).
+  wrap.querySelectorAll('.md-exp-del').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation(); // no abrir la galería
+      if (!confirm('¿Eliminar este recuerdo?')) return;
+      MemoryStore.removeOne(place.id, btn.dataset.memoryId);
+      if (!MemoryStore.get(place.id) && state.selectedPlace && state.selectedPlace.id === place.id){
+        document.getElementById('poiDetailMemoryBtn').classList.remove('saved');
+      }
+      renderMemoryExperience(place, true);
+      refreshAlbumViewsAfterMemoryChange();
+    });
+  });
 }
 
 // Selector "Tomar foto / Elegir de galería" — ambas rutas terminan en el MISMO handler
