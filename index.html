@@ -2090,6 +2090,8 @@ img{-webkit-user-drag:none; user-select:none;}
 .md-exp-add:active{transform:scale(0.97); background:rgba(95,225,232,0.18);}
 .md-exp-cover, .md-exp-thumb{-webkit-touch-callout:none; -webkit-user-select:none; user-select:none;}
 .md-exp-hint{font-size:11px; color:var(--text-tertiary); text-align:center; margin-top:14px;}
+.md-exp-date{font-size:11px; font-weight:500; color:var(--text-tertiary); letter-spacing:0.1px; margin-top:8px;}
+.md-exp-cell{min-width:0;}
 .md-act-list{display:flex; flex-direction:column; gap:8px; margin-top:16px;}
 .md-act-btn{
   display:flex; align-items:center; gap:11px; width:100%; padding:14px 16px;
@@ -7633,7 +7635,7 @@ const MemoryStore = {
     const data = this._read();
     const list = data[placeId] || [];
     if (!list.some(m => m.id === memoryId)) return false;
-    data[placeId] = list.map(m => m.id === memoryId ? { ...m, photoUrl: photoDataUrl } : m);
+       data[placeId] = list.map(m => m.id === memoryId ? { ...m, photoUrl: photoDataUrl, createdAt: new Date().toISOString() } : m);
     this._write(data);
     return true;
   },
@@ -10748,6 +10750,14 @@ function refreshAlbumViewsAfterMemoryChange(){
 // Pinta "Mis recuerdos" de una experiencia dentro de #mdExp. Solo fotos PERSONALES
 // (MemoryStore.getAllForPlace); la foto oficial únicamente aparece como contexto
 // discreto en el estado vacío. El primer recuerdo es la portada; el resto va en la grilla.
+// Fecha discreta del recuerdo, ej. "2 octubre 2026". Sin fecha válida, no muestra nada.
+const MEMORY_MONTHS = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+function formatMemoryDate(iso){
+  const d = iso ? new Date(iso) : null;
+  if (!d || isNaN(d.getTime())) return '';
+  return `${d.getDate()} ${MEMORY_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+}
+
 // ---- Acciones de un recuerdo (pulsación prolongada) ----
 let pendingMemoryReplace = null; // { placeId, memoryId } mientras se elige foto para "Cambiar foto"
 function takePendingMemoryReplace(placeId){
@@ -10840,11 +10850,12 @@ function renderMemoryExperience(place, keepScroll){
   const check = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 9.5 17 19 7"/></svg>`;
 
   const body = memories.length ? `
-      <div class="md-exp-cover" id="mdExpCover" style="background-image:url(${memories[0].photoUrl})"></div>
+        <div class="md-exp-cover" id="mdExpCover" style="background-image:url(${memories[0].photoUrl})"></div>
+      ${formatMemoryDate(memories[0].createdAt) ? `<div class="md-exp-date">${formatMemoryDate(memories[0].createdAt)}</div>` : ''}
       ${memories.length > 1 ? `
       <div class="md-exp-section">Mis recuerdos</div>
       <div class="md-exp-grid">
-        ${memories.slice(1).map((m, i) => `<div class="md-exp-thumb" data-index="${i + 1}" style="background-image:url(${m.photoUrl})"></div>`).join('')}
+                ${memories.slice(1).map((m, i) => `<div class="md-exp-cell"><div class="md-exp-thumb" data-index="${i + 1}" style="background-image:url(${m.photoUrl})"></div>${formatMemoryDate(m.createdAt) ? `<div class="md-exp-date">${formatMemoryDate(m.createdAt)}</div>` : ''}</div>`).join('')}
       </div>` : ''}
       <button class="md-exp-add md-exp-add--wide" id="mdExpAdd">${icon('camera', 15)}<span>Añadir recuerdo</span></button>
       <div class="md-exp-hint">Mantén pulsada una foto para ver más opciones</div>` : `
