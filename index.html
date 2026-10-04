@@ -4639,7 +4639,7 @@ function renderTerrainDepth(){
     // nuevo. Insertado ANTES de su propia capa 'casing' para que inner+casing
     // sigan dibujándose por encima del halo, nunca tapados por él.
     const majorRoadCasingLayer = layers.find(l => l.id === 'highway_major_casing');
-    if (majorRoadCasingLayer){
+       if (false && majorRoadCasingLayer){ // halo desactivado: difuminaba las calles
       map.addLayer({
         id:'road-glow-major', type:'line',
         source: majorRoadCasingLayer.source, 'source-layer': majorRoadCasingLayer['source-layer'],
@@ -4652,7 +4652,7 @@ function renderTerrainDepth(){
       }, 'highway_major_casing');
     }
     const motorwayCasingLayer = layers.find(l => l.id === 'highway_motorway_casing');
-    if (motorwayCasingLayer){
+       if (false && motorwayCasingLayer){ // halo desactivado: difuminaba las calles
       map.addLayer({
         id:'road-glow-motorway', type:'line',
         source: motorwayCasingLayer.source, 'source-layer': motorwayCasingLayer['source-layer'],
