@@ -7828,19 +7828,42 @@ const MemoryStore = {
     }
   },
 
-  // Elimina fila (verificada) → archivo → caché. Sin confirmación del DELETE no se toca nada más.
+   // Elimina fila (verificada) → archivo → caché. Sin confirmación del DELETE no se toca nada más.
+  // Si lo eliminado era la portada, los restantes se renumeran 1..n conservando su orden relativo.
   async removeOne(placeId, memoryId){
     if (!supabaseClient || !currentAuthUser) return { ok:false, error:'Inicia sesión para continuar.' };
-    const m = (memoryCache[placeId] || []).find(x => x.id === memoryId);
+    const userId = currentAuthUser.id;
+    const before = memoryCache[placeId] || [];
+    const m = before.find(x => x.id === memoryId);
     if (!m) return { ok:true }; // ya no existe en la caché
-    const del = await this._deleteRow(currentAuthUser.id, memoryId);
+    const wasCover = before[0] && before[0].id === memoryId;
+    // Si otro recuerdo comparte su sort_order, es un reemplazo en la misma posición (replaceOne): no es salida de portada.
+    const isReplacement = before.some(x => x.id !== memoryId && x.sortOrder === m.sortOrder);
+
+    const del = await this._deleteRow(userId, memoryId);
     if (!del.ok) return { ok:false, error:'No pudimos eliminar el recuerdo.' }; // el archivo NO se borra
     await this._removeFile(m.photoPath);
     const rest = (memoryCache[placeId] || []).filter(x => x.id !== memoryId);
     if (rest.length) memoryCache[placeId] = rest; else delete memoryCache[placeId];
+
+    // Normalización: solo cuando se elimina la portada y quedan más recuerdos.
+    if (wasCover && !isReplacement && rest.length){
+      const pending = rest.map((x, i) => ({ x, target:i + 1 })).filter(p => p.x.sortOrder !== p.target);
+      for (const p of pending){ // orden ascendente: cada valor baja, nunca choca con otro por delante
+        const { data, error } = await supabaseClient.from('memories')
+          .update({ sort_order:p.target }).eq('id', p.x.id).eq('user_id', userId).select('id');
+        if (error || !data || data.length !== 1){
+          console.error('[Recuerdos] No se pudo normalizar sort_order de', p.x.id, error || 'sin filas afectadas');
+          // El recuerdo ya se eliminó; la caché se reconstruye desde Supabase para reflejar el estado real.
+          if (currentAuthUser && currentAuthUser.id === userId) await loadMemories(userId, true);
+          refreshMemoryViewsAfterLoad();
+          return { ok:false, error:'Se eliminó el recuerdo, pero no pudimos actualizar tu portada. Revisa tus fotos.' };
+        }
+        p.x.sortOrder = p.target; // la caché solo cambia tras confirmar ese UPDATE
+      }
+    }
     return { ok:true };
   },
-
   // "Cambiar foto": archivo y fila nuevos en la MISMA posición; solo después se elimina el anterior.
   // El original permanece intacto si algo falla antes de que el nuevo esté confirmado.
   async replaceOne(placeId, memoryId, dataUrl){
