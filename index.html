@@ -7611,81 +7611,194 @@ async function discoverExperience(experienceId){
    ============================================================ */
 const MEMORY_KEY = 'choapa_explore_memories_v1';
 
+/* ---------- MIS RECUERDOS — Supabase como fuente de verdad ---------- */
+const MEMORY_BUCKET = 'user-media';
+const MEMORY_URL_TTL_S = 3600;                 // vigencia de las URLs firmadas
+const MEMORY_URL_REFRESH_MS = 45 * 60 * 1000;  // se vuelven a firmar al volver a la app pasado este tiempo
+let memoryCache = {};                          // { [experienceId]: [recuerdo, ...] } ya ordenado por sort_order
+let memoriesLoadedForUser = null;
+let memoriesLoadedAt = 0;
+let memoriesLoadPromise = null;
+
+function memoryRowToObj(row, url){
+  return { id:row.id, placeId:row.experience_id, photoPath:row.photo_path, photoUrl:url,
+           createdAt:row.created_at, sortOrder:row.sort_order, caption:row.caption || '' };
+}
+function sortMemoryList(list){
+  return list.sort((a, b) => (a.sortOrder - b.sortOrder)
+    || String(a.createdAt).localeCompare(String(b.createdAt))
+    || String(a.id).localeCompare(String(b.id)));
+}
+
+// Carga todos los recuerdos del usuario y firma sus URLs en lote. Ante un error NO borra lo ya cargado.
+async function loadMemories(userId, force){
+  if (!supabaseClient || !userId){ memoryCache = {}; memoriesLoadedForUser = null; return; }
+  if (!force && memoriesLoadedForUser === userId) return;
+  if (memoriesLoadPromise) return memoriesLoadPromise;
+  memoriesLoadPromise = (async () => {
+    try{
+      const { data, error } = await supabaseClient.from('memories')
+        .select('id, experience_id, photo_path, caption, created_at, sort_order')
+        .eq('user_id', userId)
+        .order('experience_id', { ascending:true })
+        .order('sort_order', { ascending:true })
+        .order('created_at', { ascending:true })
+        .order('id', { ascending:true });
+      if (error) throw error;
+      const rows = data || [];
+      const urlByPath = {};
+      if (rows.length){
+        const { data: signed, error: signErr } = await supabaseClient.storage
+          .from(MEMORY_BUCKET).createSignedUrls(rows.map(r => r.photo_path), MEMORY_URL_TTL_S);
+        if (signErr) throw signErr;
+        (signed || []).forEach(s => { if (s && s.signedUrl && !s.error) urlByPath[s.path] = s.signedUrl; });
+      }
+      const next = {};
+      rows.forEach(r => {
+        const url = urlByPath[r.photo_path];
+        if (!url){ console.warn('[Recuerdos] Sin URL firmada para', r.photo_path); return; }
+        (next[r.experience_id] = next[r.experience_id] || []).push(memoryRowToObj(r, url));
+      });
+      Object.keys(next).forEach(id => sortMemoryList(next[id]));
+      memoryCache = next; memoriesLoadedForUser = userId; memoriesLoadedAt = Date.now();
+      if (state.selectedPlace){
+        document.getElementById('poiDetailMemoryBtn').classList.toggle('saved', !!MemoryStore.get(state.selectedPlace.id));
+      }
+    } catch(err){
+      console.error('[Recuerdos] Error cargando memories:', err);
+    } finally {
+      memoriesLoadPromise = null;
+    }
+  })();
+  return memoriesLoadPromise;
+}
+
+if (supabaseClient){
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    const uid = session && session.user ? session.user.id : null;
+    if (!uid){ memoryCache = {}; memoriesLoadedForUser = null; return; }
+    if (memoriesLoadedForUser && memoriesLoadedForUser !== uid) memoryCache = {}; // cambio de cuenta
+    if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') setTimeout(() => loadMemories(uid), 0);
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && memoriesLoadedForUser && Date.now() - memoriesLoadedAt > MEMORY_URL_REFRESH_MS){
+      loadMemories(memoriesLoadedForUser, true);
+    }
+  });
+}
+
 const MemoryStore = {
-  // Almacenamiento (misma clave de siempre): { [placeId]: [recuerdo, recuerdo, ...] }.
-  // Los datos antiguos (un solo objeto por placeId) se normalizan al leer, sin migración.
-  _read(){
-    let raw = {};
-    try { raw = JSON.parse(localStorage.getItem(MEMORY_KEY) || '{}') || {}; } catch(e){ raw = {}; }
-    const out = {};
-    Object.keys(raw).forEach(placeId => {
-      const v = raw[placeId];
-      const list = (Array.isArray(v) ? v : [v]).filter(m => m && m.photoUrl);
-      if (!list.length) return;
-      out[placeId] = list.map((m, i) => ({ ...m, placeId, id: m.id || `legacy_${placeId}_${i}` }));
-    });
-    return out;
-  },
-  _write(data){ try { localStorage.setItem(MEMORY_KEY, JSON.stringify(data)); } catch(e){ console.error('No se pudo guardar el recuerdo (almacenamiento lleno).', e); } },
-   // El orden es el del array guardado (save() añade al final): el primero es la portada.
-  // Así se puede intercambiar posiciones sin tocar fechas.
-  _sorted(list){ return (list || []).slice(); },
-  // Cambia solo la foto de un recuerdo, manteniendo su posición. Devuelve false si ya no existe.
-  replaceOne(placeId, memoryId, photoDataUrl){
-    const data = this._read();
-    const list = data[placeId] || [];
-    if (!list.some(m => m.id === memoryId)) return false;
-       data[placeId] = list.map(m => m.id === memoryId ? { ...m, photoUrl: photoDataUrl, createdAt: new Date().toISOString() } : m);
-    this._write(data);
-    return true;
-  },
-  // Intercambia las posiciones de dos recuerdos (sin duplicar ni eliminar).
-  swapPositions(placeId, idA, idB){
-    const data = this._read();
-    const list = (data[placeId] || []).slice();
-    const a = list.findIndex(m => m.id === idA), b = list.findIndex(m => m.id === idB);
-    if (a < 0 || b < 0 || a === b) return false;
-    [list[a], list[b]] = [list[b], list[a]];
-    data[placeId] = list;
-    this._write(data);
-    return true;
-  },
-  // Todos los recuerdos de una experiencia: del más antiguo (portada) al más reciente.
-  getAllForPlace(placeId){ return this._sorted(this._read()[placeId]); },
-  // Compatibilidad con el Álbum: { placeId: recuerdo de portada }.
+  // ---- Lecturas síncronas (desde la caché) ----
+  getAllForPlace(placeId){ return (memoryCache[placeId] || []).slice(); },
+  get(placeId){ return (memoryCache[placeId] || [])[0] || null; },
   getAll(){
-    const data = this._read(); const out = {};
-    Object.keys(data).forEach(id => { out[id] = this._sorted(data[id])[0]; });
+    const out = {};
+    Object.keys(memoryCache).forEach(id => { if (memoryCache[id][0]) out[id] = memoryCache[id][0]; });
     return out;
   },
-  get(placeId){ return this.getAllForPlace(placeId)[0] || null; },
-  // Ahora AÑADE un recuerdo; ya no reemplaza el existente.
-  async save(placeId, photoDataUrl){
-    const data = this._read();
-    const memory = {
-      id: `mem_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-      placeId, photoUrl: photoDataUrl,
-      caption: 'Yo estuve aquí.', isPrivate: true,
-      createdAt: new Date().toISOString(),
-    };
-    data[placeId] = [...(data[placeId] || []), memory];
-    this._write(data);
-    return memory;
+
+  // ---- Auxiliares de Storage ----
+  async _uploadPhoto(userId, placeId, dataUrl){
+    const blob = await (await fetch(dataUrl)).blob();
+    const memoryId = crypto.randomUUID();
+    const path = `${userId}/${placeId}/${memoryId}.jpg`;
+    const { error } = await supabaseClient.storage.from(MEMORY_BUCKET).upload(path, blob, { contentType:'image/jpeg', upsert:false });
+    if (error) throw error;
+    return { memoryId, path };
   },
-  // Elimina solo un recuerdo; los demás no se tocan.
-  removeOne(placeId, memoryId){
-    const data = this._read();
-    const rest = (data[placeId] || []).filter(m => m.id !== memoryId);
-    if (rest.length) data[placeId] = rest; else delete data[placeId];
-    this._write(data);
+  async _signedUrl(path){
+    const { data, error } = await supabaseClient.storage.from(MEMORY_BUCKET).createSignedUrl(path, MEMORY_URL_TTL_S);
+    if (error) throw error;
+    return data.signedUrl;
   },
-  // Elimina TODOS los recuerdos de la experiencia (se conserva por compatibilidad).
-  remove(placeId){
-    const data = this._read();
-    delete data[placeId];
-    this._write(data);
+  async _removeFile(path){
+    try { await supabaseClient.storage.from(MEMORY_BUCKET).remove([path]); } catch(e){ console.warn('[Recuerdos] No se pudo borrar el archivo', path, e); }
+  },
+
+  // ---- Escrituras: la caché solo cambia tras la confirmación de Supabase ----
+  // Añade un recuerdo al final (sort_order = último + 1). Nunca renumera los existentes.
+  async save(placeId, dataUrl){ return this._create(placeId, dataUrl, null); },
+  async _create(placeId, dataUrl, sortOrder){
+    const user = currentAuthUser;
+    if (!supabaseClient || !user) return { ok:false, error:'Inicia sesión para guardar recuerdos.' };
+    let up = null, inserted = false;
+    try{
+      up = await this._uploadPhoto(user.id, placeId, dataUrl);
+      const order = sortOrder != null ? sortOrder
+        : ((memoryCache[placeId] || []).reduce((m, x) => Math.max(m, x.sortOrder), 0) + 1);
+      const { data, error } = await supabaseClient.from('memories')
+        .insert({ id:up.memoryId, user_id:user.id, experience_id:placeId, photo_path:up.path, sort_order:order })
+        .select('id, experience_id, photo_path, caption, created_at, sort_order').single();
+      if (error) throw error;
+      inserted = true;
+      let url = null;
+      try { url = await this._signedUrl(up.path); } catch(e){ console.warn('[Recuerdos] No se pudo firmar la URL', e); }
+      if (!url){ await loadMemories(user.id, true); return { ok:true, memory:null }; }
+      const memory = memoryRowToObj(data, url);
+      memoryCache[placeId] = sortMemoryList([...(memoryCache[placeId] || []), memory]);
+      return { ok:true, memory };
+    } catch(err){
+      console.error('[Recuerdos] Error creando recuerdo:', err);
+      if (up && !inserted) await this._removeFile(up.path); // sin fila no debe quedar archivo huérfano
+      return { ok:false, error:'No pudimos guardar tu foto. Inténtalo de nuevo.' };
+    }
+  },
+
+  async removeOne(placeId, memoryId){
+    if (!supabaseClient || !currentAuthUser) return { ok:false, error:'Inicia sesión para continuar.' };
+    const m = (memoryCache[placeId] || []).find(x => x.id === memoryId);
+    if (!m) return { ok:true }; // ya no existe
+    const { error } = await supabaseClient.from('memories').delete().eq('id', memoryId).eq('user_id', currentAuthUser.id);
+    if (error){ console.error('[Recuerdos] Error eliminando:', error); return { ok:false, error:'No pudimos eliminar el recuerdo.' }; }
+    await this._removeFile(m.photoPath);
+    const rest = (memoryCache[placeId] || []).filter(x => x.id !== memoryId);
+    if (rest.length) memoryCache[placeId] = rest; else delete memoryCache[placeId];
+    return { ok:true };
+  },
+
+  // "Cambiar foto": archivo y fila nuevos en la MISMA posición; después se elimina el recuerdo anterior.
+  async replaceOne(placeId, memoryId, dataUrl){
+    const old = (memoryCache[placeId] || []).find(x => x.id === memoryId);
+    if (!old) return this.save(placeId, dataUrl);
+    const created = await this._create(placeId, dataUrl, old.sortOrder);
+    if (!created.ok) return created;
+    const removed = await this.removeOne(placeId, old.id);
+    if (!removed.ok){
+      if (created.memory) await this.removeOne(placeId, created.memory.id); // deshace para no duplicar
+      return removed;
+    }
+    return { ok:true };
+  },
+
+  // "Hacer portada": intercambia los sort_order de dos recuerdos. created_at no cambia.
+  async swapPositions(placeId, idA, idB){
+    if (!supabaseClient || !currentAuthUser) return { ok:false, error:'Inicia sesión para continuar.' };
+    const list = memoryCache[placeId] || [];
+    const a = list.find(x => x.id === idA), b = list.find(x => x.id === idB);
+    if (!a || !b || a.id === b.id) return { ok:false, error:'No se encontró el recuerdo.' };
+    const orderA = a.sortOrder, orderB = b.sortOrder;
+    const upd = (id, order) => supabaseClient.from('memories').update({ sort_order:order }).eq('id', id).eq('user_id', currentAuthUser.id);
+    const r1 = await upd(a.id, orderB);
+    if (r1.error){ console.error('[Recuerdos] Error ordenando:', r1.error); return { ok:false, error:'No pudimos cambiar la portada.' }; }
+    const r2 = await upd(b.id, orderA);
+    if (r2.error){
+      console.error('[Recuerdos] Error ordenando:', r2.error);
+      await upd(a.id, orderA); // deshace el primer cambio
+      return { ok:false, error:'No pudimos cambiar la portada.' };
+    }
+    a.sortOrder = orderB; b.sortOrder = orderA;
+    sortMemoryList(list);
+    return { ok:true };
   },
 };
+
+// Aviso de error con el mismo toast de recuerdos (el título fijo "Recuerdo guardado" no sirve para errores).
+function showMemoryErrorToast(message){
+  const t = memoryToast.querySelector('.mt-title');
+  t.textContent = 'No se pudo completar';
+  showMemoryToast(message || 'Inténtalo de nuevo', '');
+  setTimeout(() => { t.textContent = 'Recuerdo guardado'; }, 2700);
+}
 
 // Recuerdo libre asociado solo a una localidad (sin experiencia/POI específico).
 // Misma lógica de Fase 1 (localStorage) / Fase 2 (Supabase) que MemoryStore, pero
@@ -9289,9 +9402,11 @@ memoryFileInput.addEventListener('change', async (e) => {
     if (contextType === 'place'){
       const place = DEMO_PLACES.find(p => p.id === placeId);
       if (!place) return;
-          const replaceId = takePendingMemoryReplace(placeId);
-      const replaced = replaceId ? MemoryStore.replaceOne(placeId, replaceId, photoDataUrl) : false;
-      if (!replaced) await MemoryStore.save(placeId, photoDataUrl); // sin reemplazo pendiente: añade, como siempre
+               const replaceId = takePendingMemoryReplace(placeId);
+      const result = replaceId
+        ? await MemoryStore.replaceOne(placeId, replaceId, photoDataUrl)
+        : await MemoryStore.save(placeId, photoDataUrl);
+      if (!result.ok){ showMemoryErrorToast(result.error); return; } // sin estados falsos: nada se muestra como guardado
       if (state.selectedPlace && state.selectedPlace.id === placeId){
         document.getElementById('poiDetailMemoryBtn').classList.add('saved');
       }
@@ -10784,16 +10899,20 @@ function openMemoryActions(place, memory, index){
       openMemorySourceSheet(); // mismo selector Tomar foto / Elegir de galería
     }});
   } else {
-    actions.push({ label:'Hacer portada', icon:icon('sparkle', 16), run:() => {
+      actions.push({ label:'Hacer portada', icon:icon('sparkle', 16), run: async () => {
       const cover = MemoryStore.getAllForPlace(place.id)[0];
-      if (cover) MemoryStore.swapPositions(place.id, cover.id, memory.id); // la portada vieja ocupa el lugar de esta
+           if (cover){
+        const r = await MemoryStore.swapPositions(place.id, cover.id, memory.id); // la portada vieja ocupa el lugar de esta
+        if (!r.ok){ showMemoryErrorToast(r.error); return; }
+      }
       renderMemoryExperience(place, false);
       refreshAlbumViewsAfterMemoryChange();
     }});
   }
-  actions.push({ label:'Eliminar foto', icon:trash, danger:true, run:() => {
+   actions.push({ label:'Eliminar foto', icon:trash, danger:true, run: async () => {
     if (!confirm('¿Eliminar este recuerdo?')) return;
-    MemoryStore.removeOne(place.id, memory.id); // si era la portada, la siguiente pasa a serlo
+      const r = await MemoryStore.removeOne(place.id, memory.id); // si era la portada, la siguiente pasa a serlo
+    if (!r.ok){ showMemoryErrorToast(r.error); return; }
     if (!MemoryStore.get(place.id) && state.selectedPlace && state.selectedPlace.id === place.id){
       document.getElementById('poiDetailMemoryBtn').classList.remove('saved');
     }
@@ -10857,7 +10976,7 @@ function renderMemoryExperience(place, keepScroll){
       <div class="md-exp-grid">
                 ${memories.slice(1).map((m, i) => `<div class="md-exp-cell"><div class="md-exp-thumb" data-index="${i + 1}" style="background-image:url(${m.photoUrl})"></div>${formatMemoryDate(m.createdAt) ? `<div class="md-exp-date">${formatMemoryDate(m.createdAt)}</div>` : ''}</div>`).join('')}
       </div>` : ''}
-      <button class="md-exp-add md-exp-add--wide" id="mdExpAdd">${icon('camera', 15)}<span>Añadir recuerdo</span></button>
+    <button class="md-exp-add md-exp-add--wide" id="mdExpAdd">${icon('camera', 15)}<span>Añadir otro recuerdo</span></button>
       <div class="md-exp-hint">Mantén pulsada una foto para ver más opciones</div>` : `
       <div class="md-exp-section">Mis recuerdos</div>
       <div class="md-exp-empty">
