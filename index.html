@@ -7828,7 +7828,7 @@ const MemoryStore = {
     }
   },
 
-   // Elimina fila (verificada) → archivo → caché. Sin confirmación del DELETE no se toca nada más.
+    // Elimina fila (verificada) → archivo → caché. Sin confirmación del DELETE no se toca nada más.
   // Si lo eliminado era la portada, los restantes se renumeran 1..n conservando su orden relativo.
   async removeOne(placeId, memoryId){
     if (!supabaseClient || !currentAuthUser) return { ok:false, error:'Inicia sesión para continuar.' };
