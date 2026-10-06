@@ -633,7 +633,9 @@ img{-webkit-user-drag:none; user-select:none;}
 .locality-marker.sublocality.tier-secondary .loc-visual{
   /* Ajuste fino sobre el 0.22 anterior — piso de opacidad sube de 0.78 a
      ~0.86 (≈8% más notorio), manteniendo la misma curva/lógica de siempre. */
-  opacity: calc(1 - var(--loc-tier-diff, 0) * 0.14);
+   /* Atenuación existente (--loc-tier-diff) × revelación progresiva por zoom (--loc-secondary-reveal:
+     0 = apenas perceptible, 1 = plena). Sin la variable, el resultado es idéntico al anterior. */
+  opacity: calc((1 - var(--loc-tier-diff, 0) * 0.14) * (0.22 + 0.78 * var(--loc-secondary-reveal, 1)));
 }
 .locality-marker.sublocality.tier-secondary .loc-name{
   font-size: calc(9.5px - var(--loc-tier-diff, 0) * 0.33px);
@@ -6558,10 +6560,16 @@ function currentZoomTier(){
 // nunca quedan permanentemente relegadas. Fuera de ese rango el valor queda
 // clampeado a sus extremos, sin efecto visible (los marcadores de
 // sub-localidad no se muestran fuera de ese rango de todas formas).
+// Revelación progresiva de las localidades SECUNDARIAS: apenas perceptibles al entrar al nivel de
+// localidad y plenas hacia la mitad del rango. Las primarias no se ven afectadas.
+const ZOOM_LOCALITY_REVEAL_START = ZOOM_SUBLOCALITY + 0.4; // 10.4
+const ZOOM_LOCALITY_REVEAL_END = 11.6;
 function updateLocalityTierDiff(){
   const z = map.getZoom();
   const factor = Math.min(Math.max((ZOOM_DETAIL - z) / (ZOOM_DETAIL - ZOOM_SUBLOCALITY), 0), 1);
-  document.documentElement.style.setProperty('--loc-tier-diff', factor.toFixed(3));
+   document.documentElement.style.setProperty('--loc-tier-diff', factor.toFixed(3));
+  const rt = Math.min(Math.max((z - ZOOM_LOCALITY_REVEAL_START) / (ZOOM_LOCALITY_REVEAL_END - ZOOM_LOCALITY_REVEAL_START), 0), 1);
+  document.documentElement.style.setProperty('--loc-secondary-reveal', (rt * rt * (3 - 2 * rt)).toFixed(3)); // suavizado: sin saltos
 }
 
 // Escala extra del halo del PIN de comuna (Nivel 1) — únicamente en el mismo
