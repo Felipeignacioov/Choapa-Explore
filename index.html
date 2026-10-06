@@ -1964,6 +1964,11 @@ img{-webkit-user-drag:none; user-select:none;}
 .album-card.locked .ac-chain-cross svg:first-child{ transform:rotate(45deg); }
 .album-card.locked .ac-chain-cross svg:last-child{ transform:rotate(-45deg); }
 .album-card.locked .lock-label{position:relative; z-index:1; color:var(--text-primary); opacity:0.9;}
+.album-card.locked .ac-lock-mark{
+  position:absolute; inset:0; z-index:1;
+  display:flex; align-items:center; justify-content:center; pointer-events:none;
+}
+.album-card.locked .ac-lock-mark svg{color:var(--turquoise-bright); filter:drop-shadow(0 2px 5px rgba(2,8,15,0.5));}
 
 /* Detalle de un recuerdo */
 .memory-detail{
@@ -10846,6 +10851,20 @@ function primaryExperienceTag(place){
   return expById('todos');
 }
 
+// Dos cadenas de eslabones cruzadas en X (ícono de "aún bloqueado"). Cada cadena: 2 eslabones
+// externos de frente y 2 centrales de perfil, que se tocan para leerse como una cadena.
+const LOCKED_CHAINS_SVG = (() => {
+  const chain = `
+    <rect x="4" y="34" width="18" height="12" rx="6"/>
+    <rect x="22" y="36.5" width="18" height="7" rx="3.5"/>
+    <rect x="40" y="36.5" width="18" height="7" rx="3.5"/>
+    <rect x="58" y="34" width="18" height="12" rx="6"/>`;
+  return `<svg width="58" height="58" viewBox="0 0 80 80" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <g transform="rotate(45 40 40)">${chain}</g>
+    <g transform="rotate(-45 40 40)">${chain}</g>
+  </svg>`;
+})();
+
 function renderLocalityAlbum(localityId){
   const locality = LOCALITIES.find(l => l.id === localityId);
   if (!locality) return;
@@ -10888,7 +10907,7 @@ function renderLocalityAlbum(localityId){
       card.innerHTML = `
         <div class="ac-locked-photo" style="background-image:url(${place.image})"></div>
         <div class="ac-locked-overlay"></div>
-        <span class="ac-chain-cross">${icon('chain', 26)}${icon('chain', 26)}</span>
+                <span class="ac-lock-mark">${LOCKED_CHAINS_SVG}</span>
         <span class="lock-label">Aún por descubrir</span>`;
       card.addEventListener('click', () => { closeAlbum(); selectPlaceById(place.id); });
     }
