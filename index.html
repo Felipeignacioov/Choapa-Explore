@@ -7589,27 +7589,22 @@ async function discoverExperience(experienceId){
 /* ============================================================
    MI ÁLBUM DEL CHOAPA — capa de datos
    ============================================================
-   Preparado para Supabase. Esquema sugerido (Postgres):
+   Recuerdos de experiencias: Supabase es la fuente de verdad
+   (MemoryStore, definido más abajo en el bloque "MIS RECUERDOS").
 
-   memories
-     id           uuid pk default gen_random_uuid()
-     user_id      uuid references auth.users(id)
-     place_id     text            -- hoy: DEMO_PLACES.id · Fase 2: id real del Place
-     photo_url    text            -- URL pública/firmada de Supabase Storage
-     caption      text default 'Yo estuve aquí.'
-     is_private   boolean default true
-     created_at   timestamptz default now()
-     unique (user_id, place_id)   -- 1 recuerdo activo por lugar; se reemplaza, no se acumula
+   Tabla public.memories
+     id, user_id, experience_id, photo_path, caption, sort_order, created_at, updated_at
+     - Cada recuerdo pertenece a un user_id y a un experience_id.
+     - Una experiencia puede tener múltiples recuerdos.
+     - sort_order define la posición; la portada es el recuerdo con sort_order = 1.
+     - created_at es la fecha original del recuerdo y no cambia al reordenar.
+     - La base de datos solo permite crear recuerdos de experiencias ya descubiertas.
 
-   Storage: bucket `memories`, path `{user_id}/{place_id}.jpg`.
-   Las fotos NUNCA se guardan en la fila — solo la URL resultante del bucket.
+   Storage: bucket privado `user-media`, ruta {user_id}/{experience_id}/{memory_id}.jpg.
+   Las imágenes se muestran con URLs firmadas (nunca públicas); la fila guarda solo photo_path.
 
-   Mientras no haya un proyecto Supabase conectado, MemoryStore usa localStorage
-   con la MISMA forma de datos (photoUrl como data URL comprimido). El resto de la
-   app solo conoce esta interfaz (getAll/get/save/remove), así que conectar Supabase
-   más adelante es cambiar la implementación interna, no la UI.
+   Fuera de este sistema (siguen en localStorage): LocalityMemoryStore y PersonalMemoryStore.
    ============================================================ */
-
 /* ---------- MIS RECUERDOS — Supabase como fuente de verdad ---------- */
 const MEMORY_BUCKET = 'user-media';
 const MEMORY_URL_TTL_S = 3600;                 // vigencia de las URLs firmadas
