@@ -462,6 +462,24 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 
 .nav-dest-marker{width:30px; height:30px; display:flex; align-items:center; justify-content:center;}
+/* Destino con foto: mismo lenguaje que los POIs del mapa (foto circular + aro del color de la categoría) */
+.nav-dest-marker.nav-dest-photo{width:36px; height:36px;}
+.nav-dest-marker .ndm-ring{
+  position:relative; width:100%; height:100%; border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, rgba(255,255,255,0.18), var(--ndm-ring, #16B8C4) 42%);
+  box-shadow:0 2px 8px rgba(2,8,15,0.45), 0 0 0 1px rgba(7,19,31,0.55);
+  display:flex; align-items:center; justify-content:center;
+}
+.nav-dest-marker .ndm-ring::after{
+  content:''; position:absolute; inset:-5px; border-radius:50%;
+  border:1px solid var(--ndm-ring, #16B8C4); opacity:0.5; pointer-events:none;
+  animation:nav-dest-pulse 2.6s ease-in-out infinite;
+}
+.nav-dest-marker .ndm-photo{
+  width:calc(100% - 5px); height:calc(100% - 5px); border-radius:50%;
+  background:var(--surface) center/cover no-repeat;
+  box-shadow:inset 0 0 0 1px rgba(7,19,31,0.55);
+}
 .nav-dest-marker svg{width:100%; height:100%; overflow:visible; filter:drop-shadow(0 2px 6px rgba(2,8,15,0.4));}
 .nav-dest-marker .halo{transform-origin:center; animation:nav-dest-pulse 2.6s ease-in-out infinite;}
 @keyframes nav-dest-pulse{
@@ -8285,11 +8303,45 @@ function renderNavDestinationMarker(place){
   const primaryTag = primaryExperienceTag(place);
   const color = computePOIDisplayColor(place);
   const el = document.createElement('div');
-  el.className = 'nav-dest-marker';
-  el.innerHTML = navDestSVG(color, primaryTag.iconKey, `nav-dest-grad-${place.id}`);
+   el.className = 'nav-dest-marker';
+  const useIconFallback = () => {
+    el.className = 'nav-dest-marker';
+    el.style.removeProperty('--ndm-ring');
+    el.innerHTML = navDestSVG(color, primaryTag.iconKey, `nav-dest-grad-${place.id}`);
+  };
+  if (place.image){
+    el.className = 'nav-dest-marker nav-dest-photo';
+    el.style.setProperty('--ndm-ring', blendHex(color, '#07131F', 0.22)); // mismo tono de aro que los POIs con foto
+    el.innerHTML = `<div class="ndm-ring"><div class="ndm-photo"></div></div>`;
+    el.querySelector('.ndm-photo').style.backgroundImage = `url("${place.image}")`;
+    const probe = new Image();
+    probe.onerror = useIconFallback; // la foto no cargó: vuelve al ícono de categoría
+    probe.src = place.image;
+  } else {
+    useIconFallback();
+  }
   state.nav.destMarker = new maplibregl.Marker({ element: el, anchor:'center' })
     .setLngLat([place.lng, place.lat])
     .addTo(map);
+}
+// Badge del destino en los paneles: foto de la experiencia con aro del color de su categoría.
+// Sin foto (o si no carga), el ícono de categoría de siempre.
+function setDestBadge(el, place, color, iconKey, iconSize){
+  const showIcon = () => {
+    el.innerHTML = icon(iconKey, iconSize);
+    el.style.padding = '';
+    el.style.color = color;
+    el.style.background = `${color}22`;
+  };
+  if (!place || !place.image){ showIcon(); return; }
+  el.innerHTML = '<span style="display:block;width:100%;height:100%;border-radius:50%;background-size:cover;background-position:center;box-shadow:inset 0 0 0 1px rgba(7,19,31,0.55);"></span>';
+  el.firstChild.style.backgroundImage = `url("${place.image}")`;
+  el.style.padding = '2px'; // el aro es el propio fondo del contenedor
+  el.style.color = '';
+  el.style.background = blendHex(color, '#07131F', 0.22);
+  const probe = new Image();
+  probe.onerror = showIcon;
+  probe.src = place.image;
 }
 function clearNavDestinationMarker(){
   if (state.nav.destMarker){ state.nav.destMarker.remove(); state.nav.destMarker = null; }
@@ -8669,9 +8721,7 @@ function renderRouteSummaryPanel(){
     const destTag = primaryExperienceTag(destPlace);
     const destColor = computePOIDisplayColor(destPlace);
     const destIconEl = document.getElementById('rspDestIcon');
-    destIconEl.innerHTML = icon(destTag.iconKey, 13);
-    destIconEl.style.color = destColor;
-    destIconEl.style.background = `${destColor}22`;
+        setDestBadge(destIconEl, destPlace, destColor, destTag.iconKey, 13);
     document.getElementById('rspDestName').textContent = destPlace.name;
   }
 
@@ -9016,9 +9066,7 @@ function startActiveNavigation(){
     const navDestTag = primaryExperienceTag(navDestPlace);
     const navDestColor = computePOIDisplayColor(navDestPlace);
     const anhDestIconEl = document.getElementById('anhDestIcon');
-    anhDestIconEl.innerHTML = icon(navDestTag.iconKey, 12);
-    anhDestIconEl.style.color = navDestColor;
-    anhDestIconEl.style.background = `${navDestColor}22`;
+       setDestBadge(anhDestIconEl, navDestPlace, navDestColor, navDestTag.iconKey, 12);
     document.getElementById('anhDestName').textContent = navDestPlace.name;
   }
 
