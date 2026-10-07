@@ -635,7 +635,7 @@ img{-webkit-user-drag:none; user-select:none;}
      ~0.86 (≈8% más notorio), manteniendo la misma curva/lógica de siempre. */
    /* Atenuación existente (--loc-tier-diff) × revelación progresiva por zoom (--loc-secondary-reveal:
      0 = apenas perceptible, 1 = plena). Sin la variable, el resultado es idéntico al anterior. */
-    opacity: calc((1 - var(--loc-tier-diff, 0) * 0.14) * (0.27 + 0.73 * var(--loc-secondary-reveal, 1)));
+     opacity: calc((1 - var(--loc-tier-diff, 0) * 0.14) * (0.34 + 0.66 * var(--loc-secondary-reveal, 1)));
 }
 .locality-marker.sublocality.tier-secondary .loc-name{
   font-size: calc(9.5px - var(--loc-tier-diff, 0) * 0.33px);
