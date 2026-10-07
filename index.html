@@ -635,7 +635,8 @@ img{-webkit-user-drag:none; user-select:none;}
      ~0.86 (≈8% más notorio), manteniendo la misma curva/lógica de siempre. */
    /* Atenuación existente (--loc-tier-diff) × revelación progresiva por zoom (--loc-secondary-reveal:
      0 = apenas perceptible, 1 = plena). Sin la variable, el resultado es idéntico al anterior. */
-        opacity: calc((1 - var(--loc-tier-diff, 0) * 0.14) * (0.46 + 0.54 * var(--loc-secondary-reveal, 1)));
+         --sec-op: calc((1 - var(--loc-tier-diff, 0) * 0.14) * (0.46 + 0.54 * var(--loc-secondary-reveal, 1)));
+  opacity: var(--edge-fade, 1);
 }
 .locality-marker.sublocality.tier-secondary .loc-name{
   font-size: calc(9.5px - var(--loc-tier-diff, 0) * 0.33px);
@@ -665,6 +666,21 @@ img{-webkit-user-drag:none; user-select:none;}
 .locality-marker.sublocality.tier-primary .loc-halo{
   filter: opacity(calc(1 + var(--loc-tier-diff, 0) * 0.35));
 }
+/* Todas las sub-localidades: se desvanecen al acercarse al borde lateral de la pantalla
+   (--edge-fade lo calcula JS; sin valor = 1, sin efecto). */
+.locality-marker.sublocality .loc-visual{opacity:var(--edge-fade, 1);}
+/* SECUNDARIAS: se atenúan texto, punto y borde, pero NO la placa de fondo: así tapa las líneas
+   del mapa (río, caminos) y el nombre se lee limpio. --sec-op es la misma curva de antes. */
+.locality-marker.sublocality.tier-secondary .loc-label{
+  background:rgba(10,20,34, calc(0.78 + 0.14 * var(--sec-op, 1)));
+  border-color:rgba(139,124,255, calc(0.34 * var(--sec-op, 1)));
+}
+.locality-marker.sublocality.tier-secondary .loc-name{
+  opacity:var(--sec-op, 1);
+  transition:opacity .3s ease .1s; /* mismo ritmo que el punto, para que no se desfasen */
+}
+.locality-marker.sublocality.tier-secondary:not(.entering):not(.label-collapsed) svg{opacity:var(--sec-op, 1);}
+.locality-marker.sublocality.tier-secondary.label-collapsed:not(.entering) svg{opacity:calc(0.4 * var(--sec-op, 1));}
 
 /* El aro exterior (2do círculo del SVG) solo se ve cuando el zoom está lo
    suficientemente cerca dentro del nivel de localidad — desaparece al alejar. */
@@ -6550,6 +6566,26 @@ function scheduleHaloDensityCheck(){
 }
 map.on('move', scheduleHaloDensityCheck);
 map.on('zoom', scheduleHaloDensityCheck);
+
+/* ---------- Desvanecido de sub-localidades en los bordes laterales ----------
+   Mismo patrón que la densidad de halos: map.project() + rAF, sin tocar el DOM salvo una variable CSS. */
+const EDGE_FADE_BAND_PX = 72; // distancia al borde donde empieza a desvanecerse
+function updateSublocalityEdgeFade(){
+  if (!sublocalityMarkers.length) return;
+  const w = map.getContainer().clientWidth;
+  sublocalityMarkers.forEach(marker => {
+    const x = map.project(marker.getLngLat()).x;
+    const t = Math.min(Math.max(Math.min(x, w - x) / EDGE_FADE_BAND_PX, 0), 1);
+    marker.getElement().style.setProperty('--edge-fade', (t * t * (3 - 2 * t)).toFixed(3)); // suavizado
+  });
+}
+let edgeFadeRaf = null;
+function scheduleEdgeFadeCheck(){
+  if (edgeFadeRaf) return;
+  edgeFadeRaf = requestAnimationFrame(() => { edgeFadeRaf = null; updateSublocalityEdgeFade(); });
+}
+map.on('move', scheduleEdgeFadeCheck);
+map.on('zoom', scheduleEdgeFadeCheck);
 
 /* ---------- CONTROLADOR DE NIVEL — 3 niveles, reacciona al zoom en ambas direcciones ---------- */
 let lastTier = null;
