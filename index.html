@@ -955,7 +955,8 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 .comuna-panel-rail.rail-hidden{display:none;}
 .comuna-mini-card{
-  min-width:0; border-radius:var(--radius-m); overflow:hidden;
+    min-width:0; border-radius:var(--radius-m); overflow:hidden;
+  display:flex; flex-direction:column;
   background:var(--surface); border:1px solid rgba(180,200,220,0.16);
   /* Sombra propia más contenida que --shadow-card, sin glow — solo un highlight
      superior muy sutil (mismo patrón que featured-card/today-card) para dar
@@ -970,7 +971,7 @@ img{-webkit-user-drag:none; user-select:none;}
    distintas por tarjeta (delay negativo = arranca a mitad de ciclo) para que
    las 3 respiren de forma orgánica, nunca sincronizadas como un solo bloque. */
 .comuna-mini-card .cmc-photo{
-  position:relative; height:26px; width:100%; /* protagonista pero compacta — prioriza altura total del panel */
+    position:relative; height:26px; width:100%; flex-shrink:0; /* protagonista pero compacta — prioriza altura total del panel */
   background:var(--surface-elevated) center/cover no-repeat;
   animation: comuna-cmc-kenburns 19s ease-in-out infinite;
   will-change:transform;
@@ -986,7 +987,7 @@ img{-webkit-user-drag:none; user-select:none;}
   content:''; position:absolute; inset:0;
   background:linear-gradient(to bottom, rgba(7,19,31,0) 55%, rgba(7,19,31,0.55) 100%);
 }
-.comuna-mini-card .cmc-info{padding:2px 7px 3px;}
+.comuna-mini-card .cmc-info{padding:2px 7px 3px; flex:1; display:flex; flex-direction:column; min-width:0;}
 .comuna-mini-card .cmc-name{
   font-size:10.5px; font-weight:700; color:var(--text-primary);
    line-height:1.15; margin-bottom:1px; letter-spacing:-0.05px;
@@ -995,7 +996,8 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 .comuna-mini-card .cmc-tag{
   display:inline-flex; align-items:center; gap:4px;
-  font-size:9px; font-weight:600; opacity:0.82;
+    font-size:9px; font-weight:600; opacity:0.82;
+  margin-top:auto; align-self:flex-start; /* anclada al borde inferior: las 3 categorías quedan alineadas */
   /* Texto en color neutro/secundario del sistema — el color de categoría
      queda únicamente en el punto (ver --tag-color más abajo), en vez de
      competir con las otras 2 tarjetas cuando tienen categorías distintas. */
