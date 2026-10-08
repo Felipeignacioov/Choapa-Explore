@@ -959,7 +959,7 @@ img{-webkit-user-drag:none; user-select:none;}
 .comuna-panel.hidden{opacity:0; transform:translateY(10px) scale(0.97); pointer-events:none;}
 .comuna-panel-header{
   display:flex; align-items:center; justify-content:space-between; gap:14px;
-   padding:0 14px 3px;
+    padding:0 14px 2px;
 }
 .comuna-panel-title{
   font-family:var(--font-display); font-size:13.5px; font-weight:700; color:var(--text-primary);
@@ -969,7 +969,8 @@ img{-webkit-user-drag:none; user-select:none;}
 .comuna-panel-close{
   /* Más chico y con menos presencia de fondo — se lee como una acción
      secundaria discreta, no como un control con el mismo peso que el título. */
-   width:18px; height:18px; border-radius:50%; flex-shrink:0;
+    position:relative;
+  width:18px; height:18px; border-radius:50%; flex-shrink:0;
   background:rgba(16,36,56,0.4); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
   border:1px solid var(--border-glass);
   display:flex; align-items:center; justify-content:center; color:var(--text-tertiary);
@@ -977,6 +978,9 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 .comuna-panel-close:active{background:rgba(95,225,232,0.14); color:var(--turquoise-bright);}
 .comuna-panel-close:active{transform:scale(0.88);}
+/* Zona de toque ampliada (invisible): el botón se sigue viendo de 18px.
+   Hacia abajo solo 2px para no robarle toques a las tarjetas que están justo debajo. */
+.comuna-panel-close::after{content:''; position:absolute; top:-10px; bottom:-2px; left:-14px; right:-14px;}
 
 /* Grid fijo de 3 columnas — esta vista siempre muestra exactamente 3
    experiencias, nunca más, así que no debe comportarse como un carrusel
@@ -1005,7 +1009,7 @@ img{-webkit-user-drag:none; user-select:none;}
    distintas por tarjeta (delay negativo = arranca a mitad de ciclo) para que
    las 3 respiren de forma orgánica, nunca sincronizadas como un solo bloque. */
 .comuna-mini-card .cmc-photo{
-    position:relative; height:26px; width:100%; flex-shrink:0; /* protagonista pero compacta — prioriza altura total del panel */
+     position:relative; height:32px; width:100%; flex-shrink:0; /* protagonista pero compacta — prioriza altura total del panel */
   background:var(--surface-elevated) center/cover no-repeat;
   animation: comuna-cmc-kenburns 19s ease-in-out infinite;
   will-change:transform;
@@ -1021,7 +1025,7 @@ img{-webkit-user-drag:none; user-select:none;}
   content:''; position:absolute; inset:0;
   background:linear-gradient(to bottom, rgba(7,19,31,0) 55%, rgba(7,19,31,0.55) 100%);
 }
-.comuna-mini-card .cmc-info{padding:2px 7px 3px; flex:1; display:flex; flex-direction:column; min-width:0;}
+.comuna-mini-card .cmc-info{padding:1px 7px 3px; flex:1; display:flex; flex-direction:column; min-width:0;}
 .comuna-mini-card .cmc-name{
   font-size:10.5px; font-weight:700; color:var(--text-primary);
    line-height:1.15; margin-bottom:1px; letter-spacing:-0.05px;
@@ -1030,7 +1034,7 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 .comuna-mini-card .cmc-tag{
   display:inline-flex; align-items:center; gap:4px;
-    font-size:9px; font-weight:600; opacity:0.82;
+     font-size:10px; font-weight:600; opacity:1;
   margin-top:auto; align-self:flex-start; /* anclada al borde inferior: las 3 categorías quedan alineadas */
   /* Texto en color neutro/secundario del sistema — el color de categoría
      queda únicamente en el punto (ver --tag-color más abajo), en vez de
@@ -1038,9 +1042,11 @@ img{-webkit-user-drag:none; user-select:none;}
   color:var(--text-secondary);
 }
 .comuna-mini-card .cmc-tag .dot{width:4px; height:4px; border-radius:50%; background:var(--tag-color, currentColor);}
+/* Más contraste: el gris secundario se aclara hacia el texto principal (sigue siendo neutro) */
+.comuna-mini-card .cmc-tag{color:color-mix(in srgb, var(--text-secondary) 65%, var(--text-primary));}
 
 .comuna-panel-more{
-  width:calc(100% - 24px); margin:3px 12px 0;
+   width:calc(100% - 24px); margin:2px 12px 0;
   display:flex; align-items:center; justify-content:center; gap:6px;
   padding:4px; border-radius:var(--radius-m);
   /* Tinte turquesa tenue por defecto (no solo en .at-bottom) — se lee de
