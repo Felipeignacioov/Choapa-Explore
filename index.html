@@ -8013,22 +8013,235 @@ const LocalityMemoryStore = {
   },
 };
 
-// "Recuerdos del Choapa" — álbum personal libre, sin asociación a lugar ni experiencia.
-const PERSONAL_MEMORY_KEY = 'choapa_explore_personal_memories_v1';
+// "Recuerdos del Choapa" — recuerdos libres (sin lugar, localidad ni experiencia).
+// Supabase es la fuente de verdad: tabla public.free_memories + bucket privado user-media,
+// ruta {user_id}/free/{memory_id}.jpg, URLs firmadas. Independiente de public.memories (experiencias).
+// Los datos antiguos de localStorage (PERSONAL_MEMORY_KEY) ya NO se leen ni se escriben (tampoco se borran).
+const PERSONAL_MEMORY_KEY = 'choapa_explore_personal_memories_v1'; // legado, sin uso
+const FREE_MEMORY_TABLE = 'free_memories';
+let freeMemoryCache = [];                  // [{ id, photoUrl, photoPath, caption, createdAt }], más reciente primero
+let freeMemoriesLoadedForUser = null;      // usuario cuyos datos están en la caché (solo tras una carga EXITOSA)
+let freeMemoriesLoadedAt = 0;
+let freeMemoriesLoadPromise = null;
+let freeMemoriesLoadPromiseUser = null;    // una carga en curso solo se reutiliza para ese mismo usuario
+let freeMemoriesLoadToken = 0;             // invalida cargas obsoletas (cierre de sesión / otro usuario)
+let pendingFreeReplaceId = null;           // recuerdo a reemplazar mientras se elige la foto nueva
+
+function freeRowToObj(row, url){
+  return { id:row.id, photoUrl:url, photoPath:row.photo_path, caption:row.caption || '', createdAt:row.created_at };
+}
+function sortFreeMemories(list){
+  return list.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)) || String(b.id).localeCompare(String(a.id)));
+}
+
+// Repinta lo que dependa de los recuerdos libres. try/catch: puede dispararse antes de que el resto del script esté listo.
+function refreshFreeMemoryViews(){
+  try{
+    // Detalle personal abierto cuyo recuerdo ya no existe: se cierra.
+    if (memoryDetailContext && memoryDetailContext.type === 'personal'
+        && !freeMemoryCache.some(m => m.id === memoryDetailContext.memoryId)){
+      closeMemoryDetail();
+    }
+    if (albumScreen.classList.contains('visible')) refreshAlbumViewsAfterMemoryChange();
+  } catch(e){ console.warn('[Recuerdos libres] No se pudo refrescar la vista', e); }
+}
+
+// Limpia TODO el estado (cierre de sesión o cambio de cuenta) y cierra un detalle personal abierto.
+function resetFreeMemoryState(){
+  freeMemoriesLoadToken++; // cualquier carga en vuelo queda descartada
+  freeMemoryCache = []; freeMemoriesLoadedForUser = null; freeMemoriesLoadedAt = 0;
+  freeMemoriesLoadPromise = null; freeMemoriesLoadPromiseUser = null;
+  pendingFreeReplaceId = null;
+  try{
+    if (memoryDetailContext && memoryDetailContext.type === 'personal') closeMemoryDetail();
+    if (albumScreen.classList.contains('visible')) refreshAlbumViewsAfterMemoryChange();
+  } catch(e){ /* el script aún no terminó de cargar */ }
+}
+
+// Carga todos los recuerdos libres del usuario y firma sus URLs en lote. Devuelve true/false.
+// Ante un error NO borra lo ya cargado y NO marca al usuario como cargado.
+async function loadFreeMemories(userId, force){
+  if (!supabaseClient || !userId){ resetFreeMemoryState(); return false; }
+  if (!force && freeMemoriesLoadedForUser === userId) return true;
+  if (freeMemoriesLoadPromise && freeMemoriesLoadPromiseUser === userId) return freeMemoriesLoadPromise;
+
+  const myToken = ++freeMemoriesLoadToken;
+  freeMemoriesLoadPromiseUser = userId;
+  const promise = (async () => {
+    try{
+      const { data, error } = await supabaseClient.from(FREE_MEMORY_TABLE)
+        .select('id, photo_path, caption, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending:false })
+        .order('id', { ascending:false });
+      if (error) throw error;
+      const rows = data || [];
+      const urlByPath = {};
+      if (rows.length){
+        const { data: signed, error: signErr } = await supabaseClient.storage
+          .from(MEMORY_BUCKET).createSignedUrls(rows.map(r => r.photo_path), MEMORY_URL_TTL_S);
+        if (signErr) throw signErr;
+        (signed || []).forEach(s => { if (s && s.signedUrl && !s.error) urlByPath[s.path] = s.signedUrl; });
+      }
+      if (myToken !== freeMemoriesLoadToken) return false; // sesión cerrada u otro usuario mientras cargaba
+      const next = [];
+      rows.forEach(r => {
+        const url = urlByPath[r.photo_path];
+        if (!url){ console.warn('[Recuerdos libres] Sin URL firmada para', r.photo_path); return; }
+        next.push(freeRowToObj(r, url));
+      });
+      freeMemoryCache = sortFreeMemories(next);
+      freeMemoriesLoadedForUser = userId; freeMemoriesLoadedAt = Date.now();
+      refreshFreeMemoryViews();
+      return true;
+    } catch(err){
+      console.error('[Recuerdos libres] Error cargando free_memories:', err);
+      return false;
+    } finally {
+      if (freeMemoriesLoadPromise === promise){ freeMemoriesLoadPromise = null; freeMemoriesLoadPromiseUser = null; }
+    }
+  })();
+  freeMemoriesLoadPromise = promise;
+  return promise;
+}
+
+// Garantía previa a cualquier escritura: los recuerdos del usuario actual deben estar cargados.
+async function ensureFreeMemoriesReady(){
+  const user = currentAuthUser;
+  if (!supabaseClient || !user) return { ok:false, error:'Inicia sesión para guardar recuerdos.' };
+  if (freeMemoriesLoadedForUser !== user.id) await loadFreeMemories(user.id);
+  if (!currentAuthUser || currentAuthUser.id !== user.id || freeMemoriesLoadedForUser !== user.id){
+    return { ok:false, error:'No pudimos cargar tus recuerdos. Inténtalo de nuevo.' };
+  }
+  return { ok:true, userId:user.id };
+}
+
+if (supabaseClient){
+  // Listener propio (no toca el de experiencias): usa la sesión del evento, no currentAuthUser.
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    const uid = session && session.user ? session.user.id : null;
+    if (!uid){ resetFreeMemoryState(); return; }                                                  // cierre de sesión
+    if (freeMemoriesLoadedForUser && freeMemoriesLoadedForUser !== uid) resetFreeMemoryState();   // cambio de cuenta
+    if (freeMemoriesLoadedForUser !== uid) setTimeout(() => loadFreeMemories(uid), 0);            // nueva sesión: carga de ese usuario
+  });
+  // Renovación de URLs firmadas al volver a la app pasado el mismo tiempo que en experiencias.
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && freeMemoriesLoadedForUser && Date.now() - freeMemoriesLoadedAt > MEMORY_URL_REFRESH_MS){
+      loadFreeMemories(freeMemoriesLoadedForUser, true);
+    }
+  });
+}
+
 const PersonalMemoryStore = {
-  _read(){ try { return JSON.parse(localStorage.getItem(PERSONAL_MEMORY_KEY) || '[]'); } catch(e){ return []; } },
-  _write(data){ try { localStorage.setItem(PERSONAL_MEMORY_KEY, JSON.stringify(data)); } catch(e){ console.error('No se pudo guardar el recuerdo (almacenamiento lleno).', e); } },
-  getAll(){ return this._read().slice().sort((a,b) => b.createdAt.localeCompare(a.createdAt)); },
-  count(){ return this._read().length; },
-  async add(photoDataUrl){
-    const data = this._read();
-    const entry = { id:`pm_${Date.now()}_${Math.random().toString(36).slice(2,7)}`, photoUrl:photoDataUrl, caption:'', createdAt:new Date().toISOString() };
-    data.push(entry);
-    this._write(data);
-    return entry;
+  // ---- Lecturas síncronas (desde la caché; misma forma que antes) ----
+  getAll(){ return freeMemoryCache.slice(); },
+  count(){ return freeMemoryCache.length; },
+
+  // ---- Auxiliares de Storage / filas ----
+  async _uploadPhoto(userId, dataUrl){
+    const blob = await (await fetch(dataUrl)).blob();
+    const memoryId = crypto.randomUUID();
+    const path = `${userId}/free/${memoryId}.jpg`;
+    const { error } = await supabaseClient.storage.from(MEMORY_BUCKET).upload(path, blob, { contentType:'image/jpeg', upsert:false });
+    if (error) throw error;
+    return { memoryId, path };
   },
-  remove(memoryId){
-    this._write(this._read().filter(m => m.id !== memoryId));
+  async _signedUrl(path){
+    const { data, error } = await supabaseClient.storage.from(MEMORY_BUCKET).createSignedUrl(path, MEMORY_URL_TTL_S);
+    if (error) throw error;
+    return data.signedUrl;
+  },
+  async _removeFile(path){
+    try { await supabaseClient.storage.from(MEMORY_BUCKET).remove([path]); } catch(e){ console.warn('[Recuerdos libres] No se pudo borrar el archivo', path, e); }
+  },
+  // DELETE de una fila verificando que realmente se eliminó (exactamente 1 fila).
+  async _deleteRow(userId, memoryId){
+    const { data, error } = await supabaseClient.from(FREE_MEMORY_TABLE).delete()
+      .eq('id', memoryId).eq('user_id', userId).select('id');
+    if (error){ console.error('[Recuerdos libres] Error eliminando fila:', error); return { ok:false }; }
+    if (!data || data.length !== 1){ console.error('[Recuerdos libres] El DELETE no afectó la fila esperada', memoryId); return { ok:false }; }
+    return { ok:true };
+  },
+
+  // ---- Escrituras: la caché solo cambia tras la confirmación de Supabase ----
+  // Subida → INSERT → URL firmada. Si cualquier paso posterior a la subida falla, se deshace TODO
+  // (fila, si llegó a existir, y archivo) y no se toca la caché.
+  async add(dataUrl){
+    const ready = await ensureFreeMemoriesReady();
+    if (!ready.ok) return ready;
+    const userId = ready.userId;
+    let up = null, rowId = null;
+    try{
+      up = await this._uploadPhoto(userId, dataUrl);
+      const { data, error } = await supabaseClient.from(FREE_MEMORY_TABLE)
+        .insert({ id:up.memoryId, user_id:userId, photo_path:up.path, caption:'' })
+        .select('id, photo_path, caption, created_at').single();
+      if (error) throw error;
+      rowId = data.id;
+      const url = await this._signedUrl(up.path); // si falla, cae al rollback: no queda fila que no pueda mostrarse
+      const memory = freeRowToObj(data, url);
+      if (freeMemoriesLoadedForUser === userId){
+        freeMemoryCache = sortFreeMemories([...freeMemoryCache, memory]);
+      }
+      return { ok:true, memory };
+    } catch(err){
+      console.error('[Recuerdos libres] Error creando recuerdo:', err);
+      if (up){
+        let existingRow = rowId;
+        if (!existingRow){
+          // El INSERT dio error: comprobar que la fila de verdad no existe antes de borrar el archivo.
+          const chk = await supabaseClient.from(FREE_MEMORY_TABLE).select('id').eq('id', up.memoryId).eq('user_id', userId);
+          if (chk.error){
+            console.error('[Recuerdos libres] No se pudo comprobar la fila tras el error; el archivo se conserva', chk.error);
+            return { ok:false, error:'No pudimos confirmar el guardado. Revisa tus recuerdos antes de reintentar.' };
+          }
+          if (chk.data && chk.data.length) existingRow = up.memoryId;
+        }
+        if (existingRow){
+          const del = await this._deleteRow(userId, existingRow);
+          if (!del.ok){
+            // Fila no confirmada como borrada: NO se borra el archivo. Se resincroniza la caché.
+            await loadFreeMemories(userId, true);
+            return { ok:false, error:'No pudimos completar el guardado. Revisa tus recuerdos e inténtalo de nuevo.' };
+          }
+        }
+        await this._removeFile(up.path);
+      }
+      return { ok:false, error:'No pudimos guardar tu foto. Inténtalo de nuevo.' };
+    }
+  },
+
+  // Elimina fila (verificada) → archivo → caché. Sin confirmación del DELETE no se toca nada más.
+  async remove(memoryId){
+    if (!supabaseClient || !currentAuthUser) return { ok:false, error:'Inicia sesión para continuar.' };
+    const userId = currentAuthUser.id;
+    const m = freeMemoryCache.find(x => x.id === memoryId);
+    if (!m) return { ok:true }; // ya no existe en la caché
+    const del = await this._deleteRow(userId, memoryId);
+    if (!del.ok) return { ok:false, error:'No pudimos eliminar el recuerdo.' }; // el archivo NO se borra
+    await this._removeFile(m.photoPath);
+    if (freeMemoriesLoadedForUser === userId) freeMemoryCache = freeMemoryCache.filter(x => x.id !== memoryId);
+    return { ok:true };
+  },
+
+  // "Cambiar foto": el recuerdo nuevo se crea COMPLETO primero; solo después se elimina el anterior.
+  // El original permanece intacto si algo falla antes de que el nuevo esté confirmado.
+  async replaceOne(memoryId, dataUrl){
+    const old = freeMemoryCache.find(x => x.id === memoryId);
+    if (!old) return this.add(dataUrl);
+    const created = await this.add(dataUrl); // ya se deshace a sí misma si falla
+    if (!created.ok) return created;
+    const removed = await this.remove(old.id);
+    if (!removed.ok){
+      // No se pudo retirar el original: se deshace el nuevo para no dejar duplicados.
+      const undone = await this.remove(created.memory.id);
+      if (!undone.ok){
+        if (currentAuthUser) await loadFreeMemories(currentAuthUser.id, true); // la caché refleja la realidad
+        return { ok:false, error:'No pudimos cambiar la foto y puede haber quedado duplicada. Revisa tus recuerdos.' };
+      }
+      return { ok:false, error:'No pudimos cambiar la foto.' };
+    }
+    return { ok:true };
   },
 };
 
@@ -9642,7 +9855,11 @@ memoryFileInput.addEventListener('change', async (e) => {
       showMemoryToast(locality.name, 'Recuerdo libre');
       if (currentAlbumLocalityId === localityId) renderLocalityAlbum(localityId);
     } else if (contextType === 'personal'){
-      await PersonalMemoryStore.add(photoDataUrl);
+           const replaceId = pendingFreeReplaceId; pendingFreeReplaceId = null;
+      const result = replaceId
+        ? await PersonalMemoryStore.replaceOne(replaceId, photoDataUrl)
+        : await PersonalMemoryStore.add(photoDataUrl);
+      if (!result.ok){ showMemoryErrorToast(result.error); return; } // sin estados falsos: nada se muestra como guardado
       showMemoryToast('Recuerdos del Choapa', 'Nuevo recuerdo');
       if (currentAlbumIsPersonal) renderPersonalAlbum();
     }
@@ -11024,6 +11241,7 @@ function renderPersonalAlbum(){
   addTile.className = 'album-card add-tile';
   addTile.innerHTML = `${icon('sparkle',20)}<span>Agregar recuerdo</span>`;
   addTile.addEventListener('click', () => {
+       pendingFreeReplaceId = null; // añadir nunca reemplaza (un reemplazo abandonado no debe contaminar)
     memoryFileInput.dataset.contextType = 'personal';
     memoryFileInput.click();
   });
@@ -11302,7 +11520,7 @@ document.getElementById('mdReplace').addEventListener('click', () => {
   if (!memoryDetailContext) return;
   const { type, placeId, localityId, memoryId } = memoryDetailContext;
   if (type === 'locality') LocalityMemoryStore.remove(localityId, memoryId);
-  if (type === 'personal') PersonalMemoryStore.remove(memoryId);
+   if (type === 'personal') pendingFreeReplaceId = memoryId; // NO se borra: el original se retira solo cuando la foto nueva está guardada
 
   memoryFileInput.dataset.contextType = type;
   delete memoryFileInput.dataset.placeId;
@@ -11312,9 +11530,17 @@ document.getElementById('mdReplace').addEventListener('click', () => {
   closeMemoryDetail();
   memoryFileInput.click();
 });
-document.getElementById('mdDelete').addEventListener('click', () => {
+document.getElementById('mdDelete').addEventListener('click', async () => {
   if (!memoryDetailContext) return;
   const { type, placeId, localityId, memoryId } = memoryDetailContext;
+  if (type === 'personal'){
+    // Supabase: el detalle solo se cierra si el borrado se confirmó (fila verificada y luego archivo).
+    const r = await PersonalMemoryStore.remove(memoryId);
+    if (!r.ok){ showMemoryErrorToast(r.error); return; }
+    closeMemoryDetail();
+    refreshAlbumViewsAfterMemoryChange();
+    return;
+  }
    if (type === 'locality'){
     LocalityMemoryStore.remove(localityId, memoryId);
   }
