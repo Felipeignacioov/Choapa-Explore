@@ -7257,6 +7257,7 @@ function blendHex(baseHex, tintHex, amount){
   return `#${toHex(r)}${toHex(g)}${toHex(bl)}`;
 }
 const BASE_BG_COLOR = '#0B1726';
+const DAY_BG_TINT = '#6A7B74'; // tinte del fondo de día: pizarra verdosa, deliberadamente menos frío que DAY_LIGHT_TINT
 
 // Escala solo los VALORES de una expresión ['interpolate',['linear'],['zoom'], z1,v1, z2,v2 ...]
 function scaleZoomExpression(expr, mult){
@@ -7265,7 +7266,8 @@ function scaleZoomExpression(expr, mult){
 // Realce diurno del relieve. En navegación activa se respeta su propio refuerzo.
 function applyDayHillshade(period){
   if (!map.getLayer('hillshade-subtle')) return;
-  map.setPaintProperty('hillshade-subtle', 'hillshade-highlight-color', `rgba(255,255,255,${period.hillshadeHighlight || 0.085})`);
+ const hlRGB = period.hillshadeHighlight ? '255,228,185' : '255,255,255'; // luz cálida de día; blanco original en dusk/night
+  map.setPaintProperty('hillshade-subtle', 'hillshade-highlight-color', `rgba(${hlRGB},${period.hillshadeHighlight || 0.085})`);
   if (navCartographyBoosted) return;
   map.setPaintProperty('hillshade-subtle', 'hillshade-exaggeration', scaleZoomExpression(HILLSHADE_EXAGGERATION_NORMAL, period.hillshadeBoost || 1));
 }
@@ -7366,14 +7368,14 @@ const TIME_ATMOSPHERE = {
   // edificios/agua) hacia DAY_LIGHT_TINT. 0 en dusk/night preserva su
   // apariencia exactamente igual a como está hoy; el resto de las claves
   // (bgTint, bgAmount, glowAmount, glowOpacity, illum) no se toca.
-  day:   { bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.08, bgLift:0.12, hillshadeBoost:1.1, hillshadeHighlight:0.11, vignette:{ top:0.72, bottom:0.6, edge:0.34 } },
+  day:   { bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.08, bgLift:0.10, hillshadeBoost:1.15, hillshadeHighlight:0.12, vignette:{ top:0.76, bottom:0.64, edge:0.36 } },
   // midday — mismo resto de valores que "day" (nunca cambia el mood de
   // categoría, el glow ni el ángulo de sombra), solo dayLift mucho más
   // fuerte: de un matiz sutil (8%) a un salto real de luminosidad (42%),
   // acotado a las mismas 4 capas de terreno que ya toca applyDayLightLift()
   // — el chrome de la interfaz (header, buscador, chips, sheet) no se toca
   // en este cambio.
-  midday:{ bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.42, bgLift:0.40, hillshadeBoost:1.25, hillshadeHighlight:0.15, vignette:{ top:0.55, bottom:0.45, edge:0.28 } },
+  midday:{ bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.42, bgLift:0.28, hillshadeBoost:1.3, hillshadeHighlight:0.16, vignette:{ top:0.66, bottom:0.54, edge:0.33 } },
   dusk:  { bgTint:'#E8A24D', bgAmount:0.05, glowAmount:0.22, glowOpacity:0.055, illum:305, dayLift:0 },
   night: { bgTint:'#8B7CF0', bgAmount:0.06, glowAmount:0.28, glowOpacity:0.032, illum:300, dayLift:0 },
 };
@@ -7394,7 +7396,7 @@ function applyMoodAtmosphere(expId){
   const period = TIME_ATMOSPHERE[currentDayPeriod || 'day'];
   const bgTimeBase = period.bgTint
     ? blendHex(BASE_BG_COLOR, period.bgTint, period.bgAmount)
-    : blendHex(BASE_BG_COLOR, DAY_LIGHT_TINT, period.bgLift || 0);
+    : blendHex(BASE_BG_COLOR, DAY_BG_TINT, period.bgLift || 0);
   applyDayVignette(period);
   const glowTimeBase = period.bgTint ? blendHex(turquoiseBase, period.bgTint, period.glowAmount) : turquoiseBase;
 
