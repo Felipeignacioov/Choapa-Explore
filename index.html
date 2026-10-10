@@ -2032,7 +2032,7 @@ img{-webkit-user-drag:none; user-select:none;}
   width:28px; height:28px; border-radius:50%; background:rgba(7,19,31,0.55); backdrop-filter:blur(8px);
   display:flex; align-items:center; justify-content:center; color:#fff;
 }
-.md-photo{height:220px; background:var(--surface) center/cover no-repeat;}
+.md-photo{height:220px; background:var(--surface) center/cover no-repeat; cursor:pointer;}
 .md-body{padding:16px 18px 18px;}
 .md-name{font-family:var(--font-display); font-size:17px; font-weight:700;}
 .md-loc{font-size:12.5px; color:var(--text-secondary); margin-top:2px;}
@@ -2176,7 +2176,7 @@ img{-webkit-user-drag:none; user-select:none;}
 .md-exp-actions{display:flex; gap:9px; margin-top:28px;}
 /* La galería (z-index 70, antes en el DOM) quedaba debajo de #memoryDetail (z-index 70, después) —
    se sube SOLO mientras "Mis recuerdos" está abierto. */
-#app:has(.memory-detail--experience.visible) .gallery-screen{z-index:72;}
+#app:has(.memory-detail.visible) .gallery-screen{z-index:72;}
 
 /* ---------------- NAVEGACIÓN REAL — selector de modo (Fase 1) ---------------- */
 .transport-sheet{
@@ -7991,10 +7991,10 @@ function showMemoryErrorToast(message){
 }
 // Éxito de recuerdos libres: mismo toast (#memoryToast), el mensaje va en el título para no contradecir el texto fijo.
 let freeMemoryToastTitleTimer = null;
-function showFreeMemorySuccessToast(message){
+function showFreeMemorySuccessToast(message, subtitle){
   const t = memoryToast.querySelector('.mt-title');
   t.textContent = message;
-  showMemoryToast('Recuerdos del Choapa', '');
+   showMemoryToast(subtitle || 'Recuerdos del Choapa', '');
   clearTimeout(freeMemoryToastTitleTimer);
   freeMemoryToastTitleTimer = setTimeout(() => { t.textContent = 'Recuerdo guardado'; }, 2700);
 }
@@ -11366,8 +11366,9 @@ function openMemoryActions(place, memory, index){
     if (!MemoryStore.get(place.id) && state.selectedPlace && state.selectedPlace.id === place.id){
       document.getElementById('poiDetailMemoryBtn').classList.remove('saved');
     }
-    renderMemoryExperience(place, true);
+       renderMemoryExperience(place, true);
     refreshAlbumViewsAfterMemoryChange();
+    showFreeMemorySuccessToast('Recuerdo eliminado correctamente', place.name);
   }});
   actions.push({ label:'Cancelar', cancel:true, run:() => {} });
 
@@ -11524,6 +11525,15 @@ function closeMemoryDetail(){
   memoryDetailContext = null;
 }
 document.getElementById('memoryDetailClose').addEventListener('click', closeMemoryDetail);
+// Foto del detalle (recuerdos libres y de localidad) → visor a pantalla completa existente.
+document.getElementById('mdPhoto').addEventListener('click', () => {
+  if (!memoryDetailContext) return;
+  const { type, localityId, memoryId } = memoryDetailContext;
+  let m = null;
+  if (type === 'personal') m = PersonalMemoryStore.getAll().find(x => x.id === memoryId);
+  else if (type === 'locality') m = LocalityMemoryStore.getAll(localityId).find(x => x.id === memoryId);
+  if (m) openGallery([m.photoUrl], 0);
+});
 memoryDetail.addEventListener('click', (e) => { if (e.target === memoryDetail) closeMemoryDetail(); });
 
 document.getElementById('mdReplace').addEventListener('click', () => {
