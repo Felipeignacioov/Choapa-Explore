@@ -1637,6 +1637,7 @@ img{-webkit-user-drag:none; user-select:none;}
   transition:transform .38s cubic-bezier(.2,.9,.28,1.1), opacity .26s ease;
 }
 .memory-toast.visible{transform:translateY(0); opacity:1;}
+#memoryToast{z-index:76;}
 .memory-toast .mt-icon{color:var(--turquoise-bright); flex-shrink:0; display:flex;}
 .memory-toast .mt-title{font-family:var(--font-display); font-size:13.5px; font-weight:700; color:var(--text-primary);}
 .memory-toast .mt-sub{font-size:11.5px; color:var(--turquoise-bright); font-style:italic; margin-top:1px;}
@@ -7986,7 +7987,16 @@ function showMemoryErrorToast(message){
   const t = memoryToast.querySelector('.mt-title');
   t.textContent = 'No se pudo completar';
   showMemoryToast(message || 'Inténtalo de nuevo', '');
-  setTimeout(() => { t.textContent = 'Recuerdo guardado'; }, 2700);
+   setTimeout(() => { t.textContent = 'Recuerdo guardado'; }, 2700);
+}
+// Éxito de recuerdos libres: mismo toast (#memoryToast), el mensaje va en el título para no contradecir el texto fijo.
+let freeMemoryToastTitleTimer = null;
+function showFreeMemorySuccessToast(message){
+  const t = memoryToast.querySelector('.mt-title');
+  t.textContent = message;
+  showMemoryToast('Recuerdos del Choapa', '');
+  clearTimeout(freeMemoryToastTitleTimer);
+  freeMemoryToastTitleTimer = setTimeout(() => { t.textContent = 'Recuerdo guardado'; }, 2700);
 }
 
 // Recuerdo libre asociado solo a una localidad (sin experiencia/POI específico).
@@ -9860,7 +9870,7 @@ memoryFileInput.addEventListener('change', async (e) => {
         ? await PersonalMemoryStore.replaceOne(replaceId, photoDataUrl)
         : await PersonalMemoryStore.add(photoDataUrl);
       if (!result.ok){ showMemoryErrorToast(result.error); return; } // sin estados falsos: nada se muestra como guardado
-      showMemoryToast('Recuerdos del Choapa', 'Nuevo recuerdo');
+      showFreeMemorySuccessToast(replaceId ? 'Foto reemplazada correctamente' : 'Recuerdo añadido correctamente');
       if (currentAlbumIsPersonal) renderPersonalAlbum();
     }
 
@@ -11538,8 +11548,9 @@ document.getElementById('mdDelete').addEventListener('click', async () => {
     // Supabase: el detalle solo se cierra si el borrado se confirmó (fila verificada y luego archivo).
     const r = await PersonalMemoryStore.remove(memoryId);
     if (!r.ok){ showMemoryErrorToast(r.error); return; }
-    closeMemoryDetail();
+       closeMemoryDetail();
     refreshAlbumViewsAfterMemoryChange();
+    showFreeMemorySuccessToast('Recuerdo eliminado correctamente');
     return;
   }
    if (type === 'locality'){
