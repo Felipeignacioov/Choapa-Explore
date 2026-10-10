@@ -11242,8 +11242,8 @@ function renderPersonalAlbum(){
   addTile.innerHTML = `${icon('sparkle',20)}<span>Agregar recuerdo</span>`;
   addTile.addEventListener('click', () => {
        pendingFreeReplaceId = null; // añadir nunca reemplaza (un reemplazo abandonado no debe contaminar)
-    memoryFileInput.dataset.contextType = 'personal';
-    memoryFileInput.click();
+       memoryFileInput.dataset.contextType = 'personal';
+    openMemorySourceSheet(); // Tomar foto / Elegir de galería
   });
   albumDetailGrid.appendChild(addTile);
 
@@ -11527,8 +11527,9 @@ document.getElementById('mdReplace').addEventListener('click', () => {
   delete memoryFileInput.dataset.localityId;
   if (type === 'place') memoryFileInput.dataset.placeId = placeId;
   if (type === 'locality') memoryFileInput.dataset.localityId = localityId;
-  closeMemoryDetail();
-  memoryFileInput.click();
+   closeMemoryDetail();
+  if (type === 'personal') openMemorySourceSheet(); // Tomar foto / Elegir de galería
+  else memoryFileInput.click();
 });
 document.getElementById('mdDelete').addEventListener('click', async () => {
   if (!memoryDetailContext) return;
