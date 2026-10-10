@@ -94,18 +94,22 @@ img{-webkit-user-drag:none; user-select:none;}
 .maplibregl-ctrl-attrib{display:none !important;}
 .maplibregl-ctrl-logo{display:none !important;}
 
+@property --vignette-top    { syntax:'<number>'; inherits:true; initial-value:0.82; }
+@property --vignette-bottom { syntax:'<number>'; inherits:true; initial-value:0.7; }
+@property --vignette-edge   { syntax:'<number>'; inherits:true; initial-value:0.4; }
 /* subtle vignette so UI floats over the map, not competes with it */
 .map-vignette{
   position:absolute; inset:0; pointer-events:none; z-index:1;
+  transition:--vignette-top .6s ease, --vignette-bottom .6s ease, --vignette-edge .6s ease;
   background:
-    linear-gradient(to bottom, rgba(7,19,31,0.82) 0%, rgba(7,19,31,0.0) 18%, rgba(7,19,31,0.0) 68%, rgba(7,19,31,0.7) 100%),
+   linear-gradient(to bottom, rgba(7,19,31,var(--vignette-top,0.82)) 0%, rgba(7,19,31,0.0) 18%, rgba(7,19,31,0.0) 68%, rgba(7,19,31,var(--vignette-bottom,0.7)) 100%),
     /* Viñeteado de esquinas — ya existía pero era casi imperceptible (radio de
        inicio muy pegado al borde, opacidad máxima muy baja). Arrancado antes
        (52% en vez de 58%) y con más presencia en el borde (0.4 en vez de
        0.32) para que el centro (donde están los POIs) quede como foco natural
        sin que se note como un filtro obvio — sigue siendo transparente en
        más de la mitad central de la pantalla. */
-       radial-gradient(ellipse at center, rgba(7,19,31,0) 52%, rgba(7,19,31,0.4) 100%);
+      radial-gradient(ellipse at center, rgba(7,19,31,0) 52%, rgba(7,19,31,var(--vignette-edge,0.4)) 100%);
 }
 
 /* ---------------- SEÑAL DE TERRITORIO — más comuna fuera del viewport ----------------
@@ -3656,7 +3660,7 @@ function restoreNormalCartography(){
     map.setLayoutProperty(id, 'text-size', COMMUNE_LABEL_SIZE_NORMAL);
   });
   if (map.getLayer('hillshade-subtle')){
-    map.setPaintProperty('hillshade-subtle', 'hillshade-exaggeration', HILLSHADE_EXAGGERATION_NORMAL);
+    applyDayHillshade(TIME_ATMOSPHERE[currentDayPeriod || 'day']);
   }
 }
 
@@ -7254,6 +7258,27 @@ function blendHex(baseHex, tintHex, amount){
 }
 const BASE_BG_COLOR = '#0B1726';
 
+// Escala solo los VALORES de una expresión ['interpolate',['linear'],['zoom'], z1,v1, z2,v2 ...]
+function scaleZoomExpression(expr, mult){
+  return expr.map((item, i) => (i >= 4 && i % 2 === 0) ? +(item * mult).toFixed(3) : item);
+}
+// Realce diurno del relieve. En navegación activa se respeta su propio refuerzo.
+function applyDayHillshade(period){
+  if (!map.getLayer('hillshade-subtle')) return;
+  map.setPaintProperty('hillshade-subtle', 'hillshade-highlight-color', `rgba(255,255,255,${period.hillshadeHighlight || 0.085})`);
+  if (navCartographyBoosted) return;
+  map.setPaintProperty('hillshade-subtle', 'hillshade-exaggeration', scaleZoomExpression(HILLSHADE_EXAGGERATION_NORMAL, period.hillshadeBoost || 1));
+}
+// Viñeteado según período (valores por defecto = los de siempre).
+function applyDayVignette(period){
+  const el = document.querySelector('.map-vignette');
+  if (!el) return;
+  const v = period.vignette || {};
+  el.style.setProperty('--vignette-top', v.top != null ? v.top : 0.82);
+  el.style.setProperty('--vignette-bottom', v.bottom != null ? v.bottom : 0.7);
+  el.style.setProperty('--vignette-edge', v.edge != null ? v.edge : 0.4);
+}
+
 // ---------- Paleta base "adaptable" al estado 'day' de TIME_ATMOSPHERE ----------
 // Estos son los MISMOS valores que tintMapLayers() ya fija una sola vez al
 // cargar el mapa (vegetación, zonas residenciales, edificios) — nunca antes
@@ -7341,14 +7366,14 @@ const TIME_ATMOSPHERE = {
   // edificios/agua) hacia DAY_LIGHT_TINT. 0 en dusk/night preserva su
   // apariencia exactamente igual a como está hoy; el resto de las claves
   // (bgTint, bgAmount, glowAmount, glowOpacity, illum) no se toca.
-  day:   { bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.08 },
+  day:   { bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.08, bgLift:0.12, hillshadeBoost:1.1, hillshadeHighlight:0.11, vignette:{ top:0.72, bottom:0.6, edge:0.34 } },
   // midday — mismo resto de valores que "day" (nunca cambia el mood de
   // categoría, el glow ni el ángulo de sombra), solo dayLift mucho más
   // fuerte: de un matiz sutil (8%) a un salto real de luminosidad (42%),
   // acotado a las mismas 4 capas de terreno que ya toca applyDayLightLift()
   // — el chrome de la interfaz (header, buscador, chips, sheet) no se toca
   // en este cambio.
-  midday:{ bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.42 },
+  midday:{ bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.42, bgLift:0.40, hillshadeBoost:1.25, hillshadeHighlight:0.15, vignette:{ top:0.55, bottom:0.45, edge:0.28 } },
   dusk:  { bgTint:'#E8A24D', bgAmount:0.05, glowAmount:0.22, glowOpacity:0.055, illum:305, dayLift:0 },
   night: { bgTint:'#8B7CF0', bgAmount:0.06, glowAmount:0.28, glowOpacity:0.032, illum:300, dayLift:0 },
 };
@@ -7367,7 +7392,10 @@ function applyMoodAtmosphere(expId){
   // nunca la reemplaza — "Aventura" a mediodía y "Aventura" de noche se sienten
   // como el mismo sistema, en dos momentos distintos del valle.
   const period = TIME_ATMOSPHERE[currentDayPeriod || 'day'];
-  const bgTimeBase = period.bgTint ? blendHex(BASE_BG_COLOR, period.bgTint, period.bgAmount) : BASE_BG_COLOR;
+  const bgTimeBase = period.bgTint
+    ? blendHex(BASE_BG_COLOR, period.bgTint, period.bgAmount)
+    : blendHex(BASE_BG_COLOR, DAY_LIGHT_TINT, period.bgLift || 0);
+  applyDayVignette(period);
   const glowTimeBase = period.bgTint ? blendHex(turquoiseBase, period.bgTint, period.glowAmount) : turquoiseBase;
 
   // Fondo
@@ -7402,6 +7430,7 @@ function applyMoodAtmosphere(expId){
   // simulando sombras más largas y rasantes; el exaggeration no se toca.
   if (map.getLayer('hillshade-subtle')){
     map.setPaintProperty('hillshade-subtle', 'hillshade-illumination-direction', period.illum);
+    applyDayHillshade(period);
   }
 
   // Río Choapa — reflejo sutil de la categoría, sin perder su identidad: el
