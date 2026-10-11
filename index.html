@@ -8300,7 +8300,10 @@ function compressImage(file, maxDim = 900, quality = 0.75){
       else if (height > maxDim){ width = width * (maxDim / height); height = maxDim; }
       const canvas = document.createElement('canvas');
       canvas.width = width; canvas.height = height;
-      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+     const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, width, height);
       resolve(canvas.toDataURL('image/jpeg', quality));
     };
     img.onerror = reject;
@@ -9870,7 +9873,9 @@ memoryFileInput.addEventListener('change', async (e) => {
   if (!file) return;
 
   try{
-    const photoDataUrl = await compressImage(file);
+    // place y personal van a Supabase → más resolución; locality (localStorage, cuota ~5 MB) y cualquier otro contexto conservan 900 px / 0.75
+    const hiRes = contextType === 'place' || contextType === 'personal';
+    const photoDataUrl = await compressImage(file, hiRes ? 1440 : 900, hiRes ? 0.82 : 0.75);
 
     if (contextType === 'place'){
       const place = DEMO_PLACES.find(p => p.id === placeId);
