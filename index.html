@@ -7266,7 +7266,7 @@ function scaleZoomExpression(expr, mult){
 // Realce diurno del relieve. En navegación activa se respeta su propio refuerzo.
 function applyDayHillshade(period){
   if (!map.getLayer('hillshade-subtle')) return;
- const hlRGB = period.hillshadeHighlight ? '255,228,185' : '255,255,255'; // luz cálida de día; blanco original en dusk/night
+ const hlRGB = period.hillshadeHighlightRGB || (period.hillshadeHighlight ? '255,228,185' : '255,255,255'); // luz cálida de día; blanco original en dusk/night
   map.setPaintProperty('hillshade-subtle', 'hillshade-highlight-color', `rgba(${hlRGB},${period.hillshadeHighlight || 0.085})`);
   if (navCartographyBoosted) return;
   map.setPaintProperty('hillshade-subtle', 'hillshade-exaggeration', scaleZoomExpression(HILLSHADE_EXAGGERATION_NORMAL, period.hillshadeBoost || 1));
@@ -7375,7 +7375,7 @@ const TIME_ATMOSPHERE = {
   // acotado a las mismas 4 capas de terreno que ya toca applyDayLightLift()
   // — el chrome de la interfaz (header, buscador, chips, sheet) no se toca
   // en este cambio.
-  midday:{ bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.42, bgLift:0.28, hillshadeBoost:1.3, hillshadeHighlight:0.16, vignette:{ top:0.66, bottom:0.54, edge:0.33 } },
+  midday:{ bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.42, bgLift:0.30, bgLiftTint:'#3E8590', liftTint:'#2E7C8F', hillshadeBoost:1.3, hillshadeHighlightRGB:'222,238,226', hillshadeHighlight:0.16, vignette:{ top:0.66, bottom:0.54, edge:0.33 } },
   dusk:  { bgTint:'#E8A24D', bgAmount:0.05, glowAmount:0.22, glowOpacity:0.055, illum:305, dayLift:0 },
   night: { bgTint:'#8B7CF0', bgAmount:0.06, glowAmount:0.28, glowOpacity:0.032, illum:300, dayLift:0 },
 };
@@ -7396,7 +7396,7 @@ function applyMoodAtmosphere(expId){
   const period = TIME_ATMOSPHERE[currentDayPeriod || 'day'];
   const bgTimeBase = period.bgTint
     ? blendHex(BASE_BG_COLOR, period.bgTint, period.bgAmount)
-    : blendHex(BASE_BG_COLOR, DAY_BG_TINT, period.bgLift || 0);
+   : blendHex(BASE_BG_COLOR, period.bgLiftTint || DAY_BG_TINT, period.bgLift || 0);
   applyDayVignette(period);
   const glowTimeBase = period.bgTint ? blendHex(turquoiseBase, period.bgTint, period.glowAmount) : turquoiseBase;
 
@@ -7495,24 +7495,26 @@ function applyMoodAtmosphere(expId){
 // dayLift:0 (dusk/night) el resultado es matemáticamente idéntico al color
 // original — su apariencia no cambia ni un píxel.
 function applyDayLightLift(){
-  const amount = (TIME_ATMOSPHERE[currentDayPeriod || 'day'] || TIME_ATMOSPHERE.day).dayLift || 0;
+  const periodCfg = TIME_ATMOSPHERE[currentDayPeriod || 'day'] || TIME_ATMOSPHERE.day;
+  const amount = periodCfg.dayLift || 0;
+  const liftTint = periodCfg.liftTint || DAY_LIGHT_TINT; // tinte propio del estado; sin él se usa el compartido
   const layers = map.getStyle().layers || [];
   layers.forEach(l => {
     try{
       if (l.type === 'fill' && (l.id === 'landcover_wood' || l.id === 'landuse_park')){
         map.setPaintProperty(l.id, 'fill-color-transition', { duration:600 });
-        map.setPaintProperty(l.id, 'fill-color', blendHex(BASE_PALETTE.vegetation, DAY_LIGHT_TINT, amount));
+        map.setPaintProperty(l.id, 'fill-color', blendHex(BASE_PALETTE.vegetation, liftTint, amount));
       }
       if (l.type === 'fill' && l.id === 'landuse_residential'){
         map.setPaintProperty(l.id, 'fill-color-transition', { duration:600 });
-        map.setPaintProperty(l.id, 'fill-color', blendHex(BASE_PALETTE.residential, DAY_LIGHT_TINT, amount));
+        map.setPaintProperty(l.id, 'fill-color', blendHex(BASE_PALETTE.residential, liftTint, amount));
       }
           if (l.type === 'fill' && l.id === 'building'){
         map.setPaintProperty(l.id, 'fill-color-transition', { duration:600 });
-        map.setPaintProperty(l.id, 'fill-color', blendHex(BASE_PALETTE.building, DAY_LIGHT_TINT, amount));
+        map.setPaintProperty(l.id, 'fill-color', blendHex(BASE_PALETTE.building, liftTint, amount));
       }
       if (l.type === 'fill' && l.id === 'water'){
-        currentWaterBase = blendHex(BASE_PALETTE.water, DAY_LIGHT_TINT, amount);
+        currentWaterBase = blendHex(BASE_PALETTE.water, liftTint, amount);
         map.setPaintProperty(l.id, 'fill-color-transition', { duration:600 });
         map.setPaintProperty(l.id, 'fill-color', currentWaterBase);
       }
