@@ -2032,6 +2032,15 @@ img{-webkit-user-drag:none; user-select:none;}
   opacity:0; pointer-events:none; transition:opacity .24s ease;
 }
 .memory-detail.visible{opacity:1; pointer-events:auto;}
+/* Fix parpadeo: sin backdrop-filter en los fondos de estos dos overlays
+   (menú de acciones del recuerdo y detalle del recuerdo). El fondo sube
+   un poco de opacidad para compensar la pérdida del desenfoque. */
+#memoryActionSheet,
+#memoryDetail{
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+  background:rgba(2,8,15,0.84);
+}
 .memory-detail-card{
   width:100%; max-width:380px; border-radius:var(--radius-l); overflow:hidden;
   background:var(--surface-elevated); border:1px solid var(--border-glass); box-shadow:var(--shadow-modal), inset 0 1px 0 rgba(255,255,255,0.06);
