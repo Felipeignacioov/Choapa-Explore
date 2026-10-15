@@ -1690,6 +1690,15 @@ img{-webkit-user-drag:none; user-select:none;}
   transition:transform .42s cubic-bezier(.2,.9,.28,1.05);
 }
 .guardados-screen.visible{transform:translateY(0); pointer-events:auto;}
+/* Fix parpadeo al abrir Guardados / Cerca de mí: capa propia para el panel
+   y sin backdrop-filter en sus elementos internos (el panel ya es opaco). */
+.guardados-screen{will-change:transform;}
+.guardados-screen .chip,
+.guardados-screen .gd-card .gd-save-btn,
+.guardados-screen .gd-card .gd-distance{
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+}
 .guardados-header{
   display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-shrink:0;
   padding:calc(14px + var(--safe-top)) 18px 16px;
