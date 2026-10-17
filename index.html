@@ -2164,6 +2164,42 @@ img{-webkit-user-drag:none; user-select:none;}
 .md-exp-add:active{transform:scale(0.97); background:rgba(95,225,232,0.18);}
 .md-exp-cover, .md-exp-thumb{-webkit-touch-callout:none; -webkit-user-select:none; user-select:none;}
 .md-exp-hint{font-size:11px; color:var(--text-tertiary); text-align:center; margin-top:14px;}
+
+/* Fix parpadeo: "Mis recuerdos" de una experiencia aparece sin fundido ni
+   escalado (fondo ya opaco), para no repintar lo que hay debajo. */
+.memory-detail.memory-detail--experience{transition:none;}
+.memory-detail--experience .memory-detail-card{transition:none;}
+
+/* Fix parpadeo: el menú de acciones del recuerdo entra deslizándose, sin
+   fundido de opacidad. */
+#memoryActionSheet{
+  opacity:1; visibility:hidden; transition:none;
+  backdrop-filter:none; -webkit-backdrop-filter:none;
+}
+#memoryActionSheet.visible{visibility:visible;}
+#memoryActionSheet .transport-sheet-card{
+  transform:translateY(100%);
+  transition:transform .3s cubic-bezier(.2,.9,.28,1.05);
+  will-change:transform;
+}
+#memoryActionSheet.visible .transport-sheet-card{transform:translateY(0);}
+
+/* La foto pulsada no cambia de escala bajo el menú. */
+.md-exp-cover:active,
+.md-exp-thumb:active{transform:none;}
+
+/* Candado de "Aún por descubrir": pequeño, sin sombra filtrada, sobre la
+   etiqueta en vez de encima de ella. */
+.album-card.locked .ac-lock-mark{padding-bottom:56px;}
+.album-card.locked .ac-lock-mark svg{filter:none;}
+.album-card.locked .ac-lock-badge{
+  width:34px; height:34px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(7,19,31,0.62);
+  border:1px solid rgba(95,225,232,0.45);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.08);
+  color:var(--turquoise-bright);
+}
 .md-exp-date{font-size:11px; font-weight:500; color:var(--text-tertiary); letter-spacing:0.1px; margin-top:8px;}
 .md-exp-cell{min-width:0;}
 .md-act-list{display:flex; flex-direction:column; gap:8px; margin-top:16px;}
@@ -11286,7 +11322,7 @@ function renderLocalityAlbum(localityId){
       card.innerHTML = `
         <div class="ac-locked-photo" style="background-image:url(${place.image})"></div>
         <div class="ac-locked-overlay"></div>
-                <span class="ac-lock-mark">${LOCKED_CHAINS_SVG}</span>
+                <span class="ac-lock-mark"><span class="ac-lock-badge">${icon('lock', 16)}</span></span>
         <span class="lock-label">Aún por descubrir</span>`;
       card.addEventListener('click', () => { closeAlbum(); selectPlaceById(place.id); });
     }
