@@ -4095,7 +4095,7 @@ function tintMapLayers(){
       if (l.type === 'fill' && l.id === 'water'){
         // Núcleo apenas más claro + borde un poco más presente — profundidad sin
         // subir el brillo general del agua.
-        map.setPaintProperty(l.id, 'fill-color', '#0E3742');
+               map.setPaintProperty(l.id, 'fill-color', '#0C3340');
         map.setPaintProperty(l.id, 'fill-outline-color', 'rgba(95,225,232,0.13)');
       }
       // Cauces (ríos/esteros) — coherentes con el agua, no gris genérico
@@ -4497,7 +4497,7 @@ function renderTerrainDepth(){
       // Stop extra en zoom 8 (entre el 28 de zoom 7 y el 65 de zoom 10) —
       // le da algo más de cuerpo al halo justo en el rango de spawn/vista
       // general, sin tocar los extremos ya calibrados.
-           'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 40, 8, 64, 10, 80, 13, 120],
+                'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 28, 8, 42, 10, 65, 13, 120],
       'circle-color': turquoise,
       'circle-opacity': 0.05,
       'circle-blur': 1,
@@ -4512,7 +4512,7 @@ function renderTerrainDepth(){
     // Mismo stop extra en zoom 8 que la curva inicial — la respiración debe
     // mantener la misma forma, solo escalada por `mult`.
     map.setPaintProperty('comuna-glow-layer', 'circle-radius', [
-          'interpolate', ['linear'], ['zoom'], 7, 40 * mult, 8, 64 * mult, 10, 80 * mult, 13, 120 * mult,
+               'interpolate', ['linear'], ['zoom'], 7, 28 * mult, 8, 42 * mult, 10, 65 * mult, 13, 120 * mult,
     ]);
   });
 
@@ -4573,6 +4573,31 @@ function renderTerrainDepth(){
         'line-blur': 1.5,
       },
     }, coastBeforeId);
+
+        // ---- Plataforma costera de luz difusa ----
+    // Tres bandas anchas y muy difusas sobre el contorno del OCÉANO (no de
+    // ríos ni lagos), apiladas de más ancha a más angosta. Van centradas en la
+    // costa a propósito: no puedo garantizar que line-offset apunte siempre
+    // al mar en todos los tiles. Sin animación ni tick nuevo; su color y su
+    // intensidad los ajusta applyDayLightLift() con la hora.
+    const oceanShelfFilter = waterFillLayer.filter
+      ? ['all', waterFillLayer.filter, ['==', ['get', 'class'], 'ocean']]
+      : ['==', ['get', 'class'], 'ocean'];
+    COAST_SHELF_BANDS.slice().reverse().forEach(b => {
+      if (map.getLayer(b.id)) return; // se crean una sola vez
+      map.addLayer({
+        id:b.id, type:'line',
+        source: waterFillLayer.source, 'source-layer': waterFillLayer['source-layer'],
+        filter: oceanShelfFilter,
+        layout:{ 'line-cap':'round', 'line-join':'round' },
+        paint:{
+          'line-color': b.color,
+          'line-opacity': b.opacity,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 7, b.width * 0.8, 12, b.width * 1.5],
+          'line-blur':  ['interpolate', ['linear'], ['zoom'], 7, b.blur * 0.8, 12, b.blur * 1.4],
+        },
+      }, coastBeforeId);
+    });
 
     // 3) Profundidad del océano en 3 bandas — costa más luminosa, banda
     // intermedia verde-azulada, mar abierto (el fill 'water' de siempre, sin
@@ -7350,7 +7375,7 @@ const BASE_PALETTE = {
   vegetation:  '#12241D',
   residential: '#16283A',
   building:    '#1C3450',
-  water:       '#0E3742',
+    water:       '#0C3340',
 };
 const DAY_LIGHT_TINT = '#4C6B82'; // acero-azulado claro — sigue siendo oscuro/premium, nunca blanco
 // Base de color del agua usada por el ciclo de respiración de luminancia
@@ -7481,9 +7506,8 @@ function applyMoodAtmosphere(expId){
     // idéntico al actual.
     map.setPaintProperty('comuna-glow-layer', 'circle-opacity', [
       'interpolate', ['linear'], ['zoom'],
-            7.6, period.glowOpacity * 2.8,
-      8.8, period.glowOpacity * 2.0,
-      10, period.glowOpacity,
+                 7.6, period.glowOpacity * 1.8,
+      8.8, period.glowOpacity,
     ]);
   }
 
@@ -7553,6 +7577,27 @@ function applyMoodAtmosphere(expId){
 // vignette, POIs, comunas/localidades, rutas, categorías ni UI. Con
 // dayLift:0 (dusk/night) el resultado es matemáticamente idéntico al color
 // original — su apariencia no cambia ni un píxel.
+// Bandas de la plataforma costera (de la más cercana a la costa a la más lejana).
+// Colores: turquesa oscuro cerca de la costa, azul petróleo hacia afuera.
+const COAST_SHELF_BANDS = [
+  { id:'coast-shelf-near', width:4,  blur:3,  opacity:0.12, color:'#2A8794' },
+  { id:'coast-shelf-mid',  width:10, blur:7,  opacity:0.07, color:'#1F7480' },
+  { id:'coast-shelf-far',  width:22, blur:12, opacity:0.04, color:'#185D6F' },
+];
+// Noche: valores base. Día/mediodía: algo más de presencia (misma escala que
+// dayLift). Crepúsculo: un matiz cálido mínimo.
+function updateCoastShelfAtmosphere(amount, liftTint){
+  const dusk = currentDayPeriod === 'dusk';
+  COAST_SHELF_BANDS.forEach(b => {
+    if (!map.getLayer(b.id)) return;
+    let color = blendHex(b.color, liftTint, amount);
+    if (dusk) color = blendHex(color, '#E8A24D', 0.08);
+    map.setPaintProperty(b.id, 'line-color-transition', { duration:600 });
+    map.setPaintProperty(b.id, 'line-opacity-transition', { duration:600 });
+    map.setPaintProperty(b.id, 'line-color', color);
+    map.setPaintProperty(b.id, 'line-opacity', +(b.opacity * (1 + amount * 0.8)).toFixed(3));
+  });
+}
 function applyDayLightLift(){
   const periodCfg = TIME_ATMOSPHERE[currentDayPeriod || 'day'] || TIME_ATMOSPHERE.day;
   const amount = periodCfg.dayLift || 0;
@@ -7575,7 +7620,8 @@ function applyDayLightLift(){
       if (l.type === 'fill' && l.id === 'water'){
         currentWaterBase = blendHex(BASE_PALETTE.water, liftTint, amount);
         map.setPaintProperty(l.id, 'fill-color-transition', { duration:600 });
-        map.setPaintProperty(l.id, 'fill-color', currentWaterBase);
+               map.setPaintProperty(l.id, 'fill-color', currentWaterBase);
+        updateCoastShelfAtmosphere(amount, liftTint);
       }
     }catch(e){ /* capa no aplicable en este estilo — se ignora, igual que en tintMapLayers */ }
   });
