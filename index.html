@@ -617,6 +617,17 @@ img{-webkit-user-drag:none; user-select:none;}
    texto ajeno del mapa base cerca de él. Ahora se atenúa pero nunca desaparece
    del todo — el punto siempre queda asociado a algo de texto legible. */
 .locality-marker.label-collapsed .loc-label{opacity:0.4; transform:scale(0.9); pointer-events:none;}
+
+/* Acabado premium de las COMUNAS (Nivel 1). Las localidades (violeta) no se tocan. */
+.locality-marker:not(.sublocality) .loc-label{
+  background:linear-gradient(180deg, rgba(18,40,60,0.9), rgba(8,19,31,0.93));
+  border:1px solid rgba(95,225,232,0.2);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.07), 0 6px 16px rgba(2,8,15,0.32);
+  padding:5px 13px;
+}
+.locality-marker:not(.sublocality) .loc-name{letter-spacing:0.35px;}
+/* Anillo del pin: más definido, para que se lea como un marcador y no como una mancha. */
+.locality-marker:not(.sublocality) svg circle[r="6.4"]{stroke-width:1.7; stroke-opacity:1;}
 /* CAMBIO "Localidades muy juntas": antes solo el nombre bajaba de opacidad al
    perder la colisión — el punto quedaba igual de visible aunque su localidad
    estuviera "detrás". Mismo valor de opacidad que ya usa .loc-label, para que
@@ -2521,6 +2532,17 @@ img{-webkit-user-drag:none; user-select:none;}
 .auth-logo-badge-sm svg:first-child{ top:4px; }
 .auth-logo-badge-sm svg:last-child{ margin-top:5px; }
 
+/* Logo de marca (vector, color #32C6B5). Sustituye la insignia circular
+   anterior sin tocar el HTML: los íconos viejos se ocultan. */
+.auth-logo-badge{
+  width:92px; height:92px; border:none; border-radius:0;
+  background:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='230 58 540 464' fill='%2332C6B5'><path d='M447.5 498.2 A227 227 0 0 1 315 332 L262 322 Q238 310 236 285 L236 262 Q238 250 252 249 L315 249 A227 227 0 0 1 366 142 L336 137 Q292 125 285 63 L538 63 A227 227 0 0 1 631.2 497.2 L617.7 417.5 A150 150 0 1 0 459.3 417.7 Z'/><path fill-rule='evenodd' d='M472.1 507.6 A227 227 0 0 0 606.8 506.6 L584 372 A94 94 0 1 0 492 372 Z M498 290 a40 40 0 1 0 80 0 a40 40 0 1 0 -80 0 Z'/></svg>") center/contain no-repeat;
+  backdrop-filter:none; -webkit-backdrop-filter:none; box-shadow:none;
+  filter:drop-shadow(0 4px 14px rgba(2,8,15,0.45));
+}
+.auth-logo-badge > svg{display:none;}
+.auth-logo-badge-sm{width:56px; height:56px; margin-bottom:4px;}
+
 .auth-brand{ display:flex; flex-direction:column; align-items:center; gap:6px; }
 .auth-brand-choapa{ font-family:var(--font-display); font-size:34px; font-weight:800; letter-spacing:1px; color:var(--text-primary); text-shadow:0 2px 10px rgba(2,8,15,0.5); }
 .auth-brand-explore-row{ display:flex; align-items:center; gap:10px; }
@@ -2667,6 +2689,51 @@ img{-webkit-user-drag:none; user-select:none;}
 .about-modal-title{font-family:var(--font-display); font-size:17px; font-weight:800; color:var(--text-primary); margin-bottom:8px;}
 .about-modal-text{font-size:12.5px; color:var(--text-secondary); line-height:1.55; margin-bottom:14px;}
 .about-modal-version{font-size:10.5px; color:var(--text-tertiary); font-family:var(--font-mono);}
+
+/* ================= BOTONES — acabado premium ================= */
+
+/* Acción principal (turquesa): degradado sutil + filo de luz + sombra del mismo color */
+.poi-card .btn-directions,
+.rsp-go-btn,
+.guardados-empty .ge-btn{
+  background:linear-gradient(180deg, #55DDE4 0%, var(--turquoise) 100%);
+  box-shadow:0 6px 16px rgba(22,184,196,0.28), inset 0 1px 0 rgba(255,255,255,0.38);
+  letter-spacing:0.2px;
+}
+.poi-card .btn-directions:active,
+.rsp-go-btn:active,
+.guardados-empty .ge-btn:active{
+  background:linear-gradient(180deg, #72E9EE 0%, #3FCFD8 100%);
+  box-shadow:0 3px 9px rgba(22,184,196,0.22), inset 0 1px 0 rgba(255,255,255,0.3);
+}
+
+/* Acciones secundarias: cristal oscuro con filo de luz */
+.poi-card .btn-save,
+.md-btn:not(.md-btn-danger){
+  background:linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.07);
+}
+.auth-btn-secondary,
+.pd-discover-btn{
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+/* Botones redondos y controles flotantes del mapa: filo de luz superior */
+.profile-btn,
+.compass-btn{
+  box-shadow:var(--shadow-float), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+.map-controls,
+.locate-btn{
+  box-shadow:var(--shadow-float), 0 10px 22px rgba(2,8,15,0.34), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+/* Botón central de la barra inferior: mismo degradado, en reposo y activo */
+.nav-item.main .icon-wrap,
+.nav-item.main.active .icon-wrap{
+  background:linear-gradient(180deg, #7BE9EE 0%, var(--turquoise-bright) 100%);
+  box-shadow:0 6px 18px rgba(22,184,196,0.42), 0 2px 4px rgba(2,8,15,0.4), inset 0 1px 0 rgba(255,255,255,0.45);
+}
 </style>
 </head>
 <body>
@@ -4574,32 +4641,7 @@ function renderTerrainDepth(){
       },
     }, coastBeforeId);
 
-        // ---- Plataforma costera de luz difusa ----
-    // Tres bandas anchas y muy difusas sobre el contorno del OCÉANO (no de
-    // ríos ni lagos), apiladas de más ancha a más angosta. Van centradas en la
-    // costa a propósito: no puedo garantizar que line-offset apunte siempre
-    // al mar en todos los tiles. Sin animación ni tick nuevo; su color y su
-    // intensidad los ajusta applyDayLightLift() con la hora.
-    const oceanShelfFilter = waterFillLayer.filter
-      ? ['all', waterFillLayer.filter, ['==', ['get', 'class'], 'ocean']]
-      : ['==', ['get', 'class'], 'ocean'];
-    COAST_SHELF_BANDS.slice().reverse().forEach(b => {
-      if (map.getLayer(b.id)) return; // se crean una sola vez
-      map.addLayer({
-        id:b.id, type:'line',
-        source: waterFillLayer.source, 'source-layer': waterFillLayer['source-layer'],
-        filter: oceanShelfFilter,
-        layout:{ 'line-cap':'round', 'line-join':'round' },
-        paint:{
-          'line-color': b.color,
-          'line-opacity': b.opacity,
-          'line-width': ['interpolate', ['linear'], ['zoom'], 7, b.width * 0.8, 12, b.width * 1.5],
-          'line-blur':  ['interpolate', ['linear'], ['zoom'], 7, b.blur * 0.8, 12, b.blur * 1.4],
-        },
-      }, coastBeforeId);
-    });
-
-    // 3) Profundidad del océano en 3 bandas — costa más luminosa, banda
+           // 3) Profundidad del océano en 3 bandas — costa más luminosa, banda
     // intermedia verde-azulada, mar abierto (el fill 'water' de siempre, sin
     // tocar) queda como la profundidad más oscura. Anclado en las 2 comunas
     // costeras reales (Los Vilos, Canela) — mismo mecanismo que el glow
@@ -7577,27 +7619,6 @@ function applyMoodAtmosphere(expId){
 // vignette, POIs, comunas/localidades, rutas, categorías ni UI. Con
 // dayLift:0 (dusk/night) el resultado es matemáticamente idéntico al color
 // original — su apariencia no cambia ni un píxel.
-// Bandas de la plataforma costera (de la más cercana a la costa a la más lejana).
-// Colores: turquesa oscuro cerca de la costa, azul petróleo hacia afuera.
-const COAST_SHELF_BANDS = [
-  { id:'coast-shelf-near', width:4,  blur:3,  opacity:0.12, color:'#2A8794' },
-  { id:'coast-shelf-mid',  width:10, blur:7,  opacity:0.07, color:'#1F7480' },
-  { id:'coast-shelf-far',  width:22, blur:12, opacity:0.04, color:'#185D6F' },
-];
-// Noche: valores base. Día/mediodía: algo más de presencia (misma escala que
-// dayLift). Crepúsculo: un matiz cálido mínimo.
-function updateCoastShelfAtmosphere(amount, liftTint){
-  const dusk = currentDayPeriod === 'dusk';
-  COAST_SHELF_BANDS.forEach(b => {
-    if (!map.getLayer(b.id)) return;
-    let color = blendHex(b.color, liftTint, amount);
-    if (dusk) color = blendHex(color, '#E8A24D', 0.08);
-    map.setPaintProperty(b.id, 'line-color-transition', { duration:600 });
-    map.setPaintProperty(b.id, 'line-opacity-transition', { duration:600 });
-    map.setPaintProperty(b.id, 'line-color', color);
-    map.setPaintProperty(b.id, 'line-opacity', +(b.opacity * (1 + amount * 0.8)).toFixed(3));
-  });
-}
 function applyDayLightLift(){
   const periodCfg = TIME_ATMOSPHERE[currentDayPeriod || 'day'] || TIME_ATMOSPHERE.day;
   const amount = periodCfg.dayLift || 0;
@@ -7620,8 +7641,7 @@ function applyDayLightLift(){
       if (l.type === 'fill' && l.id === 'water'){
         currentWaterBase = blendHex(BASE_PALETTE.water, liftTint, amount);
         map.setPaintProperty(l.id, 'fill-color-transition', { duration:600 });
-               map.setPaintProperty(l.id, 'fill-color', currentWaterBase);
-        updateCoastShelfAtmosphere(amount, liftTint);
+                      map.setPaintProperty(l.id, 'fill-color', currentWaterBase);
       }
     }catch(e){ /* capa no aplicable en este estilo — se ignora, igual que en tintMapLayers */ }
   });
