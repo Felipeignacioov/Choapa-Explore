@@ -4325,7 +4325,7 @@ function tintMapLayers(){
         // Casi disueltas en el fondo — mismo espíritu que antes, tono más
         // oscuro (72% mezclado hacia el navy) y bastante menos opacas que
         // cualquier capa "major", para que la jerarquía sea innegable.
-        map.setPaintProperty(l.id, 'line-color', roadColor(0.72));
+               map.setPaintProperty(l.id, 'line-color', ['interpolate', ['linear'], ['zoom'], 12.4, roadColor(0.72), 14, roadColor(0.5)]);
         // Legibilidad SOLO al entrar a una comuna (zoom 8.8→12.4 — de
         // ZOOM_COMUNA_NEAR a ZOOM_DETAIL): ahí aterriza enterLocality (z10.15
         // con sub-localidades) y todavía no hay POIs en pantalla; estas calles
@@ -4336,8 +4336,8 @@ function tintMapLayers(){
         // seguía perdiéndose frente a highway_major_subtle (0.62 fijo) justo
         // en el zoom de entrada a comuna (ej. camino a Colliguay). Mismo
         // rango de siempre (8.8→12.4), mismo retorno exacto fuera de él.
-        map.setPaintProperty(l.id, 'line-opacity', ['interpolate', ['linear'], ['zoom'], 8.8, 0.34, 10.5, 0.5, 12.4, 0.34]);
-        map.setPaintProperty(l.id, 'line-width', ['interpolate', ['linear'], ['zoom'], 8.8, 0.6, 10.5, 1.3, 12.4, 1.0, 16, 1.5, 18, 1.9]);
+              map.setPaintProperty(l.id, 'line-opacity', ['interpolate', ['linear'], ['zoom'], 8.8, 0.34, 10.5, 0.5, 12.4, 0.34, 16, 0.58]);
+              map.setPaintProperty(l.id, 'line-width', ['interpolate', ['linear'], ['zoom'], 8.8, 0.6, 10.5, 1.3, 12.4, 1.0, 14, 1.4, 16, 2.0, 18, 2.4]);
       }
              // Color compartido para "información de referencia" del mapa base —
       // nombres de calle y localidades sin curar (Cancha Brava, El Boldo...).
