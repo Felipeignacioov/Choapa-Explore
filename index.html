@@ -9711,7 +9711,10 @@ function renderGuardadosGrid(){
     filtered.forEach(place => {
        const cat = expById(place.category);
     const primaryExp = place.categoryPrimary ? expById(place.categoryPrimary) : null;
-    const tagInfo = primaryExp || cat;
+        // Con un filtro de categoría activo, la etiqueta muestra esa categoría
+    // (solo si la experiencia realmente pertenece a ella); con "Todos", se
+    // conserva la categoría principal de siempre.
+    const tagInfo = (guardadosActiveFilter !== 'todos' && place.experiences.includes(guardadosActiveFilter) && expById(guardadosActiveFilter)) || primaryExp || cat;
     const color = expColor(tagInfo);
     const comuna = LOCALITIES.find(l => l.aliases.includes(place.locality));
 
