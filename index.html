@@ -9843,7 +9843,9 @@ function renderNearbyFilters(){
 function buildNearbyCard(place, distanceLabel){
   const cat = expById(place.category);
   const primaryExp = place.categoryPrimary ? expById(place.categoryPrimary) : null;
-  const tagInfo = primaryExp || cat;
+  // Con una categoría activa, la etiqueta muestra esa categoría (solo si la
+  // experiencia pertenece a ella); con "Todos", se conserva la principal.
+  const tagInfo = (nearbyActiveFilter !== 'todos' && place.experiences.includes(nearbyActiveFilter) && expById(nearbyActiveFilter)) || primaryExp || cat;
   const color = expColor(tagInfo);
   const comuna = LOCALITIES.find(l => l.aliases.includes(place.locality));
 
