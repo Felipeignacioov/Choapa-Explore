@@ -9957,6 +9957,38 @@ function closeNearby(){
   document.querySelector('.bottom-nav .nav-item').classList.add('active');
 }
 document.getElementById('navNearby').addEventListener('click', openNearby);
+
+/* Indicación de desplazamiento horizontal en las filas de filtros de Guardados
+   y Cerca de mí. Mismo criterio que updateChipsFade() del header: fade a la
+   derecha si hay más chips, a la izquierda si ya se desplazó, y ninguno si
+   caben todos. */
+function updateFilterRowFade(el){
+  const maxScroll = el.scrollWidth - el.clientWidth;
+  let mask;
+  if (maxScroll <= 2){
+    mask = 'none';
+  } else if (el.scrollLeft <= 2){
+    mask = 'linear-gradient(to right, black calc(100% - 36px), transparent 100%)';
+  } else if (el.scrollLeft >= maxScroll - 2){
+    mask = 'linear-gradient(to right, transparent 0, black 36px)';
+  } else {
+    mask = 'linear-gradient(to right, transparent 0, black 36px, black calc(100% - 36px), transparent 100%)';
+  }
+  el.style.webkitMaskImage = mask;
+  el.style.maskImage = mask;
+}
+[guardadosFilters, nearbyFilters].forEach(row => {
+  const refresh = () => updateFilterRowFade(row);
+  row.addEventListener('scroll', refresh, { passive:true });
+  // Los chips se vuelven a crear cada vez que cambia el filtro o se abre la pantalla.
+  new MutationObserver(refresh).observe(row, { childList:true });
+  window.addEventListener('resize', refresh);
+  refresh();
+});
+// Al cargar las fuentes cambia el ancho de los chips.
+if (document.fonts && document.fonts.ready){
+  document.fonts.ready.then(() => { updateFilterRowFade(guardadosFilters); updateFilterRowFade(nearbyFilters); });
+}
 document.querySelectorAll('.bottom-nav .nav-item').forEach(item => {
   if (item.id !== 'navNearby'){
     item.addEventListener('click', () => { if (nearbyScreen.classList.contains('visible')) closeNearby(); });
