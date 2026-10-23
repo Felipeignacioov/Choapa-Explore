@@ -2627,6 +2627,22 @@ img{-webkit-user-drag:none; user-select:none;}
 .auth-field input:focus{ border-color:rgba(95,225,232,0.5); background:rgba(20,43,61,0.85); }
 .auth-field.hidden{ display:none; }
 
+/* Ojito para mostrar/ocultar la contraseña */
+.auth-pw-wrap{ position:relative; display:block; }
+.auth-pw-wrap input{ padding-right:48px; }
+.auth-pw-toggle{
+  position:absolute; right:6px; top:50%; transform:translateY(-50%);
+  width:38px; height:38px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  color:var(--text-tertiary);
+  transition:color .18s ease, background .18s ease;
+}
+.auth-pw-toggle:active{ background:rgba(95,225,232,0.1); }
+.auth-pw-toggle .eye-off{ display:none; }
+.auth-pw-wrap.shown .eye-on{ display:none; }
+.auth-pw-wrap.shown .eye-off{ display:block; }
+.auth-pw-wrap.shown .auth-pw-toggle{ color:var(--turquoise-bright); }
+
 .auth-form-status{ padding:11px 13px; border-radius:var(--radius-m); font-size:12px; line-height:1.5; background:rgba(95,225,232,0.08); border:1px solid rgba(95,225,232,0.25); color:var(--turquoise-bright); }
 .auth-form-status.error{ background:rgba(240,98,91,0.08); border-color:rgba(240,98,91,0.3); color:#F0625B; }
 
@@ -3269,11 +3285,23 @@ img{-webkit-user-drag:none; user-select:none;}
           </label>
           <label class="auth-field">
             <span class="auth-field-label">Contraseña</span>
-            <input type="password" id="authPassword" autocomplete="new-password" placeholder="••••••••" required minlength="8">
+                        <span class="auth-pw-wrap">
+              <input type="password" id="authPassword" autocomplete="new-password" placeholder="••••••••" required minlength="8">
+              <button type="button" class="auth-pw-toggle" aria-label="Mostrar contraseña" aria-pressed="false">
+                <svg class="eye-on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.8"/></svg>
+                <svg class="eye-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.8"/><path d="M4 4l16 16"/></svg>
+              </button>
+            </span>
           </label>
           <label class="auth-field" id="authConfirmField">
             <span class="auth-field-label">Confirmar contraseña</span>
-            <input type="password" id="authPasswordConfirm" autocomplete="new-password" placeholder="••••••••">
+                        <span class="auth-pw-wrap">
+              <input type="password" id="authPasswordConfirm" autocomplete="new-password" placeholder="••••••••">
+              <button type="button" class="auth-pw-toggle" aria-label="Mostrar contraseña" aria-pressed="false">
+                <svg class="eye-on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.8"/></svg>
+                <svg class="eye-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.8"/><path d="M4 4l16 16"/></svg>
+              </button>
+            </span>
           </label>
 
                     <button type="submit" class="auth-btn-primary auth-form-submit" id="authFormSubmit">Crear cuenta</button>
@@ -11978,7 +12006,8 @@ function showAuthForm(mode){
     authFormStatus.style.display = 'none';
   authFormStatus.className = 'auth-form-status';
   authForm.classList.remove('hidden'); // por si quedó oculto tras un registro con confirmación pendiente
-  authForm.reset();
+   authForm.reset();
+  resetPasswordVisibility();
   authWelcomeView.classList.remove('active');
   authFormView.classList.add('active');
 }
@@ -11992,6 +12021,31 @@ document.getElementById('authLoginBtn').addEventListener('click', () => showAuth
 document.getElementById('authGuestBtn').addEventListener('click', closeAuthScreen);
 document.getElementById('authFormBack').addEventListener('click', showAuthWelcome);
 document.getElementById('authFormSwitch').addEventListener('click', () => showAuthForm(authFormMode === 'register' ? 'login' : 'register'));
+
+// Ojito de contraseña: alterna entre type="password" y type="text".
+document.querySelectorAll('.auth-pw-toggle').forEach(btn => {
+  // Evita que el botón le quite el foco al campo (y cierre el teclado).
+  btn.addEventListener('mousedown', e => e.preventDefault());
+  btn.addEventListener('click', () => {
+    const wrap = btn.closest('.auth-pw-wrap');
+    const input = wrap.querySelector('input');
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    wrap.classList.toggle('shown', show);
+    btn.setAttribute('aria-pressed', String(show));
+    btn.setAttribute('aria-label', show ? 'Ocultar contraseña' : 'Mostrar contraseña');
+  });
+});
+// Al reabrir el formulario, las contraseñas vuelven a estar ocultas.
+function resetPasswordVisibility(){
+  document.querySelectorAll('.auth-pw-wrap').forEach(wrap => {
+    wrap.querySelector('input').type = 'password';
+    wrap.classList.remove('shown');
+    const btn = wrap.querySelector('.auth-pw-toggle');
+    btn.setAttribute('aria-pressed', 'false');
+    btn.setAttribute('aria-label', 'Mostrar contraseña');
+  });
+}
 
 // Toast de bienvenida al iniciar sesión — MISMA clase CSS .memory-toast ya
 // existente (sin ningún estilo nuevo), como segunda instancia del
