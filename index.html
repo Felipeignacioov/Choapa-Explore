@@ -492,10 +492,10 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 
 .user-dot{width:22px; height:22px;}
-.user-dot .ring{animation:pulse-ring 2.4s ease-out infinite;}
+.user-dot .ring{animation:pulse-ring 3.4s ease-out infinite;}
 @keyframes pulse-ring{
-  0%{r:5; opacity:.55;}
-  100%{r:16; opacity:0;}
+  0%{r:5.5; opacity:.45;}
+  100%{r:10.5; opacity:0;}
 }
 
 /* ---------------- LOCALITY MARKERS (Nivel 1/2) ---------------- */
@@ -9371,7 +9371,7 @@ function setUserMarkerNavStyle(active, heading){
   } else {
     el.setAttribute('viewBox', '0 0 22 22');
     el.setAttribute('class', 'user-dot');
-    el.innerHTML = `<circle class="ring" cx="11" cy="11" r="5" fill="none" stroke="#5FE1E8" stroke-width="2"/><circle cx="11" cy="11" r="5" fill="#5FE1E8" stroke="#07131F" stroke-width="2"/>`;
+       el.innerHTML = userDotInnerSVG();
   }
 }
 
@@ -10176,11 +10176,24 @@ document.getElementById('poiDetailThumb').addEventListener('click', () => {
 });
 
 /* ---------- 6. USER LOCATION DOT ---------- */
+// Contenido del marcador de ubicación (compartido con setUserMarkerNavStyle).
+// Mismo lenguaje que los pines de comuna: núcleo con degradado y brillo,
+// halo estático tenue y un pulso lento.
+function userDotInnerSVG(){
+  return `
+    <defs>
+      <radialGradient id="userDotGrad" cx="35%" cy="30%" r="65%">
+        <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.6"/>
+        <stop offset="35%" stop-color="#5FE1E8" stop-opacity="1"/>
+        <stop offset="100%" stop-color="#5FE1E8" stop-opacity="0.85"/>
+      </radialGradient>
+    </defs>
+    <circle class="ring" cx="11" cy="11" r="5" fill="none" stroke="#5FE1E8" stroke-width="1.5"/>
+    <circle cx="11" cy="11" r="8" fill="#5FE1E8" opacity="0.14"/>
+    <circle cx="11" cy="11" r="5" fill="url(#userDotGrad)" stroke="#07131F" stroke-width="2"/>`;
+}
 function userDotSVG(){
-  return `<svg class="user-dot" viewBox="0 0 22 22">
-    <circle class="ring" cx="11" cy="11" r="5" fill="none" stroke="#5FE1E8" stroke-width="2"/>
-    <circle cx="11" cy="11" r="5" fill="#5FE1E8" stroke="#07131F" stroke-width="2"/>
-  </svg>`;
+  return `<svg class="user-dot" viewBox="0 0 22 22">${userDotInnerSVG()}</svg>`;
 }
 let userMarker = null;
 // Separado en dos partes: poner el punto azul en el mapa (se reutiliza desde
