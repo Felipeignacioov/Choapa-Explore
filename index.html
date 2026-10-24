@@ -2710,6 +2710,24 @@ img{-webkit-user-drag:none; user-select:none;}
 .about-modal-text{font-size:12.5px; color:var(--text-secondary); line-height:1.55; margin-bottom:14px;}
 .about-modal-version{font-size:10.5px; color:var(--text-tertiary); font-family:var(--font-mono);}
 
+/* ================= MARCA: logo en encabezado y pantalla de carga ================= */
+:root{
+  --brand-logo:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='230 58 540 464' fill='%2332C6B5'><path d='M447.5 498.2 A227 227 0 0 1 315 332 L262 322 Q238 310 236 285 L236 262 Q238 250 252 249 L315 249 A227 227 0 0 1 366 142 L336 137 Q292 125 285 63 L538 63 A227 227 0 0 1 631.2 497.2 L617.7 417.5 A150 150 0 1 0 459.3 417.7 Z'/><path fill-rule='evenodd' d='M472.1 507.6 A227 227 0 0 0 606.8 506.6 L584 372 A94 94 0 1 0 492 372 Z M498 290 a40 40 0 1 0 80 0 a40 40 0 1 0 -80 0 Z'/></svg>");
+}
+/* El logo va a la izquierda del texto, en la misma fila: no añade altura
+   (la fila ya mide lo que el botón de perfil, 38 px). */
+.brand{flex-direction:row; align-items:center; gap:9px;}
+.brand-text{display:flex; flex-direction:column; line-height:1;}
+.brand-logo{
+  width:30px; height:30px; flex-shrink:0;
+  background:var(--brand-logo) center/contain no-repeat;
+}
+/* Pantalla de carga: mismo logo sobre el texto, sin animación nueva. */
+.loading-logo{
+  display:block; width:68px; height:68px; margin:0 auto 14px;
+  background:var(--brand-logo) center/contain no-repeat;
+}
+
 /* ================= BOTONES — acabado premium ================= */
 
 /* Acción principal (turquesa): degradado sutil + filo de luz + sombra del mismo color */
@@ -2773,7 +2791,8 @@ img{-webkit-user-drag:none; user-select:none;}
   </div>
 
   <div class="map-loading" id="mapLoading">
-    <div class="loading-mark">
+        <div class="loading-mark">
+      <span class="loading-logo" aria-hidden="true"></span>
       <span class="loading-choapa">CHOAPA</span>
       <span class="loading-explore">EXPLORE</span>
     </div>
@@ -2783,9 +2802,12 @@ img{-webkit-user-drag:none; user-select:none;}
   <!-- HEADER -->
   <div class="top-ui">
     <div class="header-row">
-      <div class="brand">
-        <span class="brand-choapa">CHOAPA</span>
-        <span class="brand-explore">EXPLORE</span>
+            <div class="brand">
+        <span class="brand-logo" aria-hidden="true"></span>
+        <span class="brand-text">
+          <span class="brand-choapa">CHOAPA</span>
+          <span class="brand-explore">EXPLORE</span>
+        </span>
       </div>
       <button class="profile-btn" id="btnProfileHeader" aria-label="Perfil">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9Z" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c1.4-3.8 4.6-6 8-6s6.6 2.2 8 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
