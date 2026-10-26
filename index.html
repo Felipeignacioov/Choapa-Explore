@@ -5982,8 +5982,9 @@ function startPOIBreathingAnimation(){
 function handlePOINativeClick(e){
   if (!e.features || !e.features[0]) return;
   const placeId = e.features[0].properties.id;
-  const place = DEMO_PLACES.find(p => p.id === placeId);
+    const place = DEMO_PLACES.find(p => p.id === placeId);
   if (!place) return;
+  invalidatePendingPlaceSelections(); // un toque directo manda sobre cualquier selectPlaceById() pendiente
   selectPlace(place, null); // sin elemento DOM — ver nota en selectPlace()
 }
 let poiNativeClickBound = false;
@@ -10668,7 +10669,20 @@ function renderClosingFeature(){
 }
 
 renderPlacesRail();
+
+// Vigencia de selecciones por ID. Cada llamada pública a selectPlaceById()
+// abre una "generación" nueva; los reintentos (setTimeout) llevan la
+// generación que los creó y, si ya no es la vigente, terminan sin tocar
+// mapa, cámara, paneles ni ficha. Un clic directo sobre un POI también
+// invalida las cadenas pendientes (ver handlePOINativeClick).
+let placeSelectionGeneration = 0;
+function invalidatePendingPlaceSelections(){ placeSelectionGeneration++; }
+
 function selectPlaceById(id){
+  runPlaceSelection(id, ++placeSelectionGeneration);
+}
+function runPlaceSelection(id, generation){
+  if (generation !== placeSelectionGeneration) return; // selección obsoleta: no hace nada
   const place = DEMO_PLACES.find(p => p.id === id);
   if (!place) return;
 
@@ -10681,7 +10695,7 @@ function selectPlaceById(id){
   const locality = LOCALITIES.find(l => l.aliases.includes(place.locality));
   if (locality && (!state.currentLocality || state.currentLocality.id !== locality.id)){
     enterLocality(locality, { fly:true });
-    setTimeout(() => selectPlaceById(id), 900); // espera a que la cámara aterrice y los POIs se rendericen
+       setTimeout(() => runPlaceSelection(id, generation), 900); // espera a que la cámara aterrice y los POIs se rendericen
     return;
   }
 
@@ -10689,8 +10703,8 @@ function selectPlaceById(id){
   const subs = locality ? (SUBLOCALITIES[locality.id] || []) : [];
   const sub = subs.find(s => s.aliases.includes(place.locality));
   if (sub && (!state.currentSublocality || state.currentSublocality.id !== sub.id)){
-    enterSublocality(sub, { fly:true });
-    setTimeout(() => selectPlaceById(id), 900);
+       enterSublocality(sub, { fly:true });
+    setTimeout(() => runPlaceSelection(id, generation), 900);
     return;
   }
 
