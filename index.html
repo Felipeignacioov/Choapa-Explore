@@ -10430,16 +10430,30 @@ function updateMomentContent(){
   renderCollectionsRail();
   renderClosingFeature();
 }
+// Token del cambio de momento más reciente: si el usuario toca varias franjas
+// seguidas, solo el último cambio renderiza (los anteriores se descartan), así
+// nunca se sustituye contenido mientras ya se está desvaneciendo otro cambio.
+let momentTransitionToken = 0;
+// Mientras es true, renderTodayRail() crea las tarjetas SIN su animación de
+// entrada (featured-in / tc-in): durante un cambio de momento el desvanecido
+// del contenedor ya hace esa función; dejar además la animación propia
+// producía un segundo fade y un destello. En la carga inicial y tras la
+// sincronización de Supabase sigue en false y la animación se conserva.
+let suppressTodayEntryAnimation = false;
 function applyMomentTransition(){
+  const myToken = ++momentTransitionToken;
   const targets = [
-    sheetHero, todayFeatured,
+    sheetHero, todayFeatured, experiencesRail,
     document.getElementById('exploreMoreRail'),
     document.getElementById('collectionsRail'),
     document.getElementById('closingFeature'),
   ].filter(Boolean);
   targets.forEach(el => { el.style.transition = 'opacity .16s ease'; el.style.opacity = '0'; });
   setTimeout(() => {
+    if (myToken !== momentTransitionToken) return; // hay un cambio más reciente en curso
+    suppressTodayEntryAnimation = true;
     updateMomentContent();
+    suppressTodayEntryAnimation = false;
     targets.forEach(el => { el.style.opacity = '1'; });
   }, 160);
 }
@@ -10484,13 +10498,16 @@ function renderTodayRail(){
         <div class="tc-desc">${featured.description || ''}</div>
       </div>
     </div>`;
-  todayFeatured.querySelector('.featured-card').addEventListener('click', () => { collapseSheet(); selectPlaceById(featured.id); });
+    const featuredCardEl = todayFeatured.querySelector('.featured-card');
+  if (suppressTodayEntryAnimation) featuredCardEl.style.animation = 'none';
+  featuredCardEl.addEventListener('click', () => { collapseSheet(); selectPlaceById(featured.id); });
 
   rest.forEach((place, i) => {
     const { tagInfo, color } = buildTodayTagInfo(place);
     const card = document.createElement('div');
     card.className = 'today-card';
-    card.style.setProperty('--tc-delay', (i * 45) + 'ms');
+      card.style.setProperty('--tc-delay', (i * 45) + 'ms');
+    if (suppressTodayEntryAnimation) card.style.animation = 'none';
     card.innerHTML = `
       <div class="photo" style="background-image:url(${place.image})">
         <span class="today-badge">${icon('sparkle', 11)}Hoy</span>
