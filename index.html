@@ -2655,7 +2655,7 @@ img{-webkit-user-drag:none; user-select:none;}
 .profile-menu-backdrop.visible{display:block;}
 .profile-menu{
   position:absolute; top:calc(60px + var(--safe-top)); right:16px; z-index:50;
-  width:236px;
+   width:min(252px, calc(100vw - 32px));
   background:rgba(16,36,56,0.94); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
   border:1px solid var(--border-glass); border-radius:var(--radius-l);
   box-shadow:var(--shadow-modal), inset 0 1px 0 rgba(255,255,255,0.06);
@@ -2664,21 +2664,31 @@ img{-webkit-user-drag:none; user-select:none;}
   transition:transform .22s cubic-bezier(.2,.9,.28,1.1), opacity .18s ease;
 }
 .profile-menu.visible{transform:translateY(0) scale(1); opacity:1; pointer-events:auto;}
-.profile-menu-header{padding:14px 16px 12px; border-bottom:1px solid var(--border-glass);}
-.profile-menu-name{font-family:var(--font-display); font-size:12.5px; font-weight:700; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.profile-menu-sub{font-size:10.5px; color:var(--text-tertiary); margin-top:2px;}
+.profile-menu-header{display:flex; align-items:center; gap:11px; padding:14px 16px 13px; border-bottom:1px solid var(--border-glass);}
+.profile-menu-avatar{
+  width:34px; height:34px; border-radius:50%; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(95,225,232,0.1); border:1px solid var(--border-glass);
+  color:var(--turquoise-bright);
+}
+.profile-menu-id{min-width:0; display:flex; flex-direction:column;}
+.profile-menu-name{font-family:var(--font-display); font-size:13px; font-weight:700; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.profile-menu-sub{display:flex; align-items:center; gap:6px; font-size:10.5px; font-weight:600; color:var(--text-tertiary); margin-top:3px;}
+.profile-menu.is-signed-in .profile-menu-sub{color:var(--text-secondary);}
+.profile-menu.is-signed-in .profile-menu-sub::before{content:''; width:5px; height:5px; border-radius:50%; background:var(--turquoise-bright); flex-shrink:0;}
 .profile-menu-items{padding:6px;}
 .profile-menu-item{
-  width:100%; display:flex; align-items:center; gap:10px;
-  padding:10px 10px; border-radius:var(--radius-m);
+  width:100%; display:flex; align-items:center; gap:12px; min-height:44px;
+  padding:0 12px; border-radius:var(--radius-m); text-align:left;
   font-size:13px; font-weight:600; color:var(--text-primary);
   transition:background .14s ease;
 }
 .profile-menu-item svg{color:var(--turquoise-bright); flex-shrink:0;}
 .profile-menu-item:active{background:rgba(95,225,232,0.1);}
-.profile-menu-item.danger{color:#F0625B;}
-.profile-menu-item.danger svg{color:#F0625B;}
-.profile-menu-divider{height:1px; background:var(--border-glass); margin:6px 6px;}
+.profile-menu-item.danger{color:var(--text-secondary);}
+.profile-menu-item.danger svg{color:#F0625B; opacity:0.85;}
+.profile-menu-item.danger:active{background:rgba(240,98,91,0.08); color:#F0625B;}
+.profile-menu-divider{height:1px; background:var(--border-subtle); margin:6px 12px;}
 @media (min-width:640px){ .profile-menu{right:calc(50% - 320px + 16px);} }
 
 /* ================= ACERCA DE ================= */
@@ -3368,9 +3378,12 @@ img{-webkit-user-drag:none; user-select:none;}
   <!-- ================= MENÚ DE PERFIL ================= -->
   <div class="profile-menu-backdrop" id="profileMenuBackdrop"></div>
   <div class="profile-menu" id="profileMenu">
-    <div class="profile-menu-header">
-      <div class="profile-menu-name" id="profileMenuName">—</div>
-      <div class="profile-menu-sub" id="profileMenuSub">—</div>
+       <div class="profile-menu-header">
+      <span class="profile-menu-avatar" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9Z"/><path d="M4 20c1.4-3.8 4.6-6 8-6s6.6 2.2 8 6"/></svg></span>
+      <div class="profile-menu-id">
+        <div class="profile-menu-name" id="profileMenuName">—</div>
+        <div class="profile-menu-sub" id="profileMenuSub">—</div>
+      </div>
     </div>
     <div class="profile-menu-items" id="profileMenuItems"></div>
   </div>
@@ -12230,15 +12243,15 @@ function closeAboutModal(){ aboutModal.classList.remove('visible'); }
 // así el menú nunca puede mostrar un estado desincronizado.
 function renderProfileMenu(){
   const items = [];
+  profileMenu.classList.toggle('is-signed-in', !!currentAuthUser); // punto de estado solo con sesión real
   if (currentAuthUser){
     profileMenuName.textContent = currentAuthUser.email || 'Tu cuenta';
     profileMenuSub.textContent = 'Sesión iniciada';
     // Perfil/Configuración: placeholders honestos — reutilizan el toast ya
     // existente (showMemoryToast) en vez de simular una función que no
     // existe todavía.
-    items.push({ icon:'person', label:'Perfil', action:() => { closeProfileMenu(); showMemoryToast('Perfil', 'Próximamente'); } });
     items.push({ icon:'gear', label:'Configuración', action:() => { closeProfileMenu(); showMemoryToast('Configuración', 'Próximamente'); } });
-    items.push({ icon:'info', label:'Acerca de', action:openAboutModal });
+       items.push({ icon:'info', label:'Acerca de Choapa Explore', action:openAboutModal });
     items.push({ divider:true });
     items.push({ icon:'logout', label:'Cerrar sesión', danger:true, action: async () => {
       closeProfileMenu();
@@ -12250,8 +12263,8 @@ function renderProfileMenu(){
     profileMenuSub.textContent = 'Inicia sesión para guardar tus recuerdos';
     items.push({ icon:'login', label:'Ingresar', action:() => reopenAuthScreen('login') });
     items.push({ icon:'register', label:'Registrarse', action:() => reopenAuthScreen('register') });
-    items.push({ divider:true });
-    items.push({ icon:'info', label:'Acerca de', action:openAboutModal });
+       items.push({ divider:true });
+    items.push({ icon:'info', label:'Acerca de Choapa Explore', action:openAboutModal });
   }
 
   profileMenuItems.innerHTML = items.map(it => it.divider
