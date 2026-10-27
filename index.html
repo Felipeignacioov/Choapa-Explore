@@ -1190,7 +1190,7 @@ img{-webkit-user-drag:none; user-select:none;}
 /* Solo la sección justo después del Hero sube y se superpone levemente sobre su
    borde inferior — el resto de secciones (ej. "Recomendados para ti") no se toca. */
 .sheet-hero + .sheet-section{
-  margin-top:-12px; position:relative; z-index:1;
+  margin-top:-12px; padding-top:12px; position:relative; z-index:1;
   background:linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-primary) 100%);
   border-radius:18px 18px 0 0;
 }
@@ -1217,8 +1217,8 @@ img{-webkit-user-drag:none; user-select:none;}
 .sheet-hero{
   --hero-img: none;
   position:relative;
-  padding:24px 20px 26px; min-height:190px;
-  display:flex; flex-direction:column; justify-content:flex-end;
+  padding:12px 20px 22px;
+  display:flex; flex-direction:column; justify-content:flex-start;
   /* Arriba muy limpio (protagonismo del paisaje), oscurecimiento fuerte solo en
      el último 30% — el título gana contraste sin que la foto pierda presencia. */
   background:
@@ -1232,7 +1232,7 @@ img{-webkit-user-drag:none; user-select:none;}
   text-shadow:0 2px 8px rgba(2,8,15,0.4);
 }
 .sheet-hero-title .accent{color:var(--turquoise-bright);}
-.sheet-hero-tagline{font-size:13px; color:var(--text-secondary); font-weight:500; margin-top:14px; text-shadow:0 1px 4px rgba(2,8,15,0.4); transition:opacity .16s ease;}
+.sheet-hero-tagline{font-size:13px; color:var(--text-secondary); font-weight:500; margin-top:10px; text-shadow:0 1px 4px rgba(2,8,15,0.4); transition:opacity .16s ease;}
 
 /* Hero más nocturno para el momento "Esta noche" — capa extra de tinte frío. */
 .sheet-hero.night::before{
