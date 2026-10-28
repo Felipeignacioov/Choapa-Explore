@@ -10434,6 +10434,34 @@ function updateMomentContent(){
 // seguidas, solo el último cambio renderiza (los anteriores se descartan), así
 // nunca se sustituye contenido mientras ya se está desvaneciendo otro cambio.
 let momentTransitionToken = 0;
+// Precarga de las fotos del contenido nuevo ANTES de revelarlo. Las fotos de las
+// tarjetas son background-image (place.image, el mismo campo que ya usan las
+// tarjetas): un fondo nuevo no se pinta hasta que su imagen está lista, y al
+// llegar tarde "saltaba" justo después del fade-in. Un solo Image por URL
+// (momentImagePromises evita peticiones duplicadas y reutiliza la caché del
+// navegador); si una imagen falla, se resuelve igual para no bloquear nada.
+const momentImagePromises = new Map();
+function preloadMomentImage(url){
+  if (momentImagePromises.has(url)) return momentImagePromises.get(url);
+  const p = new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => { (img.decode ? img.decode().catch(() => {}) : Promise.resolve()).then(resolve); };
+    img.onerror = () => { momentImagePromises.delete(url); resolve(); }; // fallida: no se cachea el fallo
+    img.src = url;
+  });
+  momentImagePromises.set(url, p);
+  return p;
+}
+// Destacada + 3 primeras del carrusel (las que se ven al revelar). Espera como
+// máximo maxWaitMs: si alguna tarda más, la interfaz continúa igual.
+function preloadMomentImages(maxWaitMs){
+  const urls = [...new Set(curateTodayExperiences().slice(0, 4).map(p => p.image).filter(Boolean))];
+  if (!urls.length) return Promise.resolve();
+  return Promise.race([
+    Promise.all(urls.map(preloadMomentImage)),
+    new Promise(resolve => setTimeout(resolve, maxWaitMs)),
+  ]);
+}
 // Mientras es true, renderTodayRail() crea las tarjetas SIN su animación de
 // entrada (featured-in / tc-in): durante un cambio de momento el desvanecido
 // del contenedor ya hace esa función; dejar además la animación propia
@@ -10449,12 +10477,15 @@ function applyMomentTransition(){
     document.getElementById('closingFeature'),
   ].filter(Boolean);
   targets.forEach(el => { el.style.transition = 'opacity .16s ease'; el.style.opacity = '0'; });
-  setTimeout(() => {
+    setTimeout(() => {
     if (myToken !== momentTransitionToken) return; // hay un cambio más reciente en curso
-    suppressTodayEntryAnimation = true;
-    updateMomentContent();
-    suppressTodayEntryAnimation = false;
-    targets.forEach(el => { el.style.opacity = '1'; });
+    preloadMomentImages(400).then(() => {
+      if (myToken !== momentTransitionToken) return; // cambió de franja mientras se preparaban las fotos
+      suppressTodayEntryAnimation = true;
+      updateMomentContent();
+      suppressTodayEntryAnimation = false;
+      targets.forEach(el => { el.style.opacity = '1'; });
+    });
   }, 160);
 }
 function buildTodayTagInfo(place){
