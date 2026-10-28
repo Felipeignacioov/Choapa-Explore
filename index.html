@@ -10403,15 +10403,22 @@ function curateTodayExperiences(){
   return picks;
 }
 
+// Actualiza SOLO el estado activo de los chips existentes. No se recrean los
+// nodos: así se conserva la transición CSS de los chips (.chip, 300 ms), su
+// posición de scroll horizontal y no se regeneran sus capas con backdrop-filter.
+function syncTimeFilterChips(){
+  timeFilters.querySelectorAll('.tf-chip').forEach(chip => chip.classList.toggle('active', chip.dataset.tf === activeTimeFilter));
+}
 function renderTimeFilters(){
   timeFilters.innerHTML = '';
   TODAY_TIME_FILTERS.forEach(tf => {
     const chip = document.createElement('button');
     chip.className = 'chip tf-chip' + (tf.id === activeTimeFilter ? ' active' : '');
     chip.innerHTML = `<span class="tf-top">${icon(tf.iconKey, 13)}<span>${tf.label}</span></span><span class="tf-sub">${tf.sub}</span>`;
+      chip.dataset.tf = tf.id;
     chip.addEventListener('click', () => {
       activeTimeFilter = tf.id;
-      renderTimeFilters();
+      syncTimeFilterChips();
       applyMomentTransition();
     });
     timeFilters.appendChild(chip);
@@ -10476,17 +10483,20 @@ function applyMomentTransition(){
     document.getElementById('collectionsRail'),
     document.getElementById('closingFeature'),
   ].filter(Boolean);
-  targets.forEach(el => { el.style.transition = 'opacity .16s ease'; el.style.opacity = '0'; });
+  // 1) Con el contenido actual todavía visible se preparan las fotos nuevas
+  //    (máx. 400 ms): la pantalla nunca queda en blanco esperando imágenes.
+  preloadMomentImages(400).then(() => {
+    if (myToken !== momentTransitionToken) return; // cambió de franja mientras se preparaban las fotos
+    // 2) Desvanecido de salida, 3) sustitución con todo invisible, 4) desvanecido de entrada.
+    targets.forEach(el => { el.style.transition = 'opacity .16s ease'; el.style.opacity = '0'; });
     setTimeout(() => {
-    if (myToken !== momentTransitionToken) return; // hay un cambio más reciente en curso
-    preloadMomentImages(400).then(() => {
-      if (myToken !== momentTransitionToken) return; // cambió de franja mientras se preparaban las fotos
+      if (myToken !== momentTransitionToken) return; // hay un cambio más reciente en curso
       suppressTodayEntryAnimation = true;
       updateMomentContent();
       suppressTodayEntryAnimation = false;
       targets.forEach(el => { el.style.opacity = '1'; });
-    });
-  }, 160);
+    }, 160);
+  });
 }
 function buildTodayTagInfo(place){
   const cat = expById(place.category);
