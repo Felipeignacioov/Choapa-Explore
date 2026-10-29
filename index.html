@@ -1316,7 +1316,7 @@ img{-webkit-user-drag:none; user-select:none;}
   background:linear-gradient(160deg, var(--surface-elevated) 0%, var(--surface) 100%);
   border:1px solid rgba(95,225,232,0.28); border-radius:var(--radius-m);
   box-shadow:var(--shadow-card), inset 0 1px 0 rgba(255,255,255,0.05);
-  transition:transform .16s cubic-bezier(.34,1.56,.64,1), border-color .18s ease;
+   transition:transform .16s cubic-bezier(.34,1.56,.64,1), border-color .18s ease, opacity .16s ease;
 }
 .premium-entry:active{transform:scale(0.98); border-color:rgba(95,225,232,0.5);}
 .pe-icon{
@@ -10477,8 +10477,9 @@ function preloadMomentImages(maxWaitMs){
 let suppressTodayEntryAnimation = false;
 function applyMomentTransition(){
   const myToken = ++momentTransitionToken;
-  const targets = [
+   const targets = [
     sheetHero, todayFeatured, experiencesRail,
+    document.getElementById('premiumPlannerCard'),
     document.getElementById('exploreMoreRail'),
     document.getElementById('collectionsRail'),
     document.getElementById('closingFeature'),
@@ -10488,7 +10489,7 @@ function applyMomentTransition(){
   preloadMomentImages(400).then(() => {
     if (myToken !== momentTransitionToken) return; // cambió de franja mientras se preparaban las fotos
     // 2) Desvanecido de salida, 3) sustitución con todo invisible, 4) desvanecido de entrada.
-    targets.forEach(el => { el.style.transition = 'opacity .16s ease'; el.style.opacity = '0'; });
+        targets.forEach(el => { if (el.id !== 'premiumPlannerCard') el.style.transition = 'opacity .16s ease'; el.style.opacity = '0'; });
     setTimeout(() => {
       if (myToken !== momentTransitionToken) return; // hay un cambio más reciente en curso
       suppressTodayEntryAnimation = true;
