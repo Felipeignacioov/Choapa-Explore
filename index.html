@@ -2669,6 +2669,18 @@ img{-webkit-user-drag:none; user-select:none;}
 .auth-form-status.error{ background:rgba(240,98,91,0.08); border-color:rgba(240,98,91,0.3); color:#F0625B; }
 
 .auth-form-submit{ margin-top:4px; }
+/* Indicador de carga del registro: ocupa el lugar del botón mientras Supabase procesa. */
+.auth-submit-spinner{ display:flex; align-items:center; justify-content:center; margin-top:4px; animation:auth-spinner-in .18s ease; }
+.auth-submit-spinner[hidden]{ display:none; }
+.auth-spinner{
+  width:28px; height:28px; border-radius:50%;
+  border:2.5px solid rgba(95,225,232,0.16); border-top-color:var(--turquoise-bright);
+  box-shadow:0 0 14px rgba(22,184,196,0.18);
+  animation:auth-spin .8s linear infinite;
+}
+@keyframes auth-spin{ to{ transform:rotate(360deg); } }
+@keyframes auth-spinner-in{ from{ opacity:0; } to{ opacity:1; } }
+@media (prefers-reduced-motion: reduce){ .auth-spinner{ animation-duration:1.6s; } }
 .auth-form-switch{ margin-top:20px; text-align:center; font-size:12.5px; color:var(--text-secondary); }
 .auth-form-switch span{ color:var(--turquoise-bright); font-weight:700; }
 
@@ -3370,7 +3382,8 @@ img{-webkit-user-drag:none; user-select:none;}
             </span>
           </label>
 
-                    <button type="submit" class="auth-btn-primary auth-form-submit" id="authFormSubmit">Crear cuenta</button>
+                   <button type="submit" class="auth-btn-primary auth-form-submit" id="authFormSubmit">Crear cuenta</button>
+          <div class="auth-submit-spinner" id="authSubmitSpinner" role="status" aria-live="polite" aria-label="Creando tu cuenta" hidden><span class="auth-spinner"></span></div>
         </form>
 
         <!-- Movido FUERA de #authForm — antes vivía dentro del <form>, así
@@ -12210,8 +12223,19 @@ function showAuthWelcomeToast(email){
   authWelcomeToastTimer = setTimeout(() => document.getElementById('authWelcomeToast').classList.remove('visible'), 2600);
 }
 
+// Registro en curso: oculta el botón y muestra el spinner EN EL MISMO hueco
+// (se copia la altura real del botón para que el formulario no salte).
+let authSubmitting = false;
+function setAuthSubmitLoading(on){
+  const spinner = document.getElementById('authSubmitSpinner');
+  if (on) spinner.style.height = authFormSubmit.offsetHeight + 'px';
+  authFormSubmit.hidden = on;
+  spinner.hidden = !on;
+}
+
 authForm.addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (authSubmitting) return; // evita solicitudes duplicadas mientras hay un registro en curso
   const email = document.getElementById('authEmail').value.trim();
   const password = document.getElementById('authPassword').value;
 
@@ -12223,10 +12247,23 @@ authForm.addEventListener('submit', async (e) => {
   }
 
   authFormStatus.style.display = 'none';
-  authFormSubmit.disabled = true;
-  const result = authFormMode === 'register'
-    ? await AuthService.register(email, password)
-    : await AuthService.login(email, password);
+   authFormSubmit.disabled = true;
+  let result;
+  if (authFormMode === 'register'){
+    authSubmitting = true;
+    setAuthSubmitLoading(true);
+    try {
+      result = await AuthService.register(email, password);
+    } catch (err){
+      console.error('[Auth] El registro falló de forma inesperada:', err);
+      result = { ok:false }; // cae al mensaje de error existente ("No pudimos completar la solicitud…")
+    } finally {
+      authSubmitting = false;
+      setAuthSubmitLoading(false);
+    }
+  } else {
+    result = await AuthService.login(email, password);
+  }
   authFormSubmit.disabled = false;
 
   if (!result.ok){
