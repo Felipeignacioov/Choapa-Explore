@@ -2769,6 +2769,14 @@ img{-webkit-user-drag:none; user-select:none;}
 .auth-form-switch{ margin-top:20px; text-align:center; font-size:12.5px; color:var(--text-secondary); }
 .auth-form-switch span{ color:var(--turquoise-bright); font-weight:700; }
 
+/* ---- Recuperación de contraseña ---- */
+.auth-forgot-link{ display:none; align-self:flex-end; margin-top:-6px; padding:4px 2px; font-size:12px; font-weight:600; color:var(--turquoise-bright); opacity:.9; }
+/* Solo visible en modo ingreso: ahí el campo "confirmar" lleva la clase .hidden */
+#authConfirmField.hidden + .auth-forgot-link{ display:block; }
+.auth-forgot-link:active{ opacity:.6; }
+.auth-view-recovery .auth-btn-primary:disabled{ opacity:.6; }
+.auth-view-recovery .auth-form-status{ margin-top:14px; }
+
 /* ---- Estado "Confirma tu correo" (registro con confirmación pendiente) ---- */
 .auth-confirm-illustration{
   display:none; position:relative; width:120px; height:112px; margin-bottom:14px;
@@ -3466,6 +3474,48 @@ img{-webkit-user-drag:none; user-select:none;}
       </div>
     </div>
 
+<div class="auth-view auth-view-form auth-view-recovery" id="authRecoveryView">
+      <button class="auth-form-back" id="authRecoveryBack" aria-label="Volver">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></svg>
+      </button>
+      <div class="auth-form-inner">
+        <div class="auth-form-header">
+          <div class="auth-logo-badge auth-logo-badge-sm"></div>
+          <div class="auth-form-title" id="authRecoveryTitle">Recupera tu contraseña</div>
+          <div class="auth-form-sub" id="authRecoverySub">Escribe tu correo y te enviaremos un enlace para crear una nueva contraseña.</div>
+        </div>
+        <form id="authRecoveryForm" class="auth-form" novalidate>
+          <label class="auth-field" id="authRecoveryEmailField">
+            <span class="auth-field-label">Correo electrónico</span>
+            <input type="email" id="authRecoveryEmail" autocomplete="email" placeholder="tucorreo@ejemplo.com">
+          </label>
+          <label class="auth-field hidden" id="authRecoveryPwField">
+            <span class="auth-field-label">Nueva contraseña</span>
+            <span class="auth-pw-wrap">
+              <input type="password" id="authRecoveryPassword" autocomplete="new-password" placeholder="••••••••" minlength="8">
+              <button type="button" class="auth-pw-toggle" aria-label="Mostrar contraseña" aria-pressed="false">
+                <svg class="eye-on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.8"/></svg>
+                <svg class="eye-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.8"/><path d="M4 4l16 16"/></svg>
+              </button>
+            </span>
+          </label>
+          <label class="auth-field hidden" id="authRecoveryPwConfirmField">
+            <span class="auth-field-label">Confirmar contraseña</span>
+            <span class="auth-pw-wrap">
+              <input type="password" id="authRecoveryPasswordConfirm" autocomplete="new-password" placeholder="••••••••">
+              <button type="button" class="auth-pw-toggle" aria-label="Mostrar contraseña" aria-pressed="false">
+                <svg class="eye-on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.8"/></svg>
+                <svg class="eye-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.8"/><path d="M4 4l16 16"/></svg>
+              </button>
+            </span>
+          </label>
+          <button type="submit" class="auth-btn-primary auth-form-submit" id="authRecoverySubmit">Enviar enlace</button>
+        </form>
+        <div class="auth-form-status" id="authRecoveryStatus" style="display:none;"></div>
+        <button type="button" class="auth-form-switch" id="authRecoveryToLogin">Volver a <span>Ingresar</span></button>
+      </div>
+    </div>
+
     <div class="auth-view auth-view-form" id="authFormView">
       <button class="auth-form-back" id="authFormBack" aria-label="Volver">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></svg>
@@ -3528,7 +3578,8 @@ img{-webkit-user-drag:none; user-select:none;}
             </span>
           </label>
 
-                   <button type="submit" class="auth-btn-primary auth-form-submit" id="authFormSubmit">Crear cuenta</button>
+                 <button type="button" class="auth-forgot-link" id="authForgotLink">¿Olvidaste tu contraseña?</button>
+          <button type="submit" class="auth-btn-primary auth-form-submit" id="authFormSubmit">Crear cuenta</button>
           <div class="auth-submit-spinner" id="authSubmitSpinner" role="status" aria-live="polite" aria-label="Creando tu cuenta" hidden><span class="auth-spinner"></span></div>
         </form>
 
@@ -12568,6 +12619,140 @@ document.getElementById('btnProfileHeader').addEventListener('click', (e) => {
 profileMenuBackdrop.addEventListener('click', closeProfileMenu);
 document.getElementById('aboutModalClose').addEventListener('click', closeAboutModal);
 aboutModal.addEventListener('click', (e) => { if (e.target === aboutModal) closeAboutModal(); });
+
+/* ================= RECUPERACIÓN DE CONTRASEÑA =================
+   Aislado en try/catch: si algo falla aquí, el resto de la app no se ve afectado.
+   Usa solo Supabase Auth (resetPasswordForEmail / updateUser). No modifica funciones existentes. */
+try {
+  (function(){
+    const REDIRECT = 'https://felipeignacioov.github.io/Choapa-Explore/'; // mismo redirect que usa el registro
+    const view = document.getElementById('authRecoveryView');
+    const form = document.getElementById('authRecoveryForm');
+    const emailInput = document.getElementById('authRecoveryEmail');
+    const pwInput = document.getElementById('authRecoveryPassword');
+    const pwConfirmInput = document.getElementById('authRecoveryPasswordConfirm');
+    const submitBtn = document.getElementById('authRecoverySubmit');
+    const statusEl = document.getElementById('authRecoveryStatus');
+    if (!view || !form || !submitBtn || !statusEl) return; // si falta algo del HTML, no hace nada
+    let stage = 'request'; // 'request' | 'update'
+    let busy = false;
+
+    const label = () => stage === 'update' ? 'Guardar contraseña' : 'Enviar enlace';
+    function setStatus(msg, isError){
+      statusEl.textContent = msg;
+      statusEl.className = 'auth-form-status' + (isError ? ' error' : '');
+      statusEl.style.display = 'block';
+    }
+    function showView(newStage, prefill){
+      stage = newStage;
+      const isUpdate = stage === 'update';
+      document.getElementById('authRecoveryTitle').textContent = isUpdate ? 'Crea tu nueva contraseña' : 'Recupera tu contraseña';
+      document.getElementById('authRecoverySub').textContent = isUpdate
+        ? 'Elige una contraseña segura de al menos 8 caracteres.'
+        : 'Escribe tu correo y te enviaremos un enlace para crear una nueva contraseña.';
+      document.getElementById('authRecoveryEmailField').classList.toggle('hidden', isUpdate);
+      document.getElementById('authRecoveryPwField').classList.toggle('hidden', !isUpdate);
+      document.getElementById('authRecoveryPwConfirmField').classList.toggle('hidden', !isUpdate);
+      document.getElementById('authRecoveryToLogin').style.display = isUpdate ? 'none' : '';
+      statusEl.style.display = 'none';
+      statusEl.className = 'auth-form-status';
+      form.classList.remove('hidden');
+      form.reset();
+      if (prefill) emailInput.value = prefill;
+      submitBtn.disabled = false;
+      submitBtn.textContent = label();
+      resetPasswordVisibility();
+      authWelcomeView.classList.remove('active');
+      authFormView.classList.remove('active');
+      view.classList.add('active');
+    }
+    function leaveView(){ view.classList.remove('active'); }
+
+    function mapError(err){
+      const msg = ((err && err.message) || '').toLowerCase();
+      const status = err && err.status;
+      if (status === 429 || msg.includes('security purposes') || msg.includes('rate limit') || msg.includes('too many')) return 'Ya enviamos un enlace hace poco. Espera un minuto antes de pedir otro.';
+      if (msg.includes('invalid email') || msg.includes('unable to validate email')) return 'El correo ingresado no es válido.';
+      if (msg.includes('same') && msg.includes('password')) return 'Elige una contraseña distinta a la anterior.';
+      if (msg.includes('session') && (msg.includes('missing') || msg.includes('expired'))) return 'El enlace expiró o ya fue usado. Vuelve atrás y solicita uno nuevo.';
+      if (msg.includes('password') && (msg.includes('weak') || msg.includes('short') || msg.includes('at least') || msg.includes('characters'))) return 'La contraseña es demasiado débil — usa al menos 8 caracteres.';
+      if (msg.includes('sending') && msg.includes('email')) return 'No pudimos enviar el correo en este momento. Inténtalo más tarde.';
+      return 'No pudimos completar la solicitud. Inténtalo nuevamente.';
+    }
+
+    async function requestLink(){
+      const email = emailInput.value.trim();
+      if (!/^\S+@\S+\.\S+$/.test(email)){ setStatus('Ingresa un correo válido.', true); return; }
+      if (!supabaseClient){ setStatus('La autenticación no está disponible en este momento.', true); return; }
+      busy = true; submitBtn.disabled = true; submitBtn.textContent = 'Enviando…'; statusEl.style.display = 'none';
+      try{
+        const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: REDIRECT });
+        if (error) throw error;
+        form.classList.add('hidden');
+        // Mensaje neutro: no revela si el correo tiene cuenta.
+        setStatus('Si existe una cuenta con ese correo, te enviamos un enlace para crear una nueva contraseña. Revisa tu bandeja de entrada y la carpeta de correo no deseado.', false);
+      } catch(err){
+        console.error('[Auth] Error pidiendo recuperación:', err);
+        setStatus(mapError(err), true);
+      } finally {
+        busy = false; submitBtn.disabled = false; submitBtn.textContent = label();
+      }
+    }
+
+    async function saveNewPassword(){
+      const pw = pwInput.value;
+      if (pw.length < 8){ setStatus('La contraseña debe tener al menos 8 caracteres.', true); return; }
+      if (pw !== pwConfirmInput.value){ setStatus('Las contraseñas no coinciden.', true); return; }
+      if (!supabaseClient) return;
+      busy = true; submitBtn.disabled = true; submitBtn.textContent = 'Guardando…'; statusEl.style.display = 'none';
+      try{
+        const { data, error } = await supabaseClient.auth.updateUser({ password: pw });
+        if (error) throw error;
+        form.classList.add('hidden');
+        setStatus('Contraseña actualizada. ¡Ya puedes explorar el Choapa!', false);
+        const email = data && data.user && data.user.email;
+        setTimeout(() => { leaveView(); showAuthWelcomeToast(email); closeAuthScreen(); }, 1200);
+      } catch(err){
+        console.error('[Auth] Error actualizando contraseña:', err);
+        setStatus(mapError(err), true);
+      } finally {
+        busy = false; submitBtn.disabled = false; submitBtn.textContent = label();
+      }
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (busy) return; // evita solicitudes duplicadas
+      if (stage === 'update') saveNewPassword(); else requestLink();
+    });
+    document.getElementById('authForgotLink').addEventListener('click', () => {
+      showView('request', (document.getElementById('authEmail').value || '').trim());
+    });
+    document.getElementById('authRecoveryToLogin').addEventListener('click', () => { leaveView(); showAuthForm('login'); });
+    document.getElementById('authRecoveryBack').addEventListener('click', async () => {
+      if (busy) return;
+      if (stage === 'update'){
+        // Cancelar: la sesión temporal del enlace no debe quedar abierta sin cambiar la contraseña.
+        await AuthService.logout();
+        leaveView(); showAuthWelcome();
+      } else {
+        leaveView(); showAuthForm('login');
+      }
+    });
+
+    // Al abrir el enlace del correo, supabase-js emite PASSWORD_RECOVERY con una sesión temporal.
+    if (supabaseClient){
+      supabaseClient.auth.onAuthStateChange((event) => {
+        if (event !== 'PASSWORD_RECOVERY') return;
+        authScreen.style.display = '';
+        authScreen.classList.remove('dismissed');
+        showView('update');
+      });
+    }
+  })();
+} catch(e){
+  console.error('[Auth] La recuperación de contraseña no pudo iniciarse:', e);
+}
 
 initSupabaseSync();
 </script>
