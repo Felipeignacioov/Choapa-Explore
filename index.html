@@ -2769,6 +2769,13 @@ img{-webkit-user-drag:none; user-select:none;}
 .auth-form-switch{ margin-top:20px; text-align:center; font-size:12.5px; color:var(--text-secondary); }
 .auth-form-switch span{ color:var(--turquoise-bright); font-weight:700; }
 
+/* ---- Recuperación de contraseña ---- */
+.auth-forgot-link{ align-self:flex-end; margin-top:-6px; padding:4px 2px; font-size:12px; font-weight:600; color:var(--turquoise-bright); opacity:.9; }
+.auth-forgot-link[hidden]{ display:none; }
+.auth-forgot-link:active{ opacity:.6; }
+.auth-view-recovery .auth-btn-primary:disabled{ opacity:.6; }
+.auth-view-recovery .auth-form-status{ margin-top:14px; }
+
 /* ---- Estado "Confirma tu correo" (registro con confirmación pendiente) ---- */
 .auth-confirm-illustration{
   display:none; position:relative; width:120px; height:112px; margin-bottom:14px;
@@ -3517,6 +3524,7 @@ img{-webkit-user-drag:none; user-select:none;}
               </button>
             </span>
           </label>
+       <button type="button" class="auth-forgot-link" id="authForgotLink" hidden>¿Olvidaste tu contraseña?</button>
           <label class="auth-field" id="authConfirmField">
             <span class="auth-field-label">Confirmar contraseña</span>
                         <span class="auth-pw-wrap">
@@ -12298,7 +12306,8 @@ function renderAuthCategoriesPreview(){
 
 function showAuthWelcome(){
   authWelcomeView.classList.add('active');
-  authFormView.classList.remove('active');
+ authFormView.classList.remove('active');
+  document.getElementById('authRecoveryView').classList.remove('active');
 }
 function showAuthForm(mode){
   authFormMode = mode;
@@ -12307,7 +12316,8 @@ function showAuthForm(mode){
   authFormSub.textContent = isRegister
     ? 'Guarda tus experiencias y recuerdos del Choapa.'
     : 'Vuelve a tus experiencias y recuerdos guardados.';
-  authConfirmField.classList.toggle('hidden', !isRegister);
+authConfirmField.classList.toggle('hidden', !isRegister);
+  document.getElementById('authForgotLink').hidden = isRegister;
   authPasswordConfirm.required = isRegister;
    authFormSubmit.textContent = isRegister ? 'Crear cuenta' : 'Ingresar';
   authFormView.classList.remove('is-confirm'); // sale del estado "Confirma tu correo"
@@ -12320,7 +12330,8 @@ function showAuthForm(mode){
    authForm.reset();
   resetPasswordVisibility();
   authWelcomeView.classList.remove('active');
-  authFormView.classList.add('active');
+ authFormView.classList.add('active');
+  document.getElementById('authRecoveryView').classList.remove('active');
 }
 function closeAuthScreen(){
   authScreen.classList.add('dismissed');
@@ -12449,6 +12460,145 @@ authForm.addEventListener('submit', async (e) => {
   showAuthWelcomeToast(result.user && result.user.email);
   closeAuthScreen();
 });
+
+/* ================= RECUPERACIÓN DE CONTRASEÑA =================
+   Solo usa Supabase Auth: resetPasswordForEmail (pedir enlace) y updateUser
+   (fijar contraseña nueva con la sesión temporal del enlace).
+   El evento PASSWORD_RECOVERY lo emite supabase-js al abrir el enlace. */
+const AUTH_RECOVERY_REDIRECT = 'https://felipeignacioov.github.io/Choapa-Explore/'; // mismo redirect que ya usa el registro
+const authRecoveryView = document.getElementById('authRecoveryView');
+const authRecoveryForm = document.getElementById('authRecoveryForm');
+const authRecoveryEmail = document.getElementById('authRecoveryEmail');
+const authRecoveryPassword = document.getElementById('authRecoveryPassword');
+const authRecoveryPasswordConfirm = document.getElementById('authRecoveryPasswordConfirm');
+const authRecoverySubmit = document.getElementById('authRecoverySubmit');
+const authRecoveryStatus = document.getElementById('authRecoveryStatus');
+let recoveryStage = 'request'; // 'request' | 'update'
+let recoverySubmitting = false;
+
+function setRecoveryStatus(message, isError){
+  authRecoveryStatus.textContent = message;
+  authRecoveryStatus.className = 'auth-form-status' + (isError ? ' error' : '');
+  authRecoveryStatus.style.display = 'block';
+}
+function recoverySubmitLabel(){ return recoveryStage === 'update' ? 'Guardar contraseña' : 'Enviar enlace'; }
+
+function showRecoveryView(stage, prefillEmail){
+  recoveryStage = stage;
+  const isUpdate = stage === 'update';
+  document.getElementById('authRecoveryTitle').textContent = isUpdate ? 'Crea tu nueva contraseña' : 'Recupera tu contraseña';
+  document.getElementById('authRecoverySub').textContent = isUpdate
+    ? 'Elige una contraseña segura de al menos 8 caracteres.'
+    : 'Escribe tu correo y te enviaremos un enlace para crear una nueva contraseña.';
+  document.getElementById('authRecoveryEmailField').classList.toggle('hidden', isUpdate);
+  document.getElementById('authRecoveryPwField').classList.toggle('hidden', !isUpdate);
+  document.getElementById('authRecoveryPwConfirmField').classList.toggle('hidden', !isUpdate);
+  document.getElementById('authRecoveryToLogin').hidden = isUpdate;
+  authRecoveryStatus.style.display = 'none';
+  authRecoveryStatus.className = 'auth-form-status';
+  authRecoveryForm.classList.remove('hidden');
+  authRecoveryForm.reset();
+  if (prefillEmail) authRecoveryEmail.value = prefillEmail;
+  authRecoverySubmit.disabled = false;
+  authRecoverySubmit.textContent = recoverySubmitLabel();
+  resetPasswordVisibility();
+  authWelcomeView.classList.remove('active');
+  authFormView.classList.remove('active');
+  authRecoveryView.classList.add('active');
+}
+
+function mapRecoveryError(err){
+  const msg = ((err && err.message) || '').toLowerCase();
+  const status = err && err.status;
+  if (status === 429 || msg.includes('security purposes') || msg.includes('rate limit') || msg.includes('too many')) return 'Ya enviamos un enlace hace poco. Espera un minuto antes de pedir otro.';
+  if (msg.includes('invalid email') || msg.includes('unable to validate email')) return 'El correo ingresado no es válido.';
+  if (msg.includes('same') && msg.includes('password')) return 'Elige una contraseña distinta a la anterior.';
+  if (msg.includes('session') && (msg.includes('missing') || msg.includes('expired'))) return 'El enlace expiró o ya fue usado. Vuelve atrás y solicita uno nuevo.';
+  if (msg.includes('password') && (msg.includes('weak') || msg.includes('short') || msg.includes('at least') || msg.includes('characters'))) return 'La contraseña es demasiado débil — usa al menos 8 caracteres.';
+  if (msg.includes('sending') && msg.includes('email')) return 'No pudimos enviar el correo en este momento. Inténtalo más tarde.';
+  return 'No pudimos completar la solicitud. Inténtalo nuevamente.';
+}
+
+async function submitRecoveryRequest(){
+  const email = authRecoveryEmail.value.trim();
+  if (!/^\S+@\S+\.\S+$/.test(email)){ setRecoveryStatus('Ingresa un correo válido.', true); return; }
+  if (!supabaseClient){ setRecoveryStatus('La autenticación no está disponible en este momento.', true); return; }
+  recoverySubmitting = true;
+  authRecoverySubmit.disabled = true;
+  authRecoverySubmit.textContent = 'Enviando…';
+  authRecoveryStatus.style.display = 'none';
+  try{
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: AUTH_RECOVERY_REDIRECT });
+    if (error) throw error;
+    // Mensaje deliberadamente neutro: no revela si el correo tiene cuenta.
+    authRecoveryForm.classList.add('hidden');
+    setRecoveryStatus('Si existe una cuenta con ese correo, te enviamos un enlace para crear una nueva contraseña. Revisa tu bandeja de entrada y la carpeta de correo no deseado.', false);
+  } catch(err){
+    console.error('[Auth] Error pidiendo recuperación:', err);
+    setRecoveryStatus(mapRecoveryError(err), true);
+  } finally {
+    recoverySubmitting = false;
+    authRecoverySubmit.disabled = false;
+    authRecoverySubmit.textContent = recoverySubmitLabel();
+  }
+}
+
+async function submitNewPassword(){
+  const pw = authRecoveryPassword.value;
+  if (pw.length < 8){ setRecoveryStatus('La contraseña debe tener al menos 8 caracteres.', true); return; }
+  if (pw !== authRecoveryPasswordConfirm.value){ setRecoveryStatus('Las contraseñas no coinciden.', true); return; }
+  if (!supabaseClient) return;
+  recoverySubmitting = true;
+  authRecoverySubmit.disabled = true;
+  authRecoverySubmit.textContent = 'Guardando…';
+  authRecoveryStatus.style.display = 'none';
+  try{
+    const { data, error } = await supabaseClient.auth.updateUser({ password: pw });
+    if (error) throw error;
+    authRecoveryForm.classList.add('hidden');
+    setRecoveryStatus('Contraseña actualizada. ¡Ya puedes explorar el Choapa!', false);
+    const email = data && data.user && data.user.email;
+    setTimeout(() => { showAuthWelcomeToast(email); closeAuthScreen(); }, 1200);
+  } catch(err){
+    console.error('[Auth] Error actualizando contraseña:', err);
+    setRecoveryStatus(mapRecoveryError(err), true);
+  } finally {
+    recoverySubmitting = false;
+    authRecoverySubmit.disabled = false;
+    authRecoverySubmit.textContent = recoverySubmitLabel();
+  }
+}
+
+authRecoveryForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  if (recoverySubmitting) return; // evita solicitudes duplicadas
+  if (recoveryStage === 'update') submitNewPassword(); else submitRecoveryRequest();
+});
+document.getElementById('authForgotLink').addEventListener('click', () => {
+  showRecoveryView('request', document.getElementById('authEmail').value.trim());
+});
+document.getElementById('authRecoveryToLogin').addEventListener('click', () => showAuthForm('login'));
+document.getElementById('authRecoveryBack').addEventListener('click', async () => {
+  if (recoverySubmitting) return;
+  if (recoveryStage === 'update'){
+    // Cancelar: la sesión temporal del enlace no debe quedar abierta sin haber cambiado la contraseña.
+    await AuthService.logout();
+    showAuthWelcome();
+  } else {
+    showAuthForm('login');
+  }
+});
+
+// Al abrir el enlace del correo, supabase-js crea una sesión temporal y emite PASSWORD_RECOVERY.
+// Listener propio (no toca el existente); solo manipula el DOM, sin llamar a Supabase dentro del callback.
+if (supabaseClient){
+  supabaseClient.auth.onAuthStateChange((event) => {
+    if (event !== 'PASSWORD_RECOVERY') return;
+    authScreen.style.display = '';
+    authScreen.classList.remove('dismissed');
+    showRecoveryView('update');
+  });
+}
 
 async function initAuthScreen(){
   if (!AUTH_SCREEN_ENABLED){ authScreen.style.display = 'none'; return; }
