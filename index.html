@@ -2617,6 +2617,89 @@ img{-webkit-user-drag:none; user-select:none;}
 
 .auth-trust-row{ display:flex; align-items:center; justify-content:center; gap:7px; margin-top:2px; padding-top:14px; border-top:1px solid var(--border-glass); font-size:11px; color:var(--text-tertiary); }
 
+/* ================= REFINAMIENTO VISUAL — pantalla de bienvenida =================
+   Solo presentación, sobrescribe reglas anteriores. La fotografía de fondo
+   (.auth-hero) NO se toca. Para revertir: borrar este bloque completo. */
+
+/* Fundido inferior: la foto se disuelve en el fondo y el panel se monta sobre ella */
+.auth-hero{ padding: calc(44px + var(--safe-top)) 24px 56px; }
+.auth-hero-overlay{
+  background:
+    linear-gradient(180deg, rgba(7,19,31,0) 58%, rgba(7,19,31,0.5) 86%, var(--bg-primary) 100%),
+    radial-gradient(ellipse at 50% 0%, rgba(7,19,31,0) 30%, rgba(7,19,31,0.55) 100%);
+}
+
+/* Marca: misma identidad, proporciones más contenidas */
+.auth-hero-content{ gap:12px; }
+.auth-hero .auth-logo-badge{ width:76px; height:76px; }
+.auth-brand{ gap:7px; }
+.auth-brand-choapa{ font-size:32px; }
+.auth-brand-explore{ font-size:12px; }
+.auth-brand-rule{ width:26px; background:rgba(95,225,232,0.4); }
+.auth-tagline{
+  font-size:14px; line-height:1.55; margin-top:6px;
+  color:rgba(244,247,250,0.82); text-shadow:0 1px 12px rgba(2,8,15,0.7);
+}
+.auth-tagline .accent{ font-weight:600; }
+
+/* Panel inferior: se monta sobre la foto y respira */
+.auth-sheet{
+  position:relative; z-index:1; margin-top:-26px;
+  padding:0 24px calc(22px + var(--safe-bottom)); gap:18px;
+}
+
+/* Categorías: más finas, cada una con un tenue tinte de su propio color */
+.auth-categories{ padding:0 2px; }
+.auth-cat-item{ gap:8px; }
+.auth-cat-icon{
+  width:42px; height:42px;
+  background:rgba(255,255,255,0.03);
+  background:color-mix(in srgb, currentColor 9%, rgba(7,19,31,0.5));
+  border-color:color-mix(in srgb, currentColor 30%, transparent);
+}
+.auth-cat-label{ font-size:10.5px; letter-spacing:0.2px; }
+
+/* Mensaje «¿Qué hacer hoy…?»: de tarjeta pesada a bloque ligero integrado */
+.auth-info-card{
+  align-items:center; gap:13px; padding:0 2px; border-radius:0;
+  background:none; border:none; box-shadow:none;
+  backdrop-filter:none; -webkit-backdrop-filter:none;
+}
+.auth-info-icon{
+  width:34px; height:34px; margin-top:0; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  border:1px solid rgba(95,225,232,0.28); background:rgba(95,225,232,0.06);
+}
+.auth-info-icon svg{ width:15px; height:15px; }
+.auth-info-title{ letter-spacing:-0.1px; margin-bottom:2px; }
+.auth-info-sub{ line-height:1.4; }
+
+/* Botones: mismo sistema (altura y radio), jerarquía principal > secundaria > alternativa */
+.auth-sheet .auth-btn-primary,
+.auth-sheet .auth-btn-secondary{
+  min-height:50px; padding:0 16px; border-radius:var(--radius-m);
+  display:flex; align-items:center; justify-content:center;
+}
+.auth-sheet .auth-btn-secondary{
+  margin-top:-8px; border-width:1px; border-color:rgba(95,225,232,0.34);
+  background:rgba(95,225,232,0.04);
+}
+.auth-guest-row{ font-size:12px; color:var(--text-tertiary); gap:4px; margin-top:-4px; }
+.auth-guest-link{ font-weight:600; padding:6px 2px; }
+.auth-trust-row{ margin-top:auto; padding-top:6px; border-top:none; font-size:10.5px; gap:6px; }
+
+/* Pantallas bajas: se compacta para reducir el scroll */
+@media (max-height:700px){
+  .auth-hero{ padding-bottom:48px; }
+  .auth-hero .auth-logo-badge{ width:64px; height:64px; }
+  .auth-brand-choapa{ font-size:30px; }
+  .auth-sheet{ gap:14px; }
+}
+/* Escritorio: el panel no se estira a todo el ancho */
+@media (min-width:640px){
+  .auth-sheet{ width:100%; max-width:440px; align-self:center; }
+}
+
 /* ---- Vista de formulario (registro / ingreso, misma vista, alterna por modo) ---- */
 .auth-view-form{ background:linear-gradient(180deg, var(--bg-night) 0%, var(--bg-primary) 60%); padding: calc(18px + var(--safe-top)) 22px calc(22px + var(--safe-bottom)); }
 .auth-form-back{
@@ -3346,7 +3429,7 @@ img{-webkit-user-drag:none; user-select:none;}
           <span class="auth-info-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 2.5c.7 4 2.4 6.9 5.9 9.5-3.5 2.6-5.2 5.5-5.9 9.5-.7-4-2.4-6.9-5.9-9.5 3.5-2.6 5.2-5.5 5.9-9.5Z" fill="var(--turquoise-bright)" stroke="none"/></svg></span>
           <div class="auth-info-text">
             <div class="auth-info-title">¿Qué hacer hoy en el Choapa?</div>
-            <div class="auth-info-sub">Tú eliges el mood, nosotros te mostramos el plan perfecto.</div>
+            <div class="auth-info-sub">Elige tu mood y deja que el valle te muestre el camino.</div>
           </div>
         </div>
 
