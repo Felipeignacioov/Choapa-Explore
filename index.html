@@ -2684,6 +2684,29 @@ img{-webkit-user-drag:none; user-select:none;}
 .auth-form-switch{ margin-top:20px; text-align:center; font-size:12.5px; color:var(--text-secondary); }
 .auth-form-switch span{ color:var(--turquoise-bright); font-weight:700; }
 
+/* ---- Estado "Confirma tu correo" (registro con confirmación pendiente) ---- */
+.auth-confirm-illustration{
+  display:none; position:relative; width:120px; height:112px; margin-bottom:14px;
+  align-items:center; justify-content:center;
+}
+.auth-confirm-illustration::before{
+  content:''; position:absolute; inset:-8px; border-radius:50%; pointer-events:none;
+  background:radial-gradient(circle, rgba(22,184,196,0.16), transparent 68%);
+}
+.auth-confirm-illustration svg{
+  position:relative; width:104px; height:104px; display:block;
+  filter:drop-shadow(0 6px 16px rgba(2,8,15,0.45));
+}
+.auth-view-form.is-confirm .auth-confirm-illustration{
+  display:flex; animation:auth-confirm-in .45s cubic-bezier(.2,.9,.28,1.05) backwards;
+}
+.auth-view-form.is-confirm .auth-logo-badge-sm{ display:none; }
+.auth-view-form.is-confirm .auth-form-sub{ max-width:300px; line-height:1.5; }
+@keyframes auth-confirm-in{
+  from{ opacity:0; transform:translateY(8px) scale(0.96); }
+  to{ opacity:1; transform:none; }
+}
+
 /* ================= MENÚ DE PERFIL ================= */
 .profile-menu-backdrop{position:fixed; inset:0; z-index:49; display:none;}
 .profile-menu-backdrop.visible{display:block;}
@@ -3351,6 +3374,28 @@ img{-webkit-user-drag:none; user-select:none;}
                    <div class="auth-logo-badge auth-logo-badge-sm">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M12 2.5c.7 4 2.4 6.9 5.9 9.5-3.5 2.6-5.2 5.5-5.9 9.5-.7-4-2.4-6.9-5.9-9.5 3.5-2.6 5.2-5.5 5.9-9.5Z" fill="currentColor" stroke="none"/></svg>
                        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 19 17 4 23 19"/><path d="M2 19 8 10 14 19"/></svg>
+          </div>
+         <div class="auth-confirm-illustration" aria-hidden="true">
+            <svg viewBox="8 6 104 104" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <defs>
+                <linearGradient id="authConfirmGrad" gradientUnits="userSpaceOnUse" x1="14" y1="12" x2="106" y2="104">
+                  <stop offset="0%" stop-color="#5FE1E8"/>
+                  <stop offset="100%" stop-color="#16B8C4"/>
+                </linearGradient>
+              </defs>
+              <g stroke="url(#authConfirmGrad)" stroke-width="2.4">
+                <path d="M14 48.7V104H106V48.7"/>
+                <path d="M14 48.7 51.2 75.6H68.5L106 48.7"/>
+                <path d="M51.2 75.6 14 104M68.5 75.6 106 104"/>
+                <path d="M14 48.7 27.3 37.9M106 48.7 92.7 37.9"/>
+                <path d="M48.2 21.4 59.9 12 71.6 21.4"/>
+                <path d="M27.3 58.3V21.4H92.7V58.3"/>
+              </g>
+              <g stroke="#BFEFF2" stroke-width="2.4">
+                <path d="M66.9 38.9A12 12 0 1 0 71.6 51.8"/>
+                <path d="M54.5 49 59.5 54 70.5 43"/>
+              </g>
+            </svg>
           </div>
           <div class="auth-form-title" id="authFormTitle">Crear cuenta</div>
           <div class="auth-form-sub" id="authFormSub">Guarda tus experiencias y recuerdos del Choapa.</div>
@@ -12163,7 +12208,8 @@ function showAuthForm(mode){
     : 'Vuelve a tus experiencias y recuerdos guardados.';
   authConfirmField.classList.toggle('hidden', !isRegister);
   authPasswordConfirm.required = isRegister;
-  authFormSubmit.textContent = isRegister ? 'Crear cuenta' : 'Ingresar';
+   authFormSubmit.textContent = isRegister ? 'Crear cuenta' : 'Ingresar';
+  authFormView.classList.remove('is-confirm'); // sale del estado "Confirma tu correo"
   document.getElementById('authFormSwitch').innerHTML = isRegister
     ? '¿Ya tienes cuenta? <span>Ingresar</span>'
     : '¿Aún no tienes cuenta? <span>Registrarse</span>';
@@ -12281,10 +12327,11 @@ authForm.addEventListener('submit', async (e) => {
       // informativo/turquesa) y se oculta el formulario; el enlace
       // "Ingresar" de #authFormSwitch (fuera de #authForm, sigue visible)
       // es la forma clara de volver al login una vez confirmado el correo.
-      authForm.classList.add('hidden');
-      authFormStatus.textContent = 'Revisa tu correo — te enviamos un enlace para confirmar tu cuenta antes de ingresar.';
-      authFormStatus.className = 'auth-form-status';
-      authFormStatus.style.display = 'block';
+          authForm.classList.add('hidden');
+      authFormView.classList.add('is-confirm');
+      authFormTitle.textContent = 'Confirma tu correo';
+      authFormSub.textContent = 'Hemos enviado un enlace de confirmación a tu correo electrónico. Confirma tu cuenta para comenzar a explorar el Choapa.';
+      authFormStatus.style.display = 'none';
     } else {
       // Red de seguridad — con Confirm email ON este camino no debería
       // ocurrir en producción, pero si Supabase devolviera sesión
