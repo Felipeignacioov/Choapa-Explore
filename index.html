@@ -4067,7 +4067,7 @@ const COMMUNE_LABEL_SIZE_NAV = 11.5;
 // el nivel de comuna y los zooms más cercanos (14+) no cambian en nada —
 // solo se realza el tramo intermedio de localidad, de forma progresiva
 // (sube y vuelve a bajar suave, sin ningún salto).
-const HILLSHADE_EXAGGERATION_NORMAL = ['interpolate', ['linear'], ['zoom'], 8, 0.34, 10, 0.37, 12.5, 0.38, 14, 0.30, 16, 0.20, 17.5, 0.14];
+const HILLSHADE_EXAGGERATION_NORMAL = ['interpolate', ['linear'], ['zoom'], 8, 0.37, 10, 0.39, 12.5, 0.39, 14, 0.31, 16, 0.20, 17.5, 0.14];
 const HILLSHADE_EXAGGERATION_NAV    = ['interpolate', ['linear'], ['zoom'], 8, 0.46, 14, 0.40, 16, 0.26, 17.5, 0.18];
 let NAV_COMMUNE_LABEL_LAYER_IDS = []; // se completa dentro de tintMapLayers()
 let navCartographyBoosted = false;
@@ -4824,9 +4824,9 @@ function renderTerrainDepth(){
       // El accent-color se separa levemente del shadow-color (antes eran
       // idénticos) — dos tonos de sombra en vez de uno solo suman una capa extra
       // de definición en las zonas bajas sin oscurecer más el conjunto.
-      'hillshade-shadow-color':'#0A1420',
+            'hillshade-shadow-color':'#050B12',
       'hillshade-highlight-color':'rgba(255,255,255,0.085)',
-      'hillshade-accent-color':'#0D1A24',
+      'hillshade-accent-color':'#08111A',
       'hillshade-illumination-direction':315,
     },
   }, hillshadeBeforeId);
@@ -7704,8 +7704,8 @@ function applyDayHillshade(period){
   if (!map.getLayer('hillshade-subtle')) return;
  const hlRGB = period.hillshadeHighlightRGB || (period.hillshadeHighlight ? '255,228,185' : '255,255,255'); // luz cálida de día; blanco original en dusk/night
   map.setPaintProperty('hillshade-subtle', 'hillshade-highlight-color', `rgba(${hlRGB},${period.hillshadeHighlight || 0.085})`);
-  map.setPaintProperty('hillshade-subtle', 'hillshade-shadow-color', period.hillshadeShadow || '#0A1420');
-  map.setPaintProperty('hillshade-subtle', 'hillshade-accent-color', period.hillshadeAccent || '#0D1A24');
+  map.setPaintProperty('hillshade-subtle', 'hillshade-shadow-color', period.hillshadeShadow || '#050B12');
+  map.setPaintProperty('hillshade-subtle', 'hillshade-accent-color', period.hillshadeAccent || '#08111A');
   if (navCartographyBoosted) return;
   map.setPaintProperty('hillshade-subtle', 'hillshade-exaggeration', scaleZoomExpression(HILLSHADE_EXAGGERATION_NORMAL, period.hillshadeBoost || 1));
 }
