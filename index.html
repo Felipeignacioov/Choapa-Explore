@@ -6213,23 +6213,20 @@ function startPOIBreathingAnimation(){
     // el MISMO ciclo (~4.4s), solo que ahora modula icon-opacity en vez de
     // icon-size — una propiedad que la curva de zoom no usa, así ambas
     // conviven sin pisarse.
-    const breatheOpacityWobble = 1 + (wobble - 0.5) * 2 * POI_BREATHE_OPACITY_AMPLITUDE;
-    map.setPaintProperty('poi-bg-layer', 'icon-opacity', [
-      '*',
-      POI_ICON_FADE_OPACITY,
-      breatheOpacityWobble,
-    ]);
+     const breatheOpacityWobble = 1 + (wobble - 0.5) * 2 * POI_BREATHE_OPACITY_AMPLITUDE;
+    // El factor de respiración va dentro de las paradas del interpolate de zoom:
+    // MapLibre exige que ['zoom'] quede en un interpolate/step de nivel superior.
+    // Equivale al producto anterior (interpolación lineal); se limita a 1 por rango válido.
+    const breatheOpacity = Math.min(1, breatheOpacityWobble);
+    const breathingIconOpacity = ['interpolate', ['linear'], ['zoom'], ZOOM_DETAIL, 0, ZOOM_DETAIL + POI_ZOOM_FADE_SPAN, breatheOpacity];
+    map.setPaintProperty('poi-bg-layer', 'icon-opacity', breathingIconOpacity);
     // Mismo pulso, aplicado ahora también al aro de los POIs fotográficos
     // (poi-photo-bg-layer, el equivalente de poi-bg-layer para ese sistema)
     // — mismo wobble, así ambos tratamientos laten en sincronía. La foto en
     // sí (poi-photo-layer) queda estática, igual que el glifo (poi-icon-layer)
     // nunca respira en el diseño estándar.
     if (map.getLayer('poi-photo-bg-layer')){
-      map.setPaintProperty('poi-photo-bg-layer', 'icon-opacity', [
-        '*',
-        POI_ICON_FADE_OPACITY,
-        breatheOpacityWobble,
-      ]);
+      map.setPaintProperty('poi-photo-bg-layer', 'icon-opacity', breathingIconOpacity);
     }
     if (map.getLayer('poi-ambient-halo-layer')){
       // Ciclo propio ~4.2s (divisor distinto), a propósito desfasado del de
