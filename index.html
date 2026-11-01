@@ -4662,6 +4662,16 @@ function tintMapLayers(){
       // lea como parte del sistema de color de la app). Se comparte entre
       // highway_name y place_village para que ambos se sientan del mismo
       // sistema visual.
+            // Uniones suaves en carreteras — solo layout (forma de uniones y extremos).
+      // No toca colores, opacidades, grosores ni interpolaciones. Trazo y contorno
+      // reciben lo mismo para que el casing siga envolviendo al inner.
+      if (l.type === 'line' && /^highway_(motorway|major)_(inner|casing|subtle)$|^highway_minor$/.test(l.id)){
+        map.setLayoutProperty(l.id, 'line-join', 'round');
+        map.setLayoutProperty(l.id, 'line-cap', 'round');
+      }
+      if (l.type === 'line' && l.id === 'highway_path'){
+        map.setLayoutProperty(l.id, 'line-join', 'round'); // sin cambiar el extremo: el sendero puede ser punteado
+      }
       const MAP_REFERENCE_TEXT_COLOR = blendHex(roadColor(0.3), '#5FE1E8', 0.38);
       // PRUEBA: variante Bold del stack de fuente que ya usa el mapa. Riesgo
       // conocido — si el servidor de glyphs de OpenFreemap no tiene esa
