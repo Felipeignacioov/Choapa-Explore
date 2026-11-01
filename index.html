@@ -12690,7 +12690,7 @@ try {
         if (error) throw error;
         form.classList.add('hidden');
         // Mensaje neutro: no revela si el correo tiene cuenta.
-        setStatus('Si existe una cuenta con ese correo, te enviamos un enlace para crear una nueva contraseña. Revisa tu bandeja de entrada y la carpeta de correo no deseado.', false);
+setStatus('Revisa tu correo. Si recibes nuestro correo, encontrarás un enlace para restablecer tu contraseña. Revisa también tu carpeta de correo no deseado.', false);
       } catch(err){
         console.error('[Auth] Error pidiendo recuperación:', err);
         setStatus(mapError(err), true);
