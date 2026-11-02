@@ -7863,7 +7863,11 @@ function getDayPeriod(){
     // contaba igual como "day", con el mismo ajuste sutil (8%) sin importar
     // si eran las 8am o el mediodía con sol pegando de lleno.
     const MIDDAY_MS = 150 * 60 * 1000; // ±2.5h alrededor del mediodía solar real
-    if (Math.abs(now - solarNoon) < MIDDAY_MS) return 'midday';
+       if (Math.abs(now - solarNoon) < MIDDAY_MS) return 'midday';
+    // Tarde: midday se mantiene hasta las 18:00 (hora local del dispositivo) como mínimo.
+    // dusk se evalúa antes y conserva su prioridad solar; la mañana no cambia.
+    const MIDDAY_MIN_END_HOUR = 18;
+    if (now > solarNoon && now.getHours() < MIDDAY_MIN_END_HOUR) return 'midday';
     return 'day';
   }
   return 'night';
