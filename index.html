@@ -7219,6 +7219,10 @@ let territoryGlowActiveForLocalityId = null;
 // borde recibe la clase .tg-active.
 let territoryGlowSequence = [];
 let territoryGlowStepIndex = 0;
+// Borde cuya dirección el usuario ya confirmó arrastrando ('left'|'right'|'top'|'bottom'), o null.
+let territoryGlowConfirmedEdge = null;
+// Avance máximo (px) del gesto en la dirección confirmada — referencia para detectar una inversión.
+let territoryGlowMaxProgress = 0;
 
 // Compara cada localidad real de la comuna contra el viewport actual — un
 // borde solo se enciende si de verdad hay una localidad más allá de ese
@@ -7247,7 +7251,13 @@ function hideTerritoryGlow(){
   territoryGlowTimer = null;
   territoryGlowActiveForLocalityId = null;
   territoryGlowSequence = [];
-  territoryGlowStepIndex = 0;
+   territoryGlowStepIndex = 0;
+  territoryGlowConfirmedEdge = null;
+  territoryGlowMaxProgress = 0;
+  // El puntero deja de actuar sobre un aura ya oculta.
+  territoryGlowPointerId = null;
+  territoryGlowPointerStartX = null;
+  territoryGlowPointerStartY = null;
   document.querySelectorAll('.tg-edge').forEach(el => el.classList.remove('tg-active', 'tg-confirm'));
 }
 
@@ -7286,6 +7296,10 @@ function activateTerritoryGlowStep(){
 // fly:true) — nunca desde correcciones automáticas de nivel por pellizco, así
 // la señal nunca se siente repetitiva durante la navegación normal.
 function showTerritoryGlowIfNeeded(locality){
+  // Una comuna nueva nunca hereda la confirmación ni el seguimiento de la anterior.
+  territoryGlowConfirmedEdge = null;
+  territoryGlowMaxProgress = 0;
+  territoryGlowPointerStartX = null;
   const edges = computeTerritoryGlowEdges(locality);
   if (!edges) return;
   territoryGlowActiveForLocalityId = locality.id;
@@ -7325,7 +7339,8 @@ function handleTerritoryGlowPointerDown(e){
   if (!territoryGlowActiveForLocalityId) return;
   territoryGlowPointerId = e.pointerId;
   territoryGlowPointerStartX = e.clientX;
-  territoryGlowPointerStartY = e.clientY;
+   territoryGlowPointerStartY = e.clientY;
+  if (territoryGlowConfirmedEdge) territoryGlowMaxProgress = 0; // nuevo gesto: solo vigila inversión, nunca reconfirma
 }
 // Pulso de confirmación (150-300ms) sobre el borde que YA está activo — sin
 // tocar territoryGlowSequence/territoryGlowStepIndex ni la clase .tg-active
@@ -7335,6 +7350,17 @@ function handleTerritoryGlowPointerDown(e){
 // hideTerritoryGlow() — mismo fade-out de 1s de siempre, nunca reinicia ni
 // vuelve a mostrar el aura.
 const TERRITORY_GLOW_CONFIRM_MS = 220;
+const TERRITORY_GLOW_FOLLOW_HOLD_MS = 1200;     // permanencia tras confirmar la dirección
+const TERRITORY_GLOW_REVERSE_THRESHOLD_PX = 24; // retroceso desde el avance máximo que cuenta como inversión
+const TERRITORY_GLOW_AXIS_DOMINANCE = 1.3;      // proporción mínima eje principal / secundario para decidir
+// Avance del gesto hacia un borde, con la misma convención de paneo que ya usa el aura
+// (dedo a la izquierda = se revela la derecha).
+function territoryGlowEdgeProgress(edgeKey, dx, dy){
+  if (edgeKey === 'right') return -dx;
+  if (edgeKey === 'left') return dx;
+  if (edgeKey === 'bottom') return -dy;
+  return dy; // 'top'
+}
 function confirmTerritoryGlowDirection(edgeKey){
   const el = document.getElementById(TERRITORY_GLOW_EDGE_IDS[edgeKey]);
   if (el){
@@ -7342,17 +7368,30 @@ function confirmTerritoryGlowDirection(edgeKey){
     void el.offsetWidth; // fuerza reflow — permite re-disparar el keyframe si ya se había usado
     el.classList.add('tg-confirm');
   }
+  // Confirmada: se detiene la secuencia (se cancela el temporizador de paso) y se programa
+  // una única permanencia. Solo se llama una vez por aura (ver handleTerritoryGlowPointerMove).
+  territoryGlowConfirmedEdge = edgeKey;
   clearTimeout(territoryGlowTimer);
-  territoryGlowTimer = setTimeout(hideTerritoryGlow, TERRITORY_GLOW_CONFIRM_MS);
+  territoryGlowTimer = setTimeout(hideTerritoryGlow, TERRITORY_GLOW_FOLLOW_HOLD_MS);
 }
 
 function handleTerritoryGlowPointerMove(e){
   if (territoryGlowPointerStartX == null || e.pointerId !== territoryGlowPointerId) return;
   const dx = e.clientX - territoryGlowPointerStartX;
   const dy = e.clientY - territoryGlowPointerStartY;
+   // Ya confirmada: solo se vigila una inversión clara respecto al avance máximo.
+  // Los movimientos laterales no cambian el avance, así que no cuentan como inversión.
+  if (territoryGlowConfirmedEdge){
+    const progress = territoryGlowEdgeProgress(territoryGlowConfirmedEdge, dx, dy);
+    if (progress > territoryGlowMaxProgress) territoryGlowMaxProgress = progress;
+    else if (territoryGlowMaxProgress - progress >= TERRITORY_GLOW_REVERSE_THRESHOLD_PX) hideTerritoryGlow();
+    return;
+  }
   if (Math.hypot(dx, dy) > TERRITORY_GLOW_DRAG_THRESHOLD_PX){
-    territoryGlowPointerStartX = null; // ya se disparó — no volver a evaluar hasta el próximo pointerdown
-    if (!territoryGlowActiveForLocalityId) return;
+    if (!territoryGlowActiveForLocalityId){ territoryGlowPointerStartX = null; return; }
+    // Gesto diagonal o ambiguo: todavía no se decide, se espera más recorrido.
+    const absDx = Math.abs(dx), absDy = Math.abs(dy);
+    if (Math.max(absDx, absDy) < Math.min(absDx, absDy) * TERRITORY_GLOW_AXIS_DOMINANCE) return;
     // Dirección predominante del gesto REAL (inicio → posición actual), no un
     // evento genérico — eje con mayor desplazamiento decide horizontal vs
     // vertical, el signo decide el lado.
@@ -7367,8 +7406,11 @@ function handleTerritoryGlowPointerMove(e){
     const gestureEdge = Math.abs(dx) >= Math.abs(dy)
       ? (dx < 0 ? 'right' : 'left')
       : (dy < 0 ? 'bottom' : 'top');
-    const activeEdge = territoryGlowSequence[territoryGlowStepIndex];
-    if (activeEdge === gestureEdge) confirmTerritoryGlowDirection(activeEdge);
+       const activeEdge = territoryGlowSequence[territoryGlowStepIndex];
+    if (activeEdge === gestureEdge){
+      confirmTerritoryGlowDirection(activeEdge);
+      territoryGlowMaxProgress = territoryGlowEdgeProgress(activeEdge, dx, dy);
+    }
     else hideTerritoryGlow();
   }
 }
