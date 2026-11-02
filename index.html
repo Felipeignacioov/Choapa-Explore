@@ -368,6 +368,9 @@ img{-webkit-user-drag:none; user-select:none;}
   transition:transform .16s cubic-bezier(.34,1.56,.64,1), background .16s ease, bottom .38s cubic-bezier(.32,.9,.34,1);
 }
 .locate-btn:active{transform:scale(0.9); background:rgba(95,225,232,0.16);}
+/* Con el panel «¿Qué hacer hoy?» expandido, --sheet-offset sube este botón hasta
+   el borde superior, donde quedaba detrás del botón de perfil. Se oculta solo en ese estado. */
+#app:has(#sheet.expanded) #btnCenterMe{ visibility:hidden; pointer-events:none; }
 
 .compass-btn{
   position:absolute; right:16px; z-index:9;
