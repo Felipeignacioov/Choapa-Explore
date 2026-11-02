@@ -4094,7 +4094,7 @@ function restoreNormalCartography(){
     map.setLayoutProperty(id, 'text-size', COMMUNE_LABEL_SIZE_NORMAL);
   });
   if (map.getLayer('hillshade-subtle')){
-    applyDayHillshade(TIME_ATMOSPHERE[currentDayPeriod || 'day']);
+   applyDayHillshade(getResolvedAtmosphere());
   }
 }
 
@@ -7767,23 +7767,22 @@ function scaleZoomExpression(expr, mult){
   return expr.map((item, i) => (i >= 4 && i % 2 === 0) ? +(item * mult).toFixed(3) : item);
 }
 // Realce diurno del relieve. En navegación activa se respeta su propio refuerzo.
-function applyDayHillshade(period){
+function applyDayHillshade(res){
   if (!map.getLayer('hillshade-subtle')) return;
- const hlRGB = period.hillshadeHighlightRGB || (period.hillshadeHighlight ? '255,228,185' : '255,255,255'); // luz cálida de día; blanco original en dusk/night
-  map.setPaintProperty('hillshade-subtle', 'hillshade-highlight-color', `rgba(${hlRGB},${period.hillshadeHighlight || 0.085})`);
-  map.setPaintProperty('hillshade-subtle', 'hillshade-shadow-color', period.hillshadeShadow || '#050B12');
-  map.setPaintProperty('hillshade-subtle', 'hillshade-accent-color', period.hillshadeAccent || '#08111A');
+   // luz cálida de día; blanco original en dusk/night
+  map.setPaintProperty('hillshade-subtle', 'hillshade-highlight-color', `rgba(${res.hillshadeHighlightRGB},${res.hillshadeHighlightAlpha})`);
+  map.setPaintProperty('hillshade-subtle', 'hillshade-shadow-color', res.hillshadeShadow);
+  map.setPaintProperty('hillshade-subtle', 'hillshade-accent-color', res.hillshadeAccent);
   if (navCartographyBoosted) return;
-  map.setPaintProperty('hillshade-subtle', 'hillshade-exaggeration', scaleZoomExpression(HILLSHADE_EXAGGERATION_NORMAL, period.hillshadeBoost || 1));
+  map.setPaintProperty('hillshade-subtle', 'hillshade-exaggeration', scaleZoomExpression(HILLSHADE_EXAGGERATION_NORMAL, res.hillshadeBoost));
 }
 // Viñeteado según período (valores por defecto = los de siempre).
-function applyDayVignette(period){
+function applyDayVignette(res){
   const el = document.querySelector('.map-vignette');
   if (!el) return;
-  const v = period.vignette || {};
-  el.style.setProperty('--vignette-top', v.top != null ? v.top : 0.82);
-  el.style.setProperty('--vignette-bottom', v.bottom != null ? v.bottom : 0.7);
-  el.style.setProperty('--vignette-edge', v.edge != null ? v.edge : 0.4);
+ el.style.setProperty('--vignette-top', res.vignetteTop);
+ el.style.setProperty('--vignette-bottom', res.vignetteBottom);
+  el.style.setProperty('--vignette-edge', res.vignetteEdge);
 }
 
 // ---------- Paleta base "adaptable" al estado 'day' de TIME_ATMOSPHERE ----------
@@ -7889,6 +7888,52 @@ const TIME_ATMOSPHERE = {
   night: { bgTint:'#75618F', bgAmount:0.12, glowAmount:0.15, glowOpacity:0.032, illum:300, dayLift:0, hillshadeHighlight:0.085, hillshadeHighlightRGB:'220,214,240' },
 };
 let currentDayPeriod = null;
+
+/* ---------- ATMÓSFERA RESUELTA (Fase 1) ----------
+   Traduce un estado de TIME_ATMOSPHERE a sus valores FINALES, con exactamente las
+   mismas ramas y valores por defecto que usaban applyMoodAtmosphere(),
+   applyDayLightLift(), applyDayHillshade() y applyDayVignette(). No interpola nada:
+   prepara una única fuente de valores para la futura transición gradual. */
+let currentResolvedAtmosphere = null;
+function resolveAtmosphere(periodCfg){
+  const p = periodCfg || TIME_ATMOSPHERE.day;
+  const turquoiseBase = getComputedStyle(document.documentElement).getPropertyValue('--turquoise-bright').trim() || '#5FE1E8';
+  const v = p.vignette || {};
+  const amount = p.dayLift || 0;
+  const liftTint = p.liftTint || DAY_LIGHT_TINT;
+  const lt = p.layerTints || {};
+  return {
+    // Fondo y brillo de comunas (antes de mezclar la categoría)
+    bg: p.bgTint
+      ? blendHex(BASE_BG_COLOR, p.bgTint, p.bgAmount)
+      : blendHex(BASE_BG_COLOR, p.bgLiftTint || DAY_BG_TINT, p.bgLift || 0),
+    glowColor: p.bgTint ? blendHex(turquoiseBase, p.bgTint, p.glowAmount) : turquoiseBase,
+    glowOpacity: p.glowOpacity,
+    // Viñeteado
+    vignetteTop: v.top != null ? v.top : 0.82,
+    vignetteBottom: v.bottom != null ? v.bottom : 0.7,
+    vignetteEdge: v.edge != null ? v.edge : 0.4,
+    // Terreno y agua
+    vegetation: blendHex(BASE_PALETTE.vegetation, lt.vegetation || liftTint, amount),
+    residential: blendHex(BASE_PALETTE.residential, lt.residential || liftTint, amount),
+    building: blendHex(BASE_PALETTE.building, lt.building || liftTint, amount),
+    water: blendHex(BASE_PALETTE.water, liftTint, amount),
+    // Relieve
+    hillshadeShadow: p.hillshadeShadow || '#050B12',
+    hillshadeAccent: p.hillshadeAccent || '#08111A',
+    hillshadeHighlightRGB: p.hillshadeHighlightRGB || (p.hillshadeHighlight ? '255,228,185' : '255,255,255'),
+    hillshadeHighlightAlpha: p.hillshadeHighlight || 0.085,
+    hillshadeBoost: p.hillshadeBoost || 1,
+    illum: p.illum,
+  };
+}
+// Resuelve el estado vigente y lo deja en currentResolvedAtmosphere.
+// Se recalcula en cada aplicación, igual que antes se leía TIME_ATMOSPHERE en cada llamada.
+function getResolvedAtmosphere(){
+  currentResolvedAtmosphere = resolveAtmosphere(TIME_ATMOSPHERE[currentDayPeriod || 'day']);
+  return currentResolvedAtmosphere;
+}
+
 // Atmósfera del mapa según la experiencia activa — nunca cambia el mapa en sí,
 // solo el tinte del fondo y del glow territorial, a una mezcla muy baja (4-5%)
 // del color de marca de esa experiencia. Se llama desde setActiveExperience() y
@@ -7902,12 +7947,16 @@ function applyMoodAtmosphere(expId){
   // La hora del día define la BASE; la categoría se mezcla encima de esa base,
   // nunca la reemplaza — "Aventura" a mediodía y "Aventura" de noche se sienten
   // como el mismo sistema, en dos momentos distintos del valle.
-  const period = TIME_ATMOSPHERE[currentDayPeriod || 'day'];
-  const bgTimeBase = period.bgTint
-    ? blendHex(BASE_BG_COLOR, period.bgTint, period.bgAmount)
-   : blendHex(BASE_BG_COLOR, period.bgLiftTint || DAY_BG_TINT, period.bgLift || 0);
-  applyDayVignette(period);
-  const glowTimeBase = period.bgTint ? blendHex(turquoiseBase, period.bgTint, period.glowAmount) : turquoiseBase;
+ const res = getResolvedAtmosphere();
+  applyTimeAtmosphere(res, tint, active);
+  applyCategoryAtmosphere(expId, turquoiseBase, tint, active);
+}
+// Parte TEMPORAL de la atmósfera: viñeteado, fondo, brillo de comunas y relieve.
+// La categoría solo llega como tinte para mezclar encima (4.5 % fondo, 35 % brillo).
+function applyTimeAtmosphere(res, tint, active){
+  const bgTimeBase = res.bg;
+applyDayVignette(res);
+const glowTimeBase = res.glowColor;
 
   // Fondo
   const bgLayer = map.getStyle().layers.find(l => l.type === 'background');
@@ -7932,18 +7981,22 @@ function applyMoodAtmosphere(expId){
     // idéntico al actual.
     map.setPaintProperty('comuna-glow-layer', 'circle-opacity', [
       'interpolate', ['linear'], ['zoom'],
-                 7.6, period.glowOpacity * 1.8,
-      8.8, period.glowOpacity,
+                7.6, res.glowOpacity * 1.8,
+      8.8, res.glowOpacity,
     ]);
   }
 
   // Hillshade — el ángulo de iluminación se corre unos grados al anochecer,
   // simulando sombras más largas y rasantes; el exaggeration no se toca.
   if (map.getLayer('hillshade-subtle')){
-    map.setPaintProperty('hillshade-subtle', 'hillshade-illumination-direction', period.illum);
-    applyDayHillshade(period);
+    map.setPaintProperty('hillshade-subtle', 'hillshade-illumination-direction', res.illum);
+applyDayHillshade(res);
   }
 
+  }
+// Parte de CATEGORÍA: río, halos de carreteras, desvanecido exterior y --mood-glow.
+// Mismo código de siempre; solo recibe como parámetros las variables que ya usaba.
+function applyCategoryAtmosphere(expId, turquoiseBase, tint, active){
   // Río Choapa — reflejo sutil de la categoría, sin perder su identidad: el
   // núcleo (#3E8FA8, el azul natural de siempre) se desplaza muy poco (22%), el
   // halo (turquesa de marca) un poco más (40%) ya que es la capa decorativa.
@@ -8004,26 +8057,25 @@ function applyMoodAtmosphere(expId){
 // dayLift:0 (dusk/night) el resultado es matemáticamente idéntico al color
 // original — su apariencia no cambia ni un píxel.
 function applyDayLightLift(){
-  const periodCfg = TIME_ATMOSPHERE[currentDayPeriod || 'day'] || TIME_ATMOSPHERE.day;
-  const amount = periodCfg.dayLift || 0;
-  const liftTint = periodCfg.liftTint || DAY_LIGHT_TINT; // tinte propio del estado; sin él se usa el compartido
+ const res = getResolvedAtmosphere();
+ // tinte propio del estado; sin él se usa el compartido
   const layers = map.getStyle().layers || [];
   layers.forEach(l => {
     try{
       if (l.type === 'fill' && (l.id === 'landcover_wood' || l.id === 'landuse_park')){
         map.setPaintProperty(l.id, 'fill-color-transition', { duration:600 });
-        map.setPaintProperty(l.id, 'fill-color', blendHex(BASE_PALETTE.vegetation, (periodCfg.layerTints && periodCfg.layerTints.vegetation) || liftTint, amount));
+        map.setPaintProperty(l.id, 'fill-color', res.vegetation);
       }
       if (l.type === 'fill' && l.id === 'landuse_residential'){
         map.setPaintProperty(l.id, 'fill-color-transition', { duration:600 });
-        map.setPaintProperty(l.id, 'fill-color', blendHex(BASE_PALETTE.residential, (periodCfg.layerTints && periodCfg.layerTints.residential) || liftTint, amount));
+        map.setPaintProperty(l.id, 'fill-color', res.residential);
       }
           if (l.type === 'fill' && l.id === 'building'){
         map.setPaintProperty(l.id, 'fill-color-transition', { duration:600 });
-        map.setPaintProperty(l.id, 'fill-color', blendHex(BASE_PALETTE.building, (periodCfg.layerTints && periodCfg.layerTints.building) || liftTint, amount));
+        map.setPaintProperty(l.id, 'fill-color', res.building);
       }
       if (l.type === 'fill' && l.id === 'water'){
-        currentWaterBase = blendHex(BASE_PALETTE.water, liftTint, amount);
+        currentWaterBase = res.water;
         map.setPaintProperty(l.id, 'fill-color-transition', { duration:600 });
                       map.setPaintProperty(l.id, 'fill-color', currentWaterBase);
       }
