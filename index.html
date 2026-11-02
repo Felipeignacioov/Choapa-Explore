@@ -4217,7 +4217,8 @@ map.on('load', () => {
  currentDayPeriod = getDayPeriod();
   applyMoodAtmosphere('todos'); // sin categoría activa: --mood-glow queda 'transparent', sin halo extra
   applyDayLightLift(); // aumento de luminosidad diurna — aplica el estado real al cargar
-  setInterval(updateDayPeriod, 3 * 60 * 1000);
+  lastAppliedAtmosphere = currentResolvedAtmosphere; // ya escrita por la carga inicial
+  runAtmosphereClock(); // reloj de atmósfera (Fase 2): reemplaza el chequeo cada 3 min
    renderTerritoryFade();
   renderLocalityMarkers();
   updateExplorationLevel();
@@ -7850,8 +7851,8 @@ function getSunTimes(date, lat, lng){
 // AMBOS crepúsculos (±45min alrededor de la salida/puesta real del sol) con un
 // tinte cálido, "night" el resto con un tinte frío — tomado de --exp-noche, ya
 // parte de la paleta de marca, no un color ajeno al sistema.
-function getDayPeriod(){
-  const now = new Date();
+function getDayPeriod(at){
+const now = at ? new Date(at) : new Date();
   const { sunrise, sunset, solarNoon } = getSunTimes(now, CHOAPA_SUN_LAT, CHOAPA_SUN_LNG);
   const TWILIGHT_MS = 45 * 60 * 1000;
   if (Math.abs(now - sunrise) < TWILIGHT_MS || Math.abs(now - sunset) < TWILIGHT_MS) return 'dusk';
@@ -7929,8 +7930,157 @@ function resolveAtmosphere(periodCfg){
 }
 // Resuelve el estado vigente y lo deja en currentResolvedAtmosphere.
 // Se recalcula en cada aplicación, igual que antes se leía TIME_ATMOSPHERE en cada llamada.
+/* ---------- ATMÓSFERA GRADUAL (Fase 2) ----------
+   La atmósfera es una función pura de la hora real: 10 minutos antes de cada cambio
+   de estado (según getDayPeriod), se mezclan los valores FINALES resueltos del estado
+   actual y del siguiente con curva smoothstep. Cálculo a 1 Hz solo dentro de la
+   ventana; fuera de ella, comprobación cada 60 s. Se escribe solo lo que cambió. */
+const ATMO_TRANSITION_MS = 10 * 60 * 1000;   // duración de la transición
+const ATMO_TICK_MS = 1000;                   // cálculo a 1 Hz dentro de la ventana
+const ATMO_IDLE_CHECK_MS = 60 * 1000;        // comprobación fuera de la ventana
+let atmosphereTimer = null;
+let atmosphereClockStarted = false;
+let lastAppliedAtmosphere = null;
+let atmosphereBoundaryCache = null;
+let atmosphereBgLayerId = null;
+
+// Reloj real. window.__atmosphereTestTime (ms) permite simular la hora en pruebas.
+function atmosphereNow(){
+  return (typeof window.__atmosphereTestTime === 'number') ? window.__atmosphereTestTime : Date.now();
+}
+
+// Próximo cambio de estado dentro de horizonMs, usando exactamente getDayPeriod().
+// Búsqueda binaria con precisión de 500 ms; el resultado se reutiliza mientras siga siendo válido.
+function findUpcomingBoundary(nowMs, horizonMs){
+  const from = getDayPeriod(nowMs);
+  const c = atmosphereBoundaryCache;
+  if (c && c.from === from && nowMs < c.at && c.at - nowMs <= horizonMs) return c;
+  if (getDayPeriod(nowMs + horizonMs) === from) return null;
+  let lo = nowMs, hi = nowMs + horizonMs;
+  while (hi - lo > 500){
+    const mid = lo + (hi - lo) / 2;
+    if (getDayPeriod(mid) === from) lo = mid; else hi = mid;
+  }
+  atmosphereBoundaryCache = { from, to: getDayPeriod(hi), at: hi };
+  return atmosphereBoundaryCache;
+}
+
+// Interpolación cuantizada (evita escrituras por diferencias imperceptibles).
+function atmoLerp(a, b, p, step){
+  const v = a + (b - a) * p;
+  return +(Math.round(v / step) * step).toFixed(4);
+}
+function atmoBlendRGB(a, b, p){
+  const A = a.split(',').map(Number), B = b.split(',').map(Number);
+  return A.map((x, i) => Math.round(x + (B[i] - x) * p)).join(',');
+}
+// Mezcla dos atmósferas resueltas. En los extremos devuelve los valores exactos aprobados.
+function blendAtmosphere(a, b, p){
+  if (p <= 0) return { ...a };
+  if (p >= 1) return { ...b };
+  return {
+    bg: blendHex(a.bg, b.bg, p),
+    glowColor: blendHex(a.glowColor, b.glowColor, p),
+    glowOpacity: atmoLerp(a.glowOpacity, b.glowOpacity, p, 0.001),
+    vignetteTop: atmoLerp(a.vignetteTop, b.vignetteTop, p, 0.005),
+    vignetteBottom: atmoLerp(a.vignetteBottom, b.vignetteBottom, p, 0.005),
+    vignetteEdge: atmoLerp(a.vignetteEdge, b.vignetteEdge, p, 0.005),
+    vegetation: blendHex(a.vegetation, b.vegetation, p),
+    residential: blendHex(a.residential, b.residential, p),
+    building: blendHex(a.building, b.building, p),
+    water: blendHex(a.water, b.water, p),
+    hillshadeShadow: blendHex(a.hillshadeShadow, b.hillshadeShadow, p),
+    hillshadeAccent: blendHex(a.hillshadeAccent, b.hillshadeAccent, p),
+    hillshadeHighlightRGB: atmoBlendRGB(a.hillshadeHighlightRGB, b.hillshadeHighlightRGB, p),
+    hillshadeHighlightAlpha: atmoLerp(a.hillshadeHighlightAlpha, b.hillshadeHighlightAlpha, p, 0.001),
+    hillshadeBoost: atmoLerp(a.hillshadeBoost, b.hillshadeBoost, p, 0.005),
+    illum: atmoLerp(a.illum, b.illum, p, 0.25), // sin transición nativa: pasos de 0.25°
+  };
+}
+
+// Atmósfera vigente para un instante dado (función pura del tiempo real).
+function computeAtmosphereAt(nowMs){
+  const current = resolveAtmosphere(TIME_ATMOSPHERE[getDayPeriod(nowMs)]);
+  const b = findUpcomingBoundary(nowMs, ATMO_TRANSITION_MS);
+  if (!b) return current;
+  const t = Math.min(Math.max(1 - (b.at - nowMs) / ATMO_TRANSITION_MS, 0), 1);
+  const p = t * t * (3 - 2 * t); // smoothstep
+  return blendAtmosphere(current, resolveAtmosphere(TIME_ATMOSPHERE[b.to]), p);
+}
+
+// Mismo tinte de categoría que calcula applyMoodAtmosphere(), para mezclar fondo y brillo.
+function getCategoryMix(expId){
+  const turquoiseBase = getComputedStyle(document.documentElement).getPropertyValue('--turquoise-bright').trim() || '#5FE1E8';
+  const exp = expById(expId);
+  const tint = (expId === 'todos' || !exp) ? turquoiseBase : getComputedStyle(document.documentElement).getPropertyValue(exp.color.replace('var(','').replace(')','')).trim();
+  return { tint, active: expId !== 'todos' };
+}
+
+// Escribe SOLO las propiedades cuyo valor resuelto cambió. Las transiciones de 600 ms
+// ya fijadas en la carga se conservan. Nunca escribe el agua ni efectos de categoría.
+function applyAtmosphereChanges(prev, next){
+  const changed = k => !prev || prev[k] !== next[k];
+  [['vegetation', ['landcover_wood', 'landuse_park']], ['residential', ['landuse_residential']], ['building', ['building']]]
+    .forEach(([k, ids]) => {
+      if (changed(k)) ids.forEach(id => { if (map.getLayer(id)) map.setPaintProperty(id, 'fill-color', next[k]); });
+    });
+  // Agua: solo la base; la respiración sigue siendo la única que escribe su fill-color.
+  if (changed('water')) currentWaterBase = next.water;
+  if (changed('vignetteTop') || changed('vignetteBottom') || changed('vignetteEdge')) applyDayVignette(next);
+  if (changed('bg') || changed('glowColor') || changed('glowOpacity')){
+    const { tint, active } = getCategoryMix(state.activeExperience);
+    if (changed('bg')){
+      if (!atmosphereBgLayerId){
+        const bgLayer = map.getStyle().layers.find(l => l.type === 'background');
+        atmosphereBgLayerId = bgLayer ? bgLayer.id : null;
+      }
+      if (atmosphereBgLayerId) map.setPaintProperty(atmosphereBgLayerId, 'background-color', blendHex(next.bg, tint, active ? 0.045 : 0));
+    }
+    if (map.getLayer('comuna-glow-layer')){
+      if (changed('glowColor')) map.setPaintProperty('comuna-glow-layer', 'circle-color', blendHex(next.glowColor, tint, active ? 0.35 : 0));
+      if (changed('glowOpacity')) map.setPaintProperty('comuna-glow-layer', 'circle-opacity', [
+        'interpolate', ['linear'], ['zoom'], 7.6, next.glowOpacity * 1.8, 8.8, next.glowOpacity,
+      ]);
+    }
+  }
+  if (map.getLayer('hillshade-subtle')){
+    if (changed('illum')) map.setPaintProperty('hillshade-subtle', 'hillshade-illumination-direction', next.illum);
+    // applyDayHillshade() conserva el guard de navegación sobre la exageración.
+    if (['hillshadeShadow', 'hillshadeAccent', 'hillshadeHighlightRGB', 'hillshadeHighlightAlpha', 'hillshadeBoost'].some(changed)) applyDayHillshade(next);
+  }
+}
+
+// Planificador: calcula, aplica diferencias y programa la próxima ejecución por hora real.
+function runAtmosphereClock(){
+  atmosphereClockStarted = true;
+  clearTimeout(atmosphereTimer);
+  const now = atmosphereNow();
+  currentDayPeriod = getDayPeriod(now);
+  const next = computeAtmosphereAt(now);
+  currentResolvedAtmosphere = next;
+  if (!lastAppliedAtmosphere || JSON.stringify(next) !== JSON.stringify(lastAppliedAtmosphere)){
+    applyAtmosphereChanges(lastAppliedAtmosphere, next);
+    lastAppliedAtmosphere = next;
+  }
+  // Fuera de la ventana: cada 60 s, o exactamente al inicio de la ventana si cae antes.
+  // Dentro: 1 Hz, con una última ejecución justo después del límite (estado final exacto).
+  const upcoming = findUpcomingBoundary(now, ATMO_TRANSITION_MS + ATMO_IDLE_CHECK_MS);
+  let delay = ATMO_IDLE_CHECK_MS;
+  if (upcoming){
+    const windowStart = upcoming.at - ATMO_TRANSITION_MS;
+    delay = now < windowStart
+      ? windowStart - now
+      : Math.min(ATMO_TICK_MS, Math.max(20, upcoming.at - now + 20));
+  }
+  atmosphereTimer = setTimeout(runAtmosphereClock, delay);
+}
+// Al volver a la pestaña: recalcular de inmediato con la hora real.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && atmosphereClockStarted) runAtmosphereClock();
+});
+
 function getResolvedAtmosphere(){
-  currentResolvedAtmosphere = resolveAtmosphere(TIME_ATMOSPHERE[currentDayPeriod || 'day']);
+  currentResolvedAtmosphere = computeAtmosphereAt(atmosphereNow());
   return currentResolvedAtmosphere;
 }
 
