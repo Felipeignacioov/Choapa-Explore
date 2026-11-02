@@ -7296,10 +7296,9 @@ function activateTerritoryGlowStep(){
 // fly:true) — nunca desde correcciones automáticas de nivel por pellizco, así
 // la señal nunca se siente repetitiva durante la navegación normal.
 function showTerritoryGlowIfNeeded(locality){
-  // Una comuna nueva nunca hereda la confirmación ni el seguimiento de la anterior.
-  territoryGlowConfirmedEdge = null;
-  territoryGlowMaxProgress = 0;
-  territoryGlowPointerStartX = null;
+  // Una comuna nueva nunca hereda nada del aura anterior: temporizador, secuencia,
+  // confirmación, seguimiento del puntero y clases se limpian con el mecanismo existente.
+  hideTerritoryGlow();
   const edges = computeTerritoryGlowEdges(locality);
   if (!edges) return;
   territoryGlowActiveForLocalityId = locality.id;
@@ -7366,7 +7365,19 @@ function confirmTerritoryGlowDirection(edgeKey){
   if (el){
     el.classList.remove('tg-confirm');
     void el.offsetWidth; // fuerza reflow — permite re-disparar el keyframe si ya se había usado
-    el.classList.add('tg-confirm');
+       el.classList.add('tg-confirm');
+    // Al terminar el pulso se retira tg-confirm (sin tocar tg-active): sin esto, el ::after
+    // vuelve a opacidad 1 durante la permanencia y el borde salta de intensidad.
+    // Un solo listener por borde: se quita el anterior antes de añadir el nuevo.
+    if (el._tgConfirmEnd) el.removeEventListener('animationend', el._tgConfirmEnd);
+    const onConfirmEnd = (ev) => {
+      if (ev.animationName !== 'tg-confirm-pulse' || ev.pseudoElement !== '::after') return;
+      el.classList.remove('tg-confirm');
+      el.removeEventListener('animationend', onConfirmEnd);
+      el._tgConfirmEnd = null;
+    };
+    el._tgConfirmEnd = onConfirmEnd;
+    el.addEventListener('animationend', onConfirmEnd);
   }
   // Confirmada: se detiene la secuencia (se cancela el temporizador de paso) y se programa
   // una única permanencia. Solo se llama una vez por aura (ver handleTerritoryGlowPointerMove).
