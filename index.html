@@ -7676,6 +7676,28 @@ function updateSearchBarVisibility(){
   document.querySelector('.search-wrap').classList.toggle('locality-hidden', !!state.currentLocality);
 }
 
+// Desplazamiento vertical para que el punto de la comuna quede en el centro del área
+// realmente libre del mapa: bajo el encabezado/chips/«‹ Comuna» y sobre la tarjeta «En [Comuna]».
+function getComunaFlyOffset(){
+  const mapRect = map.getContainer().getBoundingClientRect();
+  const topUI = document.querySelector('.top-ui');
+  const breadcrumb = document.getElementById('breadcrumbPill');
+  const panel = document.getElementById('comunaPanel');
+  const nav = document.querySelector('.bottom-nav');
+  const topUIBottom = topUI ? topUI.getBoundingClientRect().bottom - mapRect.top : 0;
+  const breadcrumbBottom = breadcrumb ? (parseFloat(getComputedStyle(breadcrumb).top) || 0) + 34 : 0;
+  const freeTop = Math.max(topUIBottom, breadcrumbBottom);
+  const navTop = nav ? nav.getBoundingClientRect().top - mapRect.top : mapRect.height;
+  let freeBottom;
+  if (panel && panel.offsetHeight > 80){
+    freeBottom = panel.getBoundingClientRect().top - mapRect.top;
+  } else {
+    freeBottom = navTop - 26 - 120; // tarjeta aún sin contenido: altura estimada
+  }
+  if (freeBottom <= freeTop) return [0, 0]; // salvaguarda en pantallas muy bajas
+  const freeCenterY = (freeTop + freeBottom) / 2;
+  return [0, Math.round(freeCenterY - mapRect.height / 2)];
+}
 function enterLocality(locality, { fly }){
   state.currentLocality = locality;
   state.currentSublocality = null;
@@ -7698,10 +7720,11 @@ function enterLocality(locality, { fly }){
       map.flyTo({
         center:[locality.lng, locality.lat], zoom,
         curve:flight.curve, speed:flight.speed, duration:flight.duration,
+        offset:getComunaFlyOffset(),
         easing:t => t*(2-t),
       });
     } else {
-      map.flyTo({ center:[locality.lng, locality.lat], zoom, duration:1400, curve:1.3, easing:t => t*(2-t) });
+     map.flyTo({ center:[locality.lng, locality.lat], zoom, offset:getComunaFlyOffset(), duration:1400, curve:1.3, easing:t => t*(2-t) });
     }
     // El panel "En [Comuna]" aparece recién cuando el vuelo de cámara termina
     // — antes se disparaba en paralelo con el propio flyTo, compitiendo
