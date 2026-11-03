@@ -3131,6 +3131,33 @@ img{-webkit-user-drag:none; user-select:none;}
 .rsp-header-title{ display:none; }
 .rsp-dest{ padding-right:38px; min-width:0; }
 .rsp-dest-name{ min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* ================= LOCALIDADES — POSICIÓN DEL NOMBRE Y TRAZO DE UNIÓN =================
+   La píldora se reubica (derecha / debajo del punto) sin mover el punto: al sacarla del
+   flujo, el marcador queda del tamaño del punto y su ancla inferior no cambia. */
+.locality-marker.sublocality .loc-visual{ position:relative; }
+.locality-marker.sublocality .loc-label{ position:relative; }
+.locality-marker.sublocality.label-right .loc-label{
+  position:absolute; margin:0;
+  left:100%; top:50%; transform:translateY(-50%);
+}
+.locality-marker.sublocality.label-below .loc-label{
+  position:absolute; margin:0;
+  top:100%; left:50%; transform:translateX(-50%);
+}
+/* Trazo de 1 px que une cada píldora con su punto */
+.locality-marker.sublocality .loc-label::after{
+  content:''; position:absolute; pointer-events:none;
+  background:rgba(139,124,255,0.45);
+  left:50%; bottom:-6px; width:1px; height:6px; transform:translateX(-50%);
+}
+.locality-marker.sublocality.label-right .loc-label::after{
+  left:-4px; top:50%; bottom:auto; width:4px; height:1px; transform:translateY(-50%);
+}
+.locality-marker.sublocality.label-below .loc-label::after{
+  top:-4px; bottom:auto; left:50%; width:1px; height:4px; transform:translateX(-50%);
+}
+/* Si el nombre quedó atenuado, el trazo también */
+.locality-marker.sublocality.label-collapsed .loc-label::after{ opacity:0.5; }
 </style>
 </head>
 <body>
@@ -7169,7 +7196,88 @@ function unionRect(a, b){
   };
 }
 
+// Colocación de nombres de localidades. Las secundarias que chocan prueban a la derecha
+// del punto y luego debajo antes de atenuarse; nunca tapan el punto de otra localidad.
+// Principales, comunas y POIs mantienen el comportamiento de siempre.
+// Primero se mide todo y después se escriben las clases (sin reflows intercalados).
 function resolveLabelCollisions(){
+  const locVisible = [...localityMarkers, ...sublocalityMarkers]
+    .filter(m => m._el && !m._el.classList.contains('hidden-level'));
+  const poiVisible = markers.filter(m => m._el && m._el.classList.contains('show-name'));
+  const visible = [...locVisible, ...poiVisible];
+  if (!visible.length) return;
+
+  const center = map.getCenter();
+  const ranked = visible.map(m => {
+    const loc = m._locality || m._sub || m._place;
+    const tier = m._locality ? 0 : (m._sub ? 1 : 2);
+    const subTier = (m._sub && m._sub.tier === 'secondary') ? 1 : 0;
+    return { m, tier, subTier, dist: Math.hypot(loc.lat - center.lat, loc.lng - center.lng) };
+  }).sort((a, b) => (a.tier - b.tier) || (a.subTier - b.subTier) || (a.dist - b.dist));
+
+  const MARGIN = 6;            // aire mínimo entre unidades nombre+punto
+  const GAP_ABOVE = 3.6;       // = margin-bottom de la píldora sobre el punto
+  const viewW = window.innerWidth, viewH = window.innerHeight;
+  const overlaps = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+  const inflate = (r, k) => ({ left:r.left - k, right:r.right + k, top:r.top - k, bottom:r.bottom + k });
+  const candidate = (d, pos, w, h) => {
+    const cx = (d.left + d.right) / 2, cy = (d.top + d.bottom) / 2;
+    if (pos === 'right') return { left:d.right, right:d.right + w, top:cy - h / 2, bottom:cy + h / 2 };
+    if (pos === 'below') return { left:cx - w / 2, right:cx + w / 2, top:d.bottom, bottom:d.bottom + h };
+    return { left:cx - w / 2, right:cx + w / 2, top:d.top - GAP_ABOVE - h, bottom:d.top - GAP_ABOVE };
+  };
+
+  // Fase de lectura
+  const info = ranked.map(r => {
+    const el = r.m._el;
+    const label = el.querySelector('.loc-label') || el.querySelector('.poi-name-label');
+    const dot = r.m._sub ? el.querySelector('svg') : null;
+    return {
+      ...r, label,
+      labelRect: label ? label.getBoundingClientRect() : null,
+      dotRect: dot ? dot.getBoundingClientRect() : null,
+      w: label ? label.offsetWidth : 0,
+      h: label ? label.offsetHeight : 0,
+      prevPos: el.classList.contains('label-right') ? 'right' : (el.classList.contains('label-below') ? 'below' : 'above'),
+    };
+  });
+  const dotObstacles = info.filter(i => i.dotRect).map(i => ({ m:i.m, r:i.dotRect }));
+
+  // Decisión
+  const placed = [];
+  const decisions = [];
+  info.forEach(i => {
+    if (!i.label) return;
+    if (!i.m._sub || !i.dotRect){
+      // Comunas y POIs: misma lógica de siempre (solo el texto)
+      const collides = placed.some(r => overlaps(i.labelRect, r));
+      decisions.push([i.m, collides, 'above']);
+      if (!collides) placed.push(i.labelRect);
+      return;
+    }
+    const isSecondary = i.m._sub.tier !== 'primary';
+    const order = isSecondary ? [...new Set([i.prevPos, 'above', 'right', 'below'])] : ['above'];
+    let chosen = null, unit = null;
+    for (const pos of order){
+      const lr = candidate(i.dotRect, pos, i.w, i.h);
+      if (pos !== 'above' && (lr.left < 0 || lr.right > viewW || lr.top < 0 || lr.bottom > viewH)) continue;
+      const u = inflate(unionRect(lr, i.dotRect), MARGIN);
+      if (placed.some(r => overlaps(u, r))) continue;
+      if (isSecondary && dotObstacles.some(o => o.m !== i.m && overlaps(lr, o.r))) continue;
+      chosen = pos; unit = u; break;
+    }
+    if (chosen){ placed.push(unit); decisions.push([i.m, false, chosen]); }
+    else decisions.push([i.m, true, 'above']); // no cabe en ninguna posición: se atenúa como hoy
+  });
+
+  // Fase de escritura
+  decisions.forEach(([m, collapsed, pos]) => {
+    m._el.classList.toggle('label-collapsed', collapsed);
+    m._el.classList.toggle('label-right', pos === 'right');
+    m._el.classList.toggle('label-below', pos === 'below');
+  });
+}
+function resolveLabelCollisionsLegacy(){
   const locVisible = [...localityMarkers, ...sublocalityMarkers]
     .filter(m => m._el && !m._el.classList.contains('hidden-level'));
   // POIs entran a este mismo sistema de colisión, pero con la prioridad más
