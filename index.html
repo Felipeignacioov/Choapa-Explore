@@ -3184,6 +3184,19 @@ img{-webkit-user-drag:none; user-select:none;}
 .locality-marker.sublocality.ring-near svg circle:nth-child(2){ stroke-opacity:0.9; }
 .locality-marker.sublocality svg circle:nth-child(3){ fill:#B9AEFF; }  /* núcleo lavanda */
 .locality-marker.sublocality svg circle:nth-child(4){ opacity:0; }     /* brillo innecesario sobre núcleo claro */
+/* ================= ATMÓSFERA DE CATEGORÍA — MARCO DE COLOR =================
+   --mood-glow (ya lo fija applyCategoryAtmosphere: color de la categoría, o
+   'transparent' en «Todos») se registra como color animable para que el cambio
+   de categoría se funda en 0.6 s. El marco tiñe solo la periferia; el centro queda limpio. */
+@property --mood-glow{ syntax:'<color>'; inherits:true; initial-value:transparent; }
+:root{ transition:--mood-glow .6s ease; }
+.map-vignette::after{
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(ellipse at center,
+    transparent 50%,
+    color-mix(in srgb, var(--mood-glow) 9%, transparent) 78%,
+    color-mix(in srgb, var(--mood-glow) 16%, transparent) 100%);
+}
 </style>
 </head>
 <body>
@@ -8435,7 +8448,7 @@ function applyAtmosphereChanges(prev, next){
         const bgLayer = map.getStyle().layers.find(l => l.type === 'background');
         atmosphereBgLayerId = bgLayer ? bgLayer.id : null;
       }
-      if (atmosphereBgLayerId) map.setPaintProperty(atmosphereBgLayerId, 'background-color', blendHex(next.bg, tint, active ? 0.045 : 0));
+      if (atmosphereBgLayerId) map.setPaintProperty(atmosphereBgLayerId, 'background-color', blendHex(next.bg, tint, active ? 0.07 : 0));
     }
     if (map.getLayer('comuna-glow-layer')){
       if (changed('glowColor')) map.setPaintProperty('comuna-glow-layer', 'circle-color', blendHex(next.glowColor, tint, active ? 0.35 : 0));
@@ -8513,7 +8526,7 @@ const glowTimeBase = res.glowColor;
   const bgLayer = map.getStyle().layers.find(l => l.type === 'background');
   if (bgLayer){
     map.setPaintProperty(bgLayer.id, 'background-color-transition', { duration:600 });
-    map.setPaintProperty(bgLayer.id, 'background-color', blendHex(bgTimeBase, tint, active ? 0.045 : 0));
+   map.setPaintProperty(bgLayer.id, 'background-color', blendHex(bgTimeBase, tint, active ? 0.07 : 0));
   }
 
   // Glow territorial — matiz de categoría sobre la base del momento del día. La
