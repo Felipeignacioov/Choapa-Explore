@@ -3026,6 +3026,27 @@ img{-webkit-user-drag:none; user-select:none;}
   transition:opacity .3s ease, transform .3s ease;
 }
 .sheet-scroll-hint.scrolled .ssh-chevron{opacity:0; transform:translateY(4px);}
+/* «¿Qué hacer hoy?» — fix de parpadeo al desplazar.
+   (a) Sin desenfoque de fondo dentro del panel que se desplaza (mismo criterio que
+       Guardados / Cerca de mí). La cápsula de categoría sube levemente su opacidad
+       para conservar la legibilidad sobre las fotos.
+   (b) Mientras el panel se desplaza, se anula el efecto de "presionar", para que no
+       se encoja y rebote al iniciar el gesto. Un toque normal sigue teniendo su respuesta. */
+.sheet-body .chip,
+.sheet-body .tc-tag{
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+}
+.sheet-body .tc-tag{ background:rgba(7,17,28,0.68); }
+.sheet-body.is-scrolling .featured-card:active,
+.sheet-body.is-scrolling .today-card:active,
+.sheet-body.is-scrolling .premium-entry:active,
+.sheet-body.is-scrolling .chip:active,
+.sheet-body.is-scrolling .zone-card:active,
+.sheet-body.is-scrolling .collection-card:active,
+.sheet-body.is-scrolling .closing-card:active{
+  transform:none;
+}
 </style>
 </head>
 <body>
@@ -11502,6 +11523,18 @@ renderExploreMoreRail();
 renderCollectionsRail();
 renderClosingFeature();
 sheetPill.addEventListener('click', expandSheet);
+// Marca el panel mientras se desplaza: el CSS anula el efecto de "presionar" en ese momento
+// (evita el parpadeo al deslizar empezando sobre una tarjeta o un chip).
+(() => {
+  const body = document.getElementById('sheetBody');
+  if (!body) return;
+  let scrollEndTimer = null;
+  body.addEventListener('scroll', () => {
+    if (!body.classList.contains('is-scrolling')) body.classList.add('is-scrolling');
+    clearTimeout(scrollEndTimer);
+    scrollEndTimer = setTimeout(() => body.classList.remove('is-scrolling'), 180);
+  }, { passive:true });
+})();
 // Indicador de contenido inferior del panel «¿Qué hacer hoy?».
 // Se muestra solo si queda contenido oculto bajo la barra inferior; el chevron se retira
 // al empezar a desplazar y todo desaparece al llegar al final.
