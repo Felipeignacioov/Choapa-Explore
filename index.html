@@ -3081,6 +3081,21 @@ img{-webkit-user-drag:none; user-select:none;}
   backface-visibility:hidden;
   -webkit-backface-visibility:hidden;
 }
+/* «Arma un plan a tu medida» — sin parpadeo al desplazar.
+   (a) Capa gráfica propia: se conserva ya pintado (degradados, borde, sombra) al desplazar.
+   (b) La respuesta al toque espera 80 ms: si el gesto resulta ser un desplazamiento,
+       el navegador la cancela antes de que se vea. Un toque normal la sigue mostrando.
+   (c) Mientras el panel se desplaza, ni escala ni cambio de borde. */
+.sheet-body .premium-entry{
+  will-change:transform;
+  backface-visibility:hidden;
+  -webkit-backface-visibility:hidden;
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1) 80ms, border-color .18s ease 80ms;
+}
+.sheet-body.is-scrolling .premium-entry:active{
+  transform:none;
+  border-color:rgba(95,225,232,0.32);
+}
 </style>
 </head>
 <body>
