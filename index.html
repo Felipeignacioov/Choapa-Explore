@@ -3158,6 +3158,32 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 /* Si el nombre quedó atenuado, el trazo también */
 .locality-marker.sublocality.label-collapsed .loc-label::after{ opacity:0.5; }
+/* ================= LOCALIDADES — NOMBRES QUE NO CABEN Y PUNTO "CABEZA DE ALFILER" ================= */
+
+/* 1) Nombre secundario que no cabe en ninguna posición: se oculta (no queda como placa
+      gris encima de sus vecinos). El punto sigue visible, tocable y con el aro marcado.
+      Al acercarse y haber espacio, el nombre vuelve con el fundido de siempre. */
+.locality-marker.sublocality.tier-secondary.label-collapsed:not(.entering) .loc-label{
+  opacity:0;
+}
+.locality-marker.sublocality.tier-secondary.label-collapsed:not(.entering) svg{
+  opacity:var(--sec-op, 1);
+}
+
+/* 2) Punto con núcleo claro, aro violeta definido y sombra oscura fina (sin resplandor violeta) */
+.locality-marker.sublocality svg,
+.locality-marker.sublocality:active svg{
+  filter:drop-shadow(0 1px 2px rgba(2,8,15,0.55));
+}
+.locality-marker.sublocality .loc-halo{ fill-opacity:0.6; }          /* halo más sutil (la respiración sigue) */
+.locality-marker.sublocality svg circle:nth-child(2){                 /* aro + disco oscuro detrás del núcleo */
+  fill:rgba(16,18,38,0.88);
+  stroke-opacity:0.75;
+  stroke-width:1.2;
+}
+.locality-marker.sublocality.ring-near svg circle:nth-child(2){ stroke-opacity:0.9; }
+.locality-marker.sublocality svg circle:nth-child(3){ fill:#EEEBFF; }  /* núcleo claro */
+.locality-marker.sublocality svg circle:nth-child(4){ opacity:0; }     /* brillo innecesario sobre núcleo claro */
 </style>
 </head>
 <body>
