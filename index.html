@@ -3213,13 +3213,6 @@ img{-webkit-user-drag:none; user-select:none;}
   letter-spacing:0.25px;
 }
 
-/* Trazo que une la etiqueta con su pin (mismo lenguaje que las localidades) */
-.locality-marker:not(.sublocality) .loc-label::after{
-  content:''; position:absolute; pointer-events:none;
-  left:50%; bottom:-10px; width:1px; height:10px; transform:translateX(-50%);
-  background:linear-gradient(to bottom, rgba(95,225,232,0.55), rgba(95,225,232,0));
-}
-
 /* Pin "sello": el halo difuso pasa a ser un anillo exterior fino que respira igual
    (misma animación, misma intensidad por experiencias y mismo tinte de categoría) */
 .locality-marker:not(.sublocality) .loc-halo{
@@ -3234,6 +3227,23 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 .locality-marker:not(.sublocality).near svg{
   filter:drop-shadow(0 0 6px rgba(95,225,232,0.35)) drop-shadow(0 3px 6px rgba(2,8,15,0.5));
+}
+/* ================= COMUNAS — RESPIRACIÓN PREMIUM (ONDA) =================
+   El anillo exterior pasa a ser una onda fina que nace del aro, se expande con
+   desaceleración y se disuelve, con pausa entre ondas. Cada comuna va desfasada
+   (a partir de su --enter-delay), así el territorio no late al unísono.
+   Se conservan la intensidad por experiencias (filter), el tinte de categoría y el destello al tocar. */
+.locality-marker:not(.sublocality) .loc-halo{
+  animation:comuna-halo-ripple 5.6s cubic-bezier(.22,.61,.36,1) infinite;
+  animation-delay:calc(var(--enter-delay, 0ms) * 9);
+}
+@keyframes comuna-halo-ripple{
+  0%   { r:6.6;  opacity:0.5; stroke-width:1.2; }
+  70%  { r:12.2; opacity:0;   stroke-width:0.4; }
+  100% { r:12.2; opacity:0;   stroke-width:0.4; }
+}
+@media (prefers-reduced-motion: reduce){
+  .locality-marker:not(.sublocality) .loc-halo{ animation:none; opacity:0.25; }
 }
 </style>
 </head>
