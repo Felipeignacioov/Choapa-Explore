@@ -3121,6 +3121,16 @@ img{-webkit-user-drag:none; user-select:none;}
   stroke:rgba(255,255,255,0.85);
   stroke-width:1.3;
 }
+/* ================= TARJETA «TU RUTA» — COMPACTA =================
+   Sin la fila de título: la ✕ pasa a la esquina, alineada con el destino.
+   (El HTML no cambia; .rsp-header solo se reposiciona.) */
+.rsp-header{
+  position:absolute; top:14px; right:16px; z-index:1;
+  margin:0;
+}
+.rsp-header-title{ display:none; }
+.rsp-dest{ padding-right:38px; min-width:0; }
+.rsp-dest-name{ min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 </style>
 </head>
 <body>
@@ -9922,6 +9932,21 @@ function formatArrivalTime(remainingSeconds){
   }).format(arrival);
 }
 
+// Línea bajo el tiempo estimado en «Tu ruta»: distancia + hora de llegada (hora de Chile).
+function updateRouteSummaryDistLine(){
+  const el = document.getElementById('rspDist');
+  if (!el) return;
+  if (state.nav.routeDistance == null){ el.textContent = '—'; return; }
+  const dist = formatRouteDistance(state.nav.routeDistance);
+  el.textContent = state.nav.routeDuration != null
+    ? `${dist} · Llegas a las ${formatArrivalTime(state.nav.routeDuration)}`
+    : dist;
+}
+// Mientras «Tu ruta» está abierta (antes de «Ir ahora»), la hora de llegada se mantiene al día.
+setInterval(() => {
+  if (routeSummaryPanel.classList.contains('visible') && state.nav.watchId == null) updateRouteSummaryDistLine();
+}, 30000);
+
 function renderRouteSummaryPanel(){
   // Header — misma fuente de ícono/color que ya usa el pin de destino en el
   // mapa (renderNavDestinationMarker: primaryExperienceTag + computePOIDisplayColor),
@@ -9945,7 +9970,7 @@ function renderRouteSummaryPanel(){
     rspModes.appendChild(btn);
   });
   document.getElementById('rspEta').textContent = state.nav.routeDuration != null ? formatDuration(state.nav.routeDuration) : '—';
-  document.getElementById('rspDist').textContent = state.nav.routeDistance != null ? formatRouteDistance(state.nav.routeDistance) : '—';
+ updateRouteSummaryDistLine();
   routeSummaryPanel.classList.add('visible');
 }
 
