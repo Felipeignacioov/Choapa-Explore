@@ -9661,6 +9661,18 @@ function smoothRouteCoordinates(coords, iterations = 2){
 // lastDrawnRouteCoords guarda la geometría YA suavizada que se acaba de
 // pintar — solo lectura para el brillo de "Seleccionar destino" (más abajo),
 // nunca se usa para calcular distancia/tiempo/cámara ni nada del flujo real.
+// Degradado de la ruta: turquesa de marca en el origen → color de la categoría del destino
+// (el mismo que usa el aro del marcador de destino). Se evalúa sobre la línea dibujada,
+// así que durante el viaje se recalcula sobre el tramo restante.
+function buildNavRouteGradient(){
+  const place = state.nav.targetPlace;
+  const dest = (place && computePOIDisplayColor(place)) || '#5FE1E8';
+  return ['interpolate', ['linear'], ['line-progress'],
+    0, '#5FE1E8',
+    0.3, '#5FE1E8',
+    1, dest,
+  ];
+}
 let lastDrawnRouteCoords = null;
 function drawRouteOnMap(geometry){
   const smoothedCoords = geometry.type === 'LineString'
@@ -9671,7 +9683,7 @@ function drawRouteOnMap(geometry){
   if (map.getSource('nav-route')){
     map.getSource('nav-route').setData(data);
   } else {
-    map.addSource('nav-route', { type:'geojson', data });
+   map.addSource('nav-route', { type:'geojson', data, lineMetrics:true }); // lineMetrics: necesario para line-gradient
     map.addLayer({
       id:'nav-route-line-halo', type:'line', source:'nav-route',
       layout:{ 'line-cap':'round', 'line-join':'round' },
@@ -9691,8 +9703,8 @@ function drawRouteOnMap(geometry){
       id:'nav-route-line-outline', type:'line', source:'nav-route',
       layout:{ 'line-cap':'round', 'line-join':'round' },
       paint:{
-        'line-color':'#0B1F2C', 'line-opacity':0.9,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 10, 2.7, 13, 3.9, 16, 6.0, 18, 7.8],
+        'line-color':'#0B1F2C', 'line-opacity':0.95,
+       'line-width': ['interpolate', ['linear'], ['zoom'], 10, 3.3, 13, 4.7, 16, 7.2, 18, 9.4],
       },
     });
        map.addLayer({
@@ -9700,7 +9712,8 @@ function drawRouteOnMap(geometry){
       layout:{ 'line-cap':'round', 'line-join':'round' },
       paint:{
         'line-color':'#5FE1E8', 'line-opacity':0.95,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1.8, 13, 2.6, 16, 4.0, 18, 5.2],
+        'line-gradient': buildNavRouteGradient(),
+      'line-width': ['interpolate', ['linear'], ['zoom'], 10, 2.2, 13, 3.1, 16, 4.8, 18, 6.2],
       },
     });
   }
