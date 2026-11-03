@@ -4798,7 +4798,7 @@ function tintMapLayers(){
       ];
       if (l.type === 'line' && l.id === 'highway_major_inner'){
         map.setPaintProperty(l.id, 'line-color', roadColor(0.05));
-        map.setPaintProperty(l.id, 'line-opacity', ROAD_OPACITY_MAJOR_INNER);
+        map.setPaintProperty(l.id, 'line-opacity', ['interpolate', ['linear'], ['zoom'], 8, 0.58, 10, 0.72, 11.5, 0.72, 12.75, 0.66, 14.5, 0.6, 16, 0.58]);
         map.setPaintProperty(l.id, 'line-width', ROAD_WIDTH_BY_CLASS);
       }
            if (l.type === 'line' && l.id === 'highway_major_casing'){
@@ -4810,7 +4810,7 @@ function tintMapLayers(){
         // mezcla) y la opacidad sube un poco — el contraste, no el ancho, es
         // lo que ahora comunica "esto tiene relieve".
         map.setPaintProperty(l.id, 'line-color', roadColor(0.8));
-        map.setPaintProperty(l.id, 'line-opacity', ROAD_OPACITY_MAJOR_CASING);
+        map.setPaintProperty(l.id, 'line-opacity', ['interpolate', ['linear'], ['zoom'], 8, 0.5, 10, 0.55, 11.5, 0.55, 12.75, 0.52, 14.5, 0.5, 16, 0.5]);
         map.setPaintProperty(l.id, 'line-width', ROAD_WIDTH_BY_CLASS_CASING);
       }
       if (l.type === 'line' && l.id === 'highway_major_subtle'){
@@ -4820,7 +4820,7 @@ function tintMapLayers(){
         // perciba con claridad a nivel regional, sin llegar a competir con
         // los pines de comuna/localidad (que siguen siendo el protagonista).
                map.setPaintProperty(l.id, 'line-color', roadColor(0.02));
-        map.setPaintProperty(l.id, 'line-opacity', 0.46);
+       map.setPaintProperty(l.id, 'line-opacity', ['interpolate', ['linear'], ['zoom'], 6, 0.46, 9, 0.46, 10, 0.74, 11, 0.74]);
       }
       if (l.type === 'line' && l.id === 'highway_motorway_inner'){
         // Motorway: el nivel más prominente, por encima de trunk/primary.
@@ -4843,7 +4843,7 @@ function tintMapLayers(){
         // Casi disueltas en el fondo — mismo espíritu que antes, tono más
         // oscuro (72% mezclado hacia el navy) y bastante menos opacas que
         // cualquier capa "major", para que la jerarquía sea innegable.
-               map.setPaintProperty(l.id, 'line-color', ['interpolate', ['linear'], ['zoom'], 12.4, roadColor(0.72), 14, roadColor(0.5)]);
+             map.setPaintProperty(l.id, 'line-color', ['interpolate', ['linear'], ['zoom'], 12.4, roadColor(0.45), 14, roadColor(0.5)]);
         // Legibilidad SOLO al entrar a una comuna (zoom 8.8→12.4 — de
         // ZOOM_COMUNA_NEAR a ZOOM_DETAIL): ahí aterriza enterLocality (z10.15
         // con sub-localidades) y todavía no hay POIs en pantalla; estas calles
@@ -5408,8 +5408,8 @@ function renderTerrainDepth(){
     // moveend/movestart/setInterval más abajo — no reemplaza esa lógica de
     // "el río se atenúa al quedarse quieto", solo le suma este factor.
     function riverZoomDamp(){
-      const t = Math.min(Math.max((map.getZoom() - ZOOM_SUBLOCALITY) / (ZOOM_DETAIL - ZOOM_SUBLOCALITY), 0), 1);
-      return 1 - t * 0.35;
+     const t = Math.min(Math.max((map.getZoom() - 9.0) / (10.2 - 9.0), 0), 1); // de vista regional (z9) a comuna (z10.2)
+     return 1 - t * 0.5; // en comuna y localidad el río queda en segundo plano frente a las rutas
     }
 
     // El río mantiene protagonismo mientras el usuario navega; al quedarse quieto,
@@ -5446,7 +5446,7 @@ function renderTerrainDepth(){
  registerAmbientTick(() => {
     if (!map.getLayer('highway_major_subtle')) return;
         const wobble = Math.sin(performance.now() / 4100) * 0.015;
-    map.setPaintProperty('highway_major_subtle', 'line-opacity', 0.46 + wobble);
+   map.setPaintProperty('highway_major_subtle', 'line-opacity', ['interpolate', ['linear'], ['zoom'], 6, 0.46 + wobble, 9, 0.46 + wobble, 10, 0.74 + wobble, 11, 0.74 + wobble]);
   });
 }
 
