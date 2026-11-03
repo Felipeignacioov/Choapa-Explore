@@ -4873,7 +4873,26 @@ function tintMapLayers(){
       if (l.type === 'line' && l.id === 'highway_path'){
         map.setLayoutProperty(l.id, 'line-join', 'round'); // sin cambiar el extremo: el sendero puede ser punteado
       }
-      const MAP_REFERENCE_TEXT_COLOR = blendHex(roadColor(0.3), '#5FE1E8', 0.38);
+    // Aeródromos y pistas rurales: venían con el color oscuro del estilo base y se veían
+// como franjas negras sobre el terreno. Se integran como elementos discretos de la
+// familia de los caminos, por debajo de las carreteras. Solo color y opacidad.
+if (l.type === 'line' && l.id === 'aeroway-runway-casing'){
+  map.setPaintProperty(l.id, 'line-color', roadColor(0.85));
+  map.setPaintProperty(l.id, 'line-opacity', 0.45);
+}
+if (l.type === 'line' && l.id === 'aeroway-runway'){
+  map.setPaintProperty(l.id, 'line-color', roadColor(0.55));
+  map.setPaintProperty(l.id, 'line-opacity', 0.4);
+}
+if (l.type === 'line' && l.id === 'aeroway-taxiway'){
+  map.setPaintProperty(l.id, 'line-color', roadColor(0.6));
+  map.setPaintProperty(l.id, 'line-opacity', 0.3);
+}
+if (l.type === 'fill' && l.id === 'aeroway-area'){
+  map.setPaintProperty(l.id, 'fill-color', roadColor(0.75));
+  map.setPaintProperty(l.id, 'fill-opacity', 0.25);
+}
+const MAP_REFERENCE_TEXT_COLOR = blendHex(roadColor(0.3), '#5FE1E8', 0.38);
       // PRUEBA: variante Bold del stack de fuente que ya usa el mapa. Riesgo
       // conocido — si el servidor de glyphs de OpenFreemap no tiene esa
       // variante, el texto de estas dos capas desaparece por completo. Si eso
