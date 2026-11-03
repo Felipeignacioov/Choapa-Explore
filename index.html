@@ -3096,6 +3096,31 @@ img{-webkit-user-drag:none; user-select:none;}
   transform:none;
   border-color:rgba(95,225,232,0.32);
 }
+/* ================= RUTA — MARCADORES DE ORIGEN Y DESTINO =================
+   Destino: aro de categoría plano, filo claro en la foto, sombra de anclaje y
+   anillo exterior estático (sin pulso infinito). Mismo tamaño que antes. */
+.nav-dest-marker .ndm-ring{
+  background:var(--ndm-ring, #16B8C4);
+  box-shadow:0 3px 9px rgba(2,8,15,0.55), 0 1px 2px rgba(2,8,15,0.5), 0 0 0 1px rgba(7,19,31,0.6);
+}
+.nav-dest-marker .ndm-ring::after{
+  inset:-3.5px; opacity:0.35; animation:none;
+}
+.nav-dest-marker .ndm-photo{
+  width:calc(100% - 5px); height:calc(100% - 5px);
+  box-shadow:0 0 0 1px rgba(255,255,255,0.75);
+}
+/* Destino sin foto (marcador con icono): mismo criterio, sin pulso infinito */
+.nav-dest-marker .halo{ animation:none; opacity:0.35; }
+
+/* Origen en «Tu ruta» (antes de «Ir ahora»): sin pulso, con anillo blanco fino de "punto de partida".
+   Solo aplica al marcador normal (.user-dot); en navegación activa el marcador es otro. */
+#app.route-preview .user-dot .ring{ animation:none; opacity:0; }
+#app.route-preview .user-dot circle:nth-of-type(2){
+  fill:transparent;
+  stroke:rgba(255,255,255,0.85);
+  stroke-width:1.3;
+}
 </style>
 </head>
 <body>
@@ -9500,6 +9525,7 @@ function clearNavDestinationMarker(){
 
 function clearNavRoute(){
   setExploreChromeHiddenForNav(false); // vuelve el modo exploración (también cubre la ✕ de «Tu ruta»)
+  document.getElementById('app').classList.remove('route-preview');
   // nav-route-line-outline se agregó en el ajuste de contorno posterior y
   // nunca se sumó aquí — era la capa huérfana que quedaba pegada en el mapa
   // tras cancelar (el tono oscuro del contorno, no la línea turquesa normal).
@@ -9925,7 +9951,8 @@ async function calculateAndShowRoute(mode){
   rspStatus.style.display = 'flex';
   rspStatus.className = 'rsp-status loading';
  rspStatus.innerHTML = `${icon('compassRose', 13)} Calculando ruta…`;
-  setExploreChromeHiddenForNav(true); // «Tu ruta»: sin buscador, categorías, volver a comuna ni zoom (igual que en el viaje)
+ setExploreChromeHiddenForNav(true); // «Tu ruta»: sin buscador, categorías, volver a comuna ni zoom (igual que en el viaje)
+  document.getElementById('app').classList.add('route-preview'); // estilo de "punto de partida" en el origen
   renderRouteSummaryPanel();
 
   try{
