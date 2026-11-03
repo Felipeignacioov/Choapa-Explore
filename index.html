@@ -3047,6 +3047,25 @@ img{-webkit-user-drag:none; user-select:none;}
 .sheet-body.is-scrolling .closing-card:active{
   transform:none;
 }
+/* «¿Qué hacer hoy?» — fix de parpadeo al desplazar (causa raíz).
+   El panel tenía backdrop-filter y contenía la zona que se desplaza (.sheet-body);
+   en Chrome Android eso obliga a recalcular el desenfoque en cada cuadro del
+   desplazamiento y produce parpadeos. El desenfoque y el fondo pasan a una capa
+   decorativa (::before) detrás del contenido: se ve igual, pero el contenido
+   desplazable ya no está dentro de un elemento con backdrop-filter. */
+.sheet{
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+  background:transparent;
+}
+.sheet::before{
+  content:''; position:absolute; inset:0; z-index:-1; pointer-events:none;
+  border-radius:inherit;
+  background:linear-gradient(180deg, rgba(11,23,38,0.6) 0px, rgba(11,23,38,0.9) 170px, var(--bg-primary) 260px);
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.05);
+}
 </style>
 </head>
 <body>
