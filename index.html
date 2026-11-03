@@ -9499,6 +9499,7 @@ function clearNavDestinationMarker(){
 }
 
 function clearNavRoute(){
+  setExploreChromeHiddenForNav(false); // vuelve el modo exploración (también cubre la ✕ de «Tu ruta»)
   // nav-route-line-outline se agregó en el ajuste de contorno posterior y
   // nunca se sumó aquí — era la capa huérfana que quedaba pegada en el mapa
   // tras cancelar (el tono oscuro del contorno, no la línea turquesa normal).
@@ -9910,7 +9911,8 @@ async function calculateAndShowRoute(mode){
   routeSummaryPanel.classList.add('visible');
   rspStatus.style.display = 'flex';
   rspStatus.className = 'rsp-status loading';
-  rspStatus.innerHTML = `${icon('compassRose', 13)} Calculando ruta…`;
+ rspStatus.innerHTML = `${icon('compassRose', 13)} Calculando ruta…`;
+  setExploreChromeHiddenForNav(true); // «Tu ruta»: sin buscador, categorías, volver a comuna ni zoom (igual que en el viaje)
   renderRouteSummaryPanel();
 
   try{
