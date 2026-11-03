@@ -3197,6 +3197,46 @@ img{-webkit-user-drag:none; user-select:none;}
     color-mix(in srgb, var(--mood-glow) 9%, transparent) 78%,
     color-mix(in srgb, var(--mood-glow) 16%, transparent) 100%);
 }
+/* ================= COMUNAS (Nivel 1) — PIN PREMIUM =================
+   Solo .locality-marker sin .sublocality: las localidades y los POIs no cambian. */
+
+/* Etiqueta: nombre territorial en versalitas espaciadas, píldora más definida */
+.locality-marker:not(.sublocality) .loc-label{
+  position:relative;
+  padding:5px 14px;
+  border:1px solid rgba(95,225,232,0.28);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.08), 0 8px 18px rgba(2,8,15,0.38);
+}
+.locality-marker:not(.sublocality) .loc-name{
+  text-transform:uppercase;
+  letter-spacing:1.4px;
+  font-size:10.5px;
+  font-weight:700;
+}
+.locality-marker:not(.sublocality) .loc-count{ letter-spacing:0.8px; }
+
+/* Trazo que une la etiqueta con su pin (mismo lenguaje que las localidades) */
+.locality-marker:not(.sublocality) .loc-label::after{
+  content:''; position:absolute; pointer-events:none;
+  left:50%; bottom:-10px; width:1px; height:10px; transform:translateX(-50%);
+  background:linear-gradient(to bottom, rgba(95,225,232,0.55), rgba(95,225,232,0));
+}
+
+/* Pin "sello": el halo difuso pasa a ser un anillo exterior fino que respira igual
+   (misma animación, misma intensidad por experiencias y mismo tinte de categoría) */
+.locality-marker:not(.sublocality) .loc-halo{
+  fill:none;
+  stroke:var(--turquoise-bright);
+  stroke-width:0.9;
+}
+
+/* Sombra de anclaje más definida; se conserva el realce turquesa al acercarse */
+.locality-marker:not(.sublocality) svg{
+  filter:drop-shadow(0 3px 6px rgba(2,8,15,0.5));
+}
+.locality-marker:not(.sublocality).near svg{
+  filter:drop-shadow(0 0 6px rgba(95,225,232,0.35)) drop-shadow(0 3px 6px rgba(2,8,15,0.5));
+}
 </style>
 </head>
 <body>
