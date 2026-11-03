@@ -7529,6 +7529,7 @@ function showTerritoryGlowIfNeeded(locality){
   // Una comuna nueva nunca hereda nada del aura anterior: temporizador, secuencia,
   // confirmación, seguimiento del puntero y clases se limpian con el mecanismo existente.
   hideTerritoryGlow();
+ if (state.nav.active) return; // durante «Tu ruta» o el viaje no se muestra el aura direccional
   const edges = computeTerritoryGlowEdges(locality);
   if (!edges) return;
   territoryGlowActiveForLocalityId = locality.id;
@@ -9996,7 +9997,8 @@ async function calculateAndShowRoute(mode){
   rspStatus.className = 'rsp-status loading';
  rspStatus.innerHTML = `${icon('compassRose', 13)} Calculando ruta…`;
  setExploreChromeHiddenForNav(true); // «Tu ruta»: sin buscador, categorías, volver a comuna ni zoom (igual que en el viaje)
-  document.getElementById('app').classList.add('route-preview'); // estilo de "punto de partida" en el origen
+document.getElementById('app').classList.add('route-preview'); // estilo de "punto de partida" en el origen
+  hideTerritoryGlow(); // el aura direccional no convive con el modo ruta
   renderRouteSummaryPanel();
 
   try{
