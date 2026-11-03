@@ -7256,12 +7256,13 @@ function resolveLabelCollisions(){
       return;
     }
     const isSecondary = i.m._sub.tier !== 'primary';
-    const order = isSecondary ? [...new Set([i.prevPos, 'above', 'right', 'below'])] : ['above'];
+    const order = isSecondary ? [...new Set(['above', i.prevPos, 'right', 'below'])] : ['above']; // arriba siempre primero
     let chosen = null, unit = null;
     for (const pos of order){
       const lr = candidate(i.dotRect, pos, i.w, i.h);
       if (pos !== 'above' && (lr.left < 0 || lr.right > viewW || lr.top < 0 || lr.bottom > viewH)) continue;
-      const u = inflate(unionRect(lr, i.dotRect), MARGIN);
+    const extra = (pos === 'above' && i.prevPos !== 'above') ? 4 : 0; // volver arriba exige algo más de espacio (evita vaivén)
+      const u = inflate(unionRect(lr, i.dotRect), MARGIN + extra);
       if (placed.some(r => overlaps(u, r))) continue;
       if (isSecondary && dotObstacles.some(o => o.m !== i.m && overlaps(lr, o.r))) continue;
       chosen = pos; unit = u; break;
