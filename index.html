@@ -5378,8 +5378,7 @@ function renderTerrainDepth(){
       'hillshade-accent-color':'#08111A',
       'hillshade-illumination-direction':315,
     },
-   }, hillshadeBeforeId);
-  renderValleyGreen(); // valles verdes (solo midday) — debajo del relieve
+    }, hillshadeBeforeId);
 
   // ---- 1b) Punto de respiración del valle ----
   // Un punto FIJO en el centro geográfico real del territorio (no de la pantalla:
@@ -8544,7 +8543,7 @@ const TIME_ATMOSPHERE = {
   // acotado a las mismas 4 capas de terreno que ya toca applyDayLightLift()
   // — el chrome de la interfaz (header, buscador, chips, sheet) no se toca
   // en este cambio.
-  midday:{ bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.42, bgLift:0.30, bgLiftTint:'#728C7D', liftTint:'#2482A9', layerTints:{ vegetation:'#387F62', residential:'#596165', building:'#808580' }, hillshadeShadow:'#0B1519', hillshadeAccent:'#0E191E', hillshadeBoost:1.3, hillshadeLocalityDamp:0.78, hillshadeHighlightRGB:'232,240,244', hillshadeHighlight:0.15, vignette:{ top:0.66, bottom:0.54, edge:0.33 }, valleyGreen:1 },
+  midday:{ bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.42, bgLift:0.30, bgLiftTint:'#728C7D', liftTint:'#2482A9', layerTints:{ vegetation:'#387F62', residential:'#596165', building:'#808580' }, hillshadeShadow:'#0B1519', hillshadeAccent:'#123326', hillshadeBoost:1.3, hillshadeLocalityDamp:0.78, hillshadeHighlightRGB:'196,228,186', hillshadeHighlight:0.20, vignette:{ top:0.66, bottom:0.54, edge:0.33 } },
   dusk:  { bgTint:'#E8A24D', bgAmount:0.05, glowAmount:0.22, glowOpacity:0.055, illum:305, dayLift:0, hillshadeHighlight:0.085, hillshadeHighlightRGB:'255,214,168' },
   night: { bgTint:'#88558D', bgAmount:0.13, glowAmount:0.15, glowOpacity:0.07, illum:300, dayLift:0.16, layerTints:{ vegetation:'#12241D', residential:'#C8913F', building:'#C8913F' }, vignette:{ top:0.88, bottom:0.74, edge:0.48 }, roadLight:0.12, hillshadeHighlight:0.085, hillshadeHighlightRGB:'220,214,240', waterTint:'#0C2538', waterLift:0.5,coastGlow:1, waterShimmer:0.06 },
 };
@@ -8580,76 +8579,7 @@ function applyCoastGlow(res){
        map.setPaintProperty(id, prop, scaleOpacityValue(coastGlowBase[id], res.coastGlow));
   });
 }
-// Valles verdes (solo midday). Trazado real de los ríos, extraído una vez de los tiles del mapa base.
-// Se pinta UNA sola vez en un canvas (mismo método que renderTerritoryFade) y se muestra como imagen
-// georreferenciada DEBAJO del relieve: el sombreado de los cerros sigue dibujándose encima.
-const VALLEY_RIVERS = {"Río Choapa":[[[-71.009,-31.782],[-71.013,-31.781],[-71.018,-31.781],[-71.028,-31.78],[-71.037,-31.779],[-71.043,-31.777],[-71.047,-31.776],[-71.054,-31.771],[-71.065,-31.766],[-71.068,-31.763],[-71.072,-31.761],[-71.073,-31.757],[-71.078,-31.756],[-71.083,-31.75],[-71.088,-31.748],[-71.093,-31.748],[-71.098,-31.748],[-71.106,-31.752],[-71.113,-31.751],[-71.121,-31.746],[-71.131,-31.746],[-71.143,-31.744],[-71.15,-31.748],[-71.155,-31.75],[-71.16,-31.751],[-71.165,-31.746],[-71.168,-31.741],[-71.173,-31.74],[-71.176,-31.736],[-71.181,-31.733],[-71.187,-31.734],[-71.194,-31.733],[-71.202,-31.728],[-71.208,-31.723],[-71.215,-31.717],[-71.223,-31.716],[-71.232,-31.716],[-71.239,-31.718],[-71.246,-31.714],[-71.254,-31.712],[-71.262,-31.704],[-71.265,-31.698],[-71.269,-31.69],[-71.272,-31.687],[-71.276,-31.683],[-71.282,-31.681],[-71.282,-31.677],[-71.285,-31.672],[-71.294,-31.669],[-71.303,-31.667],[-71.305,-31.663],[-71.309,-31.661],[-71.314,-31.663],[-71.319,-31.663],[-71.323,-31.653],[-71.335,-31.652]],[[-71.323,-31.659],[-71.324,-31.651],[-71.334,-31.652],[-71.339,-31.648],[-71.346,-31.643],[-71.352,-31.637],[-71.356,-31.635],[-71.361,-31.634],[-71.368,-31.632],[-71.372,-31.628]],[[-71.361,-31.634],[-71.368,-31.632],[-71.372,-31.628],[-71.38,-31.626],[-71.387,-31.623],[-71.395,-31.618],[-71.396,-31.613],[-71.396,-31.607],[-71.401,-31.602],[-71.405,-31.598],[-71.406,-31.593],[-71.409,-31.59],[-71.417,-31.591],[-71.422,-31.589],[-71.427,-31.588],[-71.437,-31.594],[-71.442,-31.595],[-71.447,-31.594],[-71.451,-31.589],[-71.457,-31.589],[-71.466,-31.586],[-71.472,-31.587],[-71.476,-31.586],[-71.48,-31.586],[-71.486,-31.584],[-71.492,-31.582],[-71.501,-31.581],[-71.505,-31.582],[-71.509,-31.583],[-71.514,-31.584],[-71.518,-31.582],[-71.522,-31.584],[-71.527,-31.588],[-71.533,-31.591],[-71.538,-31.592],[-71.544,-31.596],[-71.55,-31.602],[-71.554,-31.609],[-71.559,-31.615],[-71.558,-31.62],[-71.556,-31.625]],[[-70.657,-31.896],[-70.666,-31.896],[-70.675,-31.895],[-70.68,-31.895],[-70.686,-31.892],[-70.7,-31.891],[-70.708,-31.89],[-70.713,-31.89],[-70.72,-31.89],[-70.724,-31.889],[-70.728,-31.888],[-70.734,-31.888],[-70.741,-31.891],[-70.748,-31.893],[-70.755,-31.895],[-70.765,-31.896],[-70.772,-31.898],[-70.781,-31.898],[-70.789,-31.896],[-70.793,-31.895],[-70.797,-31.892],[-70.803,-31.89],[-70.808,-31.885],[-70.813,-31.882],[-70.822,-31.877],[-70.826,-31.873],[-70.827,-31.868],[-70.837,-31.86],[-70.841,-31.858],[-70.847,-31.854],[-70.85,-31.848],[-70.854,-31.845],[-70.858,-31.838],[-70.862,-31.835],[-70.868,-31.833],[-70.871,-31.83],[-70.875,-31.829],[-70.881,-31.829],[-70.886,-31.828],[-70.891,-31.828],[-70.897,-31.825],[-70.903,-31.825],[-70.912,-31.822],[-70.917,-31.822],[-70.921,-31.821],[-70.925,-31.82],[-70.93,-31.817],[-70.934,-31.814],[-70.941,-31.81],[-70.946,-31.806],[-70.952,-31.801],[-70.956,-31.798],[-70.961,-31.793],[-70.965,-31.79],[-70.968,-31.787],[-70.972,-31.785],[-70.978,-31.78],[-70.982,-31.779],[-70.986,-31.779],[-70.991,-31.781],[-70.996,-31.782],[-71.003,-31.782],[-71.009,-31.782],[-71.013,-31.781],[-71.018,-31.781],[-71.02,-31.781]],[[-70.578,-31.995],[-70.583,-31.99],[-70.587,-31.987],[-70.589,-31.979],[-70.588,-31.973],[-70.591,-31.968],[-70.596,-31.962],[-70.599,-31.957],[-70.605,-31.95]],[[-70.597,-31.958],[-70.6,-31.955],[-70.605,-31.95],[-70.607,-31.943],[-70.61,-31.937],[-70.614,-31.931],[-70.617,-31.927],[-70.619,-31.921],[-70.622,-31.917],[-70.626,-31.908],[-70.631,-31.907],[-70.635,-31.903],[-70.639,-31.9],[-70.643,-31.897],[-70.648,-31.898],[-70.655,-31.896],[-70.663,-31.895],[-70.672,-31.896]]],"Río Illapel":[[[-71.18,-31.648],[-71.185,-31.649],[-71.191,-31.652],[-71.196,-31.654],[-71.204,-31.657],[-71.21,-31.658],[-71.218,-31.657],[-71.227,-31.658],[-71.235,-31.663],[-71.242,-31.663],[-71.252,-31.665],[-71.261,-31.671],[-71.266,-31.673],[-71.278,-31.672],[-71.284,-31.673]],[[-71.01,-31.577],[-71.016,-31.58],[-71.022,-31.582],[-71.026,-31.583],[-71.03,-31.584],[-71.037,-31.585],[-71.043,-31.585],[-71.048,-31.585],[-71.052,-31.586],[-71.06,-31.585],[-71.067,-31.583],[-71.072,-31.584],[-71.078,-31.585],[-71.082,-31.587],[-71.086,-31.587],[-71.094,-31.588],[-71.1,-31.592],[-71.104,-31.594],[-71.107,-31.597],[-71.114,-31.6],[-71.121,-31.604],[-71.125,-31.607],[-71.129,-31.612],[-71.133,-31.616],[-71.142,-31.622],[-71.145,-31.625],[-71.15,-31.628],[-71.153,-31.631],[-71.164,-31.635],[-71.17,-31.639],[-71.172,-31.643],[-71.178,-31.646],[-71.183,-31.649],[-71.19,-31.651],[-71.195,-31.654],[-71.203,-31.655],[-71.208,-31.658],[-71.212,-31.658],[-71.216,-31.656],[-71.223,-31.658]],[[-70.871,-31.558],[-70.875,-31.556],[-70.88,-31.558],[-70.886,-31.562],[-70.895,-31.566],[-70.901,-31.568],[-70.909,-31.573],[-70.913,-31.575],[-70.922,-31.574],[-70.928,-31.571],[-70.933,-31.573],[-70.94,-31.573],[-70.945,-31.57],[-70.951,-31.57],[-70.957,-31.568],[-70.963,-31.566],[-70.969,-31.565],[-70.975,-31.564],[-70.979,-31.564],[-70.985,-31.566],[-70.99,-31.567],[-70.996,-31.568],[-70.999,-31.571],[-71.002,-31.574],[-71.008,-31.577],[-71.014,-31.579],[-71.02,-31.582]],[[-70.664,-31.391],[-70.667,-31.394],[-70.671,-31.398],[-70.676,-31.401],[-70.68,-31.404],[-70.685,-31.407],[-70.689,-31.409],[-70.693,-31.409],[-70.698,-31.411],[-70.704,-31.413],[-70.707,-31.417],[-70.71,-31.421],[-70.711,-31.425],[-70.717,-31.429],[-70.721,-31.432],[-70.726,-31.438],[-70.729,-31.441],[-70.735,-31.446],[-70.738,-31.449],[-70.746,-31.451],[-70.752,-31.454],[-70.757,-31.454],[-70.761,-31.459],[-70.765,-31.461],[-70.768,-31.468],[-70.767,-31.472],[-70.771,-31.473],[-70.776,-31.476],[-70.781,-31.48],[-70.786,-31.484],[-70.791,-31.487],[-70.795,-31.491],[-70.799,-31.492],[-70.802,-31.497],[-70.804,-31.503],[-70.807,-31.509],[-70.811,-31.512],[-70.815,-31.51],[-70.819,-31.515],[-70.822,-31.522],[-70.828,-31.528],[-70.828,-31.532],[-70.831,-31.536],[-70.832,-31.543],[-70.838,-31.55],[-70.844,-31.551],[-70.849,-31.55]],[[-70.664,-31.391],[-70.667,-31.394],[-70.669,-31.396]]],"Río Chalinga":[[[-70.657,-31.662],[-70.664,-31.662],[-70.665,-31.666],[-70.666,-31.67],[-70.666,-31.675],[-70.664,-31.68],[-70.669,-31.686],[-70.674,-31.686],[-70.678,-31.685],[-70.686,-31.685],[-70.691,-31.687],[-70.697,-31.688],[-70.706,-31.694],[-70.713,-31.697],[-70.718,-31.7],[-70.722,-31.703],[-70.733,-31.706],[-70.739,-31.706],[-70.744,-31.704],[-70.749,-31.701],[-70.754,-31.7],[-70.759,-31.699],[-70.765,-31.7],[-70.774,-31.699],[-70.779,-31.7],[-70.784,-31.701],[-70.79,-31.702],[-70.796,-31.705],[-70.799,-31.709],[-70.803,-31.711],[-70.809,-31.712],[-70.812,-31.715],[-70.816,-31.717],[-70.823,-31.721],[-70.827,-31.722],[-70.831,-31.72],[-70.835,-31.719],[-70.842,-31.721],[-70.849,-31.726],[-70.857,-31.731],[-70.864,-31.734],[-70.869,-31.733],[-70.874,-31.733],[-70.88,-31.734],[-70.884,-31.734],[-70.892,-31.735],[-70.897,-31.734],[-70.901,-31.735],[-70.913,-31.736],[-70.927,-31.738],[-70.936,-31.74],[-70.947,-31.741],[-70.955,-31.745],[-70.963,-31.749],[-70.97,-31.754],[-70.981,-31.764],[-70.984,-31.769],[-70.986,-31.776],[-70.986,-31.779]],[[-70.637,-31.655],[-70.641,-31.657],[-70.647,-31.66],[-70.653,-31.659],[-70.657,-31.662],[-70.664,-31.662],[-70.665,-31.666],[-70.666,-31.67],[-70.666,-31.675],[-70.664,-31.68],[-70.669,-31.686]],[[-70.637,-31.655],[-70.641,-31.657]]],"Río Cuncumén":[[[-70.614,-31.861],[-70.613,-31.865],[-70.615,-31.869],[-70.617,-31.875],[-70.62,-31.881],[-70.622,-31.886],[-70.629,-31.888],[-70.638,-31.891],[-70.641,-31.895],[-70.642,-31.897]],[[-70.55,-31.805],[-70.555,-31.807],[-70.559,-31.81],[-70.565,-31.81],[-70.57,-31.815],[-70.577,-31.817],[-70.584,-31.819],[-70.588,-31.82]]],"Estero Camisas":[[[-71.033,-31.794],[-71.038,-31.793],[-71.042,-31.791],[-71.046,-31.789],[-71.05,-31.785],[-71.058,-31.78],[-71.064,-31.778],[-71.066,-31.774],[-71.066,-31.767],[-71.067,-31.764]]],"Río Quilimarí":[[[-71.233,-32.073],[-71.237,-32.076],[-71.243,-32.079],[-71.249,-32.082],[-71.248,-32.09],[-71.252,-32.092],[-71.257,-32.09],[-71.269,-32.092],[-71.275,-32.091],[-71.281,-32.093],[-71.296,-32.093],[-71.303,-32.094],[-71.306,-32.098],[-71.308,-32.104],[-71.311,-32.107],[-71.315,-32.108],[-71.314,-32.113],[-71.317,-32.116],[-71.322,-32.118],[-71.327,-32.117],[-71.332,-32.121],[-71.342,-32.127],[-71.346,-32.131],[-71.355,-32.136],[-71.358,-32.139],[-71.367,-32.139]],[[-71.359,-32.139],[-71.371,-32.139],[-71.379,-32.136],[-71.386,-32.133],[-71.392,-32.132],[-71.397,-32.129],[-71.401,-32.127],[-71.407,-32.126],[-71.411,-32.123],[-71.42,-32.12],[-71.427,-32.12],[-71.432,-32.118],[-71.439,-32.117],[-71.45,-32.116],[-71.458,-32.117],[-71.463,-32.117],[-71.468,-32.12],[-71.475,-32.118],[-71.483,-32.116],[-71.487,-32.115],[-71.491,-32.113],[-71.495,-32.114],[-71.499,-32.117],[-71.504,-32.115],[-71.511,-32.118],[-71.513,-32.121]]]};
-const VALLEY_GREEN_RGB = '86,150,98'; // verde valle apagado — nada de lima/amarillo
-function valleyGreenOpacity(f){
-  return ['interpolate', ['linear'], ['zoom'],
-    7, +(0.80 * f).toFixed(3),
-    10, +(0.70 * f).toFixed(3),
-    12.5, +(0.40 * f).toFixed(3),
-    14.5, 0,
-  ];
-}
-function applyValleyGreen(res){
-  if (!map.getLayer('valley-green')) return;
-  map.setPaintProperty('valley-green', 'raster-opacity', valleyGreenOpacity(res.valleyGreen || 0));
-}
-function renderValleyGreen(){
-  const lines = Object.values(VALLEY_RIVERS).flat();
-  if (!lines.length) return;
-  // Encuadre del lienzo: extensión de los ríos + margen para que el degradado nunca quede cortado.
-  const PAD = 0.12;
-  let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
-  lines.forEach(l => l.forEach(([lng, lat]) => {
-    if (lng < minLng) minLng = lng; if (lng > maxLng) maxLng = lng;
-    if (lat < minLat) minLat = lat; if (lat > maxLat) maxLat = lat;
-  }));
-  minLng -= PAD; maxLng += PAD; minLat -= PAD; maxLat += PAD;
 
-  // Proyección Mercator, así el dibujo calza exacto con el mapa.
-  const mercY = lat => Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360));
-  const yTop = mercY(maxLat), yBot = mercY(minLat);
-  const W = 1400;
-  const H = Math.round(W * (yTop - yBot) / ((maxLng - minLng) * Math.PI / 180));
-  const toPx = ([lng, lat]) => [(lng - minLng) / (maxLng - minLng) * W, (yTop - mercY(lat)) / (yTop - yBot) * H];
-
-  const canvas = document.createElement('canvas');
-  canvas.width = W; canvas.height = H;
-  const ctx = canvas.getContext('2d');
-
-  // Un solo trazado con todos los tramos: los tramos repetidos no suman doble intensidad.
-  const path = new Path2D();
-  lines.forEach(l => l.forEach((p, i) => {
-    const [x, y] = toPx(p);
-    if (i) path.lineTo(x, y); else path.moveTo(x, y);
-  }));
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  ctx.filter = 'blur(3px)'; // suaviza entre pasadas; si el navegador no lo soporta, se ignora sin error
-
-  // 14 pasadas de ancho a angosto: degradado suave, más denso en el fondo del valle.
-  const PASSES = 14;
-  for (let i = 0; i < PASSES; i++){
-    const t = i / (PASSES - 1);            // 0 = borde exterior, 1 = núcleo
-    ctx.lineWidth = 110 - t * 96;          // ~8.5 km → ~1.1 km
-    ctx.strokeStyle = `rgba(${VALLEY_GREEN_RGB},${(0.035 + t * 0.02).toFixed(3)})`;
-    ctx.stroke(path);
-  }
-
-  if (map.getLayer('valley-green')) map.removeLayer('valley-green');
-  if (map.getSource('valley-green')) map.removeSource('valley-green');
-  map.addSource('valley-green', {
-    type:'image', url: canvas.toDataURL(),
-    coordinates:[[minLng, maxLat], [maxLng, maxLat], [maxLng, minLat], [minLng, minLat]],
-  });
-  map.addLayer({
-    id:'valley-green', type:'raster', source:'valley-green',
-    paint:{ 'raster-opacity':0, 'raster-fade-duration':0, 'raster-resampling':'linear' },
-  }, map.getLayer('hillshade-subtle') ? 'hillshade-subtle' : undefined);
-}
 // Rutas principales que la atmósfera puede aclarar hacia luz de luna (roadLight; 0 = sin cambio).
 // Su color original (el de tintMapLayers) se lee una vez y se guarda; si alguna capa no
 // tiene un color fijo, se omite.
@@ -8693,8 +8623,7 @@ function resolveAtmosphere(periodCfg){
   moonWash: p.moonWash || 0,                                          // 0 = sin velo de luna
     waterShimmer: p.waterShimmer || 0.03,                               // brillo de la respiración del agua
     roadLight: p.roadLight || 0,                                       // 0 = carreteras como siempre
-       coastGlow: p.coastGlow != null ? p.coastGlow : 1,                   // 1 = costa como siempre
-    valleyGreen: p.valleyGreen || 0,                                    // 0 = sin valles verdes
+          coastGlow: p.coastGlow != null ? p.coastGlow : 1,                   // 1 = costa como siempre
     // Relieve
     hillshadeShadow: p.hillshadeShadow || '#050B12',
     hillshadeAccent: p.hillshadeAccent || '#08111A',
@@ -8766,8 +8695,7 @@ function blendAtmosphere(a, b, p){
     residential: blendHex(a.residential, b.residential, p),
     building: blendHex(a.building, b.building, p),
    water: blendHex(a.water, b.water, p),
-  coastGlow: atmoLerp(a.coastGlow, b.coastGlow, p, 0.01),
-    valleyGreen: atmoLerp(a.valleyGreen, b.valleyGreen, p, 0.01),
+ coastGlow: atmoLerp(a.coastGlow, b.coastGlow, p, 0.01),
   roadLight: atmoLerp(a.roadLight, b.roadLight, p, 0.01),
     moonWash: atmoLerp(a.moonWash, b.moonWash, p, 0.01),
     waterShimmer: atmoLerp(a.waterShimmer, b.waterShimmer, p, 0.002),
@@ -8809,8 +8737,7 @@ function applyAtmosphereChanges(prev, next){
     });
   // Agua: solo la base; la respiración sigue siendo la única que escribe su fill-color.
   if (changed('water')) currentWaterBase = next.water;
-   if (changed('coastGlow')) applyCoastGlow(next);
-  if (changed('valleyGreen')) applyValleyGreen(next);
+     if (changed('coastGlow')) applyCoastGlow(next);
 if (changed('vignetteTop') || changed('vignetteBottom') || changed('vignetteEdge') || changed('moonWash')) applyDayVignette(next);
   if (changed('bg') || changed('glowColor') || changed('glowOpacity')){
     const { tint, active } = getCategoryMix(state.activeExperience);
@@ -8891,8 +8818,7 @@ function applyMoodAtmosphere(expId){
 function applyTimeAtmosphere(res, tint, active){
   const bgTimeBase = res.bg;
 applyDayVignette(res);
-   applyCoastGlow(res);
-  applyValleyGreen(res);
+    applyCoastGlow(res);
 const glowTimeBase = res.glowColor;
 
   // Fondo
