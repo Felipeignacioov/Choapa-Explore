@@ -5174,20 +5174,25 @@ function tintMapLayers(){
       }
       if (l.type === 'line' && l.id === 'highway_motorway_inner'){
         // Motorway: el nivel más prominente, por encima de trunk/primary.
-        map.setPaintProperty(l.id, 'line-color', roadColor(0));
-        map.setPaintProperty(l.id, 'line-opacity', 0.62);
-        map.setPaintProperty(l.id, 'line-width', ['interpolate', ['linear'], ['zoom'], 6, 1.6, 12, 3.6, 16, 7.4, 20, 11]);
+               // Mismo tratamiento que la Ruta 5 "trunk" en highway_major_inner (color, opacidad y grosores).
+        map.setPaintProperty(l.id, 'line-color', '#A3BAC5');
+        map.setPaintProperty(l.id, 'line-opacity', 1);
+        map.setPaintProperty(l.id, 'line-width', ['interpolate', ['linear'], ['zoom'], 8, 2.0, 11, 2.6, 12, 3.1, 14, 4.8, 16, 7.1, 18, 9.7, 20, 11]);
       }
       if (l.type === 'line' && l.id === 'highway_motorway_casing'){
         // Mismo criterio que highway_major_casing: contraste de color, no
         // solo de ancho.
         map.setPaintProperty(l.id, 'line-color', roadColor(0.75));
         map.setPaintProperty(l.id, 'line-opacity', 0.55);
-        map.setPaintProperty(l.id, 'line-width', ['interpolate', ['linear'], ['zoom'], 6, 2.6, 12, 4.8, 16, 9.0, 20, 13]);
+              map.setPaintProperty(l.id, 'line-width', ['interpolate', ['linear'], ['zoom'], 8, 3.3, 11, 3.9, 12, 4.4, 14, 6.1, 16, 8.4, 18, 11.0, 20, 12.4]); // = grosor de la autopista + 1.3 px
       }
       if (l.type === 'line' && l.id === 'highway_motorway_subtle'){
                map.setPaintProperty(l.id, 'line-color', roadColor(0.04));
-        map.setPaintProperty(l.id, 'line-opacity', 0.56);
+               // Mismo tratamiento que la Ruta 5 "trunk" (la Ruta 5 viene como motorway fuera del Choapa): continua y coherente.
+        map.setPaintProperty(l.id, 'line-color', '#A3BAC5');
+        map.setPaintProperty(l.id, 'line-opacity', ['interpolate', ['linear'], ['zoom'], 9, 0.95, 10.2, 1]);
+        map.setPaintProperty(l.id, 'line-width', ['interpolate', ['linear'], ['zoom'], 6, 1.2, 9, 1.6, 10.2, 2.2, 11, 2.6]);
+        map.setPaintProperty(l.id, 'line-blur', 0);
       }
                     if (l.type === 'line' && l.id === 'highway_minor'){
         // Casi disueltas en el fondo — mismo espíritu que antes, tono más
