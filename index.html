@@ -8388,7 +8388,7 @@ const TIME_ATMOSPHERE = {
   // en este cambio.
   midday:{ bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.42, bgLift:0.30, bgLiftTint:'#728C7D', liftTint:'#2482A9', layerTints:{ vegetation:'#387F62', residential:'#596165', building:'#808580' }, hillshadeShadow:'#0B1519', hillshadeAccent:'#0E191E', hillshadeBoost:1.3, hillshadeLocalityDamp:0.78, hillshadeHighlightRGB:'232,240,244', hillshadeHighlight:0.15, vignette:{ top:0.66, bottom:0.54, edge:0.33 } },
   dusk:  { bgTint:'#E8A24D', bgAmount:0.05, glowAmount:0.22, glowOpacity:0.055, illum:305, dayLift:0, hillshadeHighlight:0.085, hillshadeHighlightRGB:'255,214,168' },
-  night: { bgTint:'#88558D', bgAmount:0.13, glowAmount:0.15, glowOpacity:0.07, illum:300, dayLift:0, hillshadeHighlight:0.085, hillshadeHighlightRGB:'220,214,240', waterTint:'#0C2538', waterLift:0.5, coastGlow:0.75 },
+  night: { bgTint:'#88558D', bgAmount:0.13, glowAmount:0.15, glowOpacity:0.07, illum:300, dayLift:0.16, layerTints:{ vegetation:'#12241D', residential:'#C8913F', building:'#C8913F' }, vignette:{ top:0.88, bottom:0.74, edge:0.48 }, roadLight:0.12, hillshadeHighlight:0.085, hillshadeHighlightRGB:'220,214,240', waterTint:'#0C2538', waterLift:0.5, coastGlow:0.75 },
 };
 let currentDayPeriod = null;
 
@@ -8422,6 +8422,21 @@ function applyCoastGlow(res){
     map.setPaintProperty(id, prop, scaleOpacityValue(coastGlowBase[id], res.coastGlow));
   });
 }
+// Rutas principales que la atmósfera puede aclarar hacia luz de luna (roadLight; 0 = sin cambio).
+// Su color original (el de tintMapLayers) se lee una vez y se guarda; si alguna capa no
+// tiene un color fijo, se omite.
+const ROAD_LIGHT_LAYERS = ['highway_major_subtle', 'highway_major_inner', 'highway_motorway_subtle', 'highway_motorway_inner'];
+const ROAD_LIGHT_COLOR = '#C9D6F0';
+const roadLightBase = {};
+function applyRoadLight(res){
+  ROAD_LIGHT_LAYERS.forEach(id => {
+    if (!map.getLayer(id)) return;
+    if (!(id in roadLightBase)) roadLightBase[id] = map.getPaintProperty(id, 'line-color');
+    const base = roadLightBase[id];
+    if (typeof base !== 'string' || !/^#[0-9a-f]{6}$/i.test(base)) return;
+    map.setPaintProperty(id, 'line-color', blendHex(base, ROAD_LIGHT_COLOR, res.roadLight));
+  });
+}
 function resolveAtmosphere(periodCfg){
   const p = periodCfg || TIME_ATMOSPHERE.day;
   const turquoiseBase = getComputedStyle(document.documentElement).getPropertyValue('--turquoise-bright').trim() || '#5FE1E8';
@@ -8447,6 +8462,7 @@ function resolveAtmosphere(periodCfg){
    water: p.waterTint
       ? blendHex(BASE_PALETTE.water, p.waterTint, p.waterLift || 0)   // tinte propio del agua (no toca la tierra)
       : blendHex(BASE_PALETTE.water, liftTint, amount),
+  roadLight: p.roadLight || 0,                                        // 0 = carreteras como siempre
     coastGlow: p.coastGlow != null ? p.coastGlow : 1,                   // 1 = costa como siempre
     // Relieve
     hillshadeShadow: p.hillshadeShadow || '#050B12',
@@ -8519,7 +8535,8 @@ function blendAtmosphere(a, b, p){
     residential: blendHex(a.residential, b.residential, p),
     building: blendHex(a.building, b.building, p),
    water: blendHex(a.water, b.water, p),
-    coastGlow: atmoLerp(a.coastGlow, b.coastGlow, p, 0.01),
+   coastGlow: atmoLerp(a.coastGlow, b.coastGlow, p, 0.01),
+    roadLight: atmoLerp(a.roadLight, b.roadLight, p, 0.01),
     hillshadeShadow: blendHex(a.hillshadeShadow, b.hillshadeShadow, p),
     hillshadeAccent: blendHex(a.hillshadeAccent, b.hillshadeAccent, p),
     hillshadeHighlightRGB: atmoBlendRGB(a.hillshadeHighlightRGB, b.hillshadeHighlightRGB, p),
