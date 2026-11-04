@@ -5132,9 +5132,9 @@ function tintMapLayers(){
             6, ['case', isTrunk, +(t * 0.75).toFixed(2), +(p * 0.75).toFixed(2)],
             9, ['case', isTrunk, t, p],
             11, ['case', isTrunk, +(t * 1.3).toFixed(2), +(p * 1.3).toFixed(2)]];
-          map.setPaintProperty(l.id, 'line-color', ['case', isTrunk, '#A3BAC5', roadColor(0.02)]);
-          map.setPaintProperty(l.id, 'line-opacity', ['case', isTrunk, 0.95, 0.55]);
-          map.setPaintProperty(l.id, 'line-width', byZoom(1.6, 0.8));
+                  map.setPaintProperty(l.id, 'line-color', ['case', isTrunk, '#A3BAC5', '#7A95A3']); // principales: un tono más claro que el terreno para que el ojo las encuentre
+          map.setPaintProperty(l.id, 'line-opacity', ['case', isTrunk, 0.95, 0.75]);
+          map.setPaintProperty(l.id, 'line-width', byZoom(1.6, 0.95));
           map.setPaintProperty(l.id, 'line-blur', 0);
           if (!map.getLayer('road-regional-casing')){
             map.addLayer({
