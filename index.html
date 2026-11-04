@@ -4456,7 +4456,7 @@ function getOverviewCamera(){
   if (pill && pill.offsetHeight && !pill.classList.contains('hidden')) bottomEdge = pill.getBoundingClientRect().top - container.top;
   else if (nav) bottomEdge = nav.getBoundingClientRect().top - container.top;
   const padding = {
-    top: Math.round(top + 24),
+  top: Math.round(top + 96), // reserva para pin + nombre (se anclan por abajo): centra visualmente el grupo completo
     bottom: Math.round(container.height - bottomEdge + 24),
     left: 40, right: 40,
   };
