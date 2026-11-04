@@ -5122,7 +5122,33 @@ function tintMapLayers(){
         // perciba con claridad a nivel regional, sin llegar a competir con
         // los pines de comuna/localidad (que siguen siendo el protagonista).
                map.setPaintProperty(l.id, 'line-color', roadColor(0.02));
-       map.setPaintProperty(l.id, 'line-opacity', ['interpolate', ['linear'], ['zoom'], 6, 0.46, 9, 0.46, 10, 0.74, 11, 0.74]);
+      map.setPaintProperty(l.id, 'line-opacity', ['interpolate', ['linear'], ['zoom'], 6, 0.46, 9, 0.46, 10, 0.74, 11, 0.74]);
+        // Jerarquía regional (validada por consola, variante A): la Ruta 5 (trunk/motorway) un 25% más gruesa y un
+        // borde oscuro finísimo bajo todas las rutas principales, para que se lean nítidas sobre el relieve.
+        // Los grosores se calculan a partir de los del estilo base: el resto no cambia.
+        {
+          const baseW = map.getPaintProperty(l.id, 'line-width') ?? 1;
+          const scaled = fn => {
+            if (typeof baseW === 'number') return fn(baseW);
+            if (Array.isArray(baseW) && baseW[0] === 'interpolate') return baseW.map((v, i) => (i >= 4 && i % 2 === 0 && typeof v === 'number') ? fn(v) : v);
+            if (baseW && baseW.stops) return ['interpolate', ['exponential', baseW.base || 1], ['zoom'], ...baseW.stops.flatMap(([z, v]) => [z, fn(v)])];
+            return fn(1);
+          };
+          const isTrunk = ['match', ['get','class'], ['motorway', 'trunk'], true, false];
+          map.setPaintProperty(l.id, 'line-width', scaled(v => ['case', isTrunk, +(v * 1.25).toFixed(2), v]));
+          if (!map.getLayer('road-regional-casing')){
+            map.addLayer({
+              id:'road-regional-casing', type:'line', source: l.source, 'source-layer': l['source-layer'],
+              minzoom: l.minzoom || 0, maxzoom: l.maxzoom || 24,
+              filter: ['match', ['get','class'], ['motorway', 'trunk', 'primary'], true, false],
+              layout:{ 'line-cap':'round', 'line-join':'round' },
+              paint:{
+                'line-color':'#06111A', 'line-opacity':0.45,
+                'line-width': scaled(v => ['case', isTrunk, +(v * 1.25 + 1.2).toFixed(2), +(v + 1.2).toFixed(2)]),
+              },
+            }, l.id);
+          }
+        }
       }
       if (l.type === 'line' && l.id === 'highway_motorway_inner'){
         // Motorway: el nivel más prominente, por encima de trunk/primary.
