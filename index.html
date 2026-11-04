@@ -5356,7 +5356,7 @@ function renderTerrainDepth(){
   map.addSource('terrain-dem', {
     type:'raster-dem',
     tiles:['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
-         tileSize:256, encoding:'terrarium', maxzoom:15,
+         tileSize:192, encoding:'terrarium', maxzoom:15, // 192 (no 256): fuerza el nivel de resolución superior, así el relieve nunca se estira más de ~1.06× (con 256 llegaba a 1.41× y se veía pixelado justo antes de entrar a una comuna)
   });
   const bgIndex = layers.findIndex(l => l.type === 'background');
   const hillshadeBeforeId = (bgIndex >= 0 && layers[bgIndex + 1]) ? layers[bgIndex + 1].id : layers[0].id;
