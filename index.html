@@ -8594,7 +8594,9 @@ function applyCoastGlow(res){
 // Segunda luz del relieve (solo midday, vía res.reliefSecond 0→1). Luz desde el norte, perpendicular a las
 // cordilleras este-oeste del Choapa. Capa de apoyo DEBAJO de hillshade-subtle. La intensidad se regula con
 // la opacidad de sus colores, así entra y sale con la transición gradual de la atmósfera.
-const RELIEF_SECOND_EXAGGERATION = ['interpolate', ['linear'], ['zoom'], 8, 0.28, 12, 0.252, 14, 0.168, 16, 0.084];
+// Completa en la vista regional (spawn) y desvanecida antes de entrar a una comuna (~10.15):
+// dentro de la comuna el relieve vuelve a ser solo el principal, ya calibrado para ese nivel.
+const RELIEF_SECOND_EXAGGERATION = ['interpolate', ['linear'], ['zoom'], 8, 0.28, 9, 0.26, 9.8, 0.10, 10.3, 0];
 function applyReliefSecond(res){
   if (!map.getLayer('hillshade-second')) return;
   const f = res.reliefSecond || 0;
