@@ -5353,10 +5353,15 @@ function renderTerrainDepth(){
   // Fuente pública Terrarium (AWS elevation-tiles-prod) — sin API key. Se inserta
   // justo encima del fondo y debajo de agua/calles/edificios/etiquetas, así se
   // lee como textura de terreno, nunca como un elemento que compite con nada.
+   // Resolución del relieve adaptada a la densidad de la pantalla: misma nitidez percibida en cualquier celular
+  // (≈1.2–1.5 px físicos por punto de relieve) sin descargar datos de más donde no se notan.
+  // ≥2× (iPhone y la mayoría de los Android) → 96 (validado) · 1.5–2× → 128 · <1.5× → 192.
+  const dpr = window.devicePixelRatio || 1;
+  const DEM_TILE_SIZE = dpr >= 2 ? 96 : (dpr >= 1.5 ? 128 : 192);
   map.addSource('terrain-dem', {
     type:'raster-dem',
     tiles:['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
-        tileSize:96, encoding:'terrarium', maxzoom:15, // 96: resolución pensada para pantallas de alta densidad (celulares ~2.5–3×). Con 192 cada punto de elevación ocupaba ~2.4 px físicos y el relieve se veía blando en el spawn; con 256 además saltaba la calidad justo antes de entrar a una comuna
+        tileSize:DEM_TILE_SIZE, encoding:'terrarium', maxzoom:15, // adaptativo (ver arriba). Con 256 se veía pixelado y saltaba la calidad justo antes de entrar a una comuna
   });
   const bgIndex = layers.findIndex(l => l.type === 'background');
   const hillshadeBeforeId = (bgIndex >= 0 && layers[bgIndex + 1]) ? layers[bgIndex + 1].id : layers[0].id;
