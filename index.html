@@ -5643,7 +5643,20 @@ function renderTerrainDepth(){
   // turquesa de marca; el turquesa solo se usa (muy tenue) en el halo.
   const waterwayLayer = layers.find(l => l.id === 'waterway');
   if (waterwayLayer){
-    const riverFilter = ['match', ['get','name'], ['Río Choapa', 'Rio Choapa'], true, false];
+       const riverFilter = ['match', ['get','name'], ['Río Choapa', 'Rio Choapa'], true, false];
+    // Valles verdes — debajo del halo del río y del agua. Arranca invisible; la atmósfera la enciende en midday.
+    map.addLayer({
+      id:'valley-green', type:'line',
+      source: waterwayLayer.source, 'source-layer': waterwayLayer['source-layer'],
+      filter: ['==', ['get','class'], 'river'],
+      layout:{ 'line-cap':'round', 'line-join':'round' },
+      paint:{
+        'line-color': VALLEY_GREEN_COLOR,
+        'line-opacity': 0,
+        'line-width': ['interpolate', ['linear'], ['zoom'], 7, 12, 8, 16, 10, 34, 12, 80, 14, 180],
+        'line-blur': ['interpolate', ['linear'], ['zoom'], 7, 8, 8, 11, 10, 22, 12, 50, 14, 110],
+      },
+    }, map.getLayer('water') ? 'water' : undefined);
     map.addLayer({
       id:'rio-choapa-halo', type:'line',
       source: waterwayLayer.source, 'source-layer': waterwayLayer['source-layer'],
@@ -8541,7 +8554,7 @@ const TIME_ATMOSPHERE = {
   // acotado a las mismas 4 capas de terreno que ya toca applyDayLightLift()
   // — el chrome de la interfaz (header, buscador, chips, sheet) no se toca
   // en este cambio.
-  midday:{ bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.42, bgLift:0.30, bgLiftTint:'#728C7D', liftTint:'#2482A9', layerTints:{ vegetation:'#387F62', residential:'#596165', building:'#808580' }, hillshadeShadow:'#0B1519', hillshadeAccent:'#0E191E', hillshadeBoost:1.3, hillshadeLocalityDamp:0.78, hillshadeHighlightRGB:'232,240,244', hillshadeHighlight:0.15, vignette:{ top:0.66, bottom:0.54, edge:0.33 } },
+  midday:{ bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.42, bgLift:0.30, bgLiftTint:'#728C7D', liftTint:'#2482A9', layerTints:{ vegetation:'#387F62', residential:'#596165', building:'#808580' }, hillshadeShadow:'#0B1519', hillshadeAccent:'#0E191E', hillshadeBoost:1.3, hillshadeLocalityDamp:0.78, hillshadeHighlightRGB:'232,240,244', hillshadeHighlight:0.15, vignette:{ top:0.66, bottom:0.54, edge:0.33 }, valleyGreen:1 },
   dusk:  { bgTint:'#E8A24D', bgAmount:0.05, glowAmount:0.22, glowOpacity:0.055, illum:305, dayLift:0, hillshadeHighlight:0.085, hillshadeHighlightRGB:'255,214,168' },
   night: { bgTint:'#88558D', bgAmount:0.13, glowAmount:0.15, glowOpacity:0.07, illum:300, dayLift:0.16, layerTints:{ vegetation:'#12241D', residential:'#C8913F', building:'#C8913F' }, vignette:{ top:0.88, bottom:0.74, edge:0.48 }, roadLight:0.12, hillshadeHighlight:0.085, hillshadeHighlightRGB:'220,214,240', waterTint:'#0C2538', waterLift:0.5,coastGlow:1, waterShimmer:0.06 },
 };
@@ -8574,8 +8587,23 @@ function applyCoastGlow(res){
   COAST_GLOW_LAYERS.forEach(([id, prop]) => {
     if (!map.getLayer(id)) return;
     if (!(id in coastGlowBase)) coastGlowBase[id] = map.getPaintProperty(id, prop);
-    map.setPaintProperty(id, prop, scaleOpacityValue(coastGlowBase[id], res.coastGlow));
+       map.setPaintProperty(id, prop, scaleOpacityValue(coastGlowBase[id], res.coastGlow));
   });
+}
+// Valles verdes: franja difusa siguiendo los ríos (solo midday, vía res.valleyGreen 0→1).
+// Se atenúa al acercarse y desaparece a zoom 14.5, donde una franja ancha deja de tener sentido.
+const VALLEY_GREEN_COLOR = '#7FAE5C';
+function valleyGreenOpacity(f){
+  return ['interpolate', ['linear'], ['zoom'],
+    7, +(0.30 * f).toFixed(3),
+    10, +(0.24 * f).toFixed(3),
+    12.5, +(0.14 * f).toFixed(3),
+    14.5, 0,
+  ];
+}
+function applyValleyGreen(res){
+  if (!map.getLayer('valley-green')) return;
+  map.setPaintProperty('valley-green', 'line-opacity', valleyGreenOpacity(res.valleyGreen || 0));
 }
 // Rutas principales que la atmósfera puede aclarar hacia luz de luna (roadLight; 0 = sin cambio).
 // Su color original (el de tintMapLayers) se lee una vez y se guarda; si alguna capa no
@@ -8620,7 +8648,8 @@ function resolveAtmosphere(periodCfg){
   moonWash: p.moonWash || 0,                                          // 0 = sin velo de luna
     waterShimmer: p.waterShimmer || 0.03,                               // brillo de la respiración del agua
     roadLight: p.roadLight || 0,                                       // 0 = carreteras como siempre
-    coastGlow: p.coastGlow != null ? p.coastGlow : 1,                   // 1 = costa como siempre
+       coastGlow: p.coastGlow != null ? p.coastGlow : 1,                   // 1 = costa como siempre
+    valleyGreen: p.valleyGreen || 0,                                    // 0 = sin valles verdes
     // Relieve
     hillshadeShadow: p.hillshadeShadow || '#050B12',
     hillshadeAccent: p.hillshadeAccent || '#08111A',
@@ -8692,7 +8721,8 @@ function blendAtmosphere(a, b, p){
     residential: blendHex(a.residential, b.residential, p),
     building: blendHex(a.building, b.building, p),
    water: blendHex(a.water, b.water, p),
-   coastGlow: atmoLerp(a.coastGlow, b.coastGlow, p, 0.01),
+  coastGlow: atmoLerp(a.coastGlow, b.coastGlow, p, 0.01),
+    valleyGreen: atmoLerp(a.valleyGreen, b.valleyGreen, p, 0.01),
   roadLight: atmoLerp(a.roadLight, b.roadLight, p, 0.01),
     moonWash: atmoLerp(a.moonWash, b.moonWash, p, 0.01),
     waterShimmer: atmoLerp(a.waterShimmer, b.waterShimmer, p, 0.002),
@@ -8734,7 +8764,8 @@ function applyAtmosphereChanges(prev, next){
     });
   // Agua: solo la base; la respiración sigue siendo la única que escribe su fill-color.
   if (changed('water')) currentWaterBase = next.water;
-  if (changed('coastGlow')) applyCoastGlow(next);
+   if (changed('coastGlow')) applyCoastGlow(next);
+  if (changed('valleyGreen')) applyValleyGreen(next);
 if (changed('vignetteTop') || changed('vignetteBottom') || changed('vignetteEdge') || changed('moonWash')) applyDayVignette(next);
   if (changed('bg') || changed('glowColor') || changed('glowOpacity')){
     const { tint, active } = getCategoryMix(state.activeExperience);
@@ -8815,7 +8846,8 @@ function applyMoodAtmosphere(expId){
 function applyTimeAtmosphere(res, tint, active){
   const bgTimeBase = res.bg;
 applyDayVignette(res);
-  applyCoastGlow(res);
+   applyCoastGlow(res);
+  applyValleyGreen(res);
 const glowTimeBase = res.glowColor;
 
   // Fondo
