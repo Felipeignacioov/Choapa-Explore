@@ -5479,8 +5479,9 @@ function renderTerrainDepth(){
       source: waterFillLayer.source, 'source-layer': waterFillLayer['source-layer'],
       filter: ['==', ['get','class'], 'lake'],
       layout:{ visibility:'none' },
-      paint:{ 'line-color':'#5FE1E8', 'line-width':1.2, 'line-blur':1.5, 'line-opacity':0 },
+          paint:{ 'line-color':'#5FE1E8', 'line-width':1.2, 'line-blur':1.5, 'line-opacity':0 },
     }, coastBeforeId);
+    buildCoastShelfWhenReady(waterFillLayer); // plataforma costera (solo midday) — se genera una vez con los tiles del spawn
         map.addLayer({
       id:'coast-glow', type:'line',
       source: waterFillLayer.source, 'source-layer': waterFillLayer['source-layer'],
@@ -8572,7 +8573,7 @@ const TIME_ATMOSPHERE = {
   // acotado a las mismas 4 capas de terreno que ya toca applyDayLightLift()
   // — el chrome de la interfaz (header, buscador, chips, sheet) no se toca
   // en este cambio.
-  midday:{ bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.42, bgLift:0.30, bgLiftTint:'#728C7D', liftTint:'#2482A9', layerTints:{ vegetation:'#387F62', residential:'#596165', building:'#808580' }, hillshadeShadow:'#0B1519', hillshadeAccent:'#123326', hillshadeBoost:1.3, hillshadeLocalityDamp:0.78, hillshadeHighlightRGB:'196,228,186', hillshadeHighlight:0.20, vignette:{ top:0.66, bottom:0.54, edge:0.33 }, reliefSecond:1, waterLife:1 },
+  midday:{ bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.42, bgLift:0.30, bgLiftTint:'#728C7D', liftTint:'#2482A9', layerTints:{ vegetation:'#387F62', residential:'#596165', building:'#808580' }, hillshadeShadow:'#0B1519', hillshadeAccent:'#123326', hillshadeBoost:1.3, hillshadeLocalityDamp:0.78, hillshadeHighlightRGB:'196,228,186', hillshadeHighlight:0.20, vignette:{ top:0.66, bottom:0.54, edge:0.33 }, reliefSecond:1, waterLife:1, coastShelf:1 },
   dusk:  { bgTint:'#E8A24D', bgAmount:0.05, glowAmount:0.22, glowOpacity:0.055, illum:305, dayLift:0, hillshadeHighlight:0.085, hillshadeHighlightRGB:'255,214,168' },
   night: { bgTint:'#88558D', bgAmount:0.13, glowAmount:0.15, glowOpacity:0.07, illum:300, dayLift:0.16, layerTints:{ vegetation:'#12241D', residential:'#C8913F', building:'#C8913F' }, vignette:{ top:0.88, bottom:0.74, edge:0.48 }, roadLight:0.12, hillshadeHighlight:0.085, hillshadeHighlightRGB:'220,214,240', waterTint:'#0C2538', waterLift:0.5,coastGlow:1, waterShimmer:0.06 },
 };
@@ -8648,9 +8649,122 @@ function applyWaterLife(res){
     const vis = f > 0 ? 'visible' : 'none';
     map.setLayoutProperty('lake-fill', 'visibility', vis);
     map.setLayoutProperty('lake-glow', 'visibility', vis);
-    map.setPaintProperty('lake-fill', 'fill-opacity', +(0.55 * f).toFixed(3));
+      map.setPaintProperty('lake-fill', 'fill-opacity', +(0.55 * f).toFixed(3));
     map.setPaintProperty('lake-glow', 'line-opacity', +(0.75 * f).toFixed(3));
   }
+}
+// Plataforma costera (solo midday, vía res.coastShelf 0→1): agua turquesa clara pegada a la costa que se
+// disuelve hacia mar adentro. Se genera UNA vez tras cargar el mapa, a partir del contorno real del océano
+// (tiles del mapa base ya cargados en el spawn) y se pinta en canvas: sin espinas ni bordes, y nunca tiñe la tierra.
+// La capa 'water' (protegida) no se toca: es una capa aparte encima del mar.
+const COAST_SHELF_BOUNDS = { west:-72.265, east:-71.0, north:-30.425, south:-32.775 }; // franja costera dentro de CHOAPA_MAX_BOUNDS
+const COAST_SHELF_STRENGTH = 0.38;   // validado por consola (punto medio entre A y B)
+const COAST_SHELF_REACH_KM = 5;
+const COAST_SHELF_RGB = [95, 205, 210];
+function coastShelfOpacity(f){
+  return ['interpolate', ['linear'], ['zoom'],
+    7, +(1 * f).toFixed(3),
+    11, +(0.8 * f).toFixed(3),
+    13, +(0.3 * f).toFixed(3),
+    14.5, 0,
+  ];
+}
+function applyCoastShelf(res){
+  if (!map.getLayer('coast-shelf')) return;
+  const f = (res && res.coastShelf) || 0;
+  map.setLayoutProperty('coast-shelf', 'visibility', f > 0 ? 'visible' : 'none');
+  map.setPaintProperty('coast-shelf', 'raster-opacity', coastShelfOpacity(f));
+}
+function buildCoastShelf(waterLayer){
+  const feats = map.querySourceFeatures(waterLayer.source, {
+    sourceLayer: waterLayer['source-layer'],
+    filter: ['==', ['get','class'], 'ocean'],
+  });
+  if (!feats.length) return false;
+
+  // Lienzo en proyección Mercator sobre la franja costera fija
+  const { west, east, north, south } = COAST_SHELF_BOUNDS;
+  const mercY = lat => Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360));
+  const yN = mercY(north), yS = mercY(south);
+  const W = 768, H = Math.round(W * (yN - yS) / ((east - west) * Math.PI / 180));
+  const toPx = ([lng, lat]) => [(lng - west) / (east - west) * W, (yN - mercY(lat)) / (yN - yS) * H];
+
+  // Máscara: tierra = blanco, océano = negro
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#000';
+  feats.forEach(f => {
+    const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
+    polys.forEach(rings => {
+      const p = new Path2D();
+      rings.forEach(r => r.forEach((pt, i) => { const [x, y] = toPx(pt); if (i) p.lineTo(x, y); else p.moveTo(x, y); }));
+      ctx.fill(p, 'evenodd');
+    });
+  });
+
+  // Difuminado de la tierra hacia el mar (box blur ×3 ≈ gaussiano; funciona en cualquier navegador)
+  const src = ctx.getImageData(0, 0, W, H).data;
+  const land = new Float32Array(W * H);
+  for (let i = 0; i < W * H; i++) land[i] = src[i * 4] / 255;
+  const pxPerKm = W / ((east - west) * 111.32 * Math.cos(31.7 * Math.PI / 180));
+  const r = Math.max(1, Math.round(COAST_SHELF_REACH_KM * pxPerKm / 2));
+  const a = Float32Array.from(land), t = new Float32Array(W * H);
+  const clamp = (v, m) => v < 0 ? 0 : (v > m ? m : v);
+  const pass = (s, d, horiz) => {
+    const len = horiz ? W : H, lines = horiz ? H : W, k = 1 / (2 * r + 1);
+    for (let l = 0; l < lines; l++){
+      const idx = i => horiz ? l * W + i : i * W + l;
+      let acc = 0;
+      for (let i = -r; i <= r; i++) acc += s[idx(clamp(i, len - 1))];
+      for (let i = 0; i < len; i++){
+        d[idx(i)] = acc * k;
+        acc += s[idx(clamp(i + r + 1, len - 1))] - s[idx(clamp(i - r, len - 1))];
+      }
+    }
+  };
+  for (let n = 0; n < 3; n++){ pass(a, t, true); pass(t, a, false); }
+
+  // Plataforma: solo sobre el mar, más intensa en la orilla, con los bordes del lienzo desvanecidos
+  const out = ctx.createImageData(W, H);
+  const edge = Math.round(Math.min(W, H) * 0.06);
+  const [cr, cg, cb] = COAST_SHELF_RGB;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++){
+    const i = y * W + x, ocean = 1 - land[i];
+    if (ocean <= 0) continue;
+    const fade = Math.min(1, Math.min(x, y, W - 1 - x, H - 1 - y) / edge);
+    const alpha = Math.min(1, a[i] * 2) * ocean * COAST_SHELF_STRENGTH * fade;
+    out.data[i * 4] = cr; out.data[i * 4 + 1] = cg; out.data[i * 4 + 2] = cb; out.data[i * 4 + 3] = Math.round(alpha * 255);
+  }
+  ctx.putImageData(out, 0, 0);
+
+  // Capa: justo encima del mar (debajo de los brillos costeros). Arranca oculta; la atmósfera la enciende.
+  const layers = map.getStyle().layers;
+  const wIdx = layers.findIndex(l => l.id === 'water');
+  const before = layers[wIdx + 1] ? layers[wIdx + 1].id : undefined;
+  map.addSource('coast-shelf', {
+    type:'image', url: c.toDataURL(),
+    coordinates:[[west, north], [east, north], [east, south], [west, south]],
+  });
+  map.addLayer({
+    id:'coast-shelf', type:'raster', source:'coast-shelf',
+    layout:{ visibility:'none' },
+    paint:{ 'raster-fade-duration':0, 'raster-resampling':'linear', 'raster-opacity':0 },
+  }, before);
+  applyCoastShelf(currentResolvedAtmosphere);
+  return true;
+}
+// Espera a que los tiles del spawn estén cargados (sin usar 'idle', que nunca dispara en esta app).
+function buildCoastShelfWhenReady(waterLayer){
+  const t0 = Date.now();
+  const attempt = () => {
+    if (map.getLayer('coast-shelf')) return;
+    const ready = map.areTilesLoaded() || Date.now() - t0 > 8000;
+    if (ready && buildCoastShelf(waterLayer)) return;
+    if (Date.now() - t0 < 12000) setTimeout(attempt, 300);
+    else console.warn('[Plataforma costera] No se encontró el contorno del océano; se omite.');
+  };
+  setTimeout(attempt, 300);
 }
 
 // Rutas principales que la atmósfera puede aclarar hacia luz de luna (roadLight; 0 = sin cambio).
@@ -8699,6 +8813,7 @@ function resolveAtmosphere(periodCfg){
            coastGlow: p.coastGlow != null ? p.coastGlow : 1,                   // 1 = costa como siempre
        reliefSecond: p.reliefSecond || 0,                                  // 0 = sin segunda luz del relieve
     waterLife: p.waterLife || 0,                                        // 0 = río y embalses como siempre
+    coastShelf: p.coastShelf || 0,                                      // 0 = sin plataforma costera
     // Relieve
     hillshadeShadow: p.hillshadeShadow || '#050B12',
     hillshadeAccent: p.hillshadeAccent || '#08111A',
@@ -8772,7 +8887,8 @@ function blendAtmosphere(a, b, p){
    water: blendHex(a.water, b.water, p),
 coastGlow: atmoLerp(a.coastGlow, b.coastGlow, p, 0.01),
       reliefSecond: atmoLerp(a.reliefSecond, b.reliefSecond, p, 0.01),
-    waterLife: atmoLerp(a.waterLife, b.waterLife, p, 0.01),
+     waterLife: atmoLerp(a.waterLife, b.waterLife, p, 0.01),
+    coastShelf: atmoLerp(a.coastShelf, b.coastShelf, p, 0.01),
   roadLight: atmoLerp(a.roadLight, b.roadLight, p, 0.01),
     moonWash: atmoLerp(a.moonWash, b.moonWash, p, 0.01),
     waterShimmer: atmoLerp(a.waterShimmer, b.waterShimmer, p, 0.002),
@@ -8817,6 +8933,7 @@ function applyAtmosphereChanges(prev, next){
   if (changed('coastGlow')) applyCoastGlow(next);
    if (changed('reliefSecond')) applyReliefSecond(next);
   if (changed('waterLife')) applyWaterLife(next);
+  if (changed('coastShelf')) applyCoastShelf(next);
 if (changed('vignetteTop') || changed('vignetteBottom') || changed('vignetteEdge') || changed('moonWash')) applyDayVignette(next);
   if (changed('bg') || changed('glowColor') || changed('glowOpacity')){
     const { tint, active } = getCategoryMix(state.activeExperience);
@@ -8899,7 +9016,8 @@ function applyTimeAtmosphere(res, tint, active){
 applyDayVignette(res);
      applyCoastGlow(res);
   applyReliefSecond(res);
-  applyWaterLife(res);
+   applyWaterLife(res);
+  applyCoastShelf(res);
 const glowTimeBase = res.glowColor;
 
   // Fondo
