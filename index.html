@@ -4438,6 +4438,36 @@ let sublocalityMarkers = [];
 // volver suave") — es solo el último resguardo, invisible en el uso normal.
 // Antes evitábamos maxBounds nativo por el pitch de cámara; con maxPitch:0 esa
 // razón ya no existe, así que se puede usar con seguridad como capa base.
+// Recuadro de las cuatro comunas (Canela, Illapel, Salamanca, Los Vilos) con un pequeño margen.
+// Es la referencia del encuadre general (al abrir la app y al volver desde una comuna).
+// Si se agrega una comuna nueva, actualizar este recuadro.
+const CHOAPA_COMUNAS_BOUNDS = [[-71.56, -31.96], [-70.91, -31.35]];
+const OVERVIEW_MAX_ZOOM = 8.4; // por debajo de ZOOM_COMUNA_NEAR (8.8): los pines no pasan a "cercanos"
+
+// Cámara general: centra las comunas en el área realmente libre (bajo el encabezado y sobre
+// la píldora inferior). Devuelve null si no hay espacio suficiente (se usa el encuadre anterior).
+function getOverviewCamera(){
+  const container = map.getContainer().getBoundingClientRect();
+  const topUI = document.querySelector('.top-ui');
+  const pill = document.getElementById('sheetPill');
+  const nav = document.querySelector('.bottom-nav');
+  const top = topUI ? topUI.getBoundingClientRect().bottom - container.top : 180;
+  let bottomEdge = container.height;
+  if (pill && pill.offsetHeight && !pill.classList.contains('hidden')) bottomEdge = pill.getBoundingClientRect().top - container.top;
+  else if (nav) bottomEdge = nav.getBoundingClientRect().top - container.top;
+  const padding = {
+    top: Math.round(top + 24),
+    bottom: Math.round(container.height - bottomEdge + 24),
+    left: 40, right: 40,
+  };
+  if (padding.top + padding.bottom >= container.height - 80) return null; // pantalla muy baja
+  const cam = map.cameraForBounds(CHOAPA_COMUNAS_BOUNDS, { padding, maxZoom: OVERVIEW_MAX_ZOOM });
+  if (!cam) return null;
+  cam.zoom = Math.max(cam.zoom, 7.6); // nunca por debajo del zoom mínimo del mapa
+  cam.bearing = 0;
+  return cam;
+}
+
 const CHOAPA_SAFETY_BOUNDS = [
   [CHOAPA_MAX_BOUNDS[0][0] - 1.5, CHOAPA_MAX_BOUNDS[0][1] - 1.5],
   [CHOAPA_MAX_BOUNDS[1][0] + 1.5, CHOAPA_MAX_BOUNDS[1][1] + 1.5],
@@ -4530,6 +4560,10 @@ const mapLoadPromise = new Promise(resolve => { resolveMapLoad = resolve; });
 
 map.on('load', () => {
   map.once('moveend', () => { mapReady = true; });
+  // Encuadre inicial centrado en las comunas. Sin animación: ocurre mientras la pantalla de
+  // carga todavía cubre el mapa, así que el usuario nunca ve un salto.
+  const overviewCam = getOverviewCamera();
+  if (overviewCam) map.jumpTo(overviewCam);
   document.getElementById('mapLoading').style.opacity = '0';
   setTimeout(() => document.getElementById('mapLoading').style.display='none', 400);
  tintMapLayers();
@@ -7962,7 +7996,9 @@ function exitLocality({ fly }){
     // (ahora top:180/bottom:180, igualado) — debe coincidir siempre con el
     // valor de arriba, o el zoom/centro final no coincide con el spawn real,
     // percibiéndose como un segundo reacomodo.
-    map.fitBounds(CHOAPA_BOUNDS, { padding:{ top:180, bottom:180, left:40, right:40 }, duration:1200 });
+   const overviewCam = getOverviewCamera();
+    if (overviewCam) map.easeTo({ ...overviewCam, duration:1200 });
+    else map.fitBounds(CHOAPA_BOUNDS, { padding:{ top:180, bottom:180, left:40, right:40 }, duration:1200 });
   }
   updateExplorationBreadcrumb();
   renderPlacesRail();
