@@ -8566,7 +8566,7 @@ const TIME_ATMOSPHERE = {
   // edificios/agua) hacia DAY_LIGHT_TINT. 0 en dusk/night preserva su
   // apariencia exactamente igual a como está hoy; el resto de las claves
   // (bgTint, bgAmount, glowAmount, glowOpacity, illum) no se toca.
-  day:   { bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.12, bgLift:0.14, hillshadeBoost:1.15, hillshadeHighlight:0.12, vignette:{ top:0.76, bottom:0.64, edge:0.36 } },
+  day:   { bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.12, bgLift:0.14, hillshadeBoost:1.15, hillshadeHighlight:0.12, vignette:{ top:0.76, bottom:0.64, edge:0.36 }, coastShelf:0.75, coastShelfHue:6, coastShelfSat:-0.10, coastShelfBright:0.95 },
   // midday — mismo resto de valores que "day" (nunca cambia el mood de
   // categoría, el glow ni el ángulo de sombra), solo dayLift mucho más
   // fuerte: de un matiz sutil (8%) a un salto real de luminosidad (42%),
@@ -8574,8 +8574,8 @@ const TIME_ATMOSPHERE = {
   // — el chrome de la interfaz (header, buscador, chips, sheet) no se toca
   // en este cambio.
   midday:{ bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.42, bgLift:0.30, bgLiftTint:'#728C7D', liftTint:'#2482A9', layerTints:{ vegetation:'#387F62', residential:'#596165', building:'#808580' }, hillshadeShadow:'#0B1519', hillshadeAccent:'#123326', hillshadeBoost:1.3, hillshadeLocalityDamp:0.78, hillshadeHighlightRGB:'196,228,186', hillshadeHighlight:0.20, vignette:{ top:0.66, bottom:0.54, edge:0.33 }, reliefSecond:1, waterLife:1, coastShelf:1 },
-  dusk:  { bgTint:'#E8A24D', bgAmount:0.05, glowAmount:0.22, glowOpacity:0.055, illum:305, dayLift:0, hillshadeHighlight:0.085, hillshadeHighlightRGB:'255,214,168' },
-  night: { bgTint:'#88558D', bgAmount:0.13, glowAmount:0.15, glowOpacity:0.07, illum:300, dayLift:0.16, layerTints:{ vegetation:'#12241D', residential:'#C8913F', building:'#C8913F' }, vignette:{ top:0.88, bottom:0.74, edge:0.48 }, roadLight:0.12, hillshadeHighlight:0.085, hillshadeHighlightRGB:'220,214,240', waterTint:'#0C2538', waterLift:0.5,coastGlow:1, waterShimmer:0.06 },
+  dusk:  { bgTint:'#E8A24D', bgAmount:0.05, glowAmount:0.22, glowOpacity:0.055, illum:305, dayLift:0, hillshadeHighlight:0.085,hillshadeHighlightRGB:'255,214,168', coastShelf:0.50, coastShelfHue:210, coastShelfSat:-0.25, coastShelfBright:0.85 },
+  night: { bgTint:'#88558D', bgAmount:0.13, glowAmount:0.15, glowOpacity:0.07, illum:300, dayLift:0.16, layerTints:{ vegetation:'#12241D', residential:'#C8913F', building:'#C8913F' }, vignette:{ top:0.88, bottom:0.74, edge:0.48 }, roadLight:0.12, hillshadeHighlight:0.085, hillshadeHighlightRGB:'220,214,240', waterTint:'#0C2538', waterLift:0.5,coastGlow:1, waterShimmer:0.06, coastShelf:0.35, coastShelfHue:40, coastShelfSat:-0.55, coastShelfBright:0.55 },
 };
 let currentDayPeriod = null;
 
@@ -8674,6 +8674,11 @@ function applyCoastShelf(res){
   const f = (res && res.coastShelf) || 0;
   map.setLayoutProperty('coast-shelf', 'visibility', f > 0 ? 'visible' : 'none');
   map.setPaintProperty('coast-shelf', 'raster-opacity', coastShelfOpacity(f));
+  // Color propio por estado (la imagen base es el turquesa de midday): day turquesa de mañana,
+  // dusk reflejo dorado (210° = -150°), night reflejo de luna. Todo se mezcla en las transiciones.
+  map.setPaintProperty('coast-shelf', 'raster-hue-rotate', (res && res.coastShelfHue) || 0);
+  map.setPaintProperty('coast-shelf', 'raster-saturation', (res && res.coastShelfSat) || 0);
+  map.setPaintProperty('coast-shelf', 'raster-brightness-max', res && res.coastShelfBright != null ? res.coastShelfBright : 1);
 }
 function buildCoastShelf(waterLayer){
   const feats = map.querySourceFeatures(waterLayer.source, {
@@ -8813,7 +8818,10 @@ function resolveAtmosphere(periodCfg){
            coastGlow: p.coastGlow != null ? p.coastGlow : 1,                   // 1 = costa como siempre
        reliefSecond: p.reliefSecond || 0,                                  // 0 = sin segunda luz del relieve
     waterLife: p.waterLife || 0,                                        // 0 = río y embalses como siempre
-    coastShelf: p.coastShelf || 0,                                      // 0 = sin plataforma costera
+       coastShelf: p.coastShelf || 0,                                      // 0 = sin plataforma costera
+    coastShelfHue: p.coastShelfHue || 0,                                // tono de la costa (0 = turquesa de midday)
+    coastShelfSat: p.coastShelfSat || 0,                                // saturación de la costa
+    coastShelfBright: p.coastShelfBright != null ? p.coastShelfBright : 1, // brillo máximo de la costa
     // Relieve
     hillshadeShadow: p.hillshadeShadow || '#050B12',
     hillshadeAccent: p.hillshadeAccent || '#08111A',
@@ -8888,7 +8896,10 @@ function blendAtmosphere(a, b, p){
 coastGlow: atmoLerp(a.coastGlow, b.coastGlow, p, 0.01),
       reliefSecond: atmoLerp(a.reliefSecond, b.reliefSecond, p, 0.01),
      waterLife: atmoLerp(a.waterLife, b.waterLife, p, 0.01),
-    coastShelf: atmoLerp(a.coastShelf, b.coastShelf, p, 0.01),
+       coastShelf: atmoLerp(a.coastShelf, b.coastShelf, p, 0.01),
+    coastShelfHue: atmoLerp(a.coastShelfHue, b.coastShelfHue, p, 1),
+    coastShelfSat: atmoLerp(a.coastShelfSat, b.coastShelfSat, p, 0.01),
+    coastShelfBright: atmoLerp(a.coastShelfBright, b.coastShelfBright, p, 0.01),
   roadLight: atmoLerp(a.roadLight, b.roadLight, p, 0.01),
     moonWash: atmoLerp(a.moonWash, b.moonWash, p, 0.01),
     waterShimmer: atmoLerp(a.waterShimmer, b.waterShimmer, p, 0.002),
@@ -8933,7 +8944,7 @@ function applyAtmosphereChanges(prev, next){
   if (changed('coastGlow')) applyCoastGlow(next);
    if (changed('reliefSecond')) applyReliefSecond(next);
   if (changed('waterLife')) applyWaterLife(next);
-  if (changed('coastShelf')) applyCoastShelf(next);
+    if (['coastShelf', 'coastShelfHue', 'coastShelfSat', 'coastShelfBright'].some(changed)) applyCoastShelf(next);
 if (changed('vignetteTop') || changed('vignetteBottom') || changed('vignetteEdge') || changed('moonWash')) applyDayVignette(next);
   if (changed('bg') || changed('glowColor') || changed('glowOpacity')){
     const { tint, active } = getCategoryMix(state.activeExperience);
