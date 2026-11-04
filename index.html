@@ -5122,30 +5122,27 @@ function tintMapLayers(){
         // perciba con claridad a nivel regional, sin llegar a competir con
         // los pines de comuna/localidad (que siguen siendo el protagonista).
                map.setPaintProperty(l.id, 'line-color', roadColor(0.02));
-      map.setPaintProperty(l.id, 'line-opacity', ['interpolate', ['linear'], ['zoom'], 6, 0.46, 9, 0.46, 10, 0.74, 11, 0.74]);
-        // Jerarquía regional (validada por consola, variante A): la Ruta 5 (trunk/motorway) un 25% más gruesa y un
-        // borde oscuro finísimo bajo todas las rutas principales, para que se lean nítidas sobre el relieve.
-        // Los grosores se calculan a partir de los del estilo base: el resto no cambia.
+             // Jerarquía regional (validada por consola, variante D "limpia + Ruta 5 con relieve"):
+        // líneas sólidas y quietas (sin respiración ni bordes semitransparentes, que daban sensación de "tele antigua").
+        // Ruta 5 (trunk/motorway): clara, opaca y más gruesa, con un borde oscuro fino y nítido que la levanta del terreno.
+        // Rutas principales: sólidas, finas y discretas, siempre por debajo de la Ruta 5.
         {
-          const baseW = map.getPaintProperty(l.id, 'line-width') ?? 1;
-          const scaled = fn => {
-            if (typeof baseW === 'number') return fn(baseW);
-            if (Array.isArray(baseW) && baseW[0] === 'interpolate') return baseW.map((v, i) => (i >= 4 && i % 2 === 0 && typeof v === 'number') ? fn(v) : v);
-            if (baseW && baseW.stops) return ['interpolate', ['exponential', baseW.base || 1], ['zoom'], ...baseW.stops.flatMap(([z, v]) => [z, fn(v)])];
-            return fn(1);
-          };
           const isTrunk = ['match', ['get','class'], ['motorway', 'trunk'], true, false];
-          map.setPaintProperty(l.id, 'line-width', scaled(v => ['case', isTrunk, +(v * 1.25).toFixed(2), v]));
+          const byZoom = (t, p) => ['interpolate', ['linear'], ['zoom'],
+            6, ['case', isTrunk, +(t * 0.75).toFixed(2), +(p * 0.75).toFixed(2)],
+            9, ['case', isTrunk, t, p],
+            11, ['case', isTrunk, +(t * 1.3).toFixed(2), +(p * 1.3).toFixed(2)]];
+          map.setPaintProperty(l.id, 'line-color', ['case', isTrunk, '#A3BAC5', roadColor(0.02)]);
+          map.setPaintProperty(l.id, 'line-opacity', ['case', isTrunk, 0.95, 0.55]);
+          map.setPaintProperty(l.id, 'line-width', byZoom(1.6, 0.8));
+          map.setPaintProperty(l.id, 'line-blur', 0);
           if (!map.getLayer('road-regional-casing')){
             map.addLayer({
               id:'road-regional-casing', type:'line', source: l.source, 'source-layer': l['source-layer'],
               minzoom: l.minzoom || 0, maxzoom: l.maxzoom || 24,
-              filter: ['match', ['get','class'], ['motorway', 'trunk', 'primary'], true, false],
+              filter: isTrunk, // borde solo bajo la Ruta 5
               layout:{ 'line-cap':'round', 'line-join':'round' },
-              paint:{
-                'line-color':'#06111A', 'line-opacity':0.45,
-                'line-width': scaled(v => ['case', isTrunk, +(v * 1.25 + 1.2).toFixed(2), +(v + 1.2).toFixed(2)]),
-              },
+              paint:{ 'line-color':'#06111A', 'line-opacity':0.85, 'line-width': byZoom(2.6, 0), 'line-blur':0 },
             }, l.id);
           }
         }
@@ -5817,7 +5814,7 @@ function renderTerrainDepth(){
  registerAmbientTick(() => {
     if (!map.getLayer('highway_major_subtle')) return;
         const wobble = Math.sin(performance.now() / 4100) * 0.015;
-   map.setPaintProperty('highway_major_subtle', 'line-opacity', ['interpolate', ['linear'], ['zoom'], 6, 0.46 + wobble, 9, 0.46 + wobble, 10, 0.74 + wobble, 11, 0.74 + wobble]);
+   // (Respiración desactivada: las rutas regionales quedan quietas y nítidas; el titileo se percibía como "tele antigua". Opacidad fija en tintMapLayers.)
   });
 }
 
