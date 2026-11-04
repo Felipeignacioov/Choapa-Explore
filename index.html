@@ -5380,8 +5380,9 @@ function renderTerrainDepth(){
     },
      }, hillshadeBeforeId);
   // Segunda luz del relieve (solo midday) — debajo del relieve principal. Arranca oculta; la atmósfera la enciende.
-  map.addLayer({
+   map.addLayer({
     id:'hillshade-second', type:'hillshade', source:'terrain-dem',
+    maxzoom: 10.4, // desde aquí ya está en 0: no se dibuja dentro de las comunas
     layout:{ visibility:'none' },
     paint:{
       'hillshade-illumination-direction': 0,
