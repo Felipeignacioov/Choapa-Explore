@@ -5645,18 +5645,7 @@ function renderTerrainDepth(){
   if (waterwayLayer){
        const riverFilter = ['match', ['get','name'], ['Río Choapa', 'Rio Choapa'], true, false];
     // Valles verdes — debajo del halo del río y del agua. Arranca invisible; la atmósfera la enciende en midday.
-    map.addLayer({
-      id:'valley-green', type:'line',
-      source: waterwayLayer.source, 'source-layer': waterwayLayer['source-layer'],
-      filter: ['==', ['get','class'], 'river'],
-      layout:{ 'line-cap':'round', 'line-join':'round' },
-      paint:{
-        'line-color': VALLEY_GREEN_COLOR,
-        'line-opacity': 0,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 7, 12, 8, 16, 10, 34, 12, 80, 14, 180],
-        'line-blur': ['interpolate', ['linear'], ['zoom'], 7, 8, 8, 11, 10, 22, 12, 50, 14, 110],
-      },
-    }, map.getLayer('water') ? 'water' : undefined);
+     
     map.addLayer({
       id:'rio-choapa-halo', type:'line',
       source: waterwayLayer.source, 'source-layer': waterwayLayer['source-layer'],
