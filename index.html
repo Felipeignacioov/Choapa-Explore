@@ -3245,6 +3245,20 @@ img{-webkit-user-drag:none; user-select:none;}
 @media (prefers-reduced-motion: reduce){
   .locality-marker:not(.sublocality) .loc-halo{ animation:none; opacity:0.25; }
 }
+/* ================= NOCHE — LUZ DE LUNA SOBRE LA ESCENA =================
+   --moon-wash (0 → 1) lo fija la atmósfera resuelta (solo night lo usa) y se funde
+   con la transición gradual. Luz lavanda desde arriba a la izquierda (misma dirección
+   que la luz del relieve nocturno) + un leve resplandor teal en el centro del valle. */
+@property --moon-wash{ syntax:'<number>'; inherits:true; initial-value:0; }
+.map-vignette{
+  transition:--vignette-top .6s ease, --vignette-bottom .6s ease, --vignette-edge .6s ease, --moon-wash .6s ease;
+}
+.map-vignette::before{
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background:
+    radial-gradient(120% 90% at 18% 8%, rgba(214,208,240, calc(0.10 * var(--moon-wash))) 0%, rgba(214,208,240,0) 60%),
+    radial-gradient(90% 70% at 50% 55%, rgba(95,225,232, calc(0.035 * var(--moon-wash))) 0%, rgba(95,225,232,0) 70%);
+}
 </style>
 </head>
 <body>
@@ -5332,7 +5346,7 @@ function renderTerrainDepth(){
       // Respiración orgánica: dos ondas lentas combinadas (≈16 s y ≈7 s), nunca un pulso mecánico.
       const t = performance.now();
       const wave = 0.62 * Math.sin(t / 2600) + 0.38 * Math.sin(t / 1130 + 1.3); // -1 → 1, irregular
-      const wobble = (wave + 1) / 2 * 0.03;                                       // 0 → 3%
+      const wobble = (wave + 1) / 2 * ((currentResolvedAtmosphere && currentResolvedAtmosphere.waterShimmer) || 0.03);                                      // 0 → 3%
       // Brilla hacia luz teal (no hacia blanco, que agrisa) y sin fundido propio: la variación
       // por pulso es mínima, así no se reinicia una transición cada 240 ms (causa del titileo).
       map.setPaintProperty('water', 'fill-color-transition', { duration:0 });
@@ -8286,6 +8300,7 @@ function applyDayVignette(res){
  el.style.setProperty('--vignette-top', res.vignetteTop);
  el.style.setProperty('--vignette-bottom', res.vignetteBottom);
   el.style.setProperty('--vignette-edge', res.vignetteEdge);
+  el.style.setProperty('--moon-wash', res.moonWash);
 }
 
 // ---------- Paleta base "adaptable" al estado 'day' de TIME_ATMOSPHERE ----------
@@ -8388,7 +8403,7 @@ const TIME_ATMOSPHERE = {
   // en este cambio.
   midday:{ bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.42, bgLift:0.30, bgLiftTint:'#728C7D', liftTint:'#2482A9', layerTints:{ vegetation:'#387F62', residential:'#596165', building:'#808580' }, hillshadeShadow:'#0B1519', hillshadeAccent:'#0E191E', hillshadeBoost:1.3, hillshadeLocalityDamp:0.78, hillshadeHighlightRGB:'232,240,244', hillshadeHighlight:0.15, vignette:{ top:0.66, bottom:0.54, edge:0.33 } },
   dusk:  { bgTint:'#E8A24D', bgAmount:0.05, glowAmount:0.22, glowOpacity:0.055, illum:305, dayLift:0, hillshadeHighlight:0.085, hillshadeHighlightRGB:'255,214,168' },
-  night: { bgTint:'#88558D', bgAmount:0.13, glowAmount:0.15, glowOpacity:0.07, illum:300, dayLift:0.16, layerTints:{ vegetation:'#12241D', residential:'#C8913F', building:'#C8913F' }, vignette:{ top:0.88, bottom:0.74, edge:0.48 }, roadLight:0.12, hillshadeHighlight:0.085, hillshadeHighlightRGB:'220,214,240', waterTint:'#0C2538', waterLift:0.5, coastGlow:0.75 },
+  night: { bgTint:'#88558D', bgAmount:0.13, glowAmount:0.15, glowOpacity:0.07, illum:300, dayLift:0.16, layerTints:{ vegetation:'#12241D', residential:'#C8913F', building:'#C8913F' }, vignette:{ top:0.88, bottom:0.74, edge:0.48 }, roadLight:0.12, hillshadeHighlight:0.085, hillshadeHighlightRGB:'220,214,240', waterTint:'#0C2538', waterLift:0.5, coastGlow:1, waterShimmer:0.06, moonWash:1 },
 };
 let currentDayPeriod = null;
 
@@ -8462,7 +8477,9 @@ function resolveAtmosphere(periodCfg){
    water: p.waterTint
       ? blendHex(BASE_PALETTE.water, p.waterTint, p.waterLift || 0)   // tinte propio del agua (no toca la tierra)
       : blendHex(BASE_PALETTE.water, liftTint, amount),
-  roadLight: p.roadLight || 0,                                        // 0 = carreteras como siempre
+  moonWash: p.moonWash || 0,                                          // 0 = sin velo de luna
+    waterShimmer: p.waterShimmer || 0.03,                               // brillo de la respiración del agua
+    roadLight: p.roadLight || 0,                                       // 0 = carreteras como siempre
     coastGlow: p.coastGlow != null ? p.coastGlow : 1,                   // 1 = costa como siempre
     // Relieve
     hillshadeShadow: p.hillshadeShadow || '#050B12',
@@ -8536,7 +8553,9 @@ function blendAtmosphere(a, b, p){
     building: blendHex(a.building, b.building, p),
    water: blendHex(a.water, b.water, p),
    coastGlow: atmoLerp(a.coastGlow, b.coastGlow, p, 0.01),
-    roadLight: atmoLerp(a.roadLight, b.roadLight, p, 0.01),
+  roadLight: atmoLerp(a.roadLight, b.roadLight, p, 0.01),
+    moonWash: atmoLerp(a.moonWash, b.moonWash, p, 0.01),
+    waterShimmer: atmoLerp(a.waterShimmer, b.waterShimmer, p, 0.002),
     hillshadeShadow: blendHex(a.hillshadeShadow, b.hillshadeShadow, p),
     hillshadeAccent: blendHex(a.hillshadeAccent, b.hillshadeAccent, p),
     hillshadeHighlightRGB: atmoBlendRGB(a.hillshadeHighlightRGB, b.hillshadeHighlightRGB, p),
@@ -8576,7 +8595,7 @@ function applyAtmosphereChanges(prev, next){
   // Agua: solo la base; la respiración sigue siendo la única que escribe su fill-color.
   if (changed('water')) currentWaterBase = next.water;
   if (changed('coastGlow')) applyCoastGlow(next);
-  if (changed('vignetteTop') || changed('vignetteBottom') || changed('vignetteEdge')) applyDayVignette(next);
+if (changed('vignetteTop') || changed('vignetteBottom') || changed('vignetteEdge') || changed('moonWash')) applyDayVignette(next);
   if (changed('bg') || changed('glowColor') || changed('glowOpacity')){
     const { tint, active } = getCategoryMix(state.activeExperience);
     if (changed('bg')){
