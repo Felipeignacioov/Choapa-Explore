@@ -5329,8 +5329,14 @@ function renderTerrainDepth(){
     // mismo ciclo, misma amplitud (2.5%), mismos 240ms.
     registerAmbientTick(() => {
       if (!map.getLayer('water')) return;
-      const wobble = (Math.sin(performance.now() / 1650) + 1) / 2 * 0.025; // 0 → 2.5%
-      map.setPaintProperty('water', 'fill-color', blendHex(currentWaterBase, '#FFFFFF', wobble));
+      // Respiración orgánica: dos ondas lentas combinadas (≈16 s y ≈7 s), nunca un pulso mecánico.
+      const t = performance.now();
+      const wave = 0.62 * Math.sin(t / 2600) + 0.38 * Math.sin(t / 1130 + 1.3); // -1 → 1, irregular
+      const wobble = (wave + 1) / 2 * 0.03;                                       // 0 → 3%
+      // Brilla hacia luz teal (no hacia blanco, que agrisa) y sin fundido propio: la variación
+      // por pulso es mínima, así no se reinicia una transición cada 240 ms (causa del titileo).
+      map.setPaintProperty('water', 'fill-color-transition', { duration:0 });
+      map.setPaintProperty('water', 'fill-color', blendHex(currentWaterBase, '#5FE1E8', wobble));
     });
 
     // 2) Textura costera — una segunda línea, más fina y difusa que coast-glow,
