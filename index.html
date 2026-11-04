@@ -5132,9 +5132,15 @@ function tintMapLayers(){
             6, ['case', isTrunk, +(t * 0.75).toFixed(2), +(p * 0.75).toFixed(2)],
             9, ['case', isTrunk, t, p],
             11, ['case', isTrunk, +(t * 1.3).toFixed(2), +(p * 1.3).toFixed(2)]];
-                  map.setPaintProperty(l.id, 'line-color', ['case', isTrunk, '#A3BAC5', '#7A95A3']); // principales: un tono más claro que el terreno para que el ojo las encuentre
-          map.setPaintProperty(l.id, 'line-opacity', ['case', isTrunk, 0.95, 0.75]);
-          map.setPaintProperty(l.id, 'line-width', byZoom(1.6, 0.95));
+                           // Spawn (≤ zoom 9): jerarquía regional validada. Al entrar a la comuna (zoom ~10.2) las principales
+          // crecen y se aclaran para separarse de las calles menores/urbanas (variante A validada por consola).
+          const byClass = (t, p) => ['case', isTrunk, t, p];
+          map.setPaintProperty(l.id, 'line-color', ['interpolate', ['linear'], ['zoom'],
+            9, byClass('#A3BAC5', '#7A95A3'), 10.2, byClass('#A3BAC5', '#8CA7B4')]);
+          map.setPaintProperty(l.id, 'line-opacity', ['interpolate', ['linear'], ['zoom'],
+            9, byClass(0.95, 0.75), 10.2, byClass(1, 0.90)]);
+          map.setPaintProperty(l.id, 'line-width', ['interpolate', ['linear'], ['zoom'],
+            6, byClass(1.2, 0.71), 9, byClass(1.6, 0.95), 10.2, byClass(2.2, 1.6), 11, byClass(2.53, 1.84)]);
           map.setPaintProperty(l.id, 'line-blur', 0);
           if (!map.getLayer('road-regional-casing')){
             map.addLayer({
@@ -5142,7 +5148,7 @@ function tintMapLayers(){
               minzoom: l.minzoom || 0, maxzoom: l.maxzoom || 24,
               filter: isTrunk, // borde solo bajo la Ruta 5
               layout:{ 'line-cap':'round', 'line-join':'round' },
-              paint:{ 'line-color':'#06111A', 'line-opacity':0.85, 'line-width': byZoom(2.6, 0), 'line-blur':0 },
+                         paint:{ 'line-color':'#06111A', 'line-opacity':0.85, 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 1.95, 9, 2.6, 10.2, 3.2, 11, 3.53], 'line-blur':0 },
             }, l.id);
           }
         }
