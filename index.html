@@ -2783,6 +2783,16 @@ img{-webkit-user-drag:none; user-select:none;}
 .auth-sheet .auth-btn-primary:active{ box-shadow:0 3px 9px rgba(22,184,196,0.14), inset 0 1px 0 rgba(255,255,255,0.3); }
 .auth-sheet .auth-btn-secondary{ border-color:rgba(95,225,232,0.26); background:rgba(95,225,232,0.03); }
 .auth-trust-row{ margin-top:6px; padding-top:4px; }
+/* Solo la fila de íconos baja un 12% del espacio libre ("Elige tu mood" queda arriba, intacto; el 88% restante
+   queda sobre los botones). Los espacios entre elementos se fijan a mano con sus valores de siempre. */
+.auth-sheet{ display:grid; grid-template-columns:100%; grid-template-rows:auto 0.12fr auto 0.88fr auto auto auto auto; row-gap:0; }
+.auth-sheet > .auth-mood-line{ grid-row:1; }
+.auth-sheet > .auth-categories{ grid-row:3; margin-top:16px; }
+.auth-sheet > .auth-btn-primary{ grid-row:5; margin-top:18px; }
+.auth-sheet > .auth-btn-secondary{ grid-row:6; margin-top:10px; }
+.auth-sheet > .auth-guest-row{ grid-row:7; margin-top:14px; }
+.auth-sheet > .auth-trust-row{ grid-row:8; margin-top:24px; }
+.auth-sheet > .auth-info-card{ display:none; }
 .auth-mood-line{
   font-size:10.5px; font-weight:700; letter-spacing:1.6px; text-transform:uppercase;
   color:rgba(95,225,232,0.72); margin-bottom:-2px;
