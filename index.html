@@ -981,6 +981,20 @@ img{-webkit-user-drag:none; user-select:none;}
   50%{ opacity:0.85; }
 }
 .comuna-panel.hidden{opacity:0; transform:translateY(10px) scale(0.97); pointer-events:none;}
+/* Cambio de contenido comuna ↔ localidad: el panel se queda quieto y solo su contenido se desvanece y vuelve
+   (en vez de re-entrar el panel completo). */
+.comuna-panel .comuna-panel-title,
+.comuna-panel .comuna-panel-rail,
+.comuna-panel .comuna-panel-list-wrap,
+.comuna-panel .comuna-panel-more{
+  transition: opacity .2s ease, transform .24s cubic-bezier(.2,.9,.28,1);
+}
+.comuna-panel.content-swap .comuna-panel-title,
+.comuna-panel.content-swap .comuna-panel-rail,
+.comuna-panel.content-swap .comuna-panel-list-wrap,
+.comuna-panel.content-swap .comuna-panel-more{
+  opacity:0; transform:translateY(6px);
+}
 .comuna-panel-header{
   display:flex; align-items:center; justify-content:space-between; gap:14px;
     padding:0 14px 2px;
@@ -12844,7 +12858,27 @@ function updateComunaPanelMoreButton(locality, shownCount){
     ? `Seguir explorando ${locality.name} ${chevron}`
     : `Ver más experiencias ${chevron}`;
 }
+// Cambio comuna ↔ localidad con el panel ya visible: transición suave del contenido (sin re-entrar el panel).
+// El token cancela cambios pendientes si el usuario cambia rápido de contexto o sale de la comuna.
+let comunaPanelSwapToken = 0;
 function showComunaPanel(locality){
+  if (!comunaPanel.classList.contains('hidden') && !state.nav.active){
+    const myToken = ++comunaPanelSwapToken;
+    comunaPanel.classList.add('content-swap');
+    const urls = curateComunaPanelPlaces(locality, 3).map(p => p.image).filter(Boolean);
+    const preload = Promise.race([Promise.all(urls.map(preloadMomentImage)), new Promise(r => setTimeout(r, 350))]);
+    Promise.all([preload, new Promise(r => setTimeout(r, 180))]).then(() => {
+      if (myToken !== comunaPanelSwapToken) return;
+      showComunaPanelNow(locality, { skipEnter:true });
+      requestAnimationFrame(() => comunaPanel.classList.remove('content-swap'));
+    });
+    return;
+  }
+  comunaPanelSwapToken++;
+  comunaPanel.classList.remove('content-swap');
+  showComunaPanelNow(locality, { skipEnter:false });
+}
+function showComunaPanelNow(locality, { skipEnter }){
   document.getElementById('comunaPanelTitle').textContent = `En ${locality.name}`;
   comunaPanelVisibleCount = 3; // Fase 5 — cada comuna nueva arranca desde el conteo base
     const list = document.getElementById('comunaPanelList');
@@ -12873,6 +12907,7 @@ function showComunaPanel(locality){
   // terminar para que la próxima comuna pueda volver a dispararla; sin este
   // reset, re-agregar la misma clase ya presente no reinicia el keyframe.
   comunaPanel.classList.remove('entering');
+if (skipEnter) return; // cambio comuna ↔ localidad: el panel no vuelve a "entrar", solo cambia su contenido
   void comunaPanel.offsetWidth; // fuerza reflow — garantiza que el navegador note el remove antes del add
   comunaPanel.classList.add('entering');
   comunaPanel.addEventListener('animationend', () => {
@@ -12891,6 +12926,8 @@ function resetComunaPanelList(){
   comunaPanelVisibleCount = 3;
 }
 function hideComunaPanel(){
+  comunaPanelSwapToken++; // cancela un cambio de contenido pendiente (no debe reaparecer tras salir de la comuna)
+  comunaPanel.classList.remove('content-swap');
   resetComunaPanelList();
   comunaPanel.classList.add('hidden');
   comunaPanelPill.classList.add('hidden');
