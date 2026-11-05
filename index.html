@@ -12100,7 +12100,20 @@ appNoticeEl.innerHTML = '<span class="an-text"></span><button class="an-action" 
   return appNoticeEl;
 }
 function hideAppNotice(){ if (appNoticeEl) appNoticeEl.classList.remove('visible'); }
-function showAppNotice({ tone = 'warn', text, action = null, duration = 4200 }){
+// Si la pantalla de bienvenida está abierta, el aviso queda en espera y se muestra al cerrarse
+// (si llegan varios, vale el último). Ver flushPendingAppNotice() en closeAuthScreen().
+let pendingAppNotice = null;
+function showAppNotice(opts){
+  const auth = document.getElementById('authScreen');
+  if (auth && auth.style.display !== 'none' && !auth.classList.contains('dismissed')){ pendingAppNotice = opts; return; }
+  showAppNoticeNow(opts);
+}
+function flushPendingAppNotice(){
+  if (!pendingAppNotice) return;
+  const opts = pendingAppNotice; pendingAppNotice = null;
+  showAppNotice(opts);
+}
+function showAppNoticeNow({ tone = 'warn', text, action = null, duration = 4200 }){
   const el = ensureAppNotice();
   el.classList.toggle('info', tone === 'info');
   el.querySelector('.an-text').textContent = text;
@@ -13991,7 +14004,8 @@ function showSupabaseLoadNotice(){
   showAppNotice({
     text: navigator.onLine ? 'No pudimos cargar las experiencias. Inténtalo de nuevo.' : 'Sin conexión: no pudimos cargar las experiencias.',
     action:{ label:'Reintentar', onClick: initSupabaseSync },
-    duration:10000,
+     duration:10000,
+    key:'supabase-load', // para descartarlo si la carga se recupera antes de mostrarse
   });
 }
 function initSupabaseSync(){
@@ -14002,7 +14016,8 @@ function initSupabaseSync(){
     SupabaseDataLayer.loadAll().then(result => {
  mapLoadPromise.then(() => {
       applySupabaseData(result);
-      supabaseLoadFailed = !!result.experiencesFailed;
+  supabaseLoadFailed = !!result.experiencesFailed;
+      if (!result.experiencesFailed && pendingAppNotice && pendingAppNotice.key === 'supabase-load') pendingAppNotice = null;
       if (result.experiencesFailed) showSupabaseLoadNotice();
     });
    }).catch(err => {
@@ -14167,7 +14182,7 @@ function showAuthForm(mode){
 }
 function closeAuthScreen(){
   authScreen.classList.add('dismissed');
-  setTimeout(() => { authScreen.style.display = 'none'; }, 420); // tras el fade — libera el DOM de interacción
+setTimeout(() => { authScreen.style.display = 'none'; flushPendingAppNotice(); }, 420); // tras el fade — libera el DOM de interacción y muestra un aviso pendiente
 }
 
 document.getElementById('authRegisterBtn').addEventListener('click', () => showAuthForm('register'));
