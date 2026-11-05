@@ -5338,11 +5338,26 @@ const MAP_REFERENCE_TEXT_COLOR = blendHex(roadColor(0.3), '#5FE1E8', 0.38);
       // Nombres de calles — más discretos y solo desde un zoom cercano, para que
       // nunca compitan con los POIs (que recién aparecen a ese mismo nivel).
       if (l.type === 'symbol' && l.id.indexOf('highway_name') === 0){
-        map.setPaintProperty(l.id, 'text-opacity', 0.46);
+       // Nombres de calles legibles: principales desde zoom 14; calles de barrio recién desde 15.5 (para no ensuciar).
+        const NAME_MAJORS = ['motorway', 'trunk', 'primary', 'secondary', 'tertiary'];
+        map.setPaintProperty(l.id, 'text-opacity', ['interpolate', ['linear'], ['zoom'],
+          13, ['match', ['get','class'], NAME_MAJORS, 0.55, 0],
+          14, ['match', ['get','class'], NAME_MAJORS, 0.82, 0],
+          15.5, ['match', ['get','class'], NAME_MAJORS, 0.88, 0],
+          16.2, ['match', ['get','class'], NAME_MAJORS, 0.88, 0.62]]);
         map.setPaintProperty(l.id, 'text-color', MAP_REFERENCE_TEXT_COLOR);
         map.setPaintProperty(l.id, 'text-halo-color', 'rgba(11,23,38,0.8)');
         map.setPaintProperty(l.id, 'text-halo-width', 0.8);
-        map.setLayoutProperty(l.id, 'text-size', 9.5);
+      map.setLayoutProperty(l.id, 'text-size', ['interpolate', ['linear'], ['zoom'],
+          13, 9.5,
+          15, ['match', ['get','class'], ['motorway', 'trunk', 'primary', 'secondary', 'tertiary'], 11, 10],
+          17, ['match', ['get','class'], ['motorway', 'trunk', 'primary', 'secondary', 'tertiary'], 12.5, 11]]);
+        // Principales en un tono más claro de la misma familia; borde oscuro más firme para leerse sobre cualquier fondo.
+        map.setPaintProperty(l.id, 'text-color', ['match', ['get','class'],
+          ['motorway', 'trunk', 'primary', 'secondary', 'tertiary'], blendHex(MAP_REFERENCE_TEXT_COLOR, '#D4E0E6', 0.35),
+          MAP_REFERENCE_TEXT_COLOR]);
+        map.setPaintProperty(l.id, 'text-halo-color', 'rgba(11,23,38,0.9)');
+        map.setPaintProperty(l.id, 'text-halo-width', 1.2);
         map.setLayoutProperty(l.id, 'text-font', MAP_REFERENCE_TEXT_FONT);
         map.setLayerZoomRange(l.id, 13, 24);
       }
