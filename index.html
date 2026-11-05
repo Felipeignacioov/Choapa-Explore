@@ -1175,6 +1175,18 @@ img{-webkit-user-drag:none; user-select:none;}
   box-shadow:inset 0 0 0 1px rgba(180,200,220,0.12);
 }
 .comuna-list-item .cli-name{ font-size:12.5px; }
+/* Bordes del scroll pulidos: barra de scroll oculta (el gesto sigue igual), degradado superior solo cuando ya
+   se bajó en la lista, y margen inferior cuando no hay botón "Ver más" debajo. */
+.comuna-panel-list{ scrollbar-width:none; }
+.comuna-panel-list::-webkit-scrollbar{ display:none; }
+.comuna-panel-list-wrap.expanded::before{
+  content:''; position:absolute; left:0; right:0; top:0; height:22px; z-index:1;
+  background:linear-gradient(to top, rgba(16,36,56,0), rgba(16,36,56,0.94));
+  pointer-events:none; opacity:0; transition:opacity .2s ease;
+}
+.comuna-panel-list-wrap.expanded.scrolled::before{ opacity:1; }
+.comuna-panel:has(.comuna-panel-more[style*="none"]) .comuna-panel-list-wrap.expanded{ margin-bottom:8px; }
+.comuna-panel:has(.comuna-panel-more[style*="none"]) .comuna-panel-list-wrap.expanded .comuna-panel-list{ padding-bottom:8px; }
 
 /* Píldora minimizada del panel "En [Comuna]" — mismo lenguaje visual que
    .sheet-pill (misma superficie/blur/radius/shadow), pero es un elemento
@@ -12623,6 +12635,8 @@ const comunaPanelListEl = document.getElementById('comunaPanelList');
 const comunaPanelMoreBtn = document.getElementById('comunaPanelMore');
 const comunaPanelListWrapEl = document.getElementById('comunaPanelListWrap');
 function updateComunaPanelScrollHighlight(){
+  // Degradado superior: solo con la lista expandida y cuando ya se bajó un poco
+  comunaPanelListWrapEl.classList.toggle('scrolled', comunaPanelListWrapEl.classList.contains('expanded') && comunaPanelListEl.scrollTop > 4);
   // Guarda contra un evento 'scroll' asíncrono/tardío: al vaciar la lista
   // (list.innerHTML='') mientras estaba scrolleada al fondo, el navegador
   // clampa scrollTop a 0 y dispara 'scroll' en una tarea aparte — después de
