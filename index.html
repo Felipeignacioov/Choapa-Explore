@@ -2972,6 +2972,22 @@ img{-webkit-user-drag:none; user-select:none;}
 .app-notice.info::before{ background:var(--turquoise-bright); box-shadow:0 0 0 3px rgba(95,225,232,0.15); }
 .app-notice .an-text{ flex:1; min-width:0; }
 .app-notice .an-action{ flex-shrink:0; font-weight:700; font-size:12.5px; color:var(--turquoise-bright); padding:4px 2px; }
+/* Título opcional en negrita + línea secundaria (ej. "Recuerdo guardado" · "Cerro Chico · Salamanca"). */
+.app-notice .an-text{ display:flex; flex-direction:column; gap:1px; }
+.app-notice .an-title{ font-family:var(--font-display); font-size:13px; font-weight:700; color:var(--text-primary); }
+.app-notice.has-title .an-body{ font-size:12px; color:var(--text-secondary); }
+/* Tono de éxito: check turquesa dentro de un círculo suave (reemplaza al antiguo ícono de destello). */
+.app-notice.success{ padding-left:40px; }
+.app-notice.success::before{
+  width:20px; height:20px; margin-top:-10px; left:11px;
+  background:rgba(95,225,232,0.12); border:1px solid rgba(95,225,232,0.38); box-shadow:none;
+}
+.app-notice.success::after{
+  content:''; position:absolute; left:16px; top:50%; width:11px; height:11px; margin-top:-5.5px;
+  background:var(--turquoise-bright);
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5 9.5 17 19 7'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5 9.5 17 19 7'/%3E%3C/svg%3E") center/contain no-repeat;
+}
 /* Mensajes de error dentro de paneles (transporte, ruta, navegación, desbloqueo): mismo estilo "nota serena",
    sin el rojo de alerta. El ícono queda en coral suave. */
 .transport-status.error, .rsp-status.error, .anh-status.error, .pd-discover-status.error{
@@ -7318,8 +7334,10 @@ function updateMemoryButtonLockState(place){
 // .memory-toast (ver HTML); no se reutiliza showMemoryToast() porque su
 // título "Recuerdo guardado" viene fijo en el HTML y no aplica acá. Se
 // retira sola, sin bloquear ninguna otra interacción.
-let discoverToastTimer = null;
-function showDiscoverSuccessToast(){
+let discoverToastTimer = null;function showDiscoverSuccessToast(){
+  showAppNotice({ tone:'success', title:'Experiencia desbloqueada', text:'Ahora forma parte de tu álbum.', duration:3200 });
+}
+function showDiscoverSuccessToastLegacy(){function showDiscoverSuccessToast(){
   const toast = document.getElementById('discoverSuccessToast');
   toast.classList.add('visible');
   clearTimeout(discoverToastTimer);
@@ -10036,6 +10054,9 @@ const MemoryStore = {
 };
 // Aviso de error con el mismo toast de recuerdos (el título fijo "Recuerdo guardado" no sirve para errores).
 function showMemoryErrorToast(message){
+  showAppNotice({ text: message || 'No se pudo completar. Inténtalo de nuevo.' });
+}
+function showMemoryErrorToastLegacy(message){
   const t = memoryToast.querySelector('.mt-title');
   t.textContent = 'No se pudo completar';
   showMemoryToast(message || 'Inténtalo de nuevo', '');
@@ -10044,6 +10065,9 @@ function showMemoryErrorToast(message){
 // Éxito de recuerdos libres: mismo toast (#memoryToast), el mensaje va en el título para no contradecir el texto fijo.
 let freeMemoryToastTitleTimer = null;
 function showFreeMemorySuccessToast(message, subtitle){
+  showAppNotice({ tone:'success', title: message, text: subtitle || 'Recuerdos del Choapa', duration:3200 });
+}
+function showFreeMemorySuccessToastLegacy(message, subtitle){
   const t = memoryToast.querySelector('.mt-title');
   t.textContent = message;
    showMemoryToast(subtitle || 'Recuerdos del Choapa', '');
@@ -11597,9 +11621,7 @@ function finishNavigation(reason){
   updateManeuverDisplay(null);
 
   if (reason === 'arrived'){
-    document.getElementById('arrivalToastSub').textContent = state.nav.targetPlace ? state.nav.targetPlace.name : '';
-    arrivalToast.classList.add('visible');
-    setTimeout(() => arrivalToast.classList.remove('visible'), 3200);
+        showAppNotice({ tone:'success', title:'¡Llegaste a tu destino!', text: state.nav.targetPlace ? state.nav.targetPlace.name : '', duration:3600 });
   }
 
   clearNavRoute(); // ya limpia capa/fuente de ruta, marcador de destino, y resetea state.nav.active + tiers
@@ -11978,7 +12000,11 @@ const memoryFileInput = document.getElementById('memoryFileInput');
 const memoryToast = document.getElementById('memoryToast');
 let toastTimer = null;
 
+// Confirmación "Recuerdo guardado" — componente de avisos (abajo, con check), ya no el toast superior.
 function showMemoryToast(title, subtitle){
+  showAppNotice({ tone:'success', title:'Recuerdo guardado', text: subtitle ? `${title} · ${subtitle}` : title, duration:3200 });
+}
+function showMemoryToastLegacy(title, subtitle){
   document.getElementById('memoryToastSub').textContent = subtitle ? `${title} · ${subtitle}` : title;
   memoryToast.classList.add('visible');
   clearTimeout(toastTimer);
@@ -12147,7 +12173,7 @@ function ensureAppNotice(){
   appNoticeEl.className = 'app-notice';
   appNoticeEl.setAttribute('role', 'status');
   appNoticeEl.setAttribute('aria-live', 'polite');
-appNoticeEl.innerHTML = '<span class="an-text"></span><button class="an-action" type="button" hidden></button>';
+appNoticeEl.innerHTML = '<span class="an-text"><span class="an-title" hidden></span><span class="an-body"></span></span><button class="an-action" type="button" hidden></button>';
   // Tocar el aviso lo cierra (si estorba, se descarta con un toque); su botón de acción sigue funcionando normal.
   appNoticeEl.addEventListener('click', (e) => { if (!e.target.closest('.an-action')) hideAppNotice(); });
   document.getElementById('app').appendChild(appNoticeEl);
@@ -12166,11 +12192,15 @@ function flushPendingAppNotice(){
   if (!pendingAppNotice) return;
   const opts = pendingAppNotice; pendingAppNotice = null;
   showAppNotice(opts);
-}
-function showAppNoticeNow({ tone = 'warn', text, action = null, duration = 4200 }){
+}function showAppNoticeNow({ tone = 'warn', title = '', text, action = null, duration = 4200 }){
   const el = ensureAppNotice();
-  el.classList.toggle('info', tone === 'info');
-  el.querySelector('.an-text').textContent = text;
+el.classList.toggle('info', tone === 'info');
+  el.classList.toggle('success', tone === 'success');
+  el.classList.toggle('has-title', !!title);
+  const titleEl = el.querySelector('.an-title');
+  titleEl.textContent = title || '';
+  titleEl.hidden = !title;
+ el.querySelector('.an-body').textContent = text || '';
   const btn = el.querySelector('.an-action');
   if (action){ btn.hidden = false; btn.textContent = action.label; btn.onclick = () => { hideAppNotice(); action.onClick(); }; }
   else { btn.hidden = true; btn.onclick = null; }
@@ -12539,7 +12569,7 @@ renderTodayRail();
 // esta función es el ÚNICO lugar a reemplazar para abrir el planificador (y
 // comprobar el acceso Premium). Mientras tanto reutiliza el mismo aviso honesto
 // «Próximamente» que ya usan Perfil y Configuración, sin simular la función.
-function openPremiumPlanner(){ showMemoryToast('Planificador inteligente', 'Próximamente'); }
+function openPremiumPlanner(){ showAppNotice({ tone:'info', title:'Planificador inteligente', text:'Muy pronto disponible.', duration:3200 }); }
 document.getElementById('premiumPlannerCard').addEventListener('click', openPremiumPlanner);
 
 const placesRail = document.getElementById('placesRail');
@@ -14322,7 +14352,11 @@ function resetPasswordVisibility(){
 // componente, igual patrón que arrivalToast ya es respecto a memoryToast.
 // Timer propio para no interferir con el de los recuerdos guardados.
 let authWelcomeToastTimer = null;
+// Aparece justo al cerrarse la pantalla de ingreso (el aviso espera a que se cierre).
 function showAuthWelcomeToast(email){
+  showAppNotice({ tone:'success', title:'¡Bienvenido de vuelta!', text: email || 'Sesión iniciada correctamente', duration:3200 });
+}
+function showAuthWelcomeToastLegacy(email){
   document.getElementById('authWelcomeToastSub').textContent = email || 'Sesión iniciada correctamente';
   document.getElementById('authWelcomeToast').classList.add('visible');
   clearTimeout(authWelcomeToastTimer);
@@ -14512,13 +14546,13 @@ function renderProfileMenu(){
     // Perfil/Configuración: placeholders honestos — reutilizan el toast ya
     // existente (showMemoryToast) en vez de simular una función que no
     // existe todavía.
-    items.push({ icon:'gear', label:'Configuración', action:() => { closeProfileMenu(); showMemoryToast('Configuración', 'Próximamente'); } });
+    items.push({ icon:'gear', label:'Configuración', action:() => { closeProfileMenu(); showAppNotice({ tone:'info', title:'Configuración', text:'Muy pronto disponible.', duration:3200 }); } });
        items.push({ icon:'info', label:'Acerca de Choapa Explore', action:openAboutModal });
     items.push({ divider:true });
     items.push({ icon:'logout', label:'Cerrar sesión', danger:true, action: async () => {
       closeProfileMenu();
       await AuthService.logout(); // real — supabaseClient.auth.signOut()
-      showMemoryToast('Sesión cerrada', '');
+  showAppNotice({ tone:'info', text:'Cerraste sesión. Puedes seguir explorando como invitado.', duration:3600 });
     }});
   } else {
     profileMenuName.textContent = 'Explorando como invitado';
