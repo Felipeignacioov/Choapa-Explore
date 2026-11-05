@@ -2783,6 +2783,13 @@ img{-webkit-user-drag:none; user-select:none;}
 .auth-view-welcome .auth-hero-overlay{ display:none; }
 .auth-view-welcome .auth-sheet{ position:relative; z-index:1; flex:0 0 auto; margin-top:0; overflow:visible; }
 .auth-view-welcome .auth-trust-row{ margin-top:4px; }
+/* Una sola idea antes de los botones (validada por consola, variante A): una línea sobre las categorías
+   reemplaza a la tarjeta "¿Qué hacer hoy…? Elige tu mood…", que decía lo mismo. */
+.auth-view-welcome .auth-info-card{ display:none; }
+.auth-mood-line{
+  text-align:center; font-family:var(--font-display); font-size:13px; font-weight:600;
+  letter-spacing:0.2px; color:rgba(244,247,250,0.78); margin-bottom:-4px;
+}
 @media (prefers-reduced-motion: reduce){
   .auth-view-welcome::before{ animation:none; }
 }
@@ -3993,6 +4000,7 @@ img{-webkit-user-drag:none; user-select:none;}
       </div>
 
       <div class="auth-sheet">
+      <div class="auth-mood-line">Elige tu mood y descubre el valle</div>
         <div class="auth-categories" id="authCategories"></div>
 
         <div class="auth-info-card">
