@@ -2403,6 +2403,25 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 .transport-mode-btn .tm-icon{display:flex;}
 .transport-mode-btn .tm-label{font-size:12px; font-weight:600;}
+/* Selector "Añadir recuerdo": opciones claras y táctiles (ícono en círculo turquesa, nombre en blanco + ayuda).
+   Solo en #memorySourceSheet: el selector de transporte de "Cómo llegar" no cambia. */
+#memorySourceSheet .transport-mode-btn{
+  gap:10px; padding:18px 10px 16px;
+  background:linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.025));
+  border-color:rgba(180,200,220,0.16);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.06);
+}
+#memorySourceSheet .transport-mode-btn:active{
+  background:rgba(22,184,196,0.12); border-color:rgba(95,225,232,0.4);
+}
+#memorySourceSheet .tm-icon{
+  width:46px; height:46px; border-radius:50%;
+  align-items:center; justify-content:center; color:var(--turquoise-bright);
+  background:rgba(95,225,232,0.08); border:1px solid rgba(95,225,232,0.28);
+}
+#memorySourceSheet .tm-icon svg{ width:22px; height:22px; }
+#memorySourceSheet .tm-label{ font-size:13px; font-weight:700; color:var(--text-primary); }
+#memorySourceSheet .tm-sub{ font-size:11px; font-weight:500; color:var(--text-tertiary); margin-top:-6px; }
 .transport-status{
   margin-top:16px; padding:11px 14px; border-radius:var(--radius-m);
   display:flex; align-items:center; gap:8px;
@@ -3833,11 +3852,13 @@ img{-webkit-user-drag:none; user-select:none;}
       <div class="transport-modes">
         <button class="transport-mode-btn" id="memorySourceCamera">
           <span class="tm-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13.5" r="3.3"/></svg></span>
-          <span class="tm-label">Tomar foto</span>
+       <span class="tm-label">Tomar foto</span>
+          <span class="tm-sub">Usa la cámara</span>
         </button>
         <button class="transport-mode-btn" id="memorySourceGallery">
           <span class="tm-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2.2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 17 5-4.5 3.5 3 2.5-2L20 17"/></svg></span>
-          <span class="tm-label">Elegir de galería</span>
+      <span class="tm-label">Elegir de galería</span>
+          <span class="tm-sub">Desde tus fotos</span>
         </button>
       </div>
     </div>
