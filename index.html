@@ -2914,6 +2914,29 @@ img{-webkit-user-drag:none; user-select:none;}
   to{ opacity:1; transform:none; }
 }
 
+/* ================= FORMULARIOS REFINADOS (validados por consola: 1 + 2C + 3 + 4) =================
+   Aplica a Iniciar sesión, Crear cuenta y Recuperar contraseña (comparten .auth-view-form).
+   1 · Botón principal con el mismo acabado que la bienvenida (relleno sólido, sombra corta).
+   2C · Resplandor turquesa muy suave detrás del logo: atmósfera de marca sin foto.
+   3 · Bloque centrado verticalmente: sin vacío en la mitad inferior.
+   4 · Subtítulos balanceados, enlace de contraseña más ligero, etiquetas refinadas. */
+.auth-form .auth-btn-primary{
+  background:linear-gradient(180deg, #4FD6DD 0%, #19B6C1 100%);
+  box-shadow:0 6px 16px rgba(22,184,196,0.16), inset 0 1px 0 rgba(255,255,255,0.35);
+  font-weight:700; letter-spacing:0.25px;
+}
+.auth-form .auth-btn-primary:active{ box-shadow:0 3px 9px rgba(22,184,196,0.14), inset 0 1px 0 rgba(255,255,255,0.3); }
+.auth-view-form{ position:relative; overflow:hidden; }
+.auth-view-form::before{
+  content:''; position:absolute; left:0; right:0; top:0; height:60%; z-index:0; pointer-events:none;
+  background:radial-gradient(ellipse at 50% 22%, rgba(22,184,196,0.14), rgba(22,184,196,0) 62%);
+}
+.auth-view-form > *{ position:relative; z-index:1; }
+.auth-view-form .auth-form-inner{ justify-content:center; padding-bottom:8vh; }
+.auth-form-sub{ max-width:300px; text-wrap:balance; }
+.auth-forgot-link{ font-weight:500; color:rgba(95,225,232,0.85); }
+.auth-field-label{ font-weight:600; letter-spacing:0.3px; }
+
 /* ================= MENÚ DE PERFIL ================= */
 .profile-menu-backdrop{position:fixed; inset:0; z-index:49; display:none;}
 .profile-menu-backdrop.visible{display:block;}
