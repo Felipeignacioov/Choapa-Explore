@@ -2972,6 +2972,12 @@ img{-webkit-user-drag:none; user-select:none;}
 .app-notice.info::before{ background:var(--turquoise-bright); box-shadow:0 0 0 3px rgba(95,225,232,0.15); }
 .app-notice .an-text{ flex:1; min-width:0; }
 .app-notice .an-action{ flex-shrink:0; font-weight:700; font-size:12.5px; color:var(--turquoise-bright); padding:4px 2px; }
+/* Mensajes de error dentro de paneles (transporte, ruta, navegación, desbloqueo): mismo estilo "nota serena",
+   sin el rojo de alerta. El ícono queda en coral suave. */
+.transport-status.error, .rsp-status.error, .anh-status.error, .pd-discover-status.error{
+  color:rgba(244,247,250,0.88); border-color:rgba(232,165,140,0.22); background:rgba(16,36,56,0.55);
+}
+.transport-status.error svg, .rsp-status.error svg, .anh-status.error svg{ color:#E8A58C; flex-shrink:0; }
 @media (min-width:640px){
   .app-notice{ max-width:520px; left:50%; right:auto; width:calc(100% - 32px); transform:translate(-50%,12px); }
   .app-notice.visible{ transform:translate(-50%,0); }
@@ -4477,7 +4483,9 @@ const SupabaseDataLayer = {
       console.error('[Supabase] Error cargando experiences:', experiencesResult.reason);
     }
 
-    return transformSupabaseData(communesRows, localitiesRows, experiencesRows);
+   const out = transformSupabaseData(communesRows, localitiesRows, experiencesRows);
+    out.experiencesFailed = experiencesResult.status === 'rejected'; // solo para el aviso; no cambia los datos
+    return out;
   },
 };
 
@@ -10448,6 +10456,7 @@ document.getElementById('poiDetailSave').addEventListener('click', (e) => {
 const transportSheetEl = document.getElementById('transportSheet');
 
 function openTransportModeSheet(place){
+  if (!navigator.onLine){ showAppNotice({ text:'Necesitas conexión a internet para calcular la ruta.' }); return; }
   state.nav.targetPlace = place;
   state.nav.mode = null;
   document.querySelectorAll('.transport-mode-btn').forEach(b => b.classList.remove('active'));
@@ -10495,8 +10504,10 @@ function requestUserLocationForNav(mode){
     statusEl.className = 'transport-status error';
     statusEl.innerHTML = err.code === 1
       ? `${icon('pin', 14)} Necesitamos tu ubicación para calcular la ruta. Revisa los permisos del navegador e inténtalo de nuevo.`
-      : `${icon('pin', 14)} No pudimos obtener tu ubicación. Inténtalo de nuevo.`;
-  });
+            : err.code === 3
+        ? `${icon('pin', 14)} No pudimos obtener tu ubicación a tiempo. Inténtalo de nuevo.`
+        : `${icon('pin', 14)} No pudimos obtener tu ubicación. Inténtalo de nuevo.`;
+  }, { enableHighAccuracy:true, timeout:12000, maximumAge:30000 });
 }
 document.querySelectorAll('.transport-mode-btn').forEach(btn => {
   btn.addEventListener('click', () => requestUserLocationForNav(btn.dataset.mode));
@@ -10637,6 +10648,28 @@ function flattenORSSteps(feature){
   return steps;
 }
 
+// Mensajes claros cuando no se puede calcular una ruta (Fase 2 de avisos).
+// Distancia en línea recta sobre la que ir a pie / en bici deja de tener sentido: se avisa sin consultar a ORS.
+const ROUTE_MAX_STRAIGHT_KM = { 'foot-walking': 40, 'cycling-regular': 150 };
+function routeTooFarMessage(mode, from, to){
+  const limit = ROUTE_MAX_STRAIGHT_KM[mode];
+  if (!limit) return null;
+  const km = distanceKm(from.lat, from.lng, to.lat, to.lng);
+  if (km <= limit) return null;
+  const rounded = km >= 100 ? Math.round(km / 10) * 10 : Math.round(km);
+  return mode === 'foot-walking'
+    ? `Está a unos ${rounded} km: es demasiado lejos para ir a pie. Prueba en automóvil.`
+    : `Está a unos ${rounded} km: es demasiado lejos para ir en bicicleta. Prueba en automóvil.`;
+}
+function routeErrorMessage(err, mode){
+  if (err && err.userMessage) return err.userMessage;
+  if (!navigator.onLine) return 'Sin conexión. Conéctate a internet para calcular la ruta.';
+  const modeLabel = { 'foot-walking':'a pie', 'cycling-regular':'en bicicleta', 'driving-car':'en automóvil' }[mode] || '';
+  const code = err && err.orsCode;
+  if (code === 2004) return `Es demasiado lejos para ir ${modeLabel}. Prueba con otro modo de transporte.`;
+  if (code === 2009 || code === 2010) return `No encontramos un camino ${modeLabel} hasta aquí. Prueba con otro modo de transporte.`;
+  return 'No pudimos calcular la ruta. Inténtalo de nuevo en unos momentos.';
+}
 async function fetchRoute(mode, from, to){
   const myToken = ++state.nav.requestToken;
   const res = await fetch(`https://api.openrouteservice.org/v2/directions/${mode}/geojson`, {
@@ -10648,7 +10681,14 @@ async function fetchRoute(mode, from, to){
     body: JSON.stringify({ coordinates:[[from.lng, from.lat], [to.lng, to.lat]], language:'es' }),
   });
   if (myToken !== state.nav.requestToken) return null; // hay una petición más nueva en curso — se descarta esta respuesta
-  if (!res.ok) throw new Error(`ORS respondió ${res.status}`);
+if (!res.ok){
+    // Se lee el código de error de ORS (ej. 2004 = demasiado lejos, 2009/2010 = sin camino) para un mensaje claro.
+    let orsCode = null;
+    try { const body = await res.json(); orsCode = body && body.error && body.error.code; } catch(e){}
+    const e = new Error(`ORS respondió ${res.status}`);
+    e.status = res.status; e.orsCode = orsCode;
+    throw e;
+  }
   const data = await res.json();
   if (myToken !== state.nav.requestToken) return null;
   const feature = data.features && data.features[0];
@@ -11039,6 +11079,8 @@ document.getElementById('app').classList.add('route-preview'); // estilo de "pun
   renderRouteSummaryPanel();
 
   try{
+ const tooFar = routeTooFarMessage(mode, userCoords, place);
+    if (tooFar){ const e = new Error('too-far'); e.userMessage = tooFar; throw e; }
     const route = await fetchRoute(mode, userCoords, place);
     if (!route) return; // respuesta descartada por una petición más nueva
        state.nav.routeGeoJSON = route.geometry;
@@ -11065,7 +11107,7 @@ document.getElementById('app').classList.add('route-preview'); // estilo de "pun
   } catch(err){
     console.error('Error calculando ruta ORS', err);
     rspStatus.className = 'rsp-status error';
-    rspStatus.innerHTML = `${icon('pin', 13)} No pudimos calcular la ruta. Revisa tu conexión e inténtalo de nuevo.`;
+rspStatus.innerHTML = `${icon('pin', 13)} ${routeErrorMessage(err, mode)}`;
   }
 }
 
@@ -12111,7 +12153,8 @@ window.addEventListener('online', () => {
   clearTimeout(connectionLostTimer);
   if (!connectionWasLost) return;
   connectionWasLost = false;
-  showAppNotice({ tone:'info', text:'Conexión restablecida.', duration:3200 });
+showAppNotice({ tone:'info', text:'Conexión restablecida.', duration:3200 });
+  if (supabaseLoadFailed) initSupabaseSync(); // si la carga había fallado, se reintenta sola
 });
 if (!navigator.onLine){
   connectionWasLost = true;
@@ -13941,15 +13984,31 @@ function applySupabaseData({ newLocalities, newSublocalities, newPlaces }){
   console.info(`[Supabase] Datos remotos aplicados: ${newPlaces.length} experiencias, ${newLocalities.length} comunas.`);
 }
 
+// Aviso cuando no cargan las experiencias, con "Reintentar". Si fue por falta de internet,
+// se reintenta solo al volver la conexión (ver el listener 'online').
+let supabaseLoadFailed = false;
+function showSupabaseLoadNotice(){
+  showAppNotice({
+    text: navigator.onLine ? 'No pudimos cargar las experiencias. Inténtalo de nuevo.' : 'Sin conexión: no pudimos cargar las experiencias.',
+    action:{ label:'Reintentar', onClick: initSupabaseSync },
+    duration:10000,
+  });
+}
 function initSupabaseSync(){
    if (!supabaseClient){
     console.info('[Supabase] Sin credenciales configuradas (SUPABASE_URL/SUPABASE_ANON_KEY) — no se pueden cargar datos remotos.');
     return;
   }
     SupabaseDataLayer.loadAll().then(result => {
-    mapLoadPromise.then(() => applySupabaseData(result));
+ mapLoadPromise.then(() => {
+      applySupabaseData(result);
+      supabaseLoadFailed = !!result.experiencesFailed;
+      if (result.experiencesFailed) showSupabaseLoadNotice();
+    });
    }).catch(err => {
-    console.error('[Supabase] No se pudieron cargar los datos remotos.', err);
+console.error('[Supabase] No se pudieron cargar los datos remotos.', err);
+    supabaseLoadFailed = true;
+    showSupabaseLoadNotice();
   });
 }
 /* ============================================================
