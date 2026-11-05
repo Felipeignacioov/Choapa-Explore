@@ -2950,6 +2950,39 @@ img{-webkit-user-drag:none; user-select:none;}
   border-radius:50%; background:#E8A58C; box-shadow:0 0 0 3px rgba(232,165,140,0.15);
 }
 
+/* ================= AVISOS DE LA APP (nota serena) =================
+   Componente único para avisar cuando algo no sale como se espera (ubicación, conexión, guardar…).
+   Abajo, sobre la píldora / panel, cerca de donde la persona tocó. Punto coral = algo no salió bien;
+   punto turquesa (.info) = aviso informativo. Se va solo y no bloquea nada. Validado por consola. */
+.app-notice{
+  position:fixed; left:16px; right:16px; z-index:78;
+  bottom:calc(76px + env(safe-area-inset-bottom, 0px) + 86px);
+  display:flex; align-items:center; gap:12px; padding:12px 14px 12px 34px;
+  background:rgba(13,29,45,0.92); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  border:1px solid rgba(180,200,220,0.16); border-radius:var(--radius-m); box-shadow:var(--shadow-modal);
+  color:rgba(244,247,250,0.9); font-size:12.5px; line-height:1.45;
+  opacity:0; transform:translateY(12px); pointer-events:none;
+  transition:opacity .26s ease, transform .34s cubic-bezier(.2,.9,.28,1.1);
+}
+.app-notice.visible{ opacity:1; transform:translateY(0); pointer-events:auto; }
+.app-notice::before{
+  content:''; position:absolute; left:14px; top:50%; width:8px; height:8px; margin-top:-4px; border-radius:50%;
+  background:#E8A58C; box-shadow:0 0 0 3px rgba(232,165,140,0.15);
+}
+.app-notice.info::before{ background:var(--turquoise-bright); box-shadow:0 0 0 3px rgba(95,225,232,0.15); }
+.app-notice .an-text{ flex:1; min-width:0; }
+.app-notice .an-action{ flex-shrink:0; font-weight:700; font-size:12.5px; color:var(--turquoise-bright); padding:4px 2px; }
+@media (min-width:640px){
+  .app-notice{ max-width:520px; left:50%; right:auto; width:calc(100% - 32px); transform:translate(-50%,12px); }
+  .app-notice.visible{ transform:translate(-50%,0); }
+}
+/* Botón de ubicación mientras busca: late suavemente para que se note que está trabajando. */
+.locate-btn.is-locating{ animation:locate-pulse 1.1s ease-in-out infinite; }
+@keyframes locate-pulse{
+  0%,100%{ box-shadow:var(--shadow-float, 0 8px 22px rgba(0,0,0,0.35)), 0 0 0 0 rgba(95,225,232,0.35); }
+  50%{ box-shadow:var(--shadow-float, 0 8px 22px rgba(0,0,0,0.35)), 0 0 0 7px rgba(95,225,232,0); }
+}
+
 /* ================= MENÚ DE PERFIL ================= */
 .profile-menu-backdrop{position:fixed; inset:0; z-index:49; display:none;}
 .profile-menu-backdrop.visible{display:block;}
@@ -12008,7 +12041,59 @@ function placeUserMarker(lat, lng){
     userMarker.setLngLat([lng, lat]);
   }
 }
+// ================= AVISOS DE LA APP (nota serena) =================
+// showAppNotice({ tone:'warn'|'info', text, action:{ label, onClick }, duration })
+// Reutilizable en toda la app: ubicación, conexión, guardar, etc. Se crea la primera vez que se usa.
+let appNoticeEl = null, appNoticeTimer = null;
+function ensureAppNotice(){
+  if (appNoticeEl) return appNoticeEl;
+  appNoticeEl = document.createElement('div');
+  appNoticeEl.className = 'app-notice';
+  appNoticeEl.setAttribute('role', 'status');
+  appNoticeEl.setAttribute('aria-live', 'polite');
+  appNoticeEl.innerHTML = '<span class="an-text"></span><button class="an-action" type="button" hidden></button>';
+  document.getElementById('app').appendChild(appNoticeEl);
+  return appNoticeEl;
+}
+function hideAppNotice(){ if (appNoticeEl) appNoticeEl.classList.remove('visible'); }
+function showAppNotice({ tone = 'warn', text, action = null, duration = 4200 }){
+  const el = ensureAppNotice();
+  el.classList.toggle('info', tone === 'info');
+  el.querySelector('.an-text').textContent = text;
+  const btn = el.querySelector('.an-action');
+  if (action){ btn.hidden = false; btn.textContent = action.label; btn.onclick = () => { hideAppNotice(); action.onClick(); }; }
+  else { btn.hidden = true; btn.onclick = null; }
+  el.classList.add('visible');
+  clearTimeout(appNoticeTimer);
+  appNoticeTimer = setTimeout(hideAppNotice, action ? Math.max(duration, 6000) : duration);
+}
+
+// Botón de ubicación (abajo a la derecha), con avisos claros:
+// · Fuera del Choapa: la cámara NO se mueve (antes volaba y rebotaba contra los límites) y avisa la distancia.
+// · Sin permiso / GPS lento o sin señal (tiempo límite de 12 s): aviso coral, con "Reintentar" cuando aplica.
+// · Mientras busca, el botón late suavemente.
+const CHOAPA_VALLEY_CENTER = { lat:-31.6, lng:-71.1 }; // centro aproximado del valle (solo para la distancia del aviso)
 function centerOnUser(){
+  const btn = document.getElementById('btnCenterMe');
+  if (!navigator.geolocation){ showAppNotice({ text:'Tu dispositivo no permite usar la ubicación.' }); return; }
+  btn.classList.add('is-locating');
+  navigator.geolocation.getCurrentPosition(pos => {
+    btn.classList.remove('is-locating');
+    const { latitude: lat, longitude: lng } = pos.coords;
+    placeUserMarker(lat, lng);
+    if (!isInsideChoapa(lat, lng)){
+      const km = Math.max(10, Math.round(distanceKm(lat, lng, CHOAPA_VALLEY_CENTER.lat, CHOAPA_VALLEY_CENTER.lng) / 10) * 10);
+      showAppNotice({ tone:'info', text:`Estás a unos ${km} km del Valle del Choapa. Cuando llegues, te mostraremos en el mapa.`, duration:5600 });
+      return;
+    }
+    map.easeTo({ center:[lng, lat], zoom:13, duration:600 });
+  }, err => {
+    btn.classList.remove('is-locating');
+    if (err.code === 1) showAppNotice({ text:'Activa la ubicación en tu navegador para verte en el mapa.', duration:5200 });
+    else showAppNotice({ text:'No pudimos encontrar tu ubicación. Inténtalo de nuevo.', action:{ label:'Reintentar', onClick: centerOnUser } });
+  }, { enableHighAccuracy:true, timeout:12000, maximumAge:30000 });
+}
+function centerOnUserLegacy(){
   if (!navigator.geolocation){ return; }
   navigator.geolocation.getCurrentPosition(pos => {
     const { latitude, longitude } = pos.coords;
