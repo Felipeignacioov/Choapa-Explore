@@ -1157,6 +1157,24 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 .comuna-list-item .cli-tag{display:inline-flex; align-items:center; gap:4px; font-size:9.5px; font-weight:600; color:var(--text-secondary);}
 .comuna-list-item .cli-tag .dot{width:4px; height:4px; border-radius:50%; background:var(--tag-color, currentColor);}
+/* Lista "Ver más experiencias" más ligera: filas sin caja propia (sin "cajas dentro de cajas"), separadas por una
+   línea finísima que empieza después de la foto, fondo suave solo al tocar y foto algo más grande. */
+.comuna-panel-list{ gap:0; }
+.comuna-list-item{
+  position:relative; gap:12px; padding:7px 6px;
+  background:transparent; border:none; border-radius:var(--radius-m);
+  transition:background .16s ease;
+}
+.comuna-list-item + .comuna-list-item::before{
+  content:''; position:absolute; top:0; left:70px; right:6px; height:1px;
+  background:rgba(180,200,220,0.08); pointer-events:none;
+}
+.comuna-list-item:active{ transform:none; background:rgba(95,225,232,0.06); }
+.comuna-list-item .cli-photo{
+  width:52px; height:52px; border-radius:12px;
+  box-shadow:inset 0 0 0 1px rgba(180,200,220,0.12);
+}
+.comuna-list-item .cli-name{ font-size:12.5px; }
 
 /* Píldora minimizada del panel "En [Comuna]" — mismo lenguaje visual que
    .sheet-pill (misma superficie/blur/radius/shadow), pero es un elemento
