@@ -2766,6 +2766,32 @@ img{-webkit-user-drag:none; user-select:none;}
   letter-spacing:0.2px; color:rgba(244,247,250,0.78); margin-bottom:-4px;
 }
 
+/* ================= BIENVENIDA REFINADA (validada por consola: A + B + C + D + composición 9/20) =================
+   A · Foto con más presencia: ocupa más alto y el vacío inferior se llena con valle.
+   E · Marca a la altura de las montañas; categorías cerca de la marca; botones anclados abajo.
+   B · "Tu información está segura" pegado al grupo de acciones.
+   C · Botones refinados: relleno sólido y sombra corta (sin resplandor amplio).
+   D · "Elige tu mood…" como antetítulo de marca (versalitas espaciadas, lenguaje de EXPLORE). */
+.auth-hero{ min-height:54vh; align-items:flex-start; padding-top:calc(9vh + var(--safe-top)); }
+.auth-sheet{ justify-content:flex-start; margin-top:-20px; }
+.auth-sheet .auth-btn-primary{
+  margin-top:auto;
+  background:linear-gradient(180deg, #4FD6DD 0%, #19B6C1 100%);
+  box-shadow:0 6px 16px rgba(22,184,196,0.16), inset 0 1px 0 rgba(255,255,255,0.35);
+  font-weight:700; letter-spacing:0.25px;
+}
+.auth-sheet .auth-btn-primary:active{ box-shadow:0 3px 9px rgba(22,184,196,0.14), inset 0 1px 0 rgba(255,255,255,0.3); }
+.auth-sheet .auth-btn-secondary{ border-color:rgba(95,225,232,0.26); background:rgba(95,225,232,0.03); }
+.auth-trust-row{ margin-top:6px; padding-top:4px; }
+.auth-mood-line{
+  font-size:10.5px; font-weight:700; letter-spacing:1.6px; text-transform:uppercase;
+  color:rgba(95,225,232,0.72); margin-bottom:-2px;
+}
+/* Pantallas bajas: un poco menos de foto y de margen superior, para que todo quepa sin apretarse. */
+@media (max-height:700px){
+  .auth-hero{ min-height:46vh; padding-top:calc(6vh + var(--safe-top)); }
+}
+
 /* ---- Vista de formulario (registro / ingreso, misma vista, alterna por modo) ---- */
 .auth-view-form{ background:linear-gradient(180deg, var(--bg-night) 0%, var(--bg-primary) 60%); padding: calc(18px + var(--safe-top)) 22px calc(22px + var(--safe-bottom)); }
 .auth-form-back{
