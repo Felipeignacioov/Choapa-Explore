@@ -12095,6 +12095,29 @@ function centerOnUser(){
     else showAppNotice({ text:'No pudimos encontrar tu ubicación. Inténtalo de nuevo.', action:{ label:'Reintentar', onClick: centerOnUser } });
   }, { enableHighAccuracy:true, timeout:12000, maximumAge:30000 });
 }
+// ================= CONEXIÓN (Fase 2 de avisos) =================
+// Avisa cuando se pierde y cuando vuelve la conexión, con el mismo componente de avisos (showAppNotice).
+// Ignora microcortes: solo avisa si la conexión sigue caída tras 1,5 s.
+let connectionLostTimer = null, connectionWasLost = false;
+window.addEventListener('offline', () => {
+  clearTimeout(connectionLostTimer);
+  connectionLostTimer = setTimeout(() => {
+    if (navigator.onLine) return;
+    connectionWasLost = true;
+    showAppNotice({ text:'Sin conexión. Algunas funciones no estarán disponibles por ahora.', duration:6000 });
+  }, 1500);
+});
+window.addEventListener('online', () => {
+  clearTimeout(connectionLostTimer);
+  if (!connectionWasLost) return;
+  connectionWasLost = false;
+  showAppNotice({ tone:'info', text:'Conexión restablecida.', duration:3200 });
+});
+if (!navigator.onLine){
+  connectionWasLost = true;
+  setTimeout(() => showAppNotice({ text:'Sin conexión. Algunas funciones no estarán disponibles por ahora.', duration:6000 }), 1200);
+}
+
 function centerOnUserLegacy(){
   if (!navigator.geolocation){ return; }
   navigator.geolocation.getCurrentPosition(pos => {
