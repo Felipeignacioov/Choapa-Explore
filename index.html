@@ -5802,11 +5802,9 @@ startAmbientTicks();
   // Si se vuelve a la pestaña con una de estas pantallas abierta, el listener de
   // arriba reanuda el ciclo; este (registrado después) lo vuelve a pausar.
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && document.body.classList.contains('map-covered')) stopAmbientTicks();
+        if (!document.hidden && document.body.classList.contains('map-covered')) stopAmbientTicks();
   });
 })();
-});
-startAmbientTicks();
 
 // Profundidad del territorio: relieve muy tenue + glow ambiental en las 4 comunas
 // + protagonismo sutil del Río Choapa. Todo por debajo de los POIs (que son
