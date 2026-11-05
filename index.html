@@ -12004,7 +12004,7 @@ let toastTimer = null;
 function showMemoryToast(title, subtitle){
   showAppNotice({ tone:'success', title:'Recuerdo guardado', text: subtitle ? `${title} · ${subtitle}` : title, duration:3200 });
 }
-function showMemoryToastLegacy(title, subtitle){
+function showMemoryToastLegacy(title, subtitle){}
   document.getElementById('memoryToastSub').textContent = subtitle ? `${title} · ${subtitle}` : title;
   memoryToast.classList.add('visible');
   clearTimeout(toastTimer);
