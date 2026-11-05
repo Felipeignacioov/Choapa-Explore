@@ -4721,6 +4721,7 @@ map.on('load', () => {
   document.getElementById('mapLoading').style.opacity = '0';
   setTimeout(() => document.getElementById('mapLoading').style.display='none', 400);
  tintMapLayers();
+  applyStreetLuminosity(); // valores finales de luminosidad de calles (comuna y zoom de localidad)
   renderTerrainDepth();
         registerPOIIconImages(); // Fase 1 — íconos SDF de POI, se registran una sola vez
   registerPOIBackgroundImages(); // Fondo con gradiente/volumen de POI, una imagen por categoría
@@ -4974,6 +4975,27 @@ map.on('moveend', scheduleHeaderExpand);
 map.on('zoomend', scheduleHeaderExpand);
 
 // Ajusta sutilmente la paleta del mapa hacia azul-noche/turquesa
+// Luminosidad de calles al entrar a la comuna y al acercar (validada por consola: −24% sobre #8CA7B4 → #6A7F89).
+// Se ejecuta DESPUÉS de tintMapLayers, así fija los valores finales de estas capas. Spawn y Ruta 5 sin cambios.
+function applyStreetLuminosity(){
+  const P = '#6A7F89';
+  const isTrunk = ['match', ['get','class'], ['motorway','trunk'], true, false];
+  if (map.getLayer('highway_major_subtle')){
+    map.setPaintProperty('highway_major_subtle', 'line-color', ['interpolate', ['linear'], ['zoom'],
+      9, ['case', isTrunk, '#82959E', '#7A95A3'],
+      10.2, ['case', isTrunk, '#82959E', P]]);
+  }
+  if (map.getLayer('highway_major_inner')){
+    map.setPaintProperty('highway_major_inner', 'line-color', ['case', isTrunk, '#82959E', P]);
+    map.setPaintProperty('highway_major_inner', 'line-opacity', ['case', isTrunk, 1, 0.9]);
+  }
+  if (map.getLayer('highway_minor')){
+    map.setPaintProperty('highway_minor', 'line-color', ['interpolate', ['linear'], ['zoom'],
+      10.5, blendHex('#5C7A88', '#0B1726', 0.45), 12.4, P]);
+    map.setPaintProperty('highway_minor', 'line-opacity', ['interpolate', ['linear'], ['zoom'],
+      8.8, 0.30, 10.5, 0.46, 12.4, 0.85, 16, 0.9]);
+  }
+}
 function tintMapLayers(){
   const layers = map.getStyle().layers || [];
   layers.forEach(l => {
