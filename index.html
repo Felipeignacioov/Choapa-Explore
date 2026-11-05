@@ -2936,6 +2936,8 @@ img{-webkit-user-drag:none; user-select:none;}
 .auth-form-sub{ max-width:300px; text-wrap:balance; }
 .auth-forgot-link{ font-weight:500; color:rgba(95,225,232,0.85); }
 .auth-field-label{ font-weight:600; letter-spacing:0.3px; }
+/* Campo que falta completar: borde coral suave (mismo tono que la nota de error), también con el cursor dentro. */
+.auth-field input.needs-attention{ border-color:rgba(232,165,140,0.55); box-shadow:0 0 0 3px rgba(232,165,140,0.10); }
 /* Mensajes de error con estilo "nota serena" (validado por consola, variante A): vidrio oscuro, punto coral suave
    y texto claro, en vez del rojo de alerta. Se distingue sin alarmar y respeta la estética de la app. */
 .auth-form-status.error{
@@ -13988,7 +13990,8 @@ function showAuthForm(mode){
     authFormStatus.style.display = 'none';
   authFormStatus.className = 'auth-form-status';
   authForm.classList.remove('hidden'); // por si quedó oculto tras un registro con confirmación pendiente
-   authForm.reset();
+  authForm.reset();
+  clearAuthFieldMarks();
   resetPasswordVisibility();
   authWelcomeView.classList.remove('active');
   authFormView.classList.add('active');
@@ -14051,12 +14054,41 @@ function setAuthSubmitLoading(on){
   spinner.hidden = !on;
 }
 
+// Revisión amable de los formularios de acceso: antes de consultar a Supabase, revisa los campos y explica
+// exactamente qué falta. El campo se marca con un borde coral suave y recibe el foco; la marca se quita al escribir.
+function clearAuthFieldMarks(){
+  document.querySelectorAll('.auth-field input.needs-attention').forEach(i => i.classList.remove('needs-attention'));
+}
+function showAuthFieldError(msg, inputs){
+  clearAuthFieldMarks();
+  inputs.forEach(i => i.classList.add('needs-attention'));
+  authFormStatus.textContent = msg;
+  authFormStatus.className = 'auth-form-status error';
+  authFormStatus.style.display = 'block';
+  if (inputs[0]) inputs[0].focus();
+}
+document.querySelectorAll('.auth-field input').forEach(i => i.addEventListener('input', () => i.classList.remove('needs-attention')));
+
 authForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (authSubmitting) return; // evita solicitudes duplicadas mientras hay un registro en curso
   const email = document.getElementById('authEmail').value.trim();
   const password = document.getElementById('authPassword').value;
 
+// Revisión amable antes de consultar a Supabase: un mensaje coherente con lo que falta.
+  {
+    const emailEl = document.getElementById('authEmail');
+    const pwEl = document.getElementById('authPassword');
+    const isRegister = authFormMode === 'register';
+    if (!email && !password) return showAuthFieldError('Ingresa tu correo y tu contraseña para continuar.', [emailEl, pwEl]);
+    if (!email) return showAuthFieldError('Ingresa tu correo para continuar.', [emailEl]);
+    if (!/^\S+@\S+\.\S+$/.test(email)) return showAuthFieldError('Revisa tu correo, parece que falta algo.', [emailEl]);
+    if (!password) return showAuthFieldError(isRegister ? 'Crea una contraseña para continuar.' : 'Ingresa tu contraseña para continuar.', [pwEl]);
+    if (isRegister && password.length < 8) return showAuthFieldError('Tu contraseña necesita al menos 8 caracteres.', [pwEl]);
+    if (isRegister && !authPasswordConfirm.value) return showAuthFieldError('Confirma tu contraseña para continuar.', [authPasswordConfirm]);
+    if (isRegister && password !== authPasswordConfirm.value) return showAuthFieldError('Las contraseñas no coinciden.', [authPasswordConfirm]);
+    clearAuthFieldMarks();
+  }
   if (authFormMode === 'register' && password !== authPasswordConfirm.value){
     authFormStatus.textContent = 'Las contraseñas no coinciden.';
     authFormStatus.className = 'auth-form-status error';
@@ -14302,7 +14334,8 @@ try {
 
     async function requestLink(){
       const email = emailInput.value.trim();
-      if (!/^\S+@\S+\.\S+$/.test(email)){ setStatus('Ingresa un correo válido.', true); return; }
+    if (!email){ setStatus('Ingresa tu correo para recibir el enlace.', true); emailInput.focus(); return; }
+      if (!/^\S+@\S+\.\S+$/.test(email)){ setStatus('Revisa tu correo, parece que falta algo.', true); emailInput.focus(); return; }
       if (!supabaseClient){ setStatus('La autenticación no está disponible en este momento.', true); return; }
       busy = true; submitBtn.disabled = true; submitBtn.textContent = 'Enviando…'; statusEl.style.display = 'none';
       try{
