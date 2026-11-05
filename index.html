@@ -8311,6 +8311,7 @@ function getComunaFlyOffset(){
   return [0, Math.round(freeCenterY - mapRect.height / 2)];
 }
 function enterLocality(locality, { fly }){
+  resetComunaPanelList(); // antes de medir el panel para centrar la cámara
   state.currentLocality = locality;
   state.currentSublocality = null;
   updateSearchBarVisibility(); // buscador oculto mientras hay una comuna activa
@@ -12878,7 +12879,19 @@ function showComunaPanel(locality){
     comunaPanel.classList.remove('entering');
   }, { once:true });
 }
+// Recoge la lista "Ver más experiencias" a su estado inicial (tarjetas visibles, lista cerrada).
+// Debe ocurrir ANTES de que la cámara mida el panel para centrar la comuna (getComunaFlyOffset):
+// si la lista quedaba expandida, el panel medía de más y la comuna quedaba descentrada al volver a entrar.
+function resetComunaPanelList(){
+  const wrap = document.getElementById('comunaPanelListWrap');
+  wrap.classList.remove('expanded', 'scrolled');
+  document.getElementById('comunaPanelList').innerHTML = '';
+  document.getElementById('comunaPanelRail').classList.remove('rail-hidden');
+  document.getElementById('comunaPanelMore').classList.remove('at-bottom');
+  comunaPanelVisibleCount = 3;
+}
 function hideComunaPanel(){
+  resetComunaPanelList();
   comunaPanel.classList.add('hidden');
   comunaPanelPill.classList.add('hidden');
   syncSheetPillVisibility(); // restaura la píldora normal según el estado real del sheet
