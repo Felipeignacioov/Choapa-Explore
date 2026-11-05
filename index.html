@@ -5103,7 +5103,7 @@ function tintMapLayers(){
         // y siempre más gruesas que las secundarias. Secundarias/terciarias quedan con sus valores de siempre.
         const majorClass = (trunk, primary, secondary, other) => ['match', ['get','class'], ['motorway', 'trunk'], trunk, 'primary', primary, 'secondary', secondary, other];
         const majorOp = other => ['match', ['get','class'], ['motorway', 'trunk'], 1, 'primary', 0.9, other];
-        map.setPaintProperty(l.id, 'line-color', ['match', ['get','class'], ['motorway', 'trunk'], '#A3BAC5', 'primary', '#8CA7B4', roadColor(0.05)]);
+             map.setPaintProperty(l.id, 'line-color', ['match', ['get','class'], ['motorway', 'trunk'], '#82959E', 'primary', '#8CA7B4', roadColor(0.05)]);
         map.setPaintProperty(l.id, 'line-opacity', ['interpolate', ['linear'], ['zoom'],
           8, majorOp(0.58), 10, majorOp(0.72), 11.5, majorOp(0.72), 12.75, majorOp(0.66), 14.5, majorOp(0.6), 16, majorOp(0.58)]);
         map.setPaintProperty(l.id, 'line-width', ['interpolate', ['linear'], ['zoom'],
@@ -5155,7 +5155,7 @@ function tintMapLayers(){
           // crecen y se aclaran para separarse de las calles menores/urbanas (variante A validada por consola).
           const byClass = (t, p) => ['case', isTrunk, t, p];
           map.setPaintProperty(l.id, 'line-color', ['interpolate', ['linear'], ['zoom'],
-            9, byClass('#A3BAC5', '#7A95A3'), 10.2, byClass('#A3BAC5', '#8CA7B4')]);
+                     9, byClass('#82959E', '#7A95A3'), 10.2, byClass('#82959E', '#8CA7B4')]); // Ruta 5: 20% menos de brillo que #A3BAC5
           map.setPaintProperty(l.id, 'line-opacity', ['interpolate', ['linear'], ['zoom'],
             9, byClass(0.95, 0.75), 10.2, byClass(1, 0.90)]);
           map.setPaintProperty(l.id, 'line-width', ['interpolate', ['linear'], ['zoom'],
@@ -5174,8 +5174,8 @@ function tintMapLayers(){
       }
       if (l.type === 'line' && l.id === 'highway_motorway_inner'){
         // Motorway: el nivel más prominente, por encima de trunk/primary.
-               // Mismo tratamiento que la Ruta 5 "trunk" en highway_major_inner (color, opacidad y grosores).
-        map.setPaintProperty(l.id, 'line-color', '#A3BAC5');
+                    // Mismo tratamiento que la Ruta 5 "trunk" (la Ruta 5 viene como motorway fuera del Choapa): continua y coherente.
+        map.setPaintProperty(l.id, 'line-color', '#82959E');
         map.setPaintProperty(l.id, 'line-opacity', 1);
         map.setPaintProperty(l.id, 'line-width', ['interpolate', ['linear'], ['zoom'], 8, 2.0, 11, 2.6, 12, 3.1, 14, 4.8, 16, 7.1, 18, 9.7, 20, 11]);
       }
@@ -5189,7 +5189,7 @@ function tintMapLayers(){
       if (l.type === 'line' && l.id === 'highway_motorway_subtle'){
                map.setPaintProperty(l.id, 'line-color', roadColor(0.04));
                // Mismo tratamiento que la Ruta 5 "trunk" (la Ruta 5 viene como motorway fuera del Choapa): continua y coherente.
-        map.setPaintProperty(l.id, 'line-color', '#A3BAC5');
+       map.setPaintProperty(l.id, 'line-color', '#82959E');
         map.setPaintProperty(l.id, 'line-opacity', ['interpolate', ['linear'], ['zoom'], 9, 0.95, 10.2, 1]);
         map.setPaintProperty(l.id, 'line-width', ['interpolate', ['linear'], ['zoom'], 6, 1.2, 9, 1.6, 10.2, 2.2, 11, 2.6]);
         map.setPaintProperty(l.id, 'line-blur', 0);
