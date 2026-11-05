@@ -4722,6 +4722,7 @@ map.on('load', () => {
   setTimeout(() => document.getElementById('mapLoading').style.display='none', 400);
  tintMapLayers();
   applyStreetLuminosity(); // valores finales de luminosidad de calles (comuna y zoom de localidad)
+  applyUrbanFabric(); // tejido urbano: intensidad de manzanas, edificios y plazas
   renderTerrainDepth();
         registerPOIIconImages(); // Fase 1 — íconos SDF de POI, se registran una sola vez
   registerPOIBackgroundImages(); // Fondo con gradiente/volumen de POI, una imagen por categoría
@@ -4977,6 +4978,21 @@ map.on('zoomend', scheduleHeaderExpand);
 // Ajusta sutilmente la paleta del mapa hacia azul-noche/turquesa
 // Luminosidad de calles al entrar a la comuna y al acercar (validada por consola: −24% sobre #8CA7B4 → #6A7F89).
 // Se ejecuta DESPUÉS de tintMapLayers, así fija los valores finales de estas capas. Spawn y Ruta 5 sin cambios.
+// Tejido urbano (validado por consola, variante A): manzanas, edificios y plazas con textura propia al acercar
+// a la ciudad. El aclarado se calcula sobre el color de la atmósfera de cada hora; spawn y comuna sin cambios.
+const URBAN_FABRIC_TINT = '#3A5568';
+function urbanFabricColor(id, color){
+  if (typeof color !== 'string' || !/^#[0-9a-f]{6}$/i.test(color)) return color;
+  if (id === 'landuse_residential') return ['interpolate', ['linear'], ['zoom'], 11.5, color, 13, blendHex(color, URBAN_FABRIC_TINT, 0.25)];
+  if (id === 'building') return ['interpolate', ['linear'], ['zoom'], 13, color, 14, blendHex(color, URBAN_FABRIC_TINT, 0.30)];
+  if (id === 'landuse_park') return ['interpolate', ['linear'], ['zoom'], 11.5, color, 12.5, '#2E4A3C'];
+  return color;
+}
+function applyUrbanFabric(){
+  if (map.getLayer('landuse_residential')) map.setPaintProperty('landuse_residential', 'fill-opacity', ['interpolate', ['linear'], ['zoom'], 11.5, 0.5, 13, 0.6]);
+  if (map.getLayer('building')) map.setPaintProperty('building', 'fill-opacity', ['interpolate', ['linear'], ['zoom'], 13.5, 0.36, 15, 0.5]);
+  if (map.getLayer('landuse_park')) map.setPaintProperty('landuse_park', 'fill-opacity', ['interpolate', ['linear'], ['zoom'], 12, 0.3, 13.5, 0.55]);
+}
 function applyStreetLuminosity(){
   const P = '#6A7F89';
   const isTrunk = ['match', ['get','class'], ['motorway','trunk'], true, false];
@@ -9043,7 +9059,7 @@ function applyAtmosphereChanges(prev, next){
   const changed = k => !prev || prev[k] !== next[k];
   [['vegetation', ['landcover_wood', 'landuse_park']], ['residential', ['landuse_residential']], ['building', ['building']]]
     .forEach(([k, ids]) => {
-      if (changed(k)) ids.forEach(id => { if (map.getLayer(id)) map.setPaintProperty(id, 'fill-color', next[k]); });
+     if (changed(k)) ids.forEach(id => { if (map.getLayer(id)) map.setPaintProperty(id, 'fill-color', urbanFabricColor(id, next[k])); });
     });
   // Agua: solo la base; la respiración sigue siendo la única que escribe su fill-color.
   if (changed('water')) currentWaterBase = next.water;
@@ -9245,15 +9261,15 @@ function applyDayLightLift(){
     try{
       if (l.type === 'fill' && (l.id === 'landcover_wood' || l.id === 'landuse_park')){
         map.setPaintProperty(l.id, 'fill-color-transition', { duration:600 });
-        map.setPaintProperty(l.id, 'fill-color', res.vegetation);
+        map.setPaintProperty(l.id, 'fill-color', urbanFabricColor(l.id, res.vegetation));
       }
       if (l.type === 'fill' && l.id === 'landuse_residential'){
         map.setPaintProperty(l.id, 'fill-color-transition', { duration:600 });
-        map.setPaintProperty(l.id, 'fill-color', res.residential);
+      map.setPaintProperty(l.id, 'fill-color', urbanFabricColor(l.id, res.residential));
       }
           if (l.type === 'fill' && l.id === 'building'){
         map.setPaintProperty(l.id, 'fill-color-transition', { duration:600 });
-        map.setPaintProperty(l.id, 'fill-color', res.building);
+        map.setPaintProperty(l.id, 'fill-color', urbanFabricColor(l.id, res.building));
       }
       if (l.type === 'fill' && l.id === 'water'){
         currentWaterBase = res.water;
