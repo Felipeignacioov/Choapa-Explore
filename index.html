@@ -4987,13 +4987,15 @@ function applyStreetLuminosity(){
   }
   if (map.getLayer('highway_major_inner')){
     map.setPaintProperty('highway_major_inner', 'line-color', ['case', isTrunk, '#82959E', P]);
-    map.setPaintProperty('highway_major_inner', 'line-opacity', ['case', isTrunk, 1, 0.9]);
+   map.setPaintProperty('highway_major_inner', 'line-opacity', ['interpolate', ['linear'], ['zoom'], 11.5, ['case', isTrunk, 1, 0.9], 12.45, ['match', ['get','class'], ['motorway','trunk'], 1, 'tertiary', 0.82, 0.9]]); // jerarquía urbana (variante C): terciarias un escalón menos
   }
   if (map.getLayer('highway_minor')){
     map.setPaintProperty('highway_minor', 'line-color', ['interpolate', ['linear'], ['zoom'],
-      10.5, blendHex('#5C7A88', '#0B1726', 0.45), 12.4, P]);
+      10.5, blendHex('#5C7A88', '#0B1726', 0.45), 11.5, blendHex('#5C7A88', '#0B1726', 0.555), 12.45, blendHex(P, '#0B1726', 0.15)]); // jerarquía urbana (variante C): tono más profundo
     map.setPaintProperty('highway_minor', 'line-opacity', ['interpolate', ['linear'], ['zoom'],
-      8.8, 0.30, 10.5, 0.46, 12.4, 0.85, 16, 0.9]);
+     8.8, 0.30, 10.5, 0.46, 11.5, 0.6, 12.45, 0.60, 16, 0.68]); // jerarquía urbana (variante C): más suaves
+    map.setPaintProperty('highway_minor', 'line-width', ['interpolate', ['linear'], ['zoom'],
+      8.8, 0.6, 10.5, 1.1, 11.5, 1.12, 12.45, 0.96, 14, 1.12, 16, 1.6, 18, 1.92]); // 20% más finas en la ciudad
   }
 }
 function tintMapLayers(){
