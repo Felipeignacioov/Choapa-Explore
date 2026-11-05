@@ -2770,8 +2770,8 @@ img{-webkit-user-drag:none; user-select:none;}
 .auth-view-welcome{ position:relative; overflow:hidden; justify-content:space-between; }
 .auth-view-welcome::before{
   content:''; position:absolute; inset:0; z-index:0;
-  background:url('https://gfsnhjxsqbsapnpfqpyy.supabase.co/storage/v1/object/public/Choapa%20explore%20Recursos/Fondo_Login_Inicio.png') center 35%/cover no-repeat;
-  animation:auth-hero-kb 26s ease-in-out infinite alternate; will-change:transform;
+ background:var(--bg-primary) url('https://gfsnhjxsqbsapnpfqpyy.supabase.co/storage/v1/object/public/Choapa%20explore%20Recursos/Fondo_Login_Inicio.png') center top/auto 92% no-repeat; /* 92% del alto: se agranda menos y se ve más nítida (validado por consola) */
+  /* foto quieta: el acercamiento lento la agrandaba y restaba nitidez */
 }
 .auth-view-welcome::after{
   content:''; position:absolute; inset:0; z-index:0; pointer-events:none;
