@@ -2978,6 +2978,32 @@ img{-webkit-user-drag:none; user-select:none;}
   color:rgba(244,247,250,0.88); border-color:rgba(232,165,140,0.22); background:rgba(16,36,56,0.55);
 }
 .transport-status.error svg, .rsp-status.error svg, .anh-status.error svg{ color:#E8A58C; flex-shrink:0; }
+/* Panel "En [Comuna]" sin experiencias para el filtro activo: mismo alto que las tarjetas (el panel no salta). */
+.comuna-panel-empty{
+  grid-column:1 / -1; min-height:76px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+  padding:8px 10px; text-align:center; border-radius:var(--radius-m);
+  border:1px dashed rgba(180,200,220,0.16); background:rgba(255,255,255,0.02);
+}
+.comuna-panel-empty .cpe-text{ font-size:12px; line-height:1.4; color:var(--text-secondary); text-wrap:balance; }
+.comuna-panel-empty .cpe-btn{
+  font-size:11.5px; font-weight:700; color:var(--turquoise-bright);
+  padding:5px 14px; border-radius:var(--radius-pill);
+  background:rgba(95,225,232,0.07); border:1px solid rgba(95,225,232,0.24);
+}
+/* Foto que no cargó: degradado de marca + logo tenue al centro, en vez de un rectángulo oscuro vacío. */
+.photo-missing{
+  background-image:
+    radial-gradient(120% 90% at 30% 20%, rgba(95,225,232,0.16), rgba(95,225,232,0) 60%),
+    linear-gradient(160deg, #15304A 0%, #0D1F30 100%) !important;
+}
+.photo-missing::before{
+  content:''; position:absolute; left:50%; top:50%; z-index:0;
+  width:34%; max-width:46px; aspect-ratio:1; transform:translate(-50%,-50%);
+  background:var(--brand-logo) center/contain no-repeat; opacity:0.28; pointer-events:none;
+}
+.comuna-list-item .cli-photo.photo-missing,
+.zone-card .photo.photo-missing{ position:relative; }
 @media (min-width:640px){
   .app-notice{ max-width:520px; left:50%; right:auto; width:calc(100% - 32px); transform:translate(-50%,12px); }
   .app-notice.visible{ transform:translate(-50%,0); }
@@ -13086,7 +13112,23 @@ const COMUNA_PANEL_PAGE_SIZE = 4;
 
 function renderComunaPanelRail(locality){
   const rail = document.getElementById('comunaPanelRail');
-  const places = curateComunaPanelPlaces(locality, comunaPanelVisibleCount);
+ const places = curateComunaPanelPlaces(locality, comunaPanelVisibleCount);
+  // Sin experiencias para el filtro activo (o zona aún sin experiencias): mensaje claro en vez de un hueco vacío.
+  if (!places.length){
+    const filtering = state.activeExperience !== 'todos';
+    const exp = filtering ? expById(state.activeExperience) : null;
+    rail.innerHTML = `
+      <div class="comuna-panel-empty">
+        <div class="cpe-text">${filtering
+          ? `Aún no hay experiencias de ${exp.label} en ${locality.name}.`
+          : `Aún no hay experiencias en ${locality.name}. Pronto sumaremos más.`}</div>
+        ${filtering ? '<button class="cpe-btn" type="button">Ver todas</button>' : ''}
+      </div>`;
+    const seeAll = rail.querySelector('.cpe-btn');
+    if (seeAll) seeAll.addEventListener('click', () => setActiveExperience('todos'));
+    document.getElementById('comunaPanelMore').style.display = 'none';
+    return;
+  }
   // Con un filtro activo, la etiqueta debe reflejar ESE filtro (mismo criterio
   // que ya usa el color de los POIs en el mapa vía activeExpColor) — no la
   // categoría propia del lugar. Sin esto, un lugar que ofrece "Cita" pero cuya
@@ -14649,6 +14691,50 @@ setStatus('Revisa tu correo. Si recibes nuestro correo, encontrarás un enlace p
 } catch(e){
   console.error('[Auth] La recuperación de contraseña no pudo iniciarse:', e);
 }
+
+// ================= FOTOS QUE NO CARGAN (Fase 4 de avisos) =================
+// Vigila las tarjetas con foto (background-image). Cada URL se comprueba una sola vez por sesión;
+// si falla, la tarjeta recibe .photo-missing (degradado de marca + logo) en vez de quedar vacía.
+(() => {
+  const photoStatus = new Map(); // url → 'ok' | 'fail' | Promise en curso
+  const urlOf = el => { const m = /url\(["']?(.*?)["']?\)/.exec(el.style.backgroundImage || ''); return m ? m[1] : null; };
+  function checkPhoto(url){
+    if (!url) return Promise.resolve('fail');
+    const s = photoStatus.get(url);
+    if (s === 'ok' || s === 'fail') return Promise.resolve(s);
+    if (s) return s;
+    const p = new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => { photoStatus.set(url, 'ok'); resolve('ok'); };
+      img.onerror = () => { photoStatus.set(url, 'fail'); resolve('fail'); };
+      img.src = url;
+    });
+    photoStatus.set(url, p);
+    return p;
+  }
+  function scan(root){
+    [root, ...root.querySelectorAll('[style*="background-image"]')].forEach(el => {
+      const bg = el.style && el.style.backgroundImage;
+      if (!bg || bg === 'none') return;
+      const url = urlOf(el);
+      checkPhoto(url).then(status => {
+        if (urlOf(el) !== url) return; // la foto cambió mientras se comprobaba
+        el.classList.toggle('photo-missing', status === 'fail');
+      });
+    });
+  }
+  const watch = (id, styleOnly) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    scan(el);
+    new MutationObserver(() => scan(el)).observe(el, styleOnly
+      ? { attributes:true, attributeFilter:['style'] }
+      : { childList:true, subtree:true });
+  };
+  ['comunaPanelRail', 'comunaPanelList', 'todayFeatured', 'experiencesRail', 'guardadosGrid',
+   'nearbyGrid', 'albumDetailGrid', 'albumChapters', 'mdExp'].forEach(id => watch(id));
+  ['poiDetailThumb', 'mdPhoto'].forEach(id => watch(id, true));
+})();
 
 initSupabaseSync();
 </script>
