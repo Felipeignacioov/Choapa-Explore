@@ -2176,7 +2176,38 @@ img{-webkit-user-drag:none; user-select:none;}
   transition:transform .16s ease;
 }
 .md-btn:active{transform:scale(0.96);}
-.md-btn-danger{color:#F0625B; border-color:rgba(240,98,91,0.3); background:rgba(240,98,91,0.08);}
+/* Eliminar: coral suave de los avisos, sin fondo rojo de alerta (sigue siendo claro que borra). */
+.md-btn{ display:inline-flex; align-items:center; justify-content:center; gap:7px; }
+.md-btn-danger{ color:#E8A58C; border-color:rgba(232,165,140,0.24); background:transparent; }
+/* Foto del recuerdo con más presencia (libres y de localidad; el modo experiencia no cambia). */
+#memoryDetail:not(.memory-detail--experience) .md-photo{ height:300px; }
+/* Recuerdo libre: la fecha es el título y "Recuerdo libre" va como antetítulo (no repite el encabezado). */
+#memoryDetail.md-free .md-body{ display:flex; flex-direction:column; }
+#memoryDetail.md-free .md-loc{
+  order:-1; font-size:10.5px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase;
+  color:rgba(95,225,232,0.72); margin:0 0 4px;
+}
+#memoryDetail.md-free .md-date{ display:none; }
+/* Tarjeta "Agregar recuerdo": cámara en un círculo suave con un + (en vez del destello), borde más tenue. */
+.album-card.add-tile{ gap:10px; border-color:rgba(95,225,232,0.32); background:rgba(95,225,232,0.035); }
+.album-card.add-tile .at-icon{
+  position:relative; width:46px; height:46px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center; color:var(--turquoise-bright);
+  background:rgba(95,225,232,0.08); border:1px solid rgba(95,225,232,0.28);
+}
+.album-card.add-tile .at-plus{
+  position:absolute; right:-3px; bottom:-3px; width:17px; height:17px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--turquoise-bright); color:#07131F; box-shadow:0 0 0 2px var(--bg-primary);
+}
+.album-card.add-tile .at-title{ font-size:12px; font-weight:700; color:var(--text-primary); padding:0; }
+.album-card.add-tile .at-sub{ font-size:10.5px; font-weight:500; color:var(--text-tertiary); margin-top:-6px; padding:0; }
+/* Fecha discreta sobre cada foto de la grilla: el álbum se lee como una historia en el tiempo. */
+.album-card .ac-date{
+  position:absolute; left:10px; bottom:9px; z-index:1;
+  font-size:10.5px; font-weight:600; letter-spacing:0.2px; color:rgba(255,255,255,0.88);
+  text-shadow:0 1px 3px rgba(2,8,15,0.6);
+}
 
 /* ================= MIS RECUERDOS — modo experiencia (solo memoryDetailContext.type === 'place') ================= */
 .md-exp{display:none;}
@@ -4019,8 +4050,8 @@ img{-webkit-user-drag:none; user-select:none;}
         <div class="md-date" id="mdDate">—</div>
         <div class="md-section-title" id="mdRecuerdosTitle" style="display:none;">Mis recuerdos</div>
                <div class="md-actions" id="mdActions">
-          <button class="md-btn" id="mdReplace">Reemplazar foto</button>
-          <button class="md-btn md-btn-danger" id="mdDelete">Eliminar recuerdo</button>
+        <button class="md-btn" id="mdReplace"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13.5" r="3.3"/></svg>Reemplazar foto</button>
+<button class="md-btn md-btn-danger" id="mdDelete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 12.5h9l1-12.5"/></svg>Eliminar recuerdo</button>
         </div>
       </div>
     </div>
@@ -13762,7 +13793,12 @@ function renderPersonalAlbum(){
 
   const addTile = document.createElement('div');
   addTile.className = 'album-card add-tile';
-  addTile.innerHTML = `${icon('sparkle',20)}<span>Agregar recuerdo</span>`;
+addTile.innerHTML = `
+    <span class="at-icon">${icon('camera', 20)}
+      <span class="at-plus"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
+    </span>
+    <span class="at-title">Agregar recuerdo</span>
+    <span class="at-sub">Foto o galería</span>`;
   addTile.addEventListener('click', () => {
        pendingFreeReplaceId = null; // añadir nunca reemplaza (un reemplazo abandonado no debe contaminar)
        memoryFileInput.dataset.contextType = 'personal';
@@ -13774,7 +13810,10 @@ function renderPersonalAlbum(){
     const card = document.createElement('div');
     card.className = 'album-card unlocked';
     card.style.backgroundImage = `url(${memory.photoUrl})`;
-    card.addEventListener('click', () => openPersonalMemoryDetail(memory));
+  card.addEventListener('click', () => openPersonalMemoryDetail(memory));
+    if (memory.createdAt){
+      card.insertAdjacentHTML('beforeend', `<span class="ac-date">${new Date(memory.createdAt).toLocaleDateString('es-CL', { day:'numeric', month:'short', year:'numeric' })}</span>`);
+    }
     albumDetailGrid.appendChild(card);
   });
 }
@@ -13784,7 +13823,7 @@ const memoryDetail = document.getElementById('memoryDetail');
 let memoryDetailContext = null;
 
 function populateMemoryDetail({ photoUrl, name, loc, caption, createdAt, showExperienceDetail, empty }){
-  memoryDetail.classList.remove('memory-detail--experience'); // locality/personal siempre en su modo de siempre
+memoryDetail.classList.remove('memory-detail--experience', 'md-free'); // locality/personal siempre en su modo de siempre; md-free lo agrega solo openPersonalMemoryDetail
   document.getElementById('mdPhoto').style.backgroundImage = `url(${photoUrl})`;
   document.getElementById('mdName').textContent = name;
   document.getElementById('mdLoc').textContent = loc || '';
@@ -14030,7 +14069,11 @@ function openLocalityMemoryDetail(locality, memory){
 }
 function openPersonalMemoryDetail(memory){
   memoryDetailContext = { type:'personal', memoryId:memory.id };
-  populateMemoryDetail({ photoUrl:memory.photoUrl, name:'Recuerdos del Choapa', loc:'', caption:memory.caption, createdAt:memory.createdAt });
+const freeTitle = memory.createdAt
+    ? new Date(memory.createdAt).toLocaleDateString('es-CL', { day:'numeric', month:'long', year:'numeric' })
+    : 'Recuerdo del Choapa';
+  populateMemoryDetail({ photoUrl:memory.photoUrl, name:freeTitle, loc:'Recuerdo libre', caption:memory.caption, createdAt:memory.createdAt });
+  memoryDetail.classList.add('md-free');
 }
 
 function closeMemoryDetail(){
