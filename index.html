@@ -1068,6 +1068,16 @@ img{-webkit-user-drag:none; user-select:none;}
 .comuna-mini-card .cmc-tag .dot{width:4px; height:4px; border-radius:50%; background:var(--tag-color, currentColor);}
 /* Más contraste: el gris secundario se aclara hacia el texto principal (sigue siendo neutro) */
 .comuna-mini-card .cmc-tag{color:color-mix(in srgb, var(--text-secondary) 65%, var(--text-primary));}
+/* Tarjetas con foto completa (validado por consola, variante A): la foto ocupa toda la tarjeta y el nombre y la
+   categoría van encima, sobre un degradado. Mismo alto total que antes: no le quita más espacio al mapa. */
+.comuna-mini-card{ position:relative; height:76px; }
+.comuna-mini-card .cmc-photo{ position:absolute; inset:0; height:100%; box-shadow:none; }
+.comuna-mini-card .cmc-photo::after{
+  background:linear-gradient(to bottom, rgba(7,19,31,0) 28%, rgba(7,19,31,0.55) 60%, rgba(7,19,31,0.92) 100%);
+}
+.comuna-mini-card .cmc-info{ position:absolute; left:0; right:0; bottom:0; z-index:1; padding:0 8px 7px; }
+.comuna-mini-card .cmc-name{ color:#fff; font-size:10.5px; text-shadow:0 1px 3px rgba(2,8,15,0.65); }
+.comuna-mini-card .cmc-tag{ color:rgba(255,255,255,0.84); margin-top:2px; }
 
 .comuna-panel-more{
    width:calc(100% - 24px); margin:2px 12px 0;
