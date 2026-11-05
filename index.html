@@ -2760,6 +2760,12 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 
 
+/* Línea del mood sobre las categorías (reemplaza a la tarjeta "¿Qué hacer hoy…?"). */
+.auth-mood-line{
+  text-align:center; font-family:var(--font-display); font-size:13px; font-weight:600;
+  letter-spacing:0.2px; color:rgba(244,247,250,0.78); margin-bottom:-4px;
+}
+
 /* ---- Vista de formulario (registro / ingreso, misma vista, alterna por modo) ---- */
 .auth-view-form{ background:linear-gradient(180deg, var(--bg-night) 0%, var(--bg-primary) 60%); padding: calc(18px + var(--safe-top)) 22px calc(22px + var(--safe-bottom)); }
 .auth-form-back{
@@ -3969,21 +3975,7 @@ img{-webkit-user-drag:none; user-select:none;}
       <div class="auth-mood-line">Elige tu mood y descubre el valle</div>
         <div class="auth-categories" id="authCategories"></div>
 
-        <div class="auth-info-card">
-         <span class="auth-info-icon"><svg width="21" height="21" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-  <g stroke="#43D4D0" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M7 32.5C12.2 28.9 17.4 27.8 22.9 29.3C28.1 30.7 33.5 29.8 40.5 25.2" opacity=".72"/>
-    <path d="M8 39C14.5 35.9 19.8 35.5 25.1 37C30.1 38.4 34.8 37.6 40 34.8" opacity=".42"/>
-    <path d="M23.8 37.1C23.5 32.1 22.8 28.6 24.1 24.5C25.2 21 28.3 18.4 32.2 17.1"/>
-    <path d="M28.8 16.7L32.7 16.8L32.5 20.7"/>
-    <circle cx="37.1" cy="11.8" r="3.3"/>
-  </g>
-</svg></span>
-          <div class="auth-info-text">
-            <div class="auth-info-title">¿Qué hacer hoy en el Choapa?</div>
-            <div class="auth-info-sub">Elige tu mood y deja que el valle te muestre el camino.</div>
-          </div>
-        </div>
+      
 
         <button class="auth-btn-primary" id="authRegisterBtn">Registrarse</button>
         <button class="auth-btn-secondary" id="authLoginBtn">Ingresar</button>
