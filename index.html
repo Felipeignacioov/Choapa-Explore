@@ -9580,6 +9580,13 @@ async function loadSavedPlaces(){
 // renderGuardadosGrid(). savedPlaceIds SOLO se actualiza después de que
 // Supabase confirme la operación (nunca de forma optimista) — así el Set en
 // memoria nunca puede desincronizarse de lo que realmente hay en la tabla.
+// Aviso cuando guardar/quitar un guardado no se pudo completar (Fase 3 de avisos).
+function showSaveErrorNotice(wasSaved, retry){
+  const text = !navigator.onLine
+    ? (wasSaved ? 'Sin conexión: no pudimos quitar esta experiencia de tus guardados.' : 'Sin conexión: no pudimos guardar esta experiencia.')
+    : (wasSaved ? 'No pudimos quitar esta experiencia de tus guardados. Inténtalo de nuevo.' : 'No pudimos guardar esta experiencia. Inténtalo de nuevo.');
+  showAppNotice({ text, action: retry ? { label:'Reintentar', onClick: retry } : null });
+}
 async function toggleSavedPlace(placeId){
   if (!currentAuthUser) return { ok:false };
 
@@ -10439,7 +10446,9 @@ document.getElementById('poiDetailSave').addEventListener('click', (e) => {
     if (!state.selectedPlace) return;
     const id = state.selectedPlace.id;
     const btn = e.currentTarget;
-    await toggleSavedPlace(id);
+       const wasSaved = savedPlaceIds.has(id);
+    const result = await toggleSavedPlace(id);
+    if (!result.ok) showSaveErrorNotice(wasSaved, () => btn.click());
     // El botón se actualiza recién después del await, leyendo el estado
     // REAL ya confirmado por Supabase en savedPlaceIds — mismo
     // classList.toggle de siempre, mismo comportamiento visual, sin cambiar
@@ -11583,6 +11592,7 @@ const guardadosFilters = document.getElementById('guardadosFilters');
 const guardadosGrid = document.getElementById('guardadosGrid');
 const guardadosEmpty = document.getElementById('guardadosEmpty');
 let guardadosActiveFilter = 'todos';
+let guardadosLoadError = false; // true si la carga de saved_places falló (se muestra "No pudimos cargar", no "no tienes")
 
 // Sin cambios de lógica — savedPlaceIds sigue siendo el Set en memoria que
 // se filtra contra DEMO_PLACES (ya cargado por SupabaseDataLayer); solo su
@@ -11619,7 +11629,15 @@ function renderGuardadosGrid(){
 
   if (!filtered.length){
     const emptyTitle = document.getElementById('guardadosEmptyTitle');
-    const emptySub = document.getElementById('guardadosEmptySub');
+      const emptySub = document.getElementById('guardadosEmptySub');
+    const emptyBtn = document.getElementById('guardadosEmptyBtn');
+    if (guardadosLoadError){
+      emptyTitle.textContent = 'No pudimos cargar tus guardados';
+      emptySub.textContent = navigator.onLine ? 'Inténtalo de nuevo en unos momentos.' : 'Revisa tu conexión a internet e inténtalo de nuevo.';
+      emptyBtn.textContent = 'Reintentar';
+      return;
+    }
+    emptyBtn.textContent = 'Explorar experiencias';
     if (!all.length){
       emptyTitle.textContent = 'Todavía no tienes experiencias guardadas';
       emptySub.textContent = 'Explora el Choapa y guarda aquello que quieras vivir después.';
@@ -11661,7 +11679,7 @@ function renderGuardadosGrid(){
       card.querySelector('.gd-save-btn').addEventListener('click', async (e) => {
       e.stopPropagation();
       const result = await toggleSavedPlace(place.id);
-      if (!result.ok) return; // Supabase falló — no se toca el Set ni la UI, mismo criterio de "no inventar estado"
+   if (!result.ok){ showSaveErrorNotice(true, null); return; } // Supabase falló — no se toca el Set ni la UI, mismo criterio de "no inventar estado"
       if (state.selectedPlace && state.selectedPlace.id === place.id){
         document.getElementById('poiDetailSave').classList.remove('saved');
       }
@@ -11680,6 +11698,7 @@ function renderGuardados(){
   if (guardadosActiveFilter !== 'todos' && !all.some(p => p.experiences.includes(guardadosActiveFilter))){
     guardadosActiveFilter = 'todos';
   }
+  guardadosFilters.style.display = guardadosLoadError ? 'none' : '';
   renderGuardadosFilters();
   renderGuardadosGrid();
 }
@@ -11695,7 +11714,8 @@ function openGuardados(){
     nearbyScreen.classList.remove('visible');
     document.getElementById('albumScreen').classList.remove('visible');
     document.getElementById('guardadosEmptyIcon').innerHTML = icon('bookmark', 34);
-    await loadSavedPlaces(); // espera la carga real antes de pintar — evita el "vacío" transitorio
+await loadSavedPlaces(); // espera la carga real antes de pintar — evita el "vacío" transitorio
+    guardadosLoadError = !!currentAuthUser && !savedPlacesLoaded;
     renderGuardados();
     guardadosScreen.classList.add('visible');
     document.querySelectorAll('.bottom-nav .nav-item').forEach(n => n.classList.remove('active'));
@@ -11708,7 +11728,14 @@ function closeGuardados(){
   document.querySelector('.bottom-nav .nav-item').classList.add('active'); // vuelve a "Explorar"
 }
 document.getElementById('navGuardados').addEventListener('click', openGuardados);
-document.getElementById('guardadosEmptyBtn').addEventListener('click', closeGuardados);
+// Con error de carga, el botón del estado vacío reintenta; si no, vuelve a explorar (comportamiento de siempre).
+async function retryGuardados(){
+  await loadSavedPlaces();
+  guardadosLoadError = !!currentAuthUser && !savedPlacesLoaded;
+  renderGuardados();
+  if (guardadosLoadError) showAppNotice({ text: navigator.onLine ? 'Todavía no pudimos cargar tus guardados.' : 'Sin conexión: todavía no pudimos cargar tus guardados.' });
+}
+document.getElementById('guardadosEmptyBtn').addEventListener('click', () => { if (guardadosLoadError) retryGuardados(); else closeGuardados(); });
 document.getElementById('guardadosFilterBtn').addEventListener('click', () => {
   guardadosFilters.scrollIntoView({ behavior:'smooth', block:'nearest' });
 });
@@ -12004,7 +12031,8 @@ memoryFileInput.addEventListener('change', async (e) => {
 
     if (albumIndexView.classList.contains('active')) renderAlbumIndex();
   } catch(err){
-    console.error('No se pudo guardar el recuerdo', err);
+      console.error('No se pudo guardar el recuerdo', err);
+    showAppNotice({ text:'No pudimos usar esta foto. Prueba con otra.' });
   }
 });
 
@@ -13412,11 +13440,29 @@ const CHEVRON_RIGHT = `<svg width="18" height="18" viewBox="0 0 24 24" fill="non
 let currentAlbumLocalityId = null;
 let currentAlbumIsPersonal = false;
 
+// Comprueba que descubrimientos y recuerdos estén cargados. Si algo falló, el álbum muestra
+// "No pudimos cargar tu álbum" + Reintentar, en vez de todo bloqueado o sin fotos (estado falso).
+let albumLoadError = false;
+async function refreshAlbumData(){
+  const uid = currentAuthUser && currentAuthUser.id;
+  if (!uid) return;
+  const [, memOk, freeOk] = await Promise.all([
+    discoveredExperiencesLoaded ? Promise.resolve() : loadDiscoveredExperiences(),
+    loadMemories(uid),
+    loadFreeMemories(uid),
+  ]);
+  albumLoadError = !discoveredExperiencesLoaded || !memOk || !freeOk;
+  if (albumScreen.classList.contains('visible') && albumIndexView.classList.contains('active')) renderAlbumIndex();
+  if (albumLoadError && albumScreen.classList.contains('visible') && !albumIndexView.classList.contains('active')){
+    showAppNotice({ text: navigator.onLine ? 'No pudimos cargar todo tu álbum. Inténtalo de nuevo.' : 'Sin conexión: no pudimos cargar todo tu álbum.' });
+  }
+}
 function openAlbum(){
   // Todo el cuerpo original permanece exactamente igual, solo envuelto en
   // requireAuth() — sin sesión, abre el login y ninguna línea de acá abajo
   // se ejecuta; con sesión, corre tal cual siempre corrió.
   return requireAuth(() => {
+    refreshAlbumData(); // en segundo plano: si algo no cargó, el índice pasa a "No pudimos cargar tu álbum"
     showAlbumIndex();
     albumScreen.classList.add('visible');
     document.querySelectorAll('.bottom-nav .nav-item').forEach(n => n.classList.remove('active'));
@@ -13445,6 +13491,19 @@ function showAlbumIndex(){
 
 
 function renderAlbumIndex(){
+  if (albumLoadError){
+    ['statExperiences', 'statLocalities', 'statMemories'].forEach(id => { document.getElementById(id).textContent = '—'; });
+    document.getElementById('albumProgress').innerHTML = '';
+    albumChapters.innerHTML = `
+      <div class="guardados-empty">
+        <span class="ge-icon">${icon('book', 34)}</span>
+        <div class="ge-title">No pudimos cargar tu álbum</div>
+        <div class="ge-sub">${navigator.onLine ? 'Inténtalo de nuevo en unos momentos.' : 'Revisa tu conexión a internet e inténtalo de nuevo.'}</div>
+        <button class="ge-btn" id="albumRetryBtn">Reintentar</button>
+      </div>`;
+    document.getElementById('albumRetryBtn').addEventListener('click', refreshAlbumData);
+    return;
+  }
   const memories = MemoryStore.getAll();
   // memoryPlaces se conserva EXCLUSIVAMENTE para statMemories (recuerdos/
   // fotos guardadas) — ya no decide "descubierta" en ningún punto de esta
