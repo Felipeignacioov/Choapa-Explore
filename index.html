@@ -4992,6 +4992,27 @@ function applyUrbanFabric(){
   if (map.getLayer('landuse_residential')) map.setPaintProperty('landuse_residential', 'fill-opacity', ['interpolate', ['linear'], ['zoom'], 11.5, 0.5, 13, 0.6]);
   if (map.getLayer('building')) map.setPaintProperty('building', 'fill-opacity', ['interpolate', ['linear'], ['zoom'], 13.5, 0.36, 15, 0.5]);
   if (map.getLayer('landuse_park')) map.setPaintProperty('landuse_park', 'fill-opacity', ['interpolate', ['linear'], ['zoom'], 12, 0.3, 13.5, 0.55]);
+  // Luz urbana (validada por consola, variante F): tinte mínimo y nítido de la zona urbana, generado a partir de la
+  // grilla de calles (donde hay más calles juntas, más se acumula). Debajo de todas las calles; igual en todas las comunas.
+  if (!map.getLayer('urban-glow')){
+    const layers = map.getStyle().layers;
+    const minor = layers.find(l => l.id === 'highway_minor');
+    const firstRoad = layers.find(l => l.type === 'line' && /^highway_/.test(l.id));
+    if (minor && firstRoad){
+      map.addLayer({
+        id:'urban-glow', type:'line', source: minor.source, 'source-layer': minor['source-layer'],
+        minzoom: 11,
+        filter: ['match', ['get','class'], ['minor', 'tertiary', 'secondary', 'primary'], true, false],
+        layout:{ 'line-cap':'round', 'line-join':'round' },
+        paint:{
+          'line-color':'#4F7086',
+          'line-width': ['interpolate', ['linear'], ['zoom'], 11, 4, 13, 9.6, 15, 16],
+          'line-blur': ['interpolate', ['linear'], ['zoom'], 11, 0.48, 13, 1.15, 15, 1.92],
+          'line-opacity': ['interpolate', ['linear'], ['zoom'], 11, 0, 12, 0.03, 16, 0.03],
+        },
+      }, firstRoad.id);
+    }
+  }
 }
 function applyStreetLuminosity(){
   const P = '#6A7F89';
