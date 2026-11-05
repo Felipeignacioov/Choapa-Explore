@@ -5103,7 +5103,7 @@ function tintMapLayers(){
         // y siempre más gruesas que las secundarias. Secundarias/terciarias quedan con sus valores de siempre.
         const majorClass = (trunk, primary, secondary, other) => ['match', ['get','class'], ['motorway', 'trunk'], trunk, 'primary', primary, 'secondary', secondary, other];
         const majorOp = other => ['match', ['get','class'], ['motorway', 'trunk'], 1, 'primary', 0.9, 'secondary', 0.85, 0.8]; // ya no se apagan al acercar
-            map.setPaintProperty(l.id, 'line-color', ['match', ['get','class'], ['motorway', 'trunk'], '#82959E', 'primary', '#8CA7B4', 'secondary', '#809BA9', '#728D9B']); // familia premium también al acercar
+           map.setPaintProperty(l.id, 'line-color', ['match', ['get','class'], ['motorway', 'trunk'], '#82959E', 'primary', '#8CA7B4', 'secondary', '#697F8B', '#5E747F']); // familia premium al acercar (secundarias y terciarias −18%)
         map.setPaintProperty(l.id, 'line-opacity', ['interpolate', ['linear'], ['zoom'],
           8, majorOp(0.58), 10, majorOp(0.72), 11.5, majorOp(0.72), 12.75, majorOp(0.66), 14.5, majorOp(0.6), 16, majorOp(0.58)]);
         map.setPaintProperty(l.id, 'line-width', ['interpolate', ['linear'], ['zoom'],
@@ -5198,7 +5198,7 @@ function tintMapLayers(){
         // Casi disueltas en el fondo — mismo espíritu que antes, tono más
         // oscuro (72% mezclado hacia el navy) y bastante menos opacas que
         // cualquier capa "major", para que la jerarquía sea innegable.
-            map.setPaintProperty(l.id, 'line-color', ['interpolate', ['linear'], ['zoom'], 10.5, roadColor(0.45), 12.4, '#5F7A88', 16, '#6A8593']); // al entrar a la comuna igual que antes; se aclaran al acercar
+           map.setPaintProperty(l.id, 'line-color', ['interpolate', ['linear'], ['zoom'], 10.5, roadColor(0.45), 12.4, '#4E6470', 16, '#576D79']); // al entrar a la comuna igual que antes; se aclaran al acercar (−18%)
         // Legibilidad SOLO al entrar a una comuna (zoom 8.8→12.4 — de
         // ZOOM_COMUNA_NEAR a ZOOM_DETAIL): ahí aterriza enterLocality (z10.15
         // con sub-localidades) y todavía no hay POIs en pantalla; estas calles
