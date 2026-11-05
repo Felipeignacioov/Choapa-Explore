@@ -555,6 +555,21 @@ img{-webkit-user-drag:none; user-select:none;}
   to{ opacity:1; transform:scale(1); }
 }
 .locality-marker.hidden-level .loc-visual{opacity:0; transform:scale(0.5);}
+/* Rendimiento: dentro de una comuna los pines de comuna quedan ocultos (opacity 0)
+   pero su onda/respiración (animación del radio del SVG, que se calcula en el hilo
+   principal en cada frame) seguía corriendo sin verse. Se pausa mientras están
+   ocultos y continúa al volver a mostrarse. Mismo recurso que ya usa .selected. */
+.locality-marker.hidden-level .loc-visual .loc-halo{animation-play-state:paused;}
+/* Rendimiento: con una pantalla completa y opaca encima del mapa (Guardados, Cerca de mí,
+   Álbum), las animaciones de marcadores y del panel de comuna no se ven; se pausan para
+   que el desplazamiento de esas pantallas no compita con ellas. Clase puesta por JS
+   (ver "MAPA TAPADO") recién cuando la pantalla terminó de entrar; se quita al cerrarla. */
+body.map-covered #map *,
+body.map-covered .comuna-panel,
+body.map-covered .comuna-panel *,
+body.map-covered .comuna-panel::before,
+body.map-covered .tg-edge,
+body.map-covered .tg-edge::after{animation-play-state:paused;}
 .locality-marker:active .loc-visual{transform:scale(0.94);}
 .locality-marker svg{width:26px; height:26px;}
 .locality-marker .loc-halo{animation:loc-breathe 3.2s ease-in-out infinite;}
@@ -5748,6 +5763,51 @@ document.addEventListener('visibilitychange', () => {
 });
 startAmbientTicks();
 
+/* ---------- MAPA TAPADO — pausa lo que no se ve ----------
+   Guardados, Cerca de mí y el Álbum cubren el mapa entero con un fondo opaco.
+   Mientras están abiertos, el ciclo ambiental seguía redibujando el mapa ~4 veces
+   por segundo y las animaciones de los marcadores corrían en cada frame, todo
+   invisible, compitiendo con el desplazamiento de esas listas en celulares modestos.
+   Es el mismo criterio que ya aplica el ciclo ambiental con la pestaña oculta
+   (visibilitychange): se pausa recién cuando la pantalla terminó de entrar y se
+   reanuda en el mismo instante en que empieza a cerrarse, con la fase actual
+   aplicada de inmediato — ningún valor visual ni ningún callback cambia. */
+(() => {
+  const covers = ['guardadosScreen', 'nearbyScreen', 'albumScreen']
+    .map(id => document.getElementById(id)).filter(Boolean);
+  if (!covers.length || typeof MutationObserver === 'undefined') return;
+  const COVER_SETTLE_MS = 450; // estas pantallas entran en 420 ms (transition .42s)
+  let covered = false, settleTimer = null;
+  function syncMapCovered(){
+    const nowCovered = covers.some(el => el.classList.contains('visible'));
+    if (nowCovered === covered) return;
+    covered = nowCovered;
+    clearTimeout(settleTimer);
+    if (covered){
+      settleTimer = setTimeout(() => {
+        if (!covered) return;
+        document.body.classList.add('map-covered');
+        stopAmbientTicks();
+      }, COVER_SETTLE_MS);
+    } else {
+      document.body.classList.remove('map-covered');
+      if (!document.hidden && !ambientTickTimer){
+        ambientTickCallbacks.forEach(fn => fn()); // la fase actual entra ya, sin salto al reaparecer el mapa
+        startAmbientTicks();
+      }
+    }
+  }
+  const coverObserver = new MutationObserver(syncMapCovered);
+  covers.forEach(el => coverObserver.observe(el, { attributes:true, attributeFilter:['class'] }));
+  // Si se vuelve a la pestaña con una de estas pantallas abierta, el listener de
+  // arriba reanuda el ciclo; este (registrado después) lo vuelve a pausar.
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && document.body.classList.contains('map-covered')) stopAmbientTicks();
+  });
+})();
+});
+startAmbientTicks();
+
 // Profundidad del territorio: relieve muy tenue + glow ambiental en las 4 comunas
 // + protagonismo sutil del Río Choapa. Todo por debajo de los POIs (que son
 // marcadores HTML, siempre por encima de cualquier capa del mapa) y sin tocar
@@ -7662,6 +7722,8 @@ let poiSpreadRaf = null;
 let poiSpreadLastRun = 0;
 let poiSpreadPendingRun = false;
 const POI_SPREAD_THROTTLE_MS = 90;
+let poiSpreadAppliedBase = null; // últimas entradas ya aplicadas por esta función (ver más abajo)
+let poiSpreadAppliedKey = '';
 function schedulePOISpreadUpdate(){
   if (!map.getSource('poi-source') || !lastPOIBaseFeatures.length) return;
   if (poiLocalityIntensity(map.getZoom()) <= 0 && !poiSpreadWasApplied) return;
@@ -7677,6 +7739,19 @@ function schedulePOISpreadUpdate(){
       poiSpreadRaf = requestAnimationFrame(step);
       return;
     }
+       // Rendimiento: al desplazar el mapa sin cambiar zoom ni rotación, la
+    // separación en pantalla entre POIs es exactamente la misma (solo cambia el
+    // encuadre), así que el resultado geográfico es idéntico. Antes se volvían a
+    // enviar las dos fuentes GeoJSON (setData) cada 90 ms durante todo el paneo,
+    // y MapLibre retejaba y recolocaba los POIs en cada envío. Si nada de lo que
+    // afecta al cálculo cambió, no se recalcula ni se reenvía nada.
+    const spreadKey = `${map.getZoom()}|${map.getBearing()}|${map.getPitch()}|${poiPhotoReadyIds.size}`;
+    if (lastPOIBaseFeatures === poiSpreadAppliedBase && spreadKey === poiSpreadAppliedKey){
+      poiSpreadPendingRun = false;
+      return;
+    }
+    poiSpreadAppliedBase = lastPOIBaseFeatures;
+    poiSpreadAppliedKey = spreadKey;
     poiSpreadLastRun = now;
     poiSpreadPendingRun = false;
     applyPOIRenderSplit(computePOISpreadFeatures(lastPOIBaseFeatures, map.getZoom()));
@@ -8160,12 +8235,24 @@ function currentZoomTier(){
 // localidad y plenas hacia la mitad del rango. Las primarias no se ven afectadas.
 const ZOOM_LOCALITY_REVEAL_START = ZOOM_SUBLOCALITY + 0.4; // 10.4
 const ZOOM_LOCALITY_REVEAL_END = 11.6;
+// Rendimiento: estas 3 variables cambian en cada frame de zoom. Escritas en
+// <html>, obligaban al navegador a recalcular el estilo de TODA la app (paneles,
+// listas, pantallas ocultas) en cada frame. Solo las usan los marcadores de
+// comuna/localidad, que viven dentro de #map — se escriben ahí (heredan igual)
+// y solo cuando el valor cambia. Mismos valores, mismo resultado visual.
+const zoomCssVarTarget = map.getContainer();
+const zoomCssVarLast = {};
+function setZoomCssVar(name, value){
+  if (zoomCssVarLast[name] === value) return;
+  zoomCssVarLast[name] = value;
+  zoomCssVarTarget.style.setProperty(name, value);
+}
 function updateLocalityTierDiff(){
   const z = map.getZoom();
   const factor = Math.min(Math.max((ZOOM_DETAIL - z) / (ZOOM_DETAIL - ZOOM_SUBLOCALITY), 0), 1);
-   document.documentElement.style.setProperty('--loc-tier-diff', factor.toFixed(3));
+  setZoomCssVar('--loc-tier-diff', factor.toFixed(3));
   const rt = Math.min(Math.max((z - ZOOM_LOCALITY_REVEAL_START) / (ZOOM_LOCALITY_REVEAL_END - ZOOM_LOCALITY_REVEAL_START), 0), 1);
-  document.documentElement.style.setProperty('--loc-secondary-reveal', (rt * rt * (3 - 2 * rt)).toFixed(3)); // suavizado: sin saltos
+  setZoomCssVar('--loc-secondary-reveal', (rt * rt * (3 - 2 * rt)).toFixed(3)); // suavizado: sin saltos
 }
 
 // Escala extra del halo del PIN de comuna (Nivel 1) — únicamente en el mismo
@@ -8176,7 +8263,7 @@ function updateLocalityTierDiff(){
 function updateComunaHaloSpawnScale(){
   const z = map.getZoom();
   const factor = Math.min(Math.max((ZOOM_COMUNA_NEAR - z) / (ZOOM_COMUNA_NEAR - 7.6), 0), 1);
-  document.documentElement.style.setProperty('--comuna-halo-spawn-scale', (1 + factor * 0.3).toFixed(3));
+  setZoomCssVar('--comuna-halo-spawn-scale', (1 + factor * 0.3).toFixed(3));
 }
 function updateExplorationLevel(){
   const tier = currentZoomTier();
@@ -9700,9 +9787,35 @@ async function toggleSavedPlace(placeId){
       .from('saved_places')
       .insert({ user_id: currentAuthUser.id, experience_id: placeId });
     if (error){ console.error('[Guardados] Error guardando experiencia:', error); return { ok:false }; }
-    savedPlaceIds.add(placeId);
+       savedPlaceIds.add(placeId);
     return { ok:true, saved:true };
   }
+}
+// Verificación silenciosa al abrir Guardados con datos ya cargados (ver
+// openGuardados). A diferencia de loadSavedPlaces(), NO vacía el Set mientras
+// consulta: los botones de la pantalla siguen operando sobre el estado real.
+// Si durante la consulta hubo cualquier guardar/quitar (el Set cambió), el
+// resultado se descarta para no pisar un cambio recién confirmado con una
+// lectura más vieja. Solo si Supabase devuelve algo distinto se actualiza el Set
+// y se repinta. Ante error, no toca nada.
+function savedPlacesSnapshotKey(){ return [...savedPlaceIds].sort().join('|'); }
+async function refreshSavedPlacesQuietly(){
+  if (!currentAuthUser || savedPlacesLoadPromise || !supabaseClient) return;
+  const userId = currentAuthUser.id;
+  const before = savedPlacesSnapshotKey();
+  let result;
+  try{
+    result = await supabaseClient.from('saved_places').select('experience_id').eq('user_id', userId);
+  } catch(e){ return; }
+  const { data, error } = result || {};
+  if (error || !currentAuthUser || currentAuthUser.id !== userId) return;
+  if (savedPlacesLoadPromise || !savedPlacesLoaded || savedPlacesSnapshotKey() !== before) return;
+  const next = [...new Set((data || []).map(row => row.experience_id))];
+  if (next.slice().sort().join('|') === before) return; // sin cambios: no se repinta nada
+  savedPlaceIds.clear();
+  next.forEach(id => savedPlaceIds.add(id));
+  if (guardadosScreen.classList.contains('visible')) renderGuardados();
+  if (state.selectedPlace) document.getElementById('poiDetailSave').classList.toggle('saved', savedPlaceIds.has(state.selectedPlace.id));
 }
 
 /* ============================================================
@@ -11814,7 +11927,15 @@ function openGuardados(){
     nearbyScreen.classList.remove('visible');
     document.getElementById('albumScreen').classList.remove('visible');
     document.getElementById('guardadosEmptyIcon').innerHTML = icon('bookmark', 34);
-await loadSavedPlaces(); // espera la carga real antes de pintar — evita el "vacío" transitorio
+    // Respuesta inmediata: si los guardados de esta sesión ya están cargados
+    // (savedPlaceIds solo cambia tras confirmación de Supabase), la pantalla se
+    // abre al instante con esos datos y se verifica en segundo plano por si
+    // cambiaron desde otro dispositivo. Antes cada apertura esperaba un viaje
+    // completo a Supabase antes de mostrar nada. Sin datos cargados (primera
+    // vez o tras un error), se espera la carga real exactamente como antes.
+    const savedAlreadyLoaded = !!currentAuthUser && savedPlacesLoaded && !savedPlacesLoadPromise;
+    if (!savedAlreadyLoaded) await loadSavedPlaces(); // espera la carga real antes de pintar — evita el "vacío" transitorio
+    else refreshSavedPlacesQuietly();
     guardadosLoadError = !!currentAuthUser && !savedPlacesLoaded;
     renderGuardados();
     guardadosScreen.classList.add('visible');
