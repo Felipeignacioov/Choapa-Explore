@@ -257,6 +257,8 @@ img{-webkit-user-drag:none; user-select:none;}
 .search-result .sr-label{font-size:13px; font-weight:600; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .search-result .sr-sub{font-size:10.5px; color:var(--text-tertiary); margin-top:1px;}
 .search-empty{padding:16px; font-size:12.5px; color:var(--text-tertiary); text-align:center;}
+/* Aviso discreto al pulsar Enter con menos de 3 letras (no es un resultado). */
+.search-hint{padding:10px 14px 4px; font-size:11.5px; color:var(--text-tertiary);}
 .search-results-header{padding:12px 14px 6px;}
 .search-results-header .srh-title{font-size:12.5px; font-weight:700; color:var(--text-primary); letter-spacing:-0.005em;}
 .search-results-header .srh-section{margin-top:9px; font-size:9.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-tertiary);}
@@ -13752,7 +13754,7 @@ function buildSearchIndex(){
   const idx = [];
   LOCALITIES.forEach(loc => idx.push({
     kind:'comuna',
-    icon:icon('pin', 15), label:loc.name, sub:'Localidad',
+      icon:icon('pin', 15), label:loc.name, sub:'Comuna',
     keywords:loc.name.toLowerCase(),
     action:() => enterLocality(loc, { fly:true }),
   }));
@@ -13819,16 +13821,17 @@ function renderSearchMatches(matches, emptyLabel){
 }
 
 // Rótulos de grupo para las sugerencias por nombre (no son seleccionables).
-function labelSearchGroups(nComunas, nLugares){
+function labelSearchGroups(nLugares, nComunas){
   const rows = searchResults.querySelectorAll('.search-result');
   const label = text => { const el = document.createElement('div'); el.className = 'search-group-label'; el.textContent = text; return el; };
-  if (nComunas && rows[0]) searchResults.insertBefore(label('Ir a la comuna'), rows[0]);
-  if (nLugares && rows[nComunas]) searchResults.insertBefore(label('Lugares con ese nombre'), rows[nComunas]);
+  if (nLugares && rows[0]) searchResults.insertBefore(label('Lugares con ese nombre'), rows[0]);
+  if (nComunas && rows[nLugares]) searchResults.insertBefore(label('Ir a la comuna'), rows[nLugares]);
 }
 
 function renderSearchResults(query){
   exitSmartSearchView(); // volver a las sugerencias locales cancela cualquier búsqueda inteligente en curso
-  const q = query.trim().toLowerCase();
+  // Con una sola letra no se sugiere nada (solo ruido): se trata como campo vacío.
+  const q = query.trim().length >= 2 ? query.trim().toLowerCase() : '';
   const filtering = state.activeExperience !== 'todos';
   const index = filtering ? buildExperienceSearchIndex(state.activeExperience) : SEARCH_INDEX;
 
@@ -13853,12 +13856,19 @@ function renderSearchResults(query){
   // viene acotado a esa experiencia (comunas + lugares que la ofrecen).
    // Solo coincidencia directa con el NOMBRE (frase completa). Comunas y
   // experiencias van en grupos separados y rotulados, nunca mezcladas.
-  const named = index.filter(item => item.keywords.includes(q));
-  const comunas = named.filter(item => item.kind === 'comuna').slice(0, 3);
+  // Coincide al INICIO de una palabra del nombre, sin importar tildes:
+  // "sal" → Salamanca / Salto del Diablo, pero "a" o "la" ya no traen medio listado.
+  const qn = ' ' + smartNorm(q);
+  const named = index.filter(item => (' ' + smartNorm(item.keywords)).includes(qn));
+  // Primero los lugares (lo que el usuario suele buscar); las comunas, después.
   const lugares = named.filter(item => item.kind === 'experiencia').slice(0, 5);
-  const matches = comunas.concat(lugares);
+  const comunas = named.filter(item => item.kind === 'comuna').slice(0, 2);
+  const matches = lugares.concat(comunas);
+  // Mientras se escribe ("co" → "comida") no se muestra "Sin resultados": se
+  // mantiene el panel inicial hasta que haya 3 letras y la búsqueda inteligente.
+  if (!matches.length && q.length < SMART_SEARCH_MIN_CHARS) return renderSearchResults('');
   renderSearchMatches(matches, `Sin resultados para "${query}"`);
-  labelSearchGroups(comunas.length, lugares.length);
+  labelSearchGroups(lugares.length, comunas.length);
   appendSmartSearchAction(query); // primera fila: "Descubrir experiencias para «…»"
 }
 searchInput.addEventListener('input', e => renderSearchResults(e.target.value));
@@ -14340,7 +14350,15 @@ async function fetchSmartSearch(query){
 
 function submitSmartSearch(raw, opts = {}){
   const query = String(raw == null ? '' : raw).trim();
-  if (query.length < SMART_SEARCH_MIN_CHARS){ searchInput.focus(); return; } // nada de solicitudes vacías
+  if (query.length < SMART_SEARCH_MIN_CHARS){ // nada de solicitudes vacías
+    searchInput.focus();
+    if (query){ // Enter con 1–2 letras: aviso discreto en vez de no hacer nada
+      searchResults.querySelectorAll('.search-hint').forEach(el => el.remove());
+      searchResults.insertBefore(smartEl('div', 'search-hint', 'Escribe al menos 3 letras para buscar'), searchResults.firstChild);
+      searchResults.classList.add('visible');
+    }
+    return;
+  }
   if (smartSearch.inFlightQuery === query) return; // la misma búsqueda ya está en curso
   if (!opts.force && smartSearch.lastQuery === query && smartSearch.lastResults){
     cancelSmartSearch();
