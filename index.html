@@ -15616,7 +15616,40 @@ if (supabaseClient){
       discoveredExperiencesLoaded = true;
           discoveredExperiencesLoadPromise = null;
     }
-    syncProfileWithSession(); // perfil: mismo listener, sin crear otro
+       syncProfileWithSession(); // perfil: mismo listener, sin crear otro
+  });
+}
+
+// ================= BIENVENIDA AL CONFIRMAR EL CORREO (primer ingreso) =================
+// Al tocar "Confirmar mi correo", Supabase vuelve a la app con #access_token=…&type=signup.
+// El hash se lee AHORA (este script es síncrono), antes de que supabase-js lo limpie de la URL.
+// Solo si se llega desde ese enlace se registra este listener; en cualquier otra carga no hace nada.
+// Va DESPUÉS del listener principal, así currentAuthUser ya está al día cuando corre.
+const AUTH_URL_HASH = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
+const AUTH_ARRIVED_FROM_SIGNUP = AUTH_URL_HASH.get('type') === 'signup' && AUTH_URL_HASH.has('access_token');
+let signupWelcomeShown = false;
+async function showSignupWelcome(user){
+  if (!user || signupWelcomeShown) return;
+  signupWelcomeShown = true; // SIGNED_IN e INITIAL_SESSION pueden llegar ambos: una sola bienvenida
+  const seq = ++welcomeSeq;
+  const uid = user.id;
+  if (!(currentProfile && currentProfile.userId === uid) && currentAuthUser && currentAuthUser.id === uid){
+    await Promise.race([loadCurrentProfile(), new Promise(r => setTimeout(r, 1500))]);
+  }
+  if (seq !== welcomeSeq || !currentAuthUser || currentAuthUser.id !== uid) return;
+  const name = getDisplayName(currentAuthUser);
+  showAppNotice({
+    tone:'success',
+    title: name ? `¡Te damos la bienvenida, ${name}!` : '¡Te damos la bienvenida!',
+    text:'Tu cuenta en Choapa Explore está confirmada. Ya puedes guardar experiencias y recuerdos del valle.',
+    duration:6000,
+  });
+}
+if (supabaseClient && AUTH_ARRIVED_FROM_SIGNUP){
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session){
+      setTimeout(() => showSignupWelcome(session.user), 0); // fuera del callback de auth, igual que el perfil
+    }
   });
 }
 
