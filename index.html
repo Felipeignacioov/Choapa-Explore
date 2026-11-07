@@ -268,9 +268,13 @@ img{-webkit-user-drag:none; user-select:none;}
   padding:9px 14px 3px; font-size:9.5px; font-weight:700; letter-spacing:.08em;
   text-transform:uppercase; color:var(--text-tertiary);
 }
-.search-result.smart-search-action .sr-icon,
-.search-result.smart-search-action .sr-label{color:var(--turquoise-bright);}
-
+/* Fila de acción "Buscar «…»": misma lupa del buscador, sin íconos de "IA". */
+.search-result.smart-search-action .sr-icon{
+  width:26px; height:26px; border-radius:50%;
+  background:rgba(22,184,196,0.14); color:var(--turquoise-bright);
+}
+.search-result.smart-search-action .sr-label{color:var(--text-primary);}
+.search-result.smart-search-action .sr-q{color:var(--turquoise-bright);}
 /* Modo smart: el panel no desplaza su contenido entero — el contexto queda fijo
    arriba y solo la lista de experiencias se recorre (scroll interno contenido,
    sin encadenar al mapa ni a la página). Altura tope en --smart-max-h (JS). */
@@ -326,13 +330,20 @@ button.smart-card:focus-visible{outline:2px solid rgba(95,225,232,0.45); outline
 .smart-body{flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;}
 .smart-name{font-size:13px; font-weight:700; line-height:1.3; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .smart-meta{display:flex; align-items:center; gap:10px; min-width:0; line-height:1.35;}
-.smart-loc{flex:0 2 auto; min-width:0; font-size:10.5px; color:var(--text-tertiary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.smart-loc{flex:0 1 auto; min-width:0; font-size:10.5px; color:var(--text-tertiary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .smart-desc{
   margin-top:1px; font-size:11px; line-height:1.4; color:var(--text-secondary);
   display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
 }
-.smart-tags{display:flex; flex:0 1 auto; min-width:0; overflow:hidden; gap:8px;}
-.smart-tag{display:inline-flex; align-items:center; gap:4px; font-size:9.5px; font-weight:600; color:var(--text-secondary); white-space:nowrap;}
+.smart-tags{display:flex; flex:0 0 auto; max-width:48%; min-width:0; gap:8px;}
+.smart-tag{display:inline-flex; align-items:center; gap:4px; min-width:0; font-size:9.5px; font-weight:600; color:var(--text-secondary); white-space:nowrap;}
+.smart-tag-label{min-width:0; overflow:hidden; text-overflow:ellipsis;}
+/* Aviso honesto cuando ningún resultado coincide de verdad con lo pedido */
+.smart-related-note{padding:10px 14px 4px; font-size:11.5px; line-height:1.45; color:var(--text-secondary);}
+.smart-group-label{
+  padding:10px 8px 4px; font-size:9.5px; font-weight:700; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--text-tertiary);
+}
 .smart-tag .dot{width:4px; height:4px; border-radius:50%; background:var(--tag-color, currentColor);}
 .smart-card.is-unavailable{opacity:.62;}
 .smart-note{font-size:10px; color:var(--text-tertiary);}
@@ -13933,10 +13944,12 @@ function appendSmartSearchAction(query){
   const btn = smartEl('button', 'search-result smart-search-action');
   btn.type = 'button';
   const ic = smartEl('span', 'sr-icon');
-  ic.innerHTML = icon('sparkle', 15); // ícono propio de la app, no dato del backend
+   // Misma lupa del buscador (SVG fijo de la app, no dato del backend).
+  ic.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2.2"/><path d="m21 21-4.3-4.3" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
   const tx = smartEl('span', 'sr-text');
-  tx.appendChild(smartEl('span', 'sr-label', `Descubrir experiencias para «${q}»`));
-  tx.appendChild(smartEl('span', 'sr-sub', 'Búsqueda inteligente'));
+  const label = smartEl('span', 'sr-label', 'Buscar ');
+  label.appendChild(smartEl('span', 'sr-q', `«${q}»`));
+  tx.appendChild(label);
   btn.appendChild(ic);
   btn.appendChild(tx);
   onSmartTap(btn, () => submitSmartSearch(q));
@@ -14067,23 +14080,26 @@ function buildSmartCard(item){
 
   const body = smartEl('div', 'smart-body');
   body.appendChild(smartEl('div', 'smart-name', smartText(item.name) || (place && place.name) || ''));
-  const locParts = [smartText(item.locality_name), smartText(item.commune_name)].filter(Boolean)
-    .filter((v, i, arr) => arr.findIndex(x => x.toLowerCase() === v.toLowerCase()) === i);
-  const locText = locParts.length ? locParts.join(' · ') : (place && place.locality) || '';
+    // Localidad, y la comuna solo si aporta (no "Salamanca Centro · Salamanca").
+  const locality = smartText(item.locality_name);
+  const commune = smartText(item.commune_name);
+  const locText = locality && commune && !smartNorm(locality).includes(smartNorm(commune))
+    ? `${locality} · ${commune}`
+    : (locality || commune || (place && place.locality) || '');
   // Línea secundaria única: localidad · comuna (se recorta si no cabe) y, a su
   // derecha, las categorías como etiquetas discretas. Si falta todo, no se pinta.
   if (locText || tags.length){
     const meta = smartEl('div', 'smart-meta');
     if (locText) meta.appendChild(smartEl('span', 'smart-loc', locText));
     if (tags.length){
+         // Una sola categoría (la principal): la línea siempre cabe completa.
       const row = smartEl('span', 'smart-tags');
-      tags.forEach(t => {
-        const chip = smartEl('span', 'smart-tag');
-        if (t.exp) chip.style.setProperty('--tag-color', expColor(t.exp));
-        chip.appendChild(smartEl('span', 'dot'));
-        chip.appendChild(document.createTextNode(t.label));
-        row.appendChild(chip);
-      });
+      const t = tags[0];
+      const chip = smartEl('span', 'smart-tag');
+      if (t.exp) chip.style.setProperty('--tag-color', expColor(t.exp));
+      chip.appendChild(smartEl('span', 'dot'));
+      chip.appendChild(smartEl('span', 'smart-tag-label', t.label));
+      row.appendChild(chip);
       meta.appendChild(row);
     }
     body.appendChild(meta);
@@ -14103,11 +14119,74 @@ function buildSmartCard(item){
   }
   return card;
 }
+// ---- ¿El resultado responde de verdad a lo escrito? ----
+// Solo decide CÓMO se presenta (nunca filtra ni reordena dentro de cada grupo).
+// Usa el mismo vocabulario de categorías y palabras vacías que la función SQL
+// search_experiences (si se cambia allí, conviene cambiarlo aquí también).
+const SMART_CATEGORY_TERMS = {
+  gastronomia: 'gastronomia comida comer restaurant restaurante restaurantes cafe cafes cafeteria cafeterias coffee almuerzo almorzar cena cenar desayuno desayunar picada vino vinos cerveza pasteleria',
+  cita:        'cita citas pareja romantico romantica romance aniversario enamorados',
+  naturaleza:  'naturaleza natural paisaje paisajes mirador miradores sendero senderos montana montanas rio bosque',
+  aventura:    'aventura aventuras trekking excursion camping acampar explorar',
+  adrenalina:  'adrenalina extremo extrema rapel canopy',
+  tranquilo:   'tranquilo tranquila tranquilidad relajo relajarse descansar descanso calma desconectar desconectarse',
+  familia:     'familia familiar familias ninos nino hijos',
+  noche:       'noche nocturno nocturna estrellas astronomia',
+  cultura:     'cultura cultural historia historico historica patrimonio museo iglesia iglesias',
+};
+const SMART_QUERY_STOPWORDS = new Set((
+  'el la los las lo de del en y o u un una unos unas por para con sin que al a mi mis me te se le nos ' +
+  'quiero queremos quisiera busco buscamos buscar hacer ir ver conocer donde como cual cuales hay puedo podemos ' +
+  'algo alguna algun lugar lugares sitio sitios experiencia experiencias actividad actividades recomienda recomiendas ' +
+  'recomendacion cerca valle choapa muy mas bien bonito bonita bonitos bonitas lindo linda lindos lindas buen bueno ' +
+  'buena buenos buenas mejor mejores este esta estos estas fin semana hoy dia'
+).split(' '));
+function smartNorm(v){
+  return String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+// Palabras de la consulta que expresan qué se busca (sin relleno ni nombres de lugares).
+function smartIntentTokens(query){
+  const placeWords = new Set();
+  // LOCALITIES = comunas; SUBLOCALITIES = { comuna: [localidades] }.
+  [...LOCALITIES, ...Object.values(SUBLOCALITIES).flat()].forEach(l =>
+    smartNorm(l && l.name).split(/[^a-z0-9ñ]+/).forEach(w => w && placeWords.add(w)));
+  return [...new Set(smartNorm(query).split(/[^a-z0-9ñ]+/))]
+    .filter(w => w.length >= 3 && !SMART_QUERY_STOPWORDS.has(w) && !placeWords.has(w));
+}
+function smartIsDirectMatch(item, tokens){
+  if (!tokens.length) return true; // consulta solo de ubicación: nada que contradecir
+  const words = (' ' + smartNorm(`${item.name || ''} ${item.description || ''}`).replace(/[^a-z0-9ñ]+/g, ' ') + ' ');
+  const cats = (Array.isArray(item.categories) ? item.categories : [])
+    .map(c => smartNorm(typeof c === 'string' ? c : (c && (c.category_id || c.id || c.slug || c.name))));
+  const catTerms = new Set();
+  cats.forEach(c => { catTerms.add(c); (SMART_CATEGORY_TERMS[c] || '').split(' ').forEach(t => catTerms.add(t)); });
+  // Vocabulario de la categoría pedida en el nombre/descripción ("cultura" → "Casco Histórico").
+  const intentTermHit = t => Object.values(SMART_CATEGORY_TERMS).some(list => {
+    const terms = list.split(' ');
+    return terms.includes(t) && terms.some(term => words.includes(' ' + term + ' '));
+  });
+  return tokens.some(t => words.includes(' ' + t) || catTerms.has(t) || intentTermHit(t));
+}
 function renderSmartResults(query, results){
   if (!results.length){ renderSmartEmpty(query); return; }
+  const tokens = smartIntentTokens(query);
+  const direct = [], related = [];
+  results.forEach(item => (smartIsDirectMatch(item, tokens) ? direct : related).push(item));
   const list = smartEl('div', 'smart-list');
-  results.forEach(item => list.appendChild(buildSmartCard(item)));
-  setSmartView([smartHeader('Experiencias para ti', query), list]);
+  direct.forEach(item => list.appendChild(buildSmartCard(item)));
+  if (direct.length && related.length) list.appendChild(smartEl('div', 'smart-group-label', 'También te puede interesar'));
+  related.forEach(item => list.appendChild(buildSmartCard(item)));
+  if (direct.length){
+    setSmartView([smartHeader('Experiencias para ti', query), list]);
+    return;
+  }
+  // Ningún resultado coincide de verdad: se dice con claridad y se ofrecen como alternativas.
+  const leads = related.map(item => smartCategoryTags(item, null)[0]).filter(t => t && t.exp);
+  const sameLead = leads.length === related.length && leads.every(t => t.exp.id === leads[0].exp.id);
+  const note = sameLead
+    ? `Estas experiencias de ${leads[0].label.toLowerCase()} podrían interesarte.`
+    : 'Estas experiencias relacionadas podrían interesarte.';
+  setSmartView([smartHeader('Sin coincidencias exactas', query), smartEl('div', 'smart-related-note', note), list]);
 }
 
 // ---- Petición y validación de la respuesta ----
