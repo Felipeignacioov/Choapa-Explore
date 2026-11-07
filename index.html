@@ -3372,6 +3372,10 @@ body.map-covered .tg-edge::after{animation-play-state:paused;}
   transform:scale(0.94) translateY(10px); transition:transform .3s cubic-bezier(.2,.9,.28,1.1);
 }
 .about-modal.visible .about-modal-card{transform:scale(1) translateY(0);}
+/* Anti-parpadeo: la capa y el recuadro se preparan para animarse sin redibujarse a mitad de camino.
+   Afecta a "Acerca de" y a "Mi perfil" (comparten estos estilos). */
+.about-modal{ -webkit-backdrop-filter:blur(6px); will-change:opacity; }
+.about-modal-card{ will-change:transform; -webkit-backface-visibility:hidden; backface-visibility:hidden; }
 .about-modal-close{
   position:absolute; top:10px; right:10px; width:28px; height:28px; border-radius:50%;
   background:rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; color:var(--text-secondary);
