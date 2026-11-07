@@ -267,19 +267,23 @@ img{-webkit-user-drag:none; user-select:none;}
 .search-result.smart-search-action .sr-icon,
 .search-result.smart-search-action .sr-label{color:var(--turquoise-bright);}
 
-.search-results.smart{overscroll-behavior:contain; -webkit-overflow-scrolling:touch;}
-.search-results.smart.visible{max-height:var(--smart-max-h, 460px);}
+/* Modo smart: el panel no desplaza su contenido entero — el contexto queda fijo
+   arriba y solo la lista de experiencias se recorre (scroll interno contenido,
+   sin encadenar al mapa ni a la página). Altura tope en --smart-max-h (JS). */
+.search-results.smart.visible{
+  max-height:var(--smart-max-h, 460px);
+  display:flex; flex-direction:column; overflow:hidden;
+}
 
 .smart-head{
-  position:sticky; top:0; z-index:1;
-  padding:13px 14px 10px;
-  background:rgba(13,29,45,0.97);
+  position:relative; flex-shrink:0;
+  padding:10px 14px 9px;
   border-bottom:1px solid rgba(180,200,220,0.08);
 }
-.smart-head-title{font-family:var(--font-display); font-size:13px; font-weight:700; color:var(--text-primary); letter-spacing:-0.005em;}
-.smart-head-query{display:flex; align-items:center; gap:10px; margin-top:4px; min-width:0;}
-.smart-head-q{flex:1; min-width:0; font-size:11.5px; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.smart-head-edit{flex-shrink:0; padding:4px 2px; font-size:11px; font-weight:600; color:var(--turquoise-bright);}
+.smart-head-row{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+.smart-head-title{font-size:9.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-tertiary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.smart-head-q{margin-top:3px; font-size:12px; line-height:1.35; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.smart-head-edit{flex-shrink:0; margin:-6px -4px; padding:6px 4px; font-size:11px; font-weight:600; color:var(--turquoise-bright);}
 .smart-progress{position:absolute; left:0; right:0; bottom:-1px; height:2px; overflow:hidden;}
 .smart-progress::after{
   content:''; position:absolute; top:0; bottom:0; left:0; width:40%;
@@ -288,20 +292,26 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 @keyframes smart-progress{ from{transform:translateX(-100%);} to{transform:translateX(250%);} }
 
-.smart-list{display:flex; flex-direction:column; padding:6px 8px 10px;}
+.smart-list{
+  display:flex; flex-direction:column; padding:4px 6px 8px;
+  flex:1 1 auto; min-height:0; overflow-y:auto;
+  overscroll-behavior:contain; -webkit-overflow-scrolling:touch; touch-action:pan-y;
+}
 .smart-card{
-  position:relative; width:100%; display:flex; align-items:flex-start; gap:12px;
-  padding:9px 6px; border-radius:var(--radius-m); text-align:left; color:inherit;
-  transition:background .16s ease;
+  position:relative; width:100%; flex-shrink:0; display:flex; align-items:flex-start; gap:11px;
+  padding:8px; border-radius:var(--radius-m); text-align:left; color:inherit;
+  transition:background .14s ease;
 }
 .smart-card + .smart-card::before{
-  content:''; position:absolute; top:0; left:86px; right:6px; height:1px;
+  content:''; position:absolute; top:0; left:75px; right:8px; height:1px;
   background:rgba(180,200,220,0.08); pointer-events:none;
 }
-button.smart-card:active{background:rgba(95,225,232,0.06);}
+button.smart-card:active{background:rgba(95,225,232,0.07);}
+button.smart-card:focus-visible{outline:2px solid rgba(95,225,232,0.45); outline-offset:-2px;}
+@media (hover:hover){ button.smart-card:hover{background:rgba(95,225,232,0.04);} }
 .smart-photo{
-  position:relative; width:68px; height:68px; flex-shrink:0; overflow:hidden;
-  border-radius:12px; background:var(--surface-elevated);
+  position:relative; width:56px; height:56px; flex-shrink:0; overflow:hidden;
+  border-radius:10px; background:var(--surface-elevated);
   box-shadow:inset 0 0 0 1px rgba(180,200,220,0.12);
   display:flex; align-items:center; justify-content:center;
   color:var(--tag-color, var(--turquoise-bright));
@@ -309,15 +319,16 @@ button.smart-card:active{background:rgba(95,225,232,0.06);}
 .smart-photo > svg{opacity:.7;}
 .smart-photo img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; transition:opacity .25s ease;}
 .smart-photo.has-img img{opacity:1;}
-.smart-body{flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; padding-top:1px;}
-.smart-name{font-size:13px; font-weight:700; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.smart-loc{font-size:10.5px; color:var(--text-tertiary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.smart-body{flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;}
+.smart-name{font-size:13px; font-weight:700; line-height:1.3; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.smart-meta{display:flex; align-items:center; gap:10px; min-width:0; line-height:1.35;}
+.smart-loc{flex:0 2 auto; min-width:0; font-size:10.5px; color:var(--text-tertiary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .smart-desc{
-  font-size:11.5px; line-height:1.4; color:var(--text-secondary);
+  margin-top:1px; font-size:11px; line-height:1.4; color:var(--text-secondary);
   display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
 }
-.smart-tags{display:flex; flex-wrap:wrap; gap:4px 10px; margin-top:2px;}
-.smart-tag{display:inline-flex; align-items:center; gap:4px; font-size:9.5px; font-weight:600; color:var(--text-secondary);}
+.smart-tags{display:flex; flex:0 1 auto; min-width:0; overflow:hidden; gap:8px;}
+.smart-tag{display:inline-flex; align-items:center; gap:4px; font-size:9.5px; font-weight:600; color:var(--text-secondary); white-space:nowrap;}
 .smart-tag .dot{width:4px; height:4px; border-radius:50%; background:var(--tag-color, currentColor);}
 .smart-card.is-unavailable{opacity:.62;}
 .smart-note{font-size:10px; color:var(--text-tertiary);}
@@ -326,20 +337,24 @@ button.smart-card:active{background:rgba(95,225,232,0.06);}
 .smart-skeleton:nth-child(2){animation-delay:.2s;}
 .smart-skeleton:nth-child(3){animation-delay:.4s;}
 .smart-skeleton .smart-photo{background:rgba(180,200,220,0.07); box-shadow:none;}
-.smart-skeleton .smart-body{gap:8px; padding-top:6px;}
+.smart-skeleton{min-height:83px;} /* misma altura que una fila real: sin salto al llegar los resultados */
+.smart-skeleton .smart-body{gap:8px; padding-top:4px;}
 .sk-line{display:block; height:9px; border-radius:5px; background:rgba(180,200,220,0.07);}
 .sk-line.w70{width:70%; height:11px;}
 .sk-line.w45{width:45%;}
 .sk-line.w90{width:90%;}
 @keyframes smart-skeleton{ 0%,100%{opacity:1;} 50%{opacity:.5;} }
 
-.smart-state{display:flex; flex-direction:column; align-items:center; gap:6px; padding:22px 20px 20px; text-align:center;}
+.smart-state{
+  display:flex; flex-direction:column; align-items:center; gap:5px; padding:18px 20px 16px; text-align:center;
+  flex:0 1 auto; min-height:0; overflow-y:auto;
+}
 .smart-state-icon{
-  width:44px; height:44px; margin-bottom:4px; border-radius:50%;
+  width:38px; height:38px; margin-bottom:4px; border-radius:50%;
   display:flex; align-items:center; justify-content:center;
   background:rgba(22,184,196,0.12); color:var(--turquoise-bright);
 }
-.smart-state-title{max-width:280px; font-family:var(--font-display); font-size:13.5px; font-weight:700; line-height:1.35; color:var(--text-primary);}
+.smart-state-title{max-width:280px; font-family:var(--font-display); font-size:13px; font-weight:700; line-height:1.35; color:var(--text-primary);}
 .smart-state-text{max-width:280px; font-size:11.5px; line-height:1.45; color:var(--text-secondary);}
 .smart-state-actions{display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin-top:10px;}
 .smart-btn{
@@ -13856,8 +13871,12 @@ function fitSmartResultsHeight(){
   const sheet = document.getElementById('sheet');
   const limit = sheet && sheet.offsetParent !== null ? sheet.getBoundingClientRect().top : window.innerHeight;
   const avail = Math.round(limit - top - 12);
-  searchResults.style.setProperty('--smart-max-h', Math.max(220, Math.min(560, avail)) + 'px');
+   // Tope compacto: el panel nunca pasa de ~58 % de la pantalla (máx. 500 px),
+  // para que el mapa siga siendo protagonista; la lista se recorre por dentro.
+  const cap = Math.min(500, Math.round(window.innerHeight * 0.58));
+  searchResults.style.setProperty('--smart-max-h', Math.max(200, Math.min(cap, avail)) + 'px');
 }
+window.addEventListener('resize', () => { if (isSmartViewOpen()) fitSmartResultsHeight(); });
 function setSmartView(nodes){
   searchResults.classList.add('smart');
   searchResults.textContent = '';
@@ -13867,15 +13886,19 @@ function setSmartView(nodes){
   searchResults.scrollTop = 0;
 }
 function smartHeader(title, query, { loading = false } = {}){
+   // Contexto compacto: etiqueta + "Editar" en una fila, la consulta debajo en una
+  // línea (recortada solo visualmente; el texto completo queda en title).
   const head = smartEl('div', 'smart-head');
-  head.appendChild(smartEl('div', 'smart-head-title', title));
-  const row = smartEl('div', 'smart-head-query');
-  row.appendChild(smartEl('span', 'smart-head-q', `«${query}»`));
+  const row = smartEl('div', 'smart-head-row');
+  row.appendChild(smartEl('span', 'smart-head-title', title));
   const edit = smartEl('button', 'smart-head-edit', 'Editar');
   edit.type = 'button';
   onSmartTap(edit, editSmartQuery);
   row.appendChild(edit);
-  head.appendChild(row);
+   head.appendChild(row);
+  const q = smartEl('div', 'smart-head-q', `«${query}»`);
+  q.title = query;
+  head.appendChild(q);
   if (loading) head.appendChild(smartEl('div', 'smart-progress'));
   return head;
 }
@@ -13914,7 +13937,7 @@ function renderSmartLoading(query){
     card.appendChild(body);
     list.appendChild(card);
   }
-  setSmartView([smartHeader('Estamos descubriendo experiencias para ti…', query, { loading:true }), list]);
+   setSmartView([smartHeader('Descubriendo experiencias…', query, { loading:true }), list]);
 }
 
 function smartStateBox(iconName, title, text, actions){
@@ -14027,20 +14050,26 @@ function buildSmartCard(item){
   const locParts = [smartText(item.locality_name), smartText(item.commune_name)].filter(Boolean)
     .filter((v, i, arr) => arr.findIndex(x => x.toLowerCase() === v.toLowerCase()) === i);
   const locText = locParts.length ? locParts.join(' · ') : (place && place.locality) || '';
-  if (locText) body.appendChild(smartEl('div', 'smart-loc', locText));
+  // Línea secundaria única: localidad · comuna (se recorta si no cabe) y, a su
+  // derecha, las categorías como etiquetas discretas. Si falta todo, no se pinta.
+  if (locText || tags.length){
+    const meta = smartEl('div', 'smart-meta');
+    if (locText) meta.appendChild(smartEl('span', 'smart-loc', locText));
+    if (tags.length){
+      const row = smartEl('span', 'smart-tags');
+      tags.forEach(t => {
+        const chip = smartEl('span', 'smart-tag');
+        if (t.exp) chip.style.setProperty('--tag-color', expColor(t.exp));
+        chip.appendChild(smartEl('span', 'dot'));
+        chip.appendChild(document.createTextNode(t.label));
+        row.appendChild(chip);
+      });
+      meta.appendChild(row);
+    }
+    body.appendChild(meta);
+  }
   const desc = smartText(item.description) || (place && smartText(place.description)) || '';
   if (desc) body.appendChild(smartEl('div', 'smart-desc', desc));
-  if (tags.length){
-    const row = smartEl('div', 'smart-tags');
-    tags.forEach(t => {
-      const chip = smartEl('span', 'smart-tag');
-      if (t.exp) chip.style.setProperty('--tag-color', expColor(t.exp));
-      chip.appendChild(smartEl('span', 'dot'));
-      chip.appendChild(document.createTextNode(t.label));
-      row.appendChild(chip);
-    });
-    body.appendChild(row);
-  }
   if (!place) body.appendChild(smartEl('div', 'smart-note', 'No disponible en el mapa por ahora'));
 
   card.appendChild(photo);
@@ -14066,7 +14095,11 @@ function smartSearchError(kind){ const e = new Error(kind); e.kind = kind; retur
 function normalizeSmartResults(data){
   let list = data;
   if (list && !Array.isArray(list) && typeof list === 'object'){
+      // Respuesta de respaldo del workflow: { success, fallback, results, message }.
+    // Se usan solo sus "results"; el objeto envoltorio nunca se pinta como
+    // experiencia. results nulo con success distinto de false = sin resultados.
     if (Array.isArray(list.results)) list = list.results;
+    else if ('results' in list && list.results == null && list.success !== false) list = [];
     else if (Array.isArray(list.data)) list = list.data;
     else if (Array.isArray(list.experiences)) list = list.experiences;
     else if (list.id != null || typeof list.name === 'string') list = [list]; // un solo resultado como objeto
