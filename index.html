@@ -264,6 +264,10 @@ img{-webkit-user-drag:none; user-select:none;}
 .searchbar.is-searching .search-go{pointer-events:none; animation:smart-go-pulse 1.1s ease-in-out infinite;}
 @keyframes smart-go-pulse{ 0%,100%{opacity:1;} 50%{opacity:.45;} }
 
+.search-group-label{
+  padding:9px 14px 3px; font-size:9.5px; font-weight:700; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--text-tertiary);
+}
 .search-result.smart-search-action .sr-icon,
 .search-result.smart-search-action .sr-label{color:var(--turquoise-bright);}
 
@@ -13685,23 +13689,26 @@ function searchTokens(q){
   return q.toLowerCase().split(/\s+/).map(w => w.trim()).filter(w => w.length > 2 && !SEARCH_STOPWORDS.has(w));
 }
 
+// Sugerencias instantáneas = solo navegación directa por NOMBRE:
+//  · comunas cuyo nombre contiene lo escrito ("sala" → Salamanca),
+//  · experiencias cuyo nombre contiene lo escrito ("dolce" → Dolce Coffee).
+// Las categorías ya no son sugerencias seleccionables (nunca activan la
+// categoría desde el buscador) y una frase de intención ("comida en
+// Salamanca", "cita") no se reparte por palabras sueltas: la resuelve la
+// búsqueda inteligente, que es la única que ordena por relevancia.
 function buildSearchIndex(){
   const idx = [];
   LOCALITIES.forEach(loc => idx.push({
+    kind:'comuna',
     icon:icon('pin', 15), label:loc.name, sub:'Localidad',
     keywords:loc.name.toLowerCase(),
     action:() => enterLocality(loc, { fly:true }),
   }));
-   EXPERIENCE_TAGS.filter(e => e.id !== 'todos').forEach(exp => idx.push({
-    icon:exp.icon, label:exp.label, sub:'Experiencia',
-    keywords:(EXPERIENCE_SYNONYMS[exp.id] || '') + ' ' + exp.label.toLowerCase(),
-    action:() => setActiveExperience(exp.id),
-  }));
-   DEMO_PLACES.forEach(p => {
-    const expLabels = p.experiences.map(id => expById(id)?.label || '').join(' ');
+     DEMO_PLACES.forEach(p => {
     idx.push({
+      kind:'experiencia',
       icon:expById(p.category).icon, label:p.name, sub:p.locality,
-      keywords:(p.name + ' ' + p.locality + ' ' + expById(p.category).label + ' ' + expLabels).toLowerCase(),
+      keywords:p.name.toLowerCase(),
       action:() => selectPlaceById(p.id),
     });
   });
@@ -13722,14 +13729,16 @@ function buildExperienceSearchIndex(expId){
   const plural = ZONE_PROMPT_PLURAL[expId] || exp.label;
   const idx = [];
   LOCALITIES.forEach(loc => idx.push({
+    kind:'comuna',
     icon:exp.icon, label:`${plural} en ${loc.name}`, sub:'Comuna',
     keywords:loc.name.toLowerCase(),
     action:() => enterLocality(loc, { fly:true }),
   }));
     DEMO_PLACES.filter(p => p.experiences.includes(expId)).forEach(p => {
     idx.push({
+          kind:'experiencia',
       icon:expById(p.category).icon, label:p.name, sub:p.locality,
-      keywords:(p.name + ' ' + p.locality + ' ' + expById(p.category).label).toLowerCase(),
+      keywords:p.name.toLowerCase(),
       action:() => selectPlaceById(p.id),
     });
   });
@@ -13757,6 +13766,14 @@ function renderSearchMatches(matches, emptyLabel){
   });
 }
 
+// Rótulos de grupo para las sugerencias por nombre (no son seleccionables).
+function labelSearchGroups(nComunas, nLugares){
+  const rows = searchResults.querySelectorAll('.search-result');
+  const label = text => { const el = document.createElement('div'); el.className = 'search-group-label'; el.textContent = text; return el; };
+  if (nComunas && rows[0]) searchResults.insertBefore(label('Ir a la comuna'), rows[0]);
+  if (nLugares && rows[nComunas]) searchResults.insertBefore(label('Lugares con ese nombre'), rows[nComunas]);
+}
+
 function renderSearchResults(query){
   exitSmartSearchView(); // volver a las sugerencias locales cancela cualquier búsqueda inteligente en curso
   const q = query.trim().toLowerCase();
@@ -13782,17 +13799,14 @@ function renderSearchResults(query){
   // y si no hay resultados, por palabras clave sueltas ignorando conectores
   // (ej. "¿qué hacer con niños?" → "niños"). Con una categoría activa, el índice ya
   // viene acotado a esa experiencia (comunas + lugares que la ofrecen).
-  let matches = index.filter(item => item.keywords.includes(q));
-  if (!matches.length){
-    const tokens = searchTokens(q);
-    const scored = index
-      .map(item => ({ item, score: tokens.filter(t => item.keywords.includes(t)).length }))
-      .filter(x => x.score > 0)
-      .sort((a, b) => b.score - a.score);
-    matches = scored.map(x => x.item);
-  }
-   matches = matches.slice(0, 7);
+   // Solo coincidencia directa con el NOMBRE (frase completa). Comunas y
+  // experiencias van en grupos separados y rotulados, nunca mezcladas.
+  const named = index.filter(item => item.keywords.includes(q));
+  const comunas = named.filter(item => item.kind === 'comuna').slice(0, 3);
+  const lugares = named.filter(item => item.kind === 'experiencia').slice(0, 5);
+  const matches = comunas.concat(lugares);
   renderSearchMatches(matches, `Sin resultados para "${query}"`);
+  labelSearchGroups(comunas.length, lugares.length);
   appendSmartSearchAction(query); // primera fila: "Descubrir experiencias para «…»"
 }
 searchInput.addEventListener('input', e => renderSearchResults(e.target.value));
