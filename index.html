@@ -339,6 +339,18 @@ img{-webkit-user-drag:none; user-select:none;}
 /* Ideas al tocar el buscador vacío: más discretas que un resultado. */
 .search-result.search-idea .sr-icon{color:var(--text-tertiary);}
 .search-result.search-idea .sr-label{font-weight:500; color:var(--text-secondary);}
+/* Buscador con categoría activa: contexto con el color de la categoría. */
+.search-cat-head{
+  display:flex; align-items:center; gap:8px; padding:12px 14px 4px;
+  font-size:12px; font-weight:600; color:var(--text-secondary);
+}
+.search-cat-head .sch-icon{
+  width:24px; height:24px; border-radius:50%; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  color:var(--cat-color); background:color-mix(in srgb, var(--cat-color) 16%, transparent);
+}
+.search-cat-head b{color:var(--text-primary); font-weight:700;}
+.search-result.search-place .sr-icon{color:var(--cat-color, var(--turquoise-bright));}
 .smart-card{
   position:relative; width:100%; flex-shrink:0; display:flex; align-items:flex-start; gap:11px;
   padding:8px; border-radius:var(--radius-m); text-align:left; color:inherit;
@@ -13837,16 +13849,7 @@ function renderSearchResults(query){
 
  if (!q){
      if (!filtering){ renderSearchIdeas(); return; }
-    // Campo vacío + categoría activa: panel rápido "¿Dónde quieres explorar?" con
-    // una entrada por comuna — la misma navegación que ya dispara tocar la comuna
-    // directamente en el mapa (enterLocality).
-    const quick = index.filter(item => item.sub === 'Comuna');
-    renderSearchMatches(quick, '');
-    searchResults.insertAdjacentHTML('afterbegin', `
-      <div class="search-results-header">
-        <div class="srh-title">¿Dónde quieres explorar?</div>
-        <div class="srh-section">Explorar el Choapa</div>
-      </div>`);
+       renderCategorySearchIdeas(state.activeExperience, index);
     return;
   }
 
@@ -14015,6 +14018,65 @@ const SEARCH_IDEAS = [
   'Aventura al aire libre',
   'Dónde comer algo rico',
 ];
+// Categoría activa: el buscador habla de ESA categoría (ideas propias + lugares
+// reales que la tienen), en vez de una lista genérica de comunas.
+const CATEGORY_SEARCH_COPY = {
+  cita:        { plural:'citas',               ideas:['Cena romántica en Salamanca', 'Un mirador para ver el atardecer', 'Un lugar tranquilo para conversar'] },
+  aventura:    { plural:'aventuras',           ideas:['Acampar cerca del río', 'Trekking con buenas vistas', 'Aventura en Salamanca'] },
+  naturaleza:  { plural:'lugares de naturaleza', ideas:['Miradores con vista al valle', 'Un río para pasar la tarde', 'Senderos para caminar'] },
+  tranquilo:   { plural:'planes tranquilos',   ideas:['Un lugar para desconectar', 'Un café tranquilo', 'Piscina tranquila para el día'] },
+  familia:     { plural:'planes familiares',   ideas:['Algo para hacer con niños', 'Piscina para la familia', 'Una plaza para pasear'] },
+  adrenalina:  { plural:'planes de adrenalina', ideas:['Saltos y cascadas', 'Deportes extremos', 'Aventura con adrenalina en Salamanca'] },
+  gastronomia: { plural:'lugares para comer',  ideas:['Dónde almorzar en Salamanca', 'Un café rico', 'Comida típica del valle'] },
+  noche:       { plural:'planes de noche',     ideas:['Ver las estrellas', 'Un mirador de noche', 'Salir de noche en Salamanca'] },
+  cultura:     { plural:'lugares de cultura',  ideas:['Iglesias históricas', 'Patrimonio en Canela', 'Historia del valle'] },
+};
+function categoryPlural(expId){
+  const exp = expById(expId);
+  return (CATEGORY_SEARCH_COPY[expId] && CATEGORY_SEARCH_COPY[expId].plural) || (exp ? exp.label.toLowerCase() : 'experiencias');
+}
+const capFirst = t => t.charAt(0).toUpperCase() + t.slice(1);
+function renderCategorySearchIdeas(expId, index){
+  const exp = expById(expId);
+  const copy = CATEGORY_SEARCH_COPY[expId] || { ideas:[] };
+  // Lugares reales de la categoría (mismos datos del mapa), con su acción de siempre.
+  const places = index.filter(item => item.kind === 'experiencia').slice(0, 4);
+  renderSearchMatches(places, '');
+  searchResults.querySelectorAll('.search-empty').forEach(el => el.remove());
+  searchResults.querySelectorAll('.search-result').forEach(row => {
+    row.classList.add('search-place');
+    row.style.setProperty('--cat-color', expColor(exp));
+  });
+  if (places.length){
+    searchResults.insertBefore(smartEl('div', 'search-group-label', `${capFirst(categoryPlural(expId))} en el mapa`), searchResults.firstChild);
+  }
+  // Ideas de búsqueda de la categoría (frases de ejemplo, no resultados).
+  const frag = document.createDocumentFragment();
+  const head = smartEl('div', 'search-cat-head');
+  head.style.setProperty('--cat-color', expColor(exp));
+  const ic = smartEl('span', 'sch-icon');
+  ic.innerHTML = icon(exp.iconKey, 13);
+  head.appendChild(ic);
+  head.appendChild(document.createTextNode('Buscando solo en '));
+  head.appendChild(smartEl('b', null, exp.label));
+  frag.appendChild(head);
+  if (copy.ideas.length) frag.appendChild(smartEl('div', 'search-group-label', 'Ideas para empezar'));
+  copy.ideas.forEach(text => {
+    const btn = smartEl('button', 'search-result search-idea');
+    btn.type = 'button';
+    const sic = smartEl('span', 'sr-icon');
+    sic.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2.2"/><path d="m21 21-4.3-4.3" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+    const tx = smartEl('span', 'sr-text');
+    tx.appendChild(smartEl('span', 'sr-label', text));
+    btn.appendChild(sic);
+    btn.appendChild(tx);
+    onSmartTap(btn, () => { searchInput.value = text; syncSearchGo(); submitSmartSearch(text); });
+    frag.appendChild(btn);
+  });
+  searchResults.insertBefore(frag, searchResults.firstChild);
+  searchResults.classList.add('visible');
+}
+
 function renderSearchIdeas(){
   syncSearchGo(); // campo vacío → sin flecha
   searchResults.classList.remove('smart');
@@ -14048,7 +14110,8 @@ function renderSmartLoading(query){
     card.appendChild(body);
     list.appendChild(card);
   }
-   setSmartView([smartHeader('Descubriendo experiencias…', query, { loading:true }), list]);
+   const cat = smartActiveCategory();
+  setSmartView([smartHeader(cat ? `Descubriendo ${categoryPlural(cat)}…` : 'Descubriendo experiencias…', query, { loading:true }), list]);
 }
 
 function smartStateBox(iconName, title, text, actions){
@@ -14131,6 +14194,10 @@ function smartCategoryTags(item, place){
     }
   });
   if (!out.length && place){ const exp = primaryExperienceTag(place); if (exp) push(exp); }
+  // Con una categoría activa, su etiqueta se muestra primero si la experiencia la tiene.
+  const cat = smartActiveCategory();
+  const at = cat ? out.findIndex(t => t.exp && t.exp.id === cat) : -1;
+  if (at > 0) out.unshift(out.splice(at, 1)[0]);
   return out.slice(0, 2);
 }
 function buildSmartCard(item){
@@ -14255,8 +14322,45 @@ function smartIsDirectMatch(item, tokens){
   });
   return tokens.some(t => textHit(t) || catHit(t) || intentTermHit(t));
 }
+// Categoría activa del buscador ('' con "Todos").
+function smartActiveCategory(){
+  return state.activeExperience && state.activeExperience !== 'todos' ? state.activeExperience : '';
+}
+function smartHasCategory(item, cat){
+  return (Array.isArray(item.categories) ? item.categories : []).some(c => {
+    const exp = smartFindTag(typeof c === 'string' ? c : (c && (c.category_id || c.id || c.slug || c.label || c.name)));
+    return exp && exp.id === cat;
+  });
+}
+// Con categoría activa: 1) de la categoría y coincide con lo escrito, 2) otras de
+// la categoría, 3) fuera de la categoría → "También te puede interesar".
+function renderSmartCategoryResults(query, results, cat){
+  const tokens = smartIntentTokens(query);
+  const inCat = results.filter(item => smartHasCategory(item, cat));
+  const outCat = results.filter(item => !smartHasCategory(item, cat));
+  const best = inCat.filter(item => smartIsDirectMatch(item, tokens));
+  const rest = inCat.filter(item => !best.includes(item));
+  const plural = categoryPlural(cat);
+  const list = smartEl('div', 'smart-list');
+  best.forEach(item => list.appendChild(buildSmartCard(item)));
+  if (best.length && rest.length) list.appendChild(smartEl('div', 'smart-group-label', `Otras ${plural.startsWith('lugares') || plural.startsWith('planes') ? 'opciones' : plural}`));
+  rest.forEach(item => list.appendChild(buildSmartCard(item)));
+  if (inCat.length && outCat.length) list.appendChild(smartEl('div', 'smart-group-label', 'También te puede interesar'));
+  outCat.forEach(item => list.appendChild(buildSmartCard(item)));
+  if (inCat.length){
+    setSmartView([smartHeader(`${capFirst(plural)} para ti`, query), list]);
+    return;
+  }
+  setSmartView([
+    smartHeader(`Sin ${plural} para esta búsqueda`, query),
+    smartEl('div', 'smart-related-note', `Estas experiencias de otras categorías podrían interesarte.`),
+    list,
+  ]);
+}
 function renderSmartResults(query, results){
   if (!results.length){ renderSmartEmpty(query); return; }
+  const cat = smartActiveCategory();
+  if (cat){ renderSmartCategoryResults(query, results, cat); return; }
   const tokens = smartIntentTokens(query);
   const direct = [], related = [];
   results.forEach(item => (smartIsDirectMatch(item, tokens) ? direct : related).push(item));
@@ -14327,7 +14431,9 @@ async function fetchSmartSearch(query){
       fetch(SMART_SEARCH_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, limit: SMART_SEARCH_LIMIT }),
+          body: JSON.stringify(smartActiveCategory()
+          ? { query, limit: SMART_SEARCH_LIMIT, category: smartActiveCategory() }
+          : { query, limit: SMART_SEARCH_LIMIT }),
         signal: controller ? controller.signal : undefined,
       }),
       timeout,
@@ -14359,15 +14465,17 @@ function submitSmartSearch(raw, opts = {}){
     }
     return;
   }
-  if (smartSearch.inFlightQuery === query) return; // la misma búsqueda ya está en curso
-  if (!opts.force && smartSearch.lastQuery === query && smartSearch.lastResults){
+    // Misma frase con otra categoría activa = otra búsqueda.
+  const key = smartActiveCategory() + '|' + query;
+  if (smartSearch.inFlightQuery === key) return; // la misma búsqueda ya está en curso
+  if (!opts.force && smartSearch.lastQuery === key && smartSearch.lastResults){
     cancelSmartSearch();
     renderSmartResults(query, smartSearch.lastResults); // misma consulta: sin repetir la petición
     return;
   }
   cancelSmartSearch(); // una búsqueda nueva reemplaza a la anterior
   const seq = smartSearch.seq;
-  smartSearch.inFlightQuery = query;
+  smartSearch.inFlightQuery = key;
   searchBarEl.classList.add('is-searching');
   if (document.activeElement === searchInput) searchInput.blur(); // baja el teclado para ver los resultados
   renderSmartLoading(query);
@@ -14382,7 +14490,7 @@ function submitSmartSearch(raw, opts = {}){
   fetchSmartSearch(query).then(results => {
     if (seq !== smartSearch.seq) return; // respuesta obsoleta
     finishSmartRequest();
-    smartSearch.lastQuery = query;
+      smartSearch.lastQuery = key;
     smartSearch.lastResults = results;
     if (isSmartViewOpen()) renderSmartResults(query, results);
   }, err => {
