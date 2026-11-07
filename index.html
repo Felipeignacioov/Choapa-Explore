@@ -193,7 +193,9 @@ img{-webkit-user-drag:none; user-select:none;}
 
 .searchbar{
   display:flex; align-items:center; gap:9px;
-  background:rgba(16,36,56,0.6); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  background-color:rgba(16,36,56,0.6); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  /* Luz turquesa muy tenue que nace de la lupa y se apaga hacia la derecha. */
+  background-image:radial-gradient(140px 56px at 0% 50%, rgba(22,184,196,0.11), transparent 72%);
   border:1px solid var(--border-glass);
   border-radius:var(--radius-pill);
   padding:10.5px 16px;
@@ -206,11 +208,24 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 .searchbar:focus-within{
   border-color:rgba(95,225,232,0.5);
-  background:rgba(20,43,61,0.85);
+   background-color:rgba(20,43,61,0.85);
   box-shadow:var(--shadow-float), 0 0 0 3px rgba(22,184,196,0.14), inset 0 1px 0 rgba(255,255,255,0.06);
 }
 .searchbar svg{flex-shrink:0; color:var(--text-secondary); transition:color .2s ease;}
 .searchbar:focus-within svg{color:var(--turquoise-bright);}
+/* Lupa dentro de una "lente" turquesa: ancla de marca, mismo idioma circular
+   que el botón de perfil y la flecha de buscar (simétrica a ella). */
+.searchbar > svg:first-child{
+  box-sizing:border-box; width:30px; height:30px; padding:7px; margin:-7px 0 -7px -9px;
+  border-radius:50%; color:var(--turquoise-bright);
+  background:radial-gradient(circle at 32% 28%, rgba(95,225,232,0.20), rgba(22,184,196,0.07) 72%);
+  box-shadow:inset 0 0 0 1px rgba(95,225,232,0.16);
+  transition:box-shadow .2s ease;
+}
+.searchbar:focus-within > svg:first-child{
+  background:radial-gradient(circle at 32% 28%, rgba(95,225,232,0.30), rgba(22,184,196,0.14) 72%);
+  box-shadow:inset 0 0 0 1px rgba(95,225,232,0.32), 0 0 12px rgba(22,184,196,0.22);
+}
 .searchbar input{
   background:none; border:none; outline:none; width:100%;
   color:var(--text-primary); font-size:13.5px; font-weight:500;
@@ -450,8 +465,9 @@ button.smart-card:focus-visible{outline:2px solid rgba(95,225,232,0.45); outline
   max-height:0; opacity:0; margin-top:0;
 }
 .top-ui.compact .searchbar{
-  padding:7px 16px;
+   padding:7px 16px;
 }
+.top-ui.compact .searchbar > svg:first-child{width:26px; height:26px; padding:5px; margin:-5px 0 -5px -10px;}
 .top-ui.compact .chip{
   padding:6px 14px;
 }
