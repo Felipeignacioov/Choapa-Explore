@@ -196,8 +196,12 @@ img{-webkit-user-drag:none; user-select:none;}
   background-color:rgba(16,36,56,0.6); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
   /* Luz turquesa muy tenue que nace de la lupa y se apaga hacia la derecha. */
   background-image:radial-gradient(140px 56px at 0% 50%, rgba(22,184,196,0.11), transparent 72%);
-  border:1px solid var(--border-glass);
-  border-radius:var(--radius-pill);
+   border:1px solid var(--border-glass);
+  /* Radio = mitad de la altura real (41px): es una píldora perfecta y, al abrir
+     el panel, las esquinas de arriba no cambian (antes, con 999px, crecían al
+     doble y la lupa y la flecha quedaban fuera de la curva). */
+  --sb-radius:20.5px;
+  border-radius:var(--sb-radius);
   padding:10.5px 16px;
   /* Highlight superior sutil (línea de luz en el borde de arriba) — mismo
      lenguaje "glass premium" que ya usan los pines de POI (highlight blanco
@@ -229,6 +233,7 @@ img{-webkit-user-drag:none; user-select:none;}
 .searchbar input{
   background:none; border:none; outline:none; width:100%;
   color:var(--text-primary); font-size:13.5px; font-weight:500;
+  text-overflow:ellipsis; /* un placeholder largo termina en "…", no cortado a mitad de letra */
 }
 .searchbar input::placeholder{color:var(--text-secondary);}
 
@@ -240,8 +245,12 @@ img{-webkit-user-drag:none; user-select:none;}
   transition:max-height .22s cubic-bezier(.2,.9,.28,1.1), opacity .18s ease;
 }
 .search-wrap:has(.search-results.visible) .searchbar{
-  border-radius:var(--radius-pill) var(--radius-pill) 0 0;
+  border-radius:var(--sb-radius) var(--sb-radius) 0 0;
+  /* Barra y panel forman una sola tarjeta: mismo borde, sin el anillo de foco
+     que sobresalía 3px a los lados justo donde empieza el panel. */
+  border-color:var(--border-glass);
   border-bottom-color:transparent;
+  box-shadow:var(--shadow-float), inset 0 1px 0 rgba(255,255,255,0.06);
 }
 .search-results.visible{max-height:340px; opacity:1; pointer-events:auto; overflow-y:auto;}
 .search-result{
@@ -297,6 +306,7 @@ img{-webkit-user-drag:none; user-select:none;}
 /* Fila de acción "Buscar «…»": misma lupa del buscador, sin íconos de "IA". */
 .search-result.smart-search-action .sr-icon{
   width:26px; height:26px; border-radius:50%;
+  margin:0 -2px; /* ocupa lo mismo que los demás íconos (22px): textos alineados */
   background:rgba(22,184,196,0.14); color:var(--turquoise-bright);
 }
 .search-result.smart-search-action .sr-label{color:var(--text-primary);}
@@ -319,8 +329,13 @@ img{-webkit-user-drag:none; user-select:none;}
 /* La consulta ya se lee en el buscador, justo encima: no se repite en el panel
    (cabecera de una sola línea → más espacio para las experiencias). */
 .smart-head-q{display:none;}
-.smart-head-edit{flex-shrink:0; margin:-6px -4px; padding:6px 4px; font-size:11px; font-weight:600; color:var(--turquoise-bright);}
-.smart-progress{position:absolute; left:0; right:0; bottom:-1px; height:2px; overflow:hidden;}
+.smart-head-edit{flex-shrink:0; margin:-10px -8px; padding:10px 8px; font-size:11px; font-weight:600; color:var(--turquoise-bright);} /* área táctil más cómoda, mismo lugar visual */
+.smart-progress{
+  position:absolute; left:0; right:0; bottom:-1px; height:2px; overflow:hidden;
+  /* La luz aparece y se apaga suave en los extremos (antes se cortaba en seco contra el borde). */
+  -webkit-mask-image:linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+          mask-image:linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+}
 .smart-progress::after{
   content:''; position:absolute; top:0; bottom:0; left:0; width:40%;
   background:linear-gradient(90deg, transparent, var(--turquoise-bright), transparent);
@@ -375,14 +390,14 @@ button.smart-card:focus-visible{outline:2px solid rgba(95,225,232,0.45); outline
 .smart-photo.has-img img{opacity:1;}
 .smart-body{flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;}
 .smart-name{font-size:13px; font-weight:700; line-height:1.3; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.smart-meta{display:flex; align-items:center; gap:10px; min-width:0; line-height:1.35;}
+.smart-meta{display:flex; align-items:baseline; gap:10px; min-width:0; line-height:1.35;} /* localidad y categoría sobre la misma línea de texto */
 .smart-loc{flex:0 1 auto; min-width:0; font-size:10.5px; color:var(--text-tertiary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .smart-desc{
   margin-top:1px; font-size:11px; line-height:1.4; color:var(--text-secondary);
   display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
 }
 .smart-tags{display:flex; flex:0 0 auto; max-width:48%; min-width:0; gap:8px;}
-.smart-tag{display:inline-flex; align-items:center; gap:4px; min-width:0; font-size:9.5px; font-weight:600; color:var(--text-secondary); white-space:nowrap;}
+.smart-tag{display:inline-flex; align-items:baseline; gap:4px; min-width:0; font-size:9.5px; font-weight:600; color:var(--text-secondary); white-space:nowrap;}
 .smart-tag-label{min-width:0; overflow:hidden; text-overflow:ellipsis;}
 /* Aviso honesto cuando ningún resultado coincide de verdad con lo pedido */
 .smart-related-note{padding:10px 14px 4px; font-size:11.5px; line-height:1.45; color:var(--text-secondary);}
@@ -390,25 +405,25 @@ button.smart-card:focus-visible{outline:2px solid rgba(95,225,232,0.45); outline
   padding:10px 8px 4px; font-size:9.5px; font-weight:700; letter-spacing:.08em;
   text-transform:uppercase; color:var(--text-tertiary);
 }
-.smart-tag .dot{width:4px; height:4px; border-radius:50%; background:var(--tag-color, currentColor);}
+.smart-tag .dot{width:4px; height:4px; border-radius:50%; background:var(--tag-color, currentColor); align-self:center; position:relative; top:-1.5px;} /* a la altura media de las minúsculas */
 .smart-card.is-unavailable{opacity:.62;}
 .smart-note{font-size:10px; color:var(--text-tertiary);}
 
-/* Carga: un brillo suave recorre cada fila (en vez de parpadear). Solo usa
-   transform, así que no recalcula nada en cada cuadro. */
-.smart-skeleton{overflow:hidden;}
-.smart-skeleton::after{
-  content:''; position:absolute; inset:0; pointer-events:none;
-  background:linear-gradient(100deg, transparent 25%, rgba(180,220,230,0.075) 50%, transparent 75%);
-  transform:translateX(-100%); animation:smart-sweep 1.6s cubic-bezier(.4,0,.2,1) infinite;
+/* Carga: un brillo suave recorre SOLO las formas (foto y líneas). Antes cubría
+   la fila entera y dejaba ver un rectángulo que cruzaba los separadores. */
+.smart-skeleton .smart-photo,
+.sk-line{
+  background:linear-gradient(100deg, rgba(180,200,220,0.07) 35%, rgba(190,225,235,0.15) 50%, rgba(180,200,220,0.07) 65%);
+  background-size:300% 100%;
+  animation:smart-sweep 1.6s cubic-bezier(.4,0,.2,1) infinite;
 }
-.smart-skeleton:nth-child(2)::after{animation-delay:.15s;}
-.smart-skeleton:nth-child(3)::after{animation-delay:.3s;}
-@keyframes smart-sweep{ to{transform:translateX(100%);} }
-.smart-skeleton .smart-photo{background:rgba(180,200,220,0.07); box-shadow:none;}
+.smart-skeleton:nth-child(2) :is(.smart-photo, .sk-line){animation-delay:.15s;}
+.smart-skeleton:nth-child(3) :is(.smart-photo, .sk-line){animation-delay:.3s;}
+@keyframes smart-sweep{ from{background-position:100% 0;} to{background-position:0 0;} }
+.smart-skeleton .smart-photo{box-shadow:none;}
 .smart-skeleton{min-height:83px;} /* misma altura que una fila real: sin salto al llegar los resultados */
 .smart-skeleton .smart-body{gap:8px; padding-top:4px;}
-.sk-line{display:block; height:9px; border-radius:5px; background:rgba(180,200,220,0.07);}
+.sk-line{display:block; height:9px; border-radius:5px;}
 .sk-line.w70{width:70%; height:11px;}
 .sk-line.w45{width:45%;}
 .sk-line.w90{width:90%;}
@@ -435,7 +450,7 @@ button.smart-card:focus-visible{outline:2px solid rgba(95,225,232,0.45); outline
 .smart-btn:active{transform:scale(0.96);}
 
 @media (prefers-reduced-motion: reduce){
-  .smart-skeleton::after{animation:none; opacity:0;}
+  .smart-skeleton .smart-photo, .sk-line{animation:none;}
   .searchbar.is-searching .search-go::after{animation-duration:2.4s;}
   .smart-progress::after{animation:none; width:100%; opacity:.45;}
 }
@@ -499,8 +514,12 @@ button.smart-card:focus-visible{outline:2px solid rgba(95,225,232,0.45); outline
 }
 .top-ui.compact .searchbar{
    padding:7px 16px;
+  --sb-radius:17px; /* mitad de la altura compacta (34px) */
 }
 .top-ui.compact .searchbar > svg:first-child{width:26px; height:26px; padding:5px; margin:-5px 0 -5px -10px;}
+/* La flecha se achica igual que la lupa (antes quedaba de 30px y rozaba el borde). */
+.top-ui.compact .search-go{width:26px; height:26px; margin:-5px -10px -5px 0;}
+.top-ui.compact .searchbar.is-searching .search-go::after{inset:6px;}
 .top-ui.compact .chip{
   padding:6px 14px;
 }
@@ -14057,8 +14076,12 @@ function renderCategorySearchIdeas(expId, index){
   const ic = smartEl('span', 'sch-icon');
   ic.innerHTML = icon(exp.iconKey, 13);
   head.appendChild(ic);
-  head.appendChild(document.createTextNode('Buscando solo en '));
-  head.appendChild(smartEl('b', null, exp.label));
+    // Texto y categoría en un solo bloque: el espacio entre "en" y la categoría
+  // es un espacio normal (antes se sumaba el gap del flex y quedaba un hueco).
+  const lbl = smartEl('span');
+  lbl.appendChild(document.createTextNode('Buscando solo en '));
+  lbl.appendChild(smartEl('b', null, exp.label));
+  head.appendChild(lbl);
   frag.appendChild(head);
   if (copy.ideas.length) frag.appendChild(smartEl('div', 'search-group-label', 'Ideas para empezar'));
   copy.ideas.forEach(text => {
@@ -14133,7 +14156,7 @@ function smartStateBox(iconName, title, text, actions){
 }
 function renderSmartEmpty(query){
   setSmartView([
-    smartHeader('Experiencias para ti', query),
+    smartHeader('Sin resultados', query),
     smartStateBox('compassIcon', 'No encontramos experiencias que encajen con esta búsqueda',
       'Prueba contándolo de otra forma: qué te gustaría vivir, con quién o en qué comuna.',
       [['Modificar búsqueda', true, editSmartQuery]]),
@@ -14142,7 +14165,7 @@ function renderSmartEmpty(query){
 function renderSmartError(query, kind){
   const [title, text] = SMART_SEARCH_ERRORS[kind] || SMART_SEARCH_ERRORS.network;
   setSmartView([
-    smartHeader('Experiencias para ti', query),
+    smartHeader('Búsqueda no completada', query),
     smartStateBox('compassIcon', title, text, [
       ['Reintentar', true, () => submitSmartSearch(query, { force:true })],
       ['Modificar', false, editSmartQuery],
