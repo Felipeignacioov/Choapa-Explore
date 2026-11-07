@@ -3205,6 +3205,11 @@ body.map-covered .tg-edge::after{animation-play-state:paused;}
   font-weight:700; letter-spacing:0.25px;
 }
 .auth-form .auth-btn-primary:active{ box-shadow:0 3px 9px rgba(22,184,196,0.14), inset 0 1px 0 rgba(255,255,255,0.3); }
+/* "Crear cuenta" apagado mientras falte un nombre válido (solo en #authForm). */
+#authForm .auth-btn-primary:disabled{
+  background:rgba(95,225,232,0.08); color:var(--text-tertiary);
+  box-shadow:inset 0 0 0 1px rgba(95,225,232,0.14); cursor:not-allowed; transform:none;
+}
 .auth-view-form{ position:relative; overflow:hidden; }
 .auth-view-form::before{
   content:''; position:absolute; left:0; right:0; top:0; height:60%; z-index:0; pointer-events:none;
@@ -15404,7 +15409,9 @@ function normalizeDisplayName(raw){
 function validateDisplayName(name){
   if (!name) return 'Escribe tu nombre para continuar.';
   if (name.length < DISPLAY_NAME_MIN) return 'Tu nombre necesita al menos 2 caracteres.';
-  if (name.length > DISPLAY_NAME_MAX) return 'Tu nombre puede tener hasta 40 caracteres.';
+   if (name.length > DISPLAY_NAME_MAX) return 'Tu nombre puede tener hasta 40 caracteres.';
+  // Al menos 2 letras o números: "???", "!!" o "._." no son un nombre.
+  if ((name.match(/[\p{L}\p{N}]/gu) || []).length < 2) return 'Usa letras o números en tu nombre.';
   return null;
 }
 function isOwnAvatarPath(path, uid){
@@ -15668,9 +15675,19 @@ function showAuthForm(mode){
   authForm.reset();
   clearAuthFieldMarks();
   resetPasswordVisibility();
+  syncRegisterSubmit();
   authWelcomeView.classList.remove('active');
   authFormView.classList.add('active');
 }
+// Registro: "Crear cuenta" queda deshabilitado mientras el nombre no sea válido.
+// En "Iniciar sesión" siempre está habilitado.
+function syncRegisterSubmit(){
+  const invalid = authFormMode === 'register'
+    && !!validateDisplayName(normalizeDisplayName(document.getElementById('authName').value));
+  authFormSubmit.disabled = invalid;
+  authFormSubmit.setAttribute('aria-disabled', String(invalid));
+}
+document.getElementById('authName').addEventListener('input', syncRegisterSubmit);
 function closeAuthScreen(){
   authScreen.classList.add('dismissed');
 setTimeout(() => { authScreen.style.display = 'none'; flushPendingAppNotice(); }, 420); // tras el fade — libera el DOM de interacción y muestra un aviso pendiente
@@ -15799,7 +15816,7 @@ authForm.addEventListener('submit', async (e) => {
   } else {
     result = await AuthService.login(email, password);
   }
-  authFormSubmit.disabled = false;
+  syncRegisterSubmit(); // vuelve a habilitar según el modo y el nombre escrito
 
   if (!result.ok){
     authFormStatus.textContent = result.error || 'No pudimos completar la solicitud. Inténtalo nuevamente.';
