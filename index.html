@@ -14332,27 +14332,70 @@ function smartHasCategory(item, cat){
     return exp && exp.id === cat;
   });
 }
-// Con categoría activa: 1) de la categoría y coincide con lo escrito, 2) otras de
-// la categoría, 3) fuera de la categoría → "También te puede interesar".
+// Lugar del Choapa nombrado en la consulta ("en Illapel", "una cita en El Tambo").
+// Gana el nombre más largo; a igual largo, la comuna.
+function smartQueryPlace(query){
+  const q = ' ' + smartNorm(query).replace(/[^a-z0-9]+/g, ' ') + ' ';
+  let best = null;
+  const consider = (p, kind) => {
+    const n = smartNorm(p && p.name).replace(/[^a-z0-9]+/g, ' ').trim();
+    if (n.length < 3 || !q.includes(' ' + n + ' ')) return;
+    if (!best || n.length > best.len) best = { id:p.id, name:String(p.name).trim(), kind, len:n.length };
+  };
+  LOCALITIES.forEach(c => consider(c, 'comuna'));
+  Object.values(SUBLOCALITIES).flat().forEach(l => consider(l, 'localidad'));
+  return best;
+}
+function smartInPlace(item, place){
+  return place.kind === 'comuna'
+    ? String(item.commune_id) === String(place.id) || smartNorm(item.commune_name) === smartNorm(place.name)
+    : String(item.locality_id) === String(place.id) || smartNorm(item.locality_name) === smartNorm(place.name);
+}
+// Con categoría activa: 1) de la categoría (en el lugar pedido, si se nombró uno)
+// y coincide con lo escrito, 2) otras de la categoría, 3) fuera de la categoría →
+// "También te puede interesar". Si el lugar aún no tiene esa categoría, se dice
+// claro y se muestran las del resto del valle.
 function renderSmartCategoryResults(query, results, cat){
   const tokens = smartIntentTokens(query);
-  const inCat = results.filter(item => smartHasCategory(item, cat));
-  const outCat = results.filter(item => !smartHasCategory(item, cat));
+  const place = smartQueryPlace(query);
+  const here = place ? results.filter(item => smartInPlace(item, place)) : results;
+  const away = place ? results.filter(item => !smartInPlace(item, place)) : [];
+  const inCat = here.filter(item => smartHasCategory(item, cat));
+  const outCat = here.filter(item => !smartHasCategory(item, cat));
+  const awayCat = away.filter(item => smartHasCategory(item, cat));
+  const awayOther = away.filter(item => !smartHasCategory(item, cat));
   const best = inCat.filter(item => smartIsDirectMatch(item, tokens));
   const rest = inCat.filter(item => !best.includes(item));
   const plural = categoryPlural(cat);
   const list = smartEl('div', 'smart-list');
-  best.forEach(item => list.appendChild(buildSmartCard(item)));
-  if (best.length && rest.length) list.appendChild(smartEl('div', 'smart-group-label', `Otras ${plural.startsWith('lugares') || plural.startsWith('planes') ? 'opciones' : plural}`));
-  rest.forEach(item => list.appendChild(buildSmartCard(item)));
-  if (inCat.length && outCat.length) list.appendChild(smartEl('div', 'smart-group-label', 'También te puede interesar'));
-  outCat.forEach(item => list.appendChild(buildSmartCard(item)));
+  const add = (label, items) => {
+    if (!items.length) return;
+    if (label && list.childElementCount) list.appendChild(smartEl('div', 'smart-group-label', label));
+    items.forEach(item => list.appendChild(buildSmartCard(item)));
+  };
   if (inCat.length){
-    setSmartView([smartHeader(`${capFirst(plural)} para ti`, query), list]);
+    add(null, best);
+    add(`Otras ${plural.startsWith('lugares') || plural.startsWith('planes') ? 'opciones' : plural}`, rest);
+    add(`Más ${plural} en el valle`, awayCat);
+    add('También te puede interesar', outCat.concat(awayOther));
+    setSmartView([smartHeader(place ? `${capFirst(plural)} en ${place.name}` : `${capFirst(plural)} para ti`, query), list]);
     return;
   }
+  if (place && awayCat.length){
+    // El lugar pedido todavía no tiene esta categoría: se muestran las del valle.
+    add(null, awayCat);
+    add(`Otros panoramas en ${place.name}`, outCat);
+    add('También te puede interesar', awayOther);
+    setSmartView([
+      smartHeader(`Aún sin ${plural} en ${place.name}`, query),
+      smartEl('div', 'smart-related-note', `Te mostramos ${plural} en otras partes del valle.`),
+      list,
+    ]);
+    return;
+  }
+  add(null, outCat.concat(awayOther));
   setSmartView([
-    smartHeader(`Sin ${plural} para esta búsqueda`, query),
+    smartHeader(place ? `Aún sin ${plural} en ${place.name}` : `Sin ${plural} para esta búsqueda`, query),
     smartEl('div', 'smart-related-note', `Estas experiencias de otras categorías podrían interesarte.`),
     list,
   ]);
@@ -14361,6 +14404,18 @@ function renderSmartResults(query, results){
   if (!results.length){ renderSmartEmpty(query); return; }
   const cat = smartActiveCategory();
   if (cat){ renderSmartCategoryResults(query, results, cat); return; }
+  // Se nombró un lugar que aún no tiene experiencias: se dice y se muestra el valle.
+  const place = smartQueryPlace(query);
+  if (place && !results.some(item => smartInPlace(item, place))){
+    const all = smartEl('div', 'smart-list');
+    results.forEach(item => all.appendChild(buildSmartCard(item)));
+    setSmartView([
+      smartHeader(`Aún sin experiencias en ${place.name}`, query),
+      smartEl('div', 'smart-related-note', 'Te mostramos otras experiencias del valle.'),
+      all,
+    ]);
+    return;
+  }
   const tokens = smartIntentTokens(query);
   const direct = [], related = [];
   results.forEach(item => (smartIsDirectMatch(item, tokens) ? direct : related).push(item));
