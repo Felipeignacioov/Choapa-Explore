@@ -14193,8 +14193,8 @@ function buildSmartCard(item){
 // search_experiences (si se cambia allí, conviene cambiarlo aquí también).
 const SMART_CATEGORY_TERMS = {
   gastronomia: 'gastronomia comida comer restaurant restaurante restaurantes cafe cafes cafeteria cafeterias coffee almuerzo almorzar cena cenar desayuno desayunar picada vino vinos cerveza pasteleria',
-  cita:        'cita citas pareja romantico romantica romance aniversario enamorados',
-  naturaleza:  'naturaleza natural paisaje paisajes mirador miradores sendero senderos montana montanas rio bosque',
+   cita:        'cita citas pareja romantico romantica romance aniversario enamorados polola pololo novia novio',
+  naturaleza:  'naturaleza natural paisaje paisajes mirador miradores sendero senderos montana montanas rio bosque caminar caminata caminatas pasear paseo senderismo',
   aventura:    'aventura aventuras trekking excursion camping acampar explorar',
   adrenalina:  'adrenalina extremo extrema rapel canopy',
   tranquilo:   'tranquilo tranquila tranquilidad relajo relajarse descansar descanso calma desconectar desconectarse',
@@ -14207,7 +14207,9 @@ const SMART_QUERY_STOPWORDS = new Set((
   'quiero queremos quisiera busco buscamos buscar hacer ir ver conocer donde como cual cuales hay puedo podemos ' +
   'algo alguna algun lugar lugares sitio sitios experiencia experiencias actividad actividades recomienda recomiendas ' +
   'recomendacion cerca valle choapa muy mas bien bonito bonita bonitos bonitas lindo linda lindos lindas buen bueno ' +
-  'buena buenos buenas mejor mejores este esta estos estas fin semana hoy dia'
+   'buena buenos buenas mejor mejores este esta estos estas fin semana hoy dia ' +
+  // Palabras genéricas: no dicen qué se busca ("panoramas", "algo entretenido").
+  'panorama panoramas plan planes entretenido entretenida divertido divertida salir visitar recorrer disfrutar cosas'
 ).split(' '));
 function smartNorm(v){
   return String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
