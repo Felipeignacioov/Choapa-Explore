@@ -13811,16 +13811,20 @@ document.addEventListener('click', e => {
    con textContent (nunca innerHTML). */
 const SMART_SEARCH_ENDPOINT = 'https://ignaccio-n8n.upiwc4.easypanel.host/webhook/choapa-search';
 const SMART_SEARCH_LIMIT = 10;
-const SMART_SEARCH_TIMEOUT_MS = 20000;
+// Tiempos de espera: el workflow (Gemini + Supabase) puede tardar ~30 s.
+// 0–10 s: carga normal · 10 s: aviso tranquilo de que seguimos buscando ·
+// 35 s: límite real (se aborta la petición) y se ofrece reintentar.
+const SMART_SEARCH_TIMEOUT_MS = 35000;
+const SMART_SEARCH_SLOW_MS = 10000;
 const SMART_SEARCH_MIN_CHARS = 3;
 const searchGoBtn = document.getElementById('searchGo');
 const searchBarEl = searchInput.closest('.searchbar');
-const smartSearch = { seq:0, controller:null, timer:null, inFlightQuery:null, lastQuery:null, lastResults:null };
+const smartSearch = { seq:0, controller:null, timer:null, slowTimer:null, inFlightQuery:null, lastQuery:null, lastResults:null };
 
 const SMART_SEARCH_ERRORS = {
   offline: ['Sin conexión', 'Parece que no tienes conexión a internet. Revísala e inténtalo de nuevo.'],
   network: ['No pudimos conectar con el buscador', 'Revisa tu conexión e inténtalo de nuevo en un momento.'],
-  timeout: ['La búsqueda está tardando demasiado', 'El buscador no respondió a tiempo. Inténtalo de nuevo.'],
+   timeout: ['La búsqueda tomó más de lo esperado', 'El buscador sigue ocupado en este momento. Puedes intentarlo de nuevo.'],
   http:    ['El buscador no está disponible ahora', 'Tuvimos un problema al consultar las experiencias. Inténtalo de nuevo en unos minutos.'],
   invalid: ['No pudimos leer los resultados', 'La respuesta del buscador llegó incompleta. Inténtalo de nuevo.'],
 };
@@ -13840,8 +13844,10 @@ function isSmartViewOpen(){
   return searchResults.classList.contains('visible') && searchResults.classList.contains('smart');
 }
 function finishSmartRequest(){
-  clearTimeout(smartSearch.timer);
+   clearTimeout(smartSearch.timer);
+  clearTimeout(smartSearch.slowTimer);
   smartSearch.timer = null;
+  smartSearch.slowTimer = null;
   smartSearch.controller = null;
   smartSearch.inFlightQuery = null;
   searchBarEl.classList.remove('is-searching');
@@ -14176,6 +14182,14 @@ function submitSmartSearch(raw, opts = {}){
   searchBarEl.classList.add('is-searching');
   if (document.activeElement === searchInput) searchInput.blur(); // baja el teclado para ver los resultados
   renderSmartLoading(query);
+  // A los 10 s solo cambia el texto de la etiqueta de carga (misma línea, misma
+  // altura): la petición sigue activa, no es un error.
+  smartSearch.slowTimer = setTimeout(() => {
+    if (seq !== smartSearch.seq || !isSmartViewOpen()) return;
+    const head = searchResults.querySelector('.smart-head');
+    const title = head && head.querySelector('.smart-progress') ? head.querySelector('.smart-head-title') : null;
+    if (title) title.textContent = 'Estamos encontrando experiencias…';
+  }, SMART_SEARCH_SLOW_MS);
   fetchSmartSearch(query).then(results => {
     if (seq !== smartSearch.seq) return; // respuesta obsoleta
     finishSmartRequest();
