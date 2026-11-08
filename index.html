@@ -3410,6 +3410,23 @@ body.map-covered .tg-edge::after{animation-play-state:paused;}
 .profile-photo-btn:disabled{opacity:0.45;}
 .profile-modal-email{margin:2px 0 16px; text-align:center; font-size:11.5px; color:var(--text-tertiary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .profile-modal-card .auth-form-status{margin-top:12px;}
+/* Foto de perfil también en el botón del encabezado (mismo <img> recortado que el menú). */
+.profile-btn{position:relative; overflow:hidden;}
+/* Mensajes de éxito en "Mi perfil": misma "nota serena" que los errores, con punto turquesa. */
+.profile-modal-card .auth-form-status:not(.error){
+  position:relative; padding:12px 14px 12px 34px;
+  background:rgba(16,36,56,0.55); border:1px solid rgba(95,225,232,0.22);
+  color:rgba(244,247,250,0.88); font-size:12.5px;
+}
+.profile-modal-card .auth-form-status:not(.error)::before{
+  content:''; position:absolute; left:14px; top:50%; width:8px; height:8px; margin-top:-4px;
+  border-radius:50%; background:var(--turquoise-bright); box-shadow:0 0 0 3px rgba(95,225,232,0.15);
+}
+/* "Guardar nombre" apagado mientras no haya cambios o se esté guardando (mismo acabado que "Crear cuenta"). */
+#profileNameForm .auth-btn-primary:disabled{
+  background:rgba(95,225,232,0.08); color:var(--text-tertiary);
+  box-shadow:inset 0 0 0 1px rgba(95,225,232,0.14); cursor:not-allowed; transform:none;
+}
 
 /* ================= MARCA: logo en encabezado y pantalla de carga ================= */
 :root{
@@ -15578,7 +15595,8 @@ function setAvatarImage(container){
 function renderProfileIdentity(){
   const menu = document.getElementById('profileMenu');
   if (menu && menu.classList.contains('visible')) renderProfileMenu();
-  setAvatarImage(menu && menu.querySelector('.profile-menu-avatar'));
+   setAvatarImage(menu && menu.querySelector('.profile-menu-avatar'));
+  setAvatarImage(document.getElementById('btnProfileHeader')); // la foto también en el botón del encabezado
   renderProfileModal();
 }
 
@@ -16025,6 +16043,15 @@ const profilePhotoRemove = document.getElementById('profilePhotoRemove');
 const profilePhotoInput = document.getElementById('profilePhotoInput');
 let profileBusy = false; // una sola operación de perfil a la vez
 
+// "Guardar nombre" solo se activa si el nombre escrito es distinto del guardado (o si el perfil no cargó).
+function syncProfileNameSave(){
+  const p = currentProfile;
+  const saved = p && currentAuthUser && p.userId === currentAuthUser.id && !p.error ? (p.displayName || '') : null;
+  const unchanged = saved !== null && normalizeDisplayName(profileNameInput.value) === saved;
+  profileNameSave.disabled = profileBusy || unchanged;
+}
+// Al escribir: se reevalúa el botón y se borra cualquier mensaje anterior (ya no corresponde).
+profileNameInput.addEventListener('input', () => { syncProfileNameSave(); setProfileStatus(''); });
 function setProfileStatus(msg, isError){
   if (!msg){ profileStatusEl.style.display = 'none'; return; }
   profileStatusEl.textContent = msg;
@@ -16033,7 +16060,7 @@ function setProfileStatus(msg, isError){
 }
 function setProfileBusy(on, photo){
   profileBusy = on;
-  profileNameSave.disabled = on;
+  syncProfileNameSave();
   profilePhotoChange.disabled = on;
   profilePhotoRemove.disabled = on;
   profilePhotoAvatar.classList.toggle('is-busy', !!(on && photo));
@@ -16049,6 +16076,7 @@ function renderProfileModal(){
   profilePhotoChange.textContent = hasPhoto ? 'Cambiar foto' : 'Añadir foto';
   profilePhotoRemove.hidden = !hasPhoto;
   setAvatarImage(profilePhotoAvatar);
+  syncProfileNameSave();
 }
 function openProfileModal(){
   closeProfileMenu();
@@ -16061,7 +16089,8 @@ function openProfileModal(){
   renderProfileModal();
   if (!currentProfile || currentProfile.error){
     loadCurrentProfile().then(() => {
-      if (profileModal.classList.contains('visible') && !profileBusy && !profileNameInput.value) profileNameInput.value = getDisplayName(currentAuthUser) || '';
+       if (profileModal.classList.contains('visible') && !profileBusy && !profileNameInput.value) profileNameInput.value = getDisplayName(currentAuthUser) || '';
+      syncProfileNameSave();
       if (currentProfile && currentProfile.error) setProfileStatus('No pudimos cargar tu perfil. Revisa tu conexión e inténtalo de nuevo.', true);
     });
   } else {
@@ -16095,7 +16124,7 @@ document.getElementById('profileNameForm').addEventListener('submit', async (e) 
     applyProfileRow(uid, row);
     renderProfileIdentity();
     refreshAvatarUrl();
-    setProfileStatus('Nombre guardado.', false);
+  setProfileStatus('Listo, tu nombre quedó actualizado.', false);
   } catch (e2){
     console.warn('[Perfil] No se pudo guardar el nombre.', e2 && e2.message || '');
     setProfileStatus('No pudimos guardar tu nombre. Inténtalo de nuevo.', true);
@@ -16151,7 +16180,7 @@ profilePhotoInput.addEventListener('change', async () => {
     // 6. Estado visual + URL firmada nueva.
     applyProfileRow(uid, row);
     await refreshAvatarUrl(true);
-    setProfileStatus('Foto actualizada.', false);
+    setProfileStatus('Listo, tu foto de perfil quedó actualizada.', false);
     // 7. Recién ahora se borra la anterior; si no se puede, la foto nueva ya quedó guardada.
     if (oldPath && oldPath !== uploaded.path) ProfileService.removeAvatarFile(oldPath, uid);
   } finally {
@@ -16179,7 +16208,7 @@ profilePhotoRemove.addEventListener('click', async () => {
     }
     if (!currentAuthUser || currentAuthUser.id !== uid) return;
     applyProfileRow(uid, row);
-    setProfileStatus('Foto eliminada.', false);
+   setProfileStatus('Quitaste tu foto de perfil.', false);
     // El perfil ya no la usa: si el borrado del archivo falla, solo queda registrado.
     ProfileService.removeAvatarFile(oldPath, uid);
   } finally {
