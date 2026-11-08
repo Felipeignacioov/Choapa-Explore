@@ -8242,7 +8242,7 @@ function renderLocalityMarkers(){
       <div class="loc-visual">
         <div class="loc-label">
           <span class="loc-name">${loc.name}</span>
-          <span class="loc-count">${count} lugar${count === 1 ? '' : 'es'}</span>
+                 ${count > 0 ? `<span class="loc-count">${count} lugar${count === 1 ? '' : 'es'}</span>` : ''}
         </div>
                 ${localitySVG('var(--turquoise-bright)', `comuna-grad-${loc.id}`)}
       </div>`;
@@ -8256,7 +8256,9 @@ function renderLocalityMarkers(){
       enterLocality(loc, { fly:true });
     });
 
-    const marker = new maplibregl.Marker({ element: el, anchor:'bottom' })
+      // offset 13 px = mitad del SVG (26 px): el centro del punto queda sobre la coordenada real
+    // (con anchor 'bottom' solo, el punto se dibujaba 13 px al norte de la comuna).
+    const marker = new maplibregl.Marker({ element: el, anchor:'bottom', offset:[0, 13] })
       .setLngLat([loc.lng, loc.lat])
       .addTo(map);
    marker._locality = loc;
