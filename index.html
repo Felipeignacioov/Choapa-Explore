@@ -16437,6 +16437,75 @@ setStatus('Revisa tu correo. Si recibes nuestro correo, encontrarás un enlace p
   ['poiDetailThumb', 'mdPhoto'].forEach(id => watch(id, true));
 })();
 
+/* ================= CAMINOS LOCALES AL ENTRAR A UNA COMUNA (validado por consola) =================
+   A zoom de comuna (10–11) el mapa base solo trae las rutas principales: los caminos terciarios
+   (ej. hacia Colliguay o Tahuinco) y rurales recién vienen en sus baldosas de zoom 12, y por eso el
+   territorio se veía vacío al entrar. assets/caminos-locales.json guarda esos caminos ya extraídos
+   de OpenFreeMap (zoom 12) y simplificados: terciarios + caminos rurales de más de 400 m de todo el
+   valle (~80 KB comprimido). Se descarga UNA vez, la primera vez que se acerca a zoom 9.3, y se dibuja
+   bajo las rutas principales. Visible de 9.6 a 12.2: se desvanece justo cuando aparecen los caminos
+   reales del mapa. Si el archivo falla, el mapa queda exactamente como antes. */
+(() => {
+  const ID = 'local-roads';
+  const DATA_URL = 'assets/caminos-locales.json';
+  let loadState = 'idle'; // 'idle' | 'loading' | 'done'
+
+  // Polilínea codificada (precisión 1e-5) → [[lng, lat], ...]
+  function decodePolyline(str){
+    const pts = [];
+    let i = 0, lat = 0, lng = 0;
+    while (i < str.length){
+      for (let k = 0; k < 2; k++){
+        let result = 0, shift = 0, b;
+        do { b = str.charCodeAt(i++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+        const d = (result & 1) ? ~(result >> 1) : (result >> 1);
+        if (k === 0) lat += d; else lng += d;
+      }
+      pts.push([lng / 1e5, lat / 1e5]);
+    }
+    return pts;
+  }
+
+  async function loadLocalRoads(){
+    if (loadState !== 'idle' || map.getZoom() < 9.3) return;
+    loadState = 'loading';
+    try {
+      const res = await fetch(DATA_URL);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      const features = [];
+      [['t', 'tertiary'], ['m', 'minor']].forEach(([key, cls]) => {
+        (data[key] || []).forEach(s => features.push({ type:'Feature', properties:{ class:cls }, geometry:{ type:'LineString', coordinates: decodePolyline(s) } }));
+      });
+      if (!map.getSource(ID)) map.addSource(ID, { type:'geojson', data:{ type:'FeatureCollection', features } });
+      if (!map.getLayer(ID)){
+        const byClass = (t, m) => ['match', ['get', 'class'], 'tertiary', t, m];
+        const beforeId = map.getLayer('road-regional-casing') ? 'road-regional-casing'
+          : (map.getLayer('highway_major_subtle') ? 'highway_major_subtle' : undefined);
+        map.addLayer({
+          id: ID, type:'line', source: ID,
+          layout:{ 'line-join':'round', 'line-cap':'round' },
+          paint:{
+            'line-color': byClass('#5E7886', '#465E6C'),
+            'line-opacity': ['interpolate', ['linear'], ['zoom'], 9.6, 0, 10.1, byClass(0.55, 0.32), 11.6, byClass(0.55, 0.32), 12.2, 0],
+            'line-width': ['interpolate', ['linear'], ['zoom'], 9.6, byClass(0.8, 0.5), 11, byClass(1.1, 0.7), 12.2, byClass(1.3, 0.8)],
+          },
+        }, beforeId);
+      }
+      loadState = 'done';
+      map.off('moveend', loadLocalRoads);
+    } catch (e){
+      loadState = 'idle'; // se reintenta en el próximo movimiento
+      console.warn('[Caminos locales] No se pudieron cargar.', e && e.message || '');
+    }
+  }
+
+  mapLoadPromise.then(() => {
+    map.on('moveend', loadLocalRoads);
+    loadLocalRoads();
+  });
+})();
+
 initSupabaseSync();
 </script>
 </body>
