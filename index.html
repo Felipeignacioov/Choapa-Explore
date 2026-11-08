@@ -16440,69 +16440,129 @@ setStatus('Revisa tu correo. Si recibes nuestro correo, encontrarás un enlace p
 /* ================= CAMINOS LOCALES AL ENTRAR A UNA COMUNA (validado por consola) =================
    A zoom de comuna (10–11) el mapa base solo trae las rutas principales: los caminos terciarios
    (ej. hacia Colliguay o Tahuinco) y rurales recién vienen en sus baldosas de zoom 12, y por eso el
-   territorio se veía vacío al entrar. assets/caminos-locales.json guarda esos caminos ya extraídos
-   de OpenFreeMap (zoom 12) y simplificados: terciarios + caminos rurales de más de 400 m de todo el
-   valle (~80 KB comprimido). Se descarga UNA vez, la primera vez que se acerca a zoom 9.3, y se dibuja
-   bajo las rutas principales. Visible de 9.6 a 12.2: se desvanece justo cuando aparecen los caminos
-   reales del mapa. Si el archivo falla, el mapa queda exactamente como antes. */
+      territorio se veía vacío al entrar. Dentro de una comuna, entre zoom 9.6 y 12.2, se leen esas
+   baldosas de zoom 12 del área visible (cada una UNA sola vez; son las mismas que el mapa usa al
+   acercarse, así que quedan en caché) y se dibujan los terciarios + caminos rurales de más de 400 m,
+   bajo las rutas principales. Se desvanecen en 11.6→12.2, cuando aparecen los caminos reales.
+   Si algo falla, el mapa queda exactamente como antes. */
 (() => {
-  const ID = 'local-roads';
-  const DATA_URL = 'assets/caminos-locales.json';
-  let loadState = 'idle'; // 'idle' | 'loading' | 'done'
+  const ID = 'local-roads', Z = 12, ZMIN = 9.6, ZMAX = 12.2, MIN_KM = 0.4, MAX_TILES = 200; // un celular a zoom de comuna ve ~80–100 baldosas
+  const doneTiles = new Set(), features = [];
+  let busy = false, pending = false;
 
-  // Polilínea codificada (precisión 1e-5) → [[lng, lat], ...]
-  function decodePolyline(str){
-    const pts = [];
-    let i = 0, lat = 0, lng = 0;
-    while (i < str.length){
-      for (let k = 0; k < 2; k++){
-        let result = 0, shift = 0, b;
-        do { b = str.charCodeAt(i++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
-        const d = (result & 1) ? ~(result >> 1) : (result >> 1);
-        if (k === 0) lat += d; else lng += d;
-      }
-      pts.push([lng / 1e5, lat / 1e5]);
-    }
-    return pts;
-  }
-
-  async function loadLocalRoads(){
-    if (loadState !== 'idle' || map.getZoom() < 9.3) return;
-    loadState = 'loading';
-    try {
-      const res = await fetch(DATA_URL);
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
-      const features = [];
-      [['t', 'tertiary'], ['m', 'minor']].forEach(([key, cls]) => {
-        (data[key] || []).forEach(s => features.push({ type:'Feature', properties:{ class:cls }, geometry:{ type:'LineString', coordinates: decodePolyline(s) } }));
+  // Lector mínimo de baldosas vectoriales (solo la capa 'transportation')
+  const td = new TextDecoder(), zz = v => (v >>> 1) ^ -(v & 1);
+  const vi = (u, s) => { let r = 0, k = 0, b; do { b = u[s.p++]; r += (b & 127) * 2 ** k; k += 7; } while (b & 128); return r; };
+  const msg = (u, s, end, cb) => { while (s.p < end){ const key = vi(u, s), f = key >> 3, t = key & 7;
+    if (t === 2){ const l = vi(u, s), e = s.p + l; cb(f, e); s.p = e; } else if (t === 0) cb(f, null, vi(u, s)); else s.p += t === 5 ? 4 : 8; } };
+  function decodeTile(u){
+    const s = { p:0 }; let out = null;
+    msg(u, s, u.length, (f, e) => {
+      if (f !== 3 || e == null) return;
+      let name = '', K = [], V = [], F = [], X = 4096;
+      msg(u, s, e, (f2, e2, v2) => {
+        if (f2 === 1) name = td.decode(u.subarray(s.p, e2));
+        else if (f2 === 3) K.push(td.decode(u.subarray(s.p, e2)));
+        else if (f2 === 5 && e2 == null) X = v2;
+        else if (f2 === 4){ let v = null; msg(u, s, e2, (f3, e3) => { if (f3 === 1 && e3 != null) v = td.decode(u.subarray(s.p, e3)); }); V.push(v); }
+        else if (f2 === 2){ let tg = [], g = []; msg(u, s, e2, (f3, e3) => { if ((f3 === 2 || f3 === 4) && e3 != null){ const a = []; while (s.p < e3) a.push(vi(u, s)); if (f3 === 2) tg = a; else g = a; } }); F.push({ tg, g }); }
       });
-      if (!map.getSource(ID)) map.addSource(ID, { type:'geojson', data:{ type:'FeatureCollection', features } });
-      if (!map.getLayer(ID)){
-        const byClass = (t, m) => ['match', ['get', 'class'], 'tertiary', t, m];
-        const beforeId = map.getLayer('road-regional-casing') ? 'road-regional-casing'
-          : (map.getLayer('highway_major_subtle') ? 'highway_major_subtle' : undefined);
-        map.addLayer({
-          id: ID, type:'line', source: ID,
-          layout:{ 'line-join':'round', 'line-cap':'round' },
-          paint:{
-            'line-color': byClass('#5E7886', '#465E6C'),
-            'line-opacity': ['interpolate', ['linear'], ['zoom'], 9.6, 0, 10.1, byClass(0.55, 0.32), 11.6, byClass(0.55, 0.32), 12.2, 0],
-            'line-width': ['interpolate', ['linear'], ['zoom'], 9.6, byClass(0.8, 0.5), 11, byClass(1.1, 0.7), 12.2, byClass(1.3, 0.8)],
-          },
-        }, beforeId);
-      }
-      loadState = 'done';
-      map.off('moveend', loadLocalRoads);
+      if (name === 'transportation') out = { K, V, F, X };
+    });
+    return out;
+  }
+  function geomLines(g){
+    const r = []; let x = 0, y = 0, cur = null, i = 0;
+    while (i < g.length){ const cmd = g[i++], id = cmd & 7, n = cmd >> 3;
+      for (let k = 0; k < n && id !== 7; k++){ x += zz(g[i++]); y += zz(g[i++]); if (id === 1){ cur = [[x, y]]; r.push(cur); } else cur.push([x, y]); } }
+    return r;
+  }
+  const toLngLat = (tx, ty, X, [x, y]) => { const n = 2 ** Z, yy = Math.PI * (1 - 2 * (ty + y / X) / n); return [(tx + x / X) / n * 360 - 180, 180 / Math.PI * Math.atan(Math.sinh(yy))]; };
+  const km = (a, b) => { const d = Math.PI / 180, h = Math.sin((b[1] - a[1]) * d / 2) ** 2 + Math.cos(a[1] * d) * Math.cos(b[1] * d) * Math.sin((b[0] - a[0]) * d / 2) ** 2; return 12742 * Math.asin(Math.sqrt(h)); };
+  const tileOf = (lng, lat) => { const n = 2 ** Z, r = lat * Math.PI / 180; return [Math.floor((lng + 180) / 360 * n), Math.floor((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n)]; };
+
+  function collect(x, y, L){
+    const ci = L.K.indexOf('class');
+    L.F.forEach(f => {
+      let cls; for (let i = 0; i < f.tg.length; i += 2) if (f.tg[i] === ci) cls = L.V[f.tg[i + 1]];
+      if (cls !== 'tertiary' && cls !== 'minor') return;
+      geomLines(f.g).forEach(line => {
+        const full = line.map(p => toLngLat(x, y, L.X, p));
+        let len = 0; for (let i = 1; i < full.length; i++) len += km(full[i - 1], full[i]);
+        if (cls === 'minor' && len <= MIN_KM) return; // descarta calles urbanas cortas
+        // Solo la parte dentro de la baldosa (sin su borde de cortesía), para no duplicar trazos
+        let seg = []; const segs = [];
+        line.forEach((p, i) => { if (p[0] >= 0 && p[0] <= L.X && p[1] >= 0 && p[1] <= L.X) seg.push(full[i]); else { if (seg.length > 1) segs.push(seg); seg = []; } });
+        if (seg.length > 1) segs.push(seg);
+        segs.forEach(c => features.push({ type:'Feature', properties:{ class:cls }, geometry:{ type:'LineString', coordinates:c } }));
+      });
+    });
+  }
+
+  // Dirección de las baldosas del mapa base (con respaldo si el mapa aún no la expone)
+  let tileTemplate = null;
+  async function getTileTemplate(){
+    if (tileTemplate) return tileTemplate;
+    const src = map.getSource('openmaptiles');
+    if (src && src.tiles && src.tiles[0]) return (tileTemplate = src.tiles[0]);
+    try {
+      const def = map.getStyle().sources.openmaptiles;
+      const tj = def && def.url ? await (await fetch(def.url)).json() : null;
+      tileTemplate = tj && tj.tiles && tj.tiles[0] || null;
+    } catch (e){ tileTemplate = null; }
+    return tileTemplate;
+  }
+
+  function ensureLayer(){
+    if (map.getSource(ID)) return;
+    map.addSource(ID, { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
+    const byClass = (t, m) => ['match', ['get', 'class'], 'tertiary', t, m];
+    const beforeId = map.getLayer('road-regional-casing') ? 'road-regional-casing'
+      : (map.getLayer('highway_major_subtle') ? 'highway_major_subtle' : undefined);
+    map.addLayer({
+      id: ID, type:'line', source: ID,
+      layout:{ 'line-join':'round', 'line-cap':'round' },
+      paint:{
+        'line-color': byClass('#5E7886', '#465E6C'),
+        'line-opacity': ['interpolate', ['linear'], ['zoom'], 9.6, 0, 10.1, byClass(0.55, 0.32), 11.6, byClass(0.55, 0.32), 12.2, 0],
+        'line-width': ['interpolate', ['linear'], ['zoom'], 9.6, byClass(0.8, 0.5), 11, byClass(1.1, 0.7), 12.2, byClass(1.3, 0.8)],
+      },
+    }, beforeId);
+  }
+
+  async function updateLocalRoads(){
+    if (busy){ pending = true; return; }
+    const z = map.getZoom();
+    if (z < ZMIN || z > ZMAX) return;
+    busy = true;
+    try {
+      const tmpl = await getTileTemplate();
+      if (!tmpl) return;
+      const b = map.getBounds(), [x0, y0] = tileOf(b.getWest(), b.getNorth()), [x1, y1] = tileOf(b.getEast(), b.getSouth());
+      const todo = [];
+      for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) if (!doneTiles.has(x + '/' + y)) todo.push([x, y]);
+      if (!todo.length || todo.length > MAX_TILES) return;
+      ensureLayer();
+      const results = await Promise.all(todo.map(([x, y]) => {
+        doneTiles.add(x + '/' + y);
+        return fetch(tmpl.replace('{z}', Z).replace('{x}', x).replace('{y}', y))
+          .then(r => r.ok ? r.arrayBuffer() : Promise.reject(r.status))
+          .then(a => ({ x, y, L: decodeTile(new Uint8Array(a)) }))
+          .catch(() => { doneTiles.delete(x + '/' + y); return null; }); // se reintenta en el próximo movimiento
+      }));
+      results.forEach(r => { if (r && r.L) collect(r.x, r.y, r.L); });
+      map.getSource(ID).setData({ type:'FeatureCollection', features });
     } catch (e){
-      loadState = 'idle'; // se reintenta en el próximo movimiento
       console.warn('[Caminos locales] No se pudieron cargar.', e && e.message || '');
+    } finally {
+      busy = false;
+      if (pending){ pending = false; updateLocalRoads(); }
     }
   }
 
-  mapLoadPromise.then(() => {
-    map.on('moveend', loadLocalRoads);
-    loadLocalRoads();
+   mapLoadPromise.then(() => {
+    map.on('moveend', updateLocalRoads);
+    updateLocalRoads();
   });
 })();
 
