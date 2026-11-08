@@ -2633,6 +2633,10 @@ body.map-covered .tg-edge::after{animation-play-state:paused;}
   transform:translateY(16px); transition:transform .3s cubic-bezier(.2,.9,.28,1.1);
 }
 .transport-sheet.visible .transport-sheet-card{transform:translateY(0);}
+/* Anti-parpadeo (mismo arreglo validado en "Mi perfil"): la capa oscura y la tarjeta se preparan
+   para animarse sin redibujarse a mitad de camino. */
+.transport-sheet{ -webkit-backdrop-filter:blur(6px); will-change:opacity; }
+.transport-sheet-card{ will-change:transform; -webkit-backface-visibility:hidden; backface-visibility:hidden; }
 .transport-sheet-card .close{
   position:absolute; top:14px; right:14px; z-index:2;
   width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.06);
@@ -3467,6 +3471,16 @@ body.map-covered .tg-edge::after{animation-play-state:paused;}
   display:block; width:68px; height:68px; margin:0 auto 14px;
   background:var(--brand-logo) center/contain no-repeat;
 }
+/* Anti-parpadeo del logo: la imagen se declara directa (no vía var(--brand-logo)). Con var(), Chrome
+   vuelve a crear la imagen SVG cada vez que se recalcula el estilo del elemento (header compacto,
+   cambio de categoría, apertura de paneles) y la redibuja de forma asíncrona: un cuadro sin logo.
+   El logo del encabezado además va en su propia capa gráfica, así no se repinta con el header. */
+.brand-logo,
+.loading-logo,
+.photo-missing::before{
+  background-image:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='230 58 540 464' fill='%2332C6B5'><path d='M447.5 498.2 A227 227 0 0 1 315 332 L262 322 Q238 310 236 285 L236 262 Q238 250 252 249 L315 249 A227 227 0 0 1 366 142 L336 137 Q292 125 285 63 L538 63 A227 227 0 0 1 631.2 497.2 L617.7 417.5 A150 150 0 1 0 459.3 417.7 Z'/><path fill-rule='evenodd' d='M472.1 507.6 A227 227 0 0 0 606.8 506.6 L584 372 A94 94 0 1 0 492 372 Z M498 290 a40 40 0 1 0 80 0 a40 40 0 1 0 -80 0 Z'/></svg>");
+}
+.brand-logo{ transform:translateZ(0); backface-visibility:hidden; -webkit-backface-visibility:hidden; }
 
 /* ================= BOTONES — acabado premium ================= */
 
@@ -8488,11 +8502,17 @@ function resolveLabelCollisionsLegacy(){
 }
 let collisionRaf = null;
 function scheduleCollisionCheck(){
+  // Mientras el mapa gira, la posición relativa de las etiquetas cambia en cada cuadro y la
+  // decisión (arriba / derecha / abajo / atenuada) saltaba de un estado a otro: el nombre y el
+  // punto de la localidad parpadeaban. Durante el giro se mantiene la última decisión y se
+  // vuelve a calcular una sola vez al terminar (rotateend).
+  if (map.isRotating()) return;
   if (collisionRaf) return;
   collisionRaf = requestAnimationFrame(() => { collisionRaf = null; resolveLabelCollisions(); });
 }
 map.on('move', scheduleCollisionCheck);
 map.on('zoom', scheduleCollisionCheck);
+map.on('rotateend', () => setTimeout(scheduleCollisionCheck, 0));
 
 /* ---------- Densidad visual del halo de sub-localidad ----------
    Aditivo y aislado: no toca resolveLabelCollisions(), scheduleCollisionCheck(),
@@ -11785,7 +11805,7 @@ function navUserInnerSVG(heading){
       </radialGradient>
     </defs>
     <circle class="halo" cx="17" cy="17" r="11" fill="${color}" opacity="0.14"/>
-    ${hasHeading ? `<path d="M17 2 L22 12 L17 9 L12 12 Z" fill="${color}" opacity="0.9" transform="rotate(${heading} 17 17)"/>` : ''}
+    <path class="nav-heading" d="M17 2 L22 12 L17 9 L12 12 Z" fill="${color}" opacity="0.9" transform="rotate(${hasHeading ? heading : 0} 17 17)"${hasHeading ? '' : ' style="display:none"'}/>
     <circle cx="17" cy="17" r="7.5" fill="url(#navUserGrad)" stroke="#07131F" stroke-width="2"/>
   `;
 }
@@ -11793,17 +11813,34 @@ function navUserInnerSVG(heading){
 // placeUserMarker) entre su apariencia normal y la de navegación activa —
 // manipula directamente el nodo existente en vez de tocar userDotSVG()/
 // placeUserMarker(), así "Cerca de mí" queda intacto fuera de este flujo.
+// Anti-parpadeo: antes esto reconstruía TODO el SVG (innerHTML) en cada cuadro de la animación
+// y en cada cuadro de giro del mapa — el degradado y el pulso del halo se recreaban 60 veces por
+// segundo, y setAttribute('class') borraba las clases propias de MapLibre (maplibregl-marker).
+// Ahora el SVG se arma UNA vez al cambiar de modo y en cada cuadro solo se gira la flecha.
 function setUserMarkerNavStyle(active, heading){
   if (!userMarker) return;
   const el = userMarker.getElement();
   if (active){
-    el.setAttribute('viewBox', '0 0 34 34');
-    el.setAttribute('class', 'nav-user-marker');
-    el.innerHTML = navUserInnerSVG(heading);
+    if (el.dataset.navMode !== 'nav'){
+      el.setAttribute('viewBox', '0 0 34 34');
+      el.classList.remove('user-dot');
+      el.classList.add('nav-user-marker'); // classList: conserva las clases de MapLibre
+      el.innerHTML = navUserInnerSVG(heading);
+      el.dataset.navMode = 'nav';
+      return;
+    }
+    const arrow = el.querySelector('.nav-heading');
+    if (!arrow) return;
+    const hasHeading = heading != null && !isNaN(heading);
+    arrow.style.display = hasHeading ? '' : 'none';
+    if (hasHeading) arrow.setAttribute('transform', `rotate(${heading.toFixed(1)} 17 17)`);
   } else {
+    if (el.dataset.navMode !== 'nav') return; // ya está como punto normal
     el.setAttribute('viewBox', '0 0 22 22');
-    el.setAttribute('class', 'user-dot');
-       el.innerHTML = userDotInnerSVG();
+    el.classList.remove('nav-user-marker');
+    el.classList.add('user-dot');
+    el.innerHTML = userDotInnerSVG();
+    el.dataset.navMode = 'dot';
   }
 }
 
