@@ -176,7 +176,15 @@ img{-webkit-user-drag:none; user-select:none;}
 .brand-explore{
   font-size:10px; font-weight:700; letter-spacing:3.5px; color:var(--turquoise-bright); margin-top:3px;
   max-height:16px; opacity:1; overflow:hidden;
-  transition:opacity .28s cubic-bezier(.4,0,.2,1), max-height .28s cubic-bezier(.4,0,.2,1), margin-top .28s cubic-bezier(.4,0,.2,1);
+  /* Solo se desvanece (sin cambiar de tamaño): la animación la hace la tarjeta gráfica y las letras no se redibujan. */
+  will-change:opacity;
+  transition:opacity .28s cubic-bezier(.4,0,.2,1);
+}
+/* El bloque CHOAPA/EXPLORE se mueve con transform (no recalculando posiciones): no titila aunque el
+   teléfono esté ocupado (por ejemplo, al cambiar de categoría mientras el header vuelve a su estado normal). */
+.brand-text{
+  will-change:transform; backface-visibility:hidden; -webkit-backface-visibility:hidden;
+  transition:transform .28s cubic-bezier(.4,0,.2,1);
 }
 
 .profile-btn{
@@ -510,7 +518,12 @@ button.smart-card:focus-visible{outline:2px solid rgba(95,225,232,0.45); outline
   gap:7px;
 }
 .top-ui.compact .brand-explore{
-  max-height:0; opacity:0; margin-top:0;
+  opacity:0;
+}
+/* 6,5 px = mitad de lo que ocupa EXPLORE (3 px de margen + 10 px de alto): CHOAPA queda centrado
+   junto al logo en la misma posición que antes (medido: 17,5 px → 24 px), sin recalcular nada. */
+.top-ui.compact .brand-text{
+  transform:translateY(6.5px);
 }
 .top-ui.compact .searchbar{
    padding:7px 16px;
