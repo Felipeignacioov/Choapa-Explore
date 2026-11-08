@@ -196,6 +196,15 @@ img{-webkit-user-drag:none; user-select:none;}
   transition:transform .16s cubic-bezier(.34,1.56,.64,1), background .16s ease;
 }
 .profile-btn:active{transform:scale(0.92); background:rgba(16,36,56,0.9);}
+/* Con foto de perfil: aro turquesa + pequeño espacio oscuro + halo suave, para que se lea como
+   botón de perfil (avatar enmarcado) y no como una imagen suelta. Sin foto no cambia nada. */
+.profile-btn:has(.profile-avatar-img){
+  border-color:rgba(95,225,232,0.6);
+  box-shadow:var(--shadow-float), 0 0 0 3px rgba(95,225,232,0.12), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+.profile-btn .profile-avatar-img{
+  inset:2px; width:calc(100% - 4px); height:calc(100% - 4px);
+}
 
 .search-wrap{position:relative;}
 
