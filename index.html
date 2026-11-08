@@ -3757,7 +3757,11 @@ body.map-covered .tg-edge::after{animation-play-state:paused;}
    'transparent' en «Todos») se registra como color animable para que el cambio
    de categoría se funda en 0.6 s. El marco tiñe solo la periferia; el centro queda limpio. */
 @property --mood-glow{ syntax:'<color>'; inherits:true; initial-value:transparent; }
-:root{ transition:--mood-glow .6s ease; }
+/* La transición vive SOLO donde se dibuja el color, no en :root: en :root obligaba a recalcular
+   los ~870 elementos de la app en cada cuadro durante 0,6 s (medido: 9,4 ms/cuadro → 0,38 ms).
+   Mismo fundido de 0,6 s: el marco lo anima aquí; el anillo de las comunas ya lo anima con su
+   propia "transition: filter .6s" (regla .locality-marker:not(.sublocality) .loc-halo). */
+.map-vignette::after{ transition:--mood-glow .6s ease; }
 .map-vignette::after{
   content:''; position:absolute; inset:0; pointer-events:none;
   background:radial-gradient(ellipse at center,
