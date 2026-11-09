@@ -3846,6 +3846,56 @@ body.map-covered .tg-edge::after{animation-play-state:paused;}
    quietos y siguen al soltar). Las animaciones de radio en SVG obligan a repintar cada marcador en
    cada cuadro; pausarlas libera ese trabajo justo cuando más se necesita. Ver map.on('movestart'). */
 .maplibregl-map.is-moving .locality-marker .loc-halo{ animation-play-state:paused; }
+
+/* ================= HALOS EN HTML (rendimiento, validado por consola) =================
+   El halo de comunas (onda turquesa) y de localidades (pulso violeta) ya no es un círculo SVG que
+   cambia de radio —eso obligaba a repintar cada marcador en cada cuadro, incluso con el mapa quieto—
+   sino un elemento HTML que solo anima tamaño y opacidad: lo mueve la tarjeta gráfica, sin costo de
+   procesador. Mismos tiempos, desfase, tinte de categoría, intensidad por comuna y densidad. */
+.locality-marker .loc-visual{ position:relative; }
+.locality-marker svg .loc-halo{ display:none; }
+.loc-halo-html{
+  position:absolute; left:50%; pointer-events:none; border-radius:50%;
+  will-change:transform, opacity; transform:translate(-50%, 50%);
+}
+.locality-marker:not(.sublocality) .loc-halo-html{
+  bottom:13px; width:13.2px; height:13.2px; border:1px solid var(--turquoise-bright); opacity:0;
+  box-shadow:0 0 3px color-mix(in srgb, var(--mood-glow, transparent) 45%, transparent);
+  animation:haloHtmlRipple 5.6s cubic-bezier(.22,.61,.36,1) infinite;
+  animation-delay:calc(var(--enter-delay, 0ms) * 9);
+}
+@keyframes haloHtmlRipple{
+  0%{ opacity:calc(.5 * var(--comuna-halo-mult, 1)); transform:translate(-50%, 50%) scale(var(--comuna-halo-spawn-scale, 1)); }
+  70%, 100%{ opacity:0; transform:translate(-50%, 50%) scale(calc(var(--comuna-halo-spawn-scale, 1) * 1.85)); }
+}
+.locality-marker:not(.sublocality).tap-flash .loc-halo-html{ animation:haloHtmlTapFlash 380ms ease-out; }
+@keyframes haloHtmlTapFlash{
+  0%{ opacity:.62; transform:translate(-50%, 50%) scale(var(--comuna-halo-spawn-scale, 1)); }
+  100%{ opacity:.1; transform:translate(-50%, 50%) scale(var(--comuna-halo-spawn-scale, 1)); }
+}
+.locality-marker.sublocality .loc-halo-html{
+  --s:20.5px; bottom:calc(var(--s) / 2); width:calc(var(--s) * .622); height:calc(var(--s) * .622);
+  background:var(--sub-locality); animation:haloHtmlSub 5s ease-in-out infinite;
+}
+.locality-marker.sublocality.tier-primary .loc-halo-html{ --s:calc(20.5px + var(--loc-tier-diff, 0) * 2.5px); }
+@keyframes haloHtmlSub{
+  0%, 100%{ opacity:calc(.048 * var(--loc-halo-density, 1)); transform:translate(-50%, 50%) scale(var(--loc-halo-density, 1)); }
+  50%{ opacity:calc(.156 * var(--loc-halo-density, 1)); transform:translate(-50%, 50%) scale(calc(var(--loc-halo-density, 1) * 1.054)); }
+}
+.locality-marker.hidden-level .loc-halo-html,
+.locality-marker.selected .loc-halo-html{ animation-play-state:paused; }
+@media (prefers-reduced-motion: reduce){
+  .loc-halo-html{ animation:none !important; opacity:.2; }
+}
+
+/* ================= SIN DESENFOQUE MIENTRAS SE MUEVE EL MAPA (validado por consola) =================
+   El desenfoque de fondo de los controles sobre el mapa se recalcula en cada cuadro del mapa.
+   Solo mientras se arrastra (body.map-moving) se apaga y un velo oscuro sutil compensa el tono;
+   al soltar vuelve el vidrio. El chip activo no se toca. */
+body.map-moving :is(.searchbar, .chip:not(.active), .profile-btn, .map-controls, .locate-btn, .compass-btn, .zone-prompt, .sheet-pill, .comuna-panel, .comuna-panel-pill, .bottom-nav){
+  backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
+  box-shadow:inset 0 0 0 100vmax rgba(11,23,38,.18), var(--shadow-float, 0 0 0 transparent);
+}
 /* ================= COMUNAS — REFINAMIENTO (validado por consola) =================
    Etiqueta más liviana y pegada a su punto (deja de leerse como un chip de categoría);
    punto más firme, con núcleo más presente y un contorno oscuro fino que lo despega de las rutas. */
@@ -8277,6 +8327,7 @@ function renderLocalityMarkers(){
           <span class="loc-name">${loc.name}</span>
                  ${count > 0 ? `<span class="loc-count">${count} lugar${count === 1 ? '' : 'es'}</span>` : ''}
         </div>
+                   <span class="loc-halo-html" aria-hidden="true"></span>
                 ${localitySVG('var(--turquoise-bright)', `comuna-grad-${loc.id}`)}
       </div>`;
      el.addEventListener('click', (e) => {
@@ -8324,6 +8375,7 @@ function renderSublocalityMarkers(subs){
     el.innerHTML = `
       <div class="loc-visual">
         <div class="loc-label"><span class="loc-name">${sub.name}</span></div>
+            <span class="loc-halo-html" aria-hidden="true"></span>
         ${sublocalityDotSVG('var(--sub-locality)')}
       </div>`;
     el.addEventListener('click', (e) => { e.stopPropagation(); enterSublocality(sub, { fly:true }); });
@@ -9919,9 +9971,11 @@ document.addEventListener('visibilitychange', () => {
 map.on('movestart', () => {
   stopAmbientTicks();
   map.getContainer().classList.add('is-moving');
+  document.body.classList.add('map-moving'); // controles sin desenfoque mientras se mueve (ver CSS)
 });
 map.on('moveend', () => {
   map.getContainer().classList.remove('is-moving');
+  document.body.classList.remove('map-moving');
   if (!document.hidden) startAmbientTicks();
 });
 
