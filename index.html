@@ -4102,6 +4102,61 @@ html.sun-legible .comuna-mini-card .cmc-tag{ color:rgba(255,255,255,0.92); }
 html.sun-legible .searchbar:not(:focus-within){ background-color:rgba(13,29,45,0.86); }
 html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
 
+/* ================= FICHA DE EXPERIENCIA — REFINAMIENTO (validado por consola) =================
+   Foto encuadrada al paisaje, descripción de 4 líneas con "Ver más", títulos de sección con una
+   sola voz, "Ideal para" con íconos alineados y de color, y acciones fijas al pie de la ficha. */
+.poi-card .photo{ height:214px; background-position:center 62%; }
+.poi-card .photo::after{
+  background:
+    linear-gradient(to bottom, rgba(7,19,31,0.30) 0%, rgba(7,19,31,0) 24%),
+    linear-gradient(to bottom, rgba(7,19,31,0) 58%, rgba(10,23,38,0.55) 84%, var(--surface-elevated) 100%);
+}
+.poi-card .cat-badge{ gap:6px; padding:5px 11px 5px 9px; border:1px solid rgba(255,255,255,0.10); }
+.poi-card .cat-badge svg, .poi-card .gallery-hint svg{ display:block; }
+.poi-card .gallery-hint{ border:1px solid rgba(255,255,255,0.10); background:rgba(7,17,28,0.62); }
+
+.poi-card .body{ padding:16px 18px 6px; }
+.poi-card .pname{ font-size:20px; letter-spacing:-0.3px; line-height:1.2; margin-bottom:5px; }
+.poi-card .ploc{ letter-spacing:0.9px; margin-bottom:16px; }
+
+.poi-card .pd-section{ margin-bottom:16px; }
+.poi-card .pd-section-title,
+#poiDetailInfoSection .pd-section-title{
+  font-family:var(--font-body); font-size:10.5px; font-weight:700; letter-spacing:1px;
+  color:var(--text-tertiary); text-transform:uppercase; margin-bottom:8px;
+}
+
+.poi-card .pdesc{ font-size:14px; line-height:1.6; color:color-mix(in srgb, var(--text-secondary) 80%, var(--text-primary)); }
+.poi-card .pdesc.is-clamped{
+  display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden;
+  -webkit-mask-image:linear-gradient(to bottom, #000 62%, transparent 100%);
+          mask-image:linear-gradient(to bottom, #000 62%, transparent 100%);
+}
+.pd-more{
+  margin-top:6px; padding:4px 0; display:inline-flex; align-items:center; gap:5px;
+  font-size:12.5px; font-weight:700; color:var(--turquoise-bright);
+}
+.pd-more svg{ transition:transform .25s ease; }
+.pd-more.open svg{ transform:rotate(180deg); }
+
+.poi-card .pd-tags{ gap:8px; }
+.poi-card .pd-tag{
+  display:inline-flex; align-items:center; gap:6px; padding:6px 12px 6px 10px;
+  font-size:12px; font-weight:600; color:var(--text-secondary);
+  background:rgba(255,255,255,0.035); border:1px solid rgba(255,255,255,0.08);
+}
+.poi-card .pd-tag svg{ width:13px; height:13px; display:block; flex-shrink:0; color:var(--tag-c, currentColor); }
+
+.pd-footer{
+  flex-shrink:0; padding:10px 14px 12px;
+  background:linear-gradient(180deg, rgba(20,43,61,0.96), var(--surface-elevated));
+  border-top:1px solid rgba(255,255,255,0.06);
+}
+.pd-footer .actions-row{ margin-top:0; }
+.poi-card .btn-save{ flex:0 0 auto; padding:12px 16px; white-space:nowrap; }
+.poi-card .btn-directions{ flex:1; white-space:nowrap; }
+.pd-discover-row{ margin-bottom:6px; }
+
 
 </style>
 </head>
@@ -4263,7 +4318,7 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
       </button>
            <span class="cat-badge" id="poiDetailTag"><span class="dot"></span>Categoría</span>
       <span class="gallery-hint" id="poiDetailGalleryHint" style="display:none;"></span>
-      <div class="gallery-dots" id="poiDetailDots"></div>
+   
     </div>
     <div class="body">
       <div class="pname" id="poiDetailName">—</div>
@@ -4271,7 +4326,8 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
 
       <div class="pd-section">
         <div class="pd-section-title">La experiencia</div>
-        <div class="pdesc" id="poiDetailDesc"></div>
+              <div class="pdesc" id="poiDetailDesc"></div>
+        <button class="pd-more" id="poiDetailMore" style="display:none;">Ver más<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </div>
 
       <div class="pd-section" id="poiDetailInfoSection" style="display:none;">
@@ -4296,10 +4352,13 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
         <div class="pd-discover-status" id="poiDiscoverStatus" style="display:none;"></div>
       </div>
 
+          </div>
+    <!-- Acciones fijas al pie de la ficha: siempre a la vista aunque la descripción sea larga -->
+    <div class="pd-footer">
       <div class="actions-row">
         <button class="btn-save" id="poiDetailSave" aria-label="Guardar experiencia">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.4-9.5-9C.8 7.4 3 4 6.5 4 9 4 11 6 12 7.5 13 6 15 4 17.5 4 21 4 23.2 7.4 21.5 11 19 15.6 12 20 12 20Z" stroke="currentColor" stroke-width="1.8"/></svg>
-          Guardar experiencia
+          Guardar
         </button>
         <button class="btn-directions" id="poiDetailDirections">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="m3 11 18-8-8 18-2-8-8-2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
@@ -11204,23 +11263,33 @@ function selectPlace(place, el){
     `<span style="color:${color}">${tagInfo.label.toUpperCase()}</span> · ${place.locality.toUpperCase()}`;
 
   const tag = document.getElementById('poiDetailTag');
-  tag.innerHTML = `<span class="dot"></span>${tagInfo.icon} ${tagInfo.label}`;
+   tag.innerHTML = `${tagInfo.icon} ${tagInfo.label}`;
   tag.style.color = color;
-  tag.style.background = 'rgba(10,23,38,0.55)';
+  tag.style.background = 'rgba(7,17,28,0.62)';
+  // Cada experiencia se abre desde arriba (antes conservaba el desplazamiento de la anterior)
+  document.querySelector('#poiDetail .body').scrollTop = 0;
 
   // "La experiencia" — centrada en qué vive el usuario, no en datos del lugar
-  document.getElementById('poiDetailDesc').textContent = place.description || 'Todavía no hay una descripción disponible para esta experiencia.';
+   document.getElementById('poiDetailDesc').textContent = place.description || 'Todavía no hay una descripción disponible para esta experiencia.';
+  // 4 líneas + "Ver más", solo si el texto de verdad es más largo
+  const descEl = document.getElementById('poiDetailDesc');
+  const moreBtn = document.getElementById('poiDetailMore');
+  moreBtn.classList.remove('open');
+  moreBtn.firstChild.textContent = 'Ver más';
+  descEl.classList.add('is-clamped');
+  requestAnimationFrame(() => {
+    const long = descEl.scrollHeight > descEl.clientHeight + 2;
+    moreBtn.style.display = long ? '' : 'none';
+    if (!long) descEl.classList.remove('is-clamped');
+  });
 
   // Indicador de galería sobre la foto — solo si hay más de una imagen real
    const galleryHint = document.getElementById('poiDetailGalleryHint');
-  const galleryDots = document.getElementById('poiDetailDots');
-  if (place.images && place.images.length > 1){
+   if (place.images && place.images.length > 1){
     galleryHint.style.display = 'inline-flex';
     galleryHint.innerHTML = `${icon('camera', 12)} ${place.images.length} fotos`;
-    galleryDots.innerHTML = place.images.map((_, i) => `<span class="${i === 0 ? 'active' : ''}"></span>`).join('');
   } else {
     galleryHint.style.display = 'none';
-    galleryDots.innerHTML = '';
   }
 
   // Información práctica — solo campos que realmente existen. "Tipo de experiencia"
@@ -11229,7 +11298,7 @@ function selectPlace(place, el){
   // place.difficulty), sin inventar nada mientras tanto.
   const infoList = document.getElementById('poiDetailInfoList');
   const infoRows = [];
-  infoRows.push([icon('compassRose', 13), 'Tipo de experiencia', tagInfo.label]);
+
   if (place.address) infoRows.push([icon('pin', 13), 'Ubicación', place.address]);
   if (place.duration) infoRows.push([icon('clock', 13), 'Duración aproximada', place.duration]);
   if (place.difficulty) infoRows.push([icon('flag', 13), 'Dificultad', place.difficulty]);
@@ -11243,8 +11312,9 @@ function selectPlace(place, el){
   // Ideal para — reutiliza EXACTAMENTE las experiencias/categorías ya existentes,
   // nada de un campo de etiquetas nuevo.
    const idealWrap = document.getElementById('poiDetailIdeal');
-  const idealTags = (place.experiences || []).map(id => expById(id)).filter(Boolean);
-  idealWrap.innerHTML = idealTags.map(t => `<span class="pd-tag">${t.icon} ${t.label}</span>`).join('');
+   // Sin repetir la categoría principal; cada ícono con el color de su categoría
+  const idealTags = (place.experiences || []).map(id => expById(id)).filter(t => t && t.id !== tagInfo.id);
+  idealWrap.innerHTML = idealTags.map(t => `<span class="pd-tag" style="--tag-c:${expColor(t)}">${t.icon}${t.label}</span>`).join('');
   document.getElementById('poiDetailIdealSection').style.display = idealTags.length ? 'block' : 'none';
 
   // Re-confirma el estado del CTA de desbloqueo GPS en cada apertura de
@@ -11309,6 +11379,13 @@ function selectPlace(place, el){
   }, POI_SELECT_ZOOM_DURATION * 0.85);
 }
 
+document.getElementById('poiDetailMore').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const desc = document.getElementById('poiDetailDesc');
+  const open = !desc.classList.toggle('is-clamped');
+  e.currentTarget.classList.toggle('open', open);
+  e.currentTarget.firstChild.textContent = open ? 'Ver menos' : 'Ver más';
+});
 document.getElementById('poiDetailSave').addEventListener('click', (e) => {
   e.stopPropagation();
   requireAuth(async () => {
