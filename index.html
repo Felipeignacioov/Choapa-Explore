@@ -5315,8 +5315,25 @@ const CHOAPA_SAFETY_BOUNDS = [
   [CHOAPA_MAX_BOUNDS[1][0] + 1.5, CHOAPA_MAX_BOUNDS[1][1] + 1.5],
 ];
 
+// ================= MODO LIVIANO AUTOMÁTICO (celulares de gama baja) =================
+// Solo en equipos con poca memoria (≤ 4 GB) o pocos núcleos (≤ 4) el mapa usa un renderizado más
+// liviano: relieve con baldosas de 192 en vez de 96 (≈4 veces menos baldosas que procesar al mover)
+// y nitidez del lienzo hasta 2× (en pantallas de 2,5–3× no se distingue y ahorra ~45 % de píxeles).
+// En el resto de los celulares nada cambia: mismo relieve y misma calidad de siempre.
+// Para probar a mano: ?lite=1 fuerza el modo liviano, ?lite=0 lo desactiva.
+const CHOAPA_LITE = (() => {
+  try {
+    const q = new URLSearchParams(location.search).get('lite');
+    if (q === '1') return true;
+    if (q === '0') return false;
+  } catch (e){}
+  const mem = navigator.deviceMemory, cores = navigator.hardwareConcurrency;
+  return (mem != null && mem <= 4) || (cores != null && cores <= 4);
+})();
+
 const map = new maplibregl.Map({
   container:'map',
+  ...(CHOAPA_LITE ? { pixelRatio: Math.min(window.devicePixelRatio || 1, 2) } : {}),
   style:'https://tiles.openfreemap.org/styles/dark',
   bounds: CHOAPA_BOUNDS,
    // Padding reducido (antes top:233/bottom:233) — un valor más chico hace que
@@ -6227,7 +6244,7 @@ function renderTerrainDepth(){
   // (≈1.2–1.5 px físicos por punto de relieve) sin descargar datos de más donde no se notan.
   // ≥2× (iPhone y la mayoría de los Android) → 96 (validado) · 1.5–2× → 128 · <1.5× → 192.
   const dpr = window.devicePixelRatio || 1;
-  const DEM_TILE_SIZE = dpr >= 2 ? 96 : (dpr >= 1.5 ? 128 : 192);
+   const DEM_TILE_SIZE = CHOAPA_LITE ? 192 : (dpr >= 2 ? 96 : (dpr >= 1.5 ? 128 : 192)); // gama baja: ver CHOAPA_LITE
   map.addSource('terrain-dem', {
     type:'raster-dem',
     tiles:['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
