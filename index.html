@@ -5327,8 +5327,10 @@ const CHOAPA_LITE = (() => {
     if (q === '1') return true;
     if (q === '0') return false;
   } catch (e){}
-  const mem = navigator.deviceMemory, cores = navigator.hardwareConcurrency;
-  return (mem != null && mem <= 4) || (cores != null && cores <= 4);
+   const mem = navigator.deviceMemory, cores = navigator.hardwareConcurrency;
+  // Safari no informa memoria y responde siempre 4 núcleos en cualquier iPhone: sin dato de memoria, calidad completa.
+  if (mem == null) return false;
+  return mem <= 2 || (mem <= 4 && cores != null && cores <= 4);
 })();
 
 const map = new maplibregl.Map({
