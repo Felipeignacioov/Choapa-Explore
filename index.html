@@ -904,7 +904,9 @@ body.map-covered .tg-edge::after{animation-play-state:paused;}
 .locality-marker.sublocality .loc-label{
   padding:3px 9px; margin-bottom:3.6px; background:rgba(10,20,34,0.9); /* antes 4px original — 10% menos en total, acerca la etiqueta a su punto morado */
   border-color:rgba(139,124,255,0.34);
-  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  /* Sin desenfoque de fondo: con un fondo al 90 % el blur no se ve, pero se recalculaba en cada
+     cuadro para ~20 etiquetas que se mueven con el mapa (el costo más alto al arrastrar una comuna). */
+  backdrop-filter:none; -webkit-backdrop-filter:none;
 }
 .locality-marker.sublocality .loc-name{font-size:9.5px; font-weight:700; color:var(--text-primary); letter-spacing:0.3px;}
 .locality-marker.sublocality .loc-count{color:var(--sub-locality);}
@@ -3840,6 +3842,10 @@ body.map-covered .tg-edge::after{animation-play-state:paused;}
 @media (prefers-reduced-motion: reduce){
   .locality-marker:not(.sublocality) .loc-halo{ animation:none; opacity:0.25; }
 }
+/* Fluidez: con el mapa en movimiento los pulsos de los halos se pausan (no se reinician: quedan
+   quietos y siguen al soltar). Las animaciones de radio en SVG obligan a repintar cada marcador en
+   cada cuadro; pausarlas libera ese trabajo justo cuando más se necesita. Ver map.on('movestart'). */
+.maplibregl-map.is-moving .locality-marker .loc-halo{ animation-play-state:paused; }
 /* ================= COMUNAS — REFINAMIENTO (validado por consola) =================
    Etiqueta más liviana y pegada a su punto (deja de leerse como un chip de categoría);
    punto más firme, con núcleo más presente y un contorno oscuro fino que lo despega de las rutas. */
@@ -8510,9 +8516,21 @@ function scheduleCollisionCheck(){
   if (collisionRaf) return;
   collisionRaf = requestAnimationFrame(() => { collisionRaf = null; resolveLabelCollisions(); });
 }
-map.on('move', scheduleCollisionCheck);
+// Fluidez: al ARRASTRAR el mapa (sin cambiar zoom ni giro) las etiquetas se mueven todas juntas y
+// sus choques no cambian, pero antes se medían ~25 etiquetas en cada cuadro (getBoundingClientRect
+// fuerza al navegador a recalcular el diseño). Ahora en el arrastre se mide solo cuando cambia el
+// zoom o el giro, y una vez al terminar el movimiento. Las llamadas directas no cambian.
+let collisionCameraKey = '';
+function scheduleCollisionCheckOnMove(){
+  const key = map.getZoom().toFixed(4) + '|' + map.getBearing().toFixed(2);
+  if (key === collisionCameraKey) return;
+  collisionCameraKey = key;
+  scheduleCollisionCheck();
+}
+map.on('move', scheduleCollisionCheckOnMove);
 map.on('zoom', scheduleCollisionCheck);
 map.on('rotateend', () => setTimeout(scheduleCollisionCheck, 0));
+map.on('moveend', () => { collisionCameraKey = ''; scheduleCollisionCheck(); });
 
 /* ---------- Densidad visual del halo de sub-localidad ----------
    Aditivo y aislado: no toca resolveLabelCollisions(), scheduleCollisionCheck(),
@@ -8547,7 +8565,15 @@ function scheduleHaloDensityCheck(){
   if (haloDensityRaf) return;
   haloDensityRaf = requestAnimationFrame(() => { haloDensityRaf = null; updateSublocalityHaloDensity(); });
 }
-map.on('move', scheduleHaloDensityCheck);
+// Fluidez: la densidad depende solo de la distancia en pantalla ENTRE localidades, que no cambia al
+// arrastrar el mapa; se recalcula solo cuando cambia el zoom o el giro (antes: en cada cuadro).
+let haloDensityCameraKey = '';
+map.on('move', () => {
+  const key = map.getZoom().toFixed(4) + '|' + map.getBearing().toFixed(2) + '|' + sublocalityMarkers.length;
+  if (key === haloDensityCameraKey) return;
+  haloDensityCameraKey = key;
+  scheduleHaloDensityCheck();
+});
 map.on('zoom', scheduleHaloDensityCheck);
 
 /* ---------- Desvanecido de sub-localidades en los bordes laterales ----------
@@ -9883,7 +9909,20 @@ function runAtmosphereClock(){
 }
 // Al volver a la pestaña: recalcular de inmediato con la hora real.
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && atmosphereClockStarted) runAtmosphereClock();
+  if (document.hidden) stopAmbientTicks(); else startAmbientTicks();
+});
+// Fluidez: mientras el mapa se mueve (arrastre, zoom, giro o vuelo de cámara) se pausan las
+// "respiraciones" (agua, río, brillo de comunas, POIs) y el pulso de los halos de localidades.
+// Antes cada respiración reescribía el estilo del mapa 4 veces por segundo EN MEDIO del gesto, y
+// los halos SVG obligaban a repintar cada marcador en cada cuadro. Al soltar, todo sigue desde donde
+// iba (pausar no salta ni parpadea). En reposo el mapa se ve exactamente igual que antes.
+map.on('movestart', () => {
+  stopAmbientTicks();
+  map.getContainer().classList.add('is-moving');
+});
+map.on('moveend', () => {
+  map.getContainer().classList.remove('is-moving');
+  if (!document.hidden) startAmbientTicks();
 });
 
 function getResolvedAtmosphere(){
