@@ -4057,15 +4057,18 @@ body.map-moving :is(.searchbar, .chip:not(.active), .profile-btn, .map-controls,
   if (!el) return;
   var h = new Date().getHours();
   if (h >= 20 || h < 6) el.classList.add('is-night');
-  var start = Date.now(), MIN = 2400, MAX = 6000, done = false;
+    // Se retira solo cuando la página cargó Y el mapa avisó que el valle ya está dibujado completo
+  // (window.__choapaMapPainted, ver signalMapPaintedWhenReady). Así nunca se ve el mapa armándose por partes.
+  var start = Date.now(), MIN = 2400, MAX = 7000, done = false, pageReady = false, mapPainted = false;
   function hide(){
     if (done) return; done = true;
     el.classList.add('is-leaving');
     setTimeout(function(){ if (el.parentNode) el.parentNode.removeChild(el); }, 750);
   }
-  function hideWhenReady(){ setTimeout(hide, Math.max(0, MIN - (Date.now() - start))); }
-  if (document.readyState === 'complete') hideWhenReady();
-  else window.addEventListener('load', hideWhenReady, { once:true });
+  function tryHide(){ if (pageReady && mapPainted) setTimeout(hide, Math.max(0, MIN - (Date.now() - start))); }
+  window.__choapaMapPainted = function(){ mapPainted = true; tryHide(); };
+  if (document.readyState === 'complete') pageReady = true;
+  else window.addEventListener('load', function(){ pageReady = true; tryHide(); }, { once:true });
   setTimeout(hide, MAX);
 })();
 </script>
@@ -5446,8 +5449,25 @@ map.on('load', () => {
    renderTerritoryFade();
   renderLocalityMarkers();
   updateExplorationLevel();
-  resolveMapLoad(); // el mapa terminó su carga inicial — desbloquea cualquier applySupabaseData() en espera
+    resolveMapLoad(); // el mapa terminó su carga inicial — desbloquea cualquier applySupabaseData() en espera
+  signalMapPaintedWhenReady(); // el splash espera a que el valle esté dibujado completo
 });
+// Avisa al splash cuando el spawn ya está completo: mapa base, relieve (terrain-dem) y plataforma
+// costera cargados y pintados. Tope de 6,5 s: con mala conexión el splash no se queda pegado.
+function signalMapPaintedWhenReady(){
+  const t0 = Date.now();
+  const check = () => {
+    const elapsed = Date.now() - t0;
+    const coastReady = !!map.getLayer('coast-shelf') || elapsed > 3000;
+    if ((map.areTilesLoaded() && coastReady) || elapsed > 6500){
+      map.once('render', () => requestAnimationFrame(() => { if (window.__choapaMapPainted) window.__choapaMapPainted(); }));
+      map.triggerRepaint();
+      return;
+    }
+    setTimeout(check, 150);
+  };
+  check();
+}
 map.on('zoom', updateExplorationLevel);
 map.on('zoom', updateZonePrompt);
 map.on('zoomend', updateExplorationLevel);
