@@ -8377,6 +8377,16 @@ function renderLocalityMarkers(){
 // Nivel 2 — localidades dentro de la comuna activa. Mismo patrón de marcador
 // (root sin transition sobre transform, todo animado en .loc-visual) para no
 // reintroducir el problema de estabilidad que ya corregimos en los otros niveles.
+// Fluidez al entrar a una comuna: antes las ~20 localidades se creaban todas en un mismo cuadro (en
+// medio del vuelo de cámara) y su cascada de entrada (55 ms × índice, hasta ~1,1 s) seguía corriendo
+// justo cuando aparecía el panel "En [Comuna]": todo coincidía al llegar. Ahora:
+//  1) se crean de a 4 por cuadro (nunca un cuadro largo),
+//  2) se revelan primero las principales y, dentro de cada grupo, del centro de la comuna hacia afuera,
+//  3) la cascada dura como máximo ~0,6 s sin importar cuántas localidades tenga la comuna,
+//  4) se anota cuándo termina (sublocalityCascadeEndsAt) para que el panel entre justo después.
+let sublocalityRenderToken = 0;
+let sublocalityCascadeEndsAt = 0;
+const SUBLOCALITY_BATCH = 4;
 function renderSublocalityMarkers(subs){
   clearSublocalityMarkers();
   // Mientras hay una ruta de navegación activa, las localidades (violeta) no
@@ -8384,36 +8394,51 @@ function renderSublocalityMarkers(subs){
   // ningún marcador nuevo. La lógica normal de tiers no se toca: apenas
   // termine la navegación, esta misma función vuelve a renderizar normal.
   if (state.nav.active) return;
-  subs.forEach((sub, i) => {
-    const el = document.createElement('div');
-        // Arranca en estado "entering" (oculto/desplazado) — se quita con un pequeño
-    // desfase por índice, así las localidades se revelan en cascada, no todas
-    // de golpe. El foco de cámara no se toca acá: eso ya lo maneja enterLocality.
-    // tier-primary/tier-secondary — jerarquía visual (ver CSS). sub.tier no
-    // definido (ej. localidades cargadas desde Supabase, aún sin este campo)
-    // cae a 'secondary' por defecto, sin romper nada.
-        const tierClass = sub.tier === 'primary' ? 'tier-primary' : 'tier-secondary';
-    el.className = `locality-marker sublocality ${tierClass} entering`;
-    el.innerHTML = `
+  const token = ++sublocalityRenderToken;
+  const origin = state.currentLocality || map.getCenter();
+  const dist = s => Math.hypot(s.lat - origin.lat, s.lng - origin.lng);
+  const ordered = subs.slice().sort((a, b) =>
+    ((a.tier === 'primary' ? 0 : 1) - (b.tier === 'primary' ? 0 : 1)) || (dist(a) - dist(b)));
+  const step = Math.min(55, 560 / Math.max(ordered.length, 1));
+  const t0 = performance.now();
+  sublocalityCascadeEndsAt = t0 + 40 + Math.max(ordered.length - 1, 0) * step + 300; // +300 ms: entrada del punto
+  let i = 0;
+  const createBatch = () => {
+    if (token !== sublocalityRenderToken) return; // se limpiaron o se volvieron a dibujar entre medio
+    const end = Math.min(i + SUBLOCALITY_BATCH, ordered.length);
+    for (; i < end; i++){
+      const sub = ordered[i], idx = i;
+      const el = document.createElement('div');
+      // tier-primary/tier-secondary — jerarquía visual (ver CSS). sub.tier no definido cae a 'secondary'.
+      const tierClass = sub.tier === 'primary' ? 'tier-primary' : 'tier-secondary';
+      el.className = `locality-marker sublocality ${tierClass} entering`;
+      el.innerHTML = `
       <div class="loc-visual">
         <div class="loc-label"><span class="loc-name">${sub.name}</span></div>
-            <span class="loc-halo-html" aria-hidden="true"></span>
+        <span class="loc-halo-html" aria-hidden="true"></span>
         ${sublocalityDotSVG('var(--sub-locality)')}
       </div>`;
-    el.addEventListener('click', (e) => { e.stopPropagation(); enterSublocality(sub, { fly:true }); });
+      el.addEventListener('click', (e) => { e.stopPropagation(); enterSublocality(sub, { fly:true }); });
 
-    const marker = new maplibregl.Marker({ element: el, anchor:'bottom' })
-      .setLngLat([sub.lng, sub.lat])
-      .addTo(map);
-    marker._sub = sub;
-    marker._el = el;
-    sublocalityMarkers.push(marker);
+      const marker = new maplibregl.Marker({ element: el, anchor:'bottom' })
+        .setLngLat([sub.lng, sub.lat])
+        .addTo(map);
+      marker._sub = sub;
+      marker._el = el;
+      sublocalityMarkers.push(marker);
 
-   setTimeout(() => el.classList.remove('entering'), 40 + i * 55);
-  });
-  scheduleCollisionCheck();
+      const delay = Math.max(0, t0 + 40 + idx * step - performance.now());
+      setTimeout(() => el.classList.remove('entering'), delay);
+    }
+    scheduleCollisionCheck();
+    if (i < ordered.length){ requestAnimationFrame(createBatch); return; }
+    scheduleHaloDensityCheck();
+    scheduleEdgeFadeCheck();
+  };
+  createBatch();
 }
-function clearSublocalityMarkers(){
+   function clearSublocalityMarkers(){
+  sublocalityRenderToken++; // cancela lotes pendientes de renderSublocalityMarkers
   sublocalityMarkers.forEach(m => m.remove());
   sublocalityMarkers = [];
   scheduleCollisionCheck();
@@ -9121,11 +9146,16 @@ function enterLocality(locality, { fly }){
     // (COMUNA_FLIGHT). Guard por si el usuario toca otra comuna antes de que
     // este vuelo termine: solo se muestra el panel de la comuna que sigue
     // siendo la actual al momento de asentarse la cámara.
-        map.once('moveend', () => {
-      if (state.currentLocality === locality){
+            map.once('moveend', () => {
+      if (state.currentLocality !== locality) return;
+      // Fluidez: el panel entra cuando la cascada de localidades ya casi terminó (no encima de ella).
+      // Espera como máximo 0,45 s; si las localidades ya aparecieron, entra de inmediato.
+      const wait = Math.min(450, Math.max(0, sublocalityCascadeEndsAt - performance.now() - 250));
+      setTimeout(() => {
+        if (state.currentLocality !== locality) return;
         showComunaPanel(locality);
         showTerritoryGlowIfNeeded(locality); // señal de territorio — solo en entradas intencionales (fly:true)
-      }
+      }, wait);
     });
   } else {
     // Sin vuelo de cámara (el usuario llegó pellizcando el zoom, o es una
