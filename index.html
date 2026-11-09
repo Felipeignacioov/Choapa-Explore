@@ -4086,8 +4086,21 @@ body.map-moving :is(.searchbar, .chip:not(.active), .profile-btn, .map-controls,
 
 @media (prefers-reduced-motion: reduce){
   .sp-splash *{ animation-duration:.01ms !important; animation-delay:0s !important; animation-iteration-count:1 !important; }
-  .sp-flow{ display:none; }
+    .sp-flow{ display:none; }
 }
+
+/* ================= LEGIBILIDAD AL SOL =================
+   Solo con luz de día (clase .sun-legible, ver updateSunLegibility): textos e íconos secundarios
+   más claros y buscador, chips y controles menos transparentes, para que nada se apague con el
+   reflejo del sol. De noche no se activa: la app queda exactamente igual. */
+html.sun-legible{ --text-secondary:#AEBFD0; --text-tertiary:#8499AD; }
+html.sun-legible .nav-item:not(.active){ color:#9CB1C4; }
+html.sun-legible .chips-row .chip:not(.active){ color:#D6E0EA; background:rgba(12,27,42,0.86); }
+html.sun-legible .map-controls{ background:rgba(13,29,45,0.88); }
+html.sun-legible .map-controls button:not(:active){ color:#C3D1DE; }
+html.sun-legible .comuna-mini-card .cmc-tag{ color:rgba(255,255,255,0.92); }
+html.sun-legible .searchbar:not(:focus-within){ background-color:rgba(13,29,45,0.86); }
+html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
 
 
 </style>
@@ -9688,6 +9701,32 @@ const TIME_ATMOSPHERE = {
   night: { bgTint:'#88558D', bgAmount:0.13, glowAmount:0.15, glowOpacity:0.07, illum:300, dayLift:0.16, layerTints:{ vegetation:'#12241D', residential:'#C8913F', building:'#C8913F' }, vignette:{ top:0.88, bottom:0.74, edge:0.48 }, roadLight:0.12, hillshadeHighlight:0.085, hillshadeHighlightRGB:'220,214,240', waterTint:'#0C2538', waterLift:0.5,coastGlow:1, waterShimmer:0.06, coastShelf:0.45, coastShelfHue:40, coastShelfSat:-0.50, coastShelfBright:0.65,warmGlow:1, shorelineColor:'#C9CBE8', shorelineOp:0.26 },
 };
 let currentDayPeriod = null;
+// Legibilidad al sol: con luz de día (day y midday) se activa .sun-legible en <html>.
+// Si el navegador permite leer el sensor de luz del teléfono (hoy casi ninguno lo permite),
+// manda el sensor: se activa con luz fuerte (≥ 8000 lux) y se apaga en interiores (≤ 3000 lux).
+const SUN_LUX_ON = 8000, SUN_LUX_OFF = 3000;
+let sunSensorActive = false;
+function updateSunLegibility(){
+  if (sunSensorActive) return;
+  const p = getDayPeriod(atmosphereNow());
+  document.documentElement.classList.toggle('sun-legible', p === 'day' || p === 'midday');
+}
+updateSunLegibility();
+setInterval(updateSunLegibility, 60000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) updateSunLegibility(); });
+try {
+  if ('AmbientLightSensor' in window){
+    const lightSensor = new AmbientLightSensor({ frequency:0.5 });
+    lightSensor.addEventListener('reading', () => {
+      sunSensorActive = true;
+      const lux = lightSensor.illuminance;
+      if (lux >= SUN_LUX_ON) document.documentElement.classList.add('sun-legible');
+      else if (lux <= SUN_LUX_OFF) document.documentElement.classList.remove('sun-legible');
+    });
+    lightSensor.addEventListener('error', () => { sunSensorActive = false; updateSunLegibility(); });
+    lightSensor.start();
+  }
+} catch (e){ /* sin sensor: se usa la hora del día */ }
 
 /* ---------- ATMÓSFERA RESUELTA (Fase 1) ----------
    Traduce un estado de TIME_ATMOSPHERE a sus valores FINALES, con exactamente las
