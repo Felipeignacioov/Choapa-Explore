@@ -1217,6 +1217,9 @@ body.map-covered .tg-edge::after{animation-play-state:paused;}
 .comuna-panel.entering{
   animation: comuna-panel-enter .34s cubic-bezier(.2,.9,.28,1.05) backwards;
 }
+/* Fluidez (mismo arreglo validado en "Mi perfil" y "Cómo llegar"): el panel tiene desenfoque de fondo y
+   entra/sale animando opacidad y posición; se prepara su capa para que la animación no lo redibuje. */
+.comuna-panel{ will-change:opacity, transform; }
 /* Respiración ambiental — mismo criterio de sutileza que startPOIBreathingAnimation
    (ciclo ~4.4s, variación mínima, nunca percibido como parpadeo). Vive en un
    pseudo-elemento propio (no en la opacity del panel mismo) para no competir
@@ -9187,10 +9190,11 @@ function enterSublocality(sub, { fly }){
   // sub.name ya es el nombre real de la localidad ("Salamanca Centro"), sin
   // ningún dato nuevo. showComunaPanel() ya minimiza solo si hay navegación
   // activa (state.nav.active), mismo criterio que usa para comunas.
-  showComunaPanel(sub);
+  // La cámara arranca primero y el panel cambia su contenido al llegar (ver showComunaPanel).
   if (fly){
     map.flyTo({ center:[sub.lng, sub.lat], zoom:SUBLOCALITY_ENTER_ZOOM, duration:1300, curve:1.3, easing:t => t*(2-t) });
   }
+  showComunaPanel(sub, { waitForCamera:fly });
   renderPOIs();
   updateExplorationBreadcrumb();
   renderPlacesRail();
@@ -9208,10 +9212,11 @@ function exitSublocality({ fly }){
   }
   // El panel vuelve a representar la comuna — mismo showComunaPanel() de
   // siempre, ahora con el objeto de comuna en vez del de localidad.
-  if (state.currentLocality) showComunaPanel(state.currentLocality);
+    // La cámara arranca primero y el panel vuelve a "En [Comuna]" al llegar (ver showComunaPanel).
   if (fly && state.currentLocality){
     map.flyTo({ center:[state.currentLocality.lng, state.currentLocality.lat], zoom:10.6, duration:1100, curve:1.3, easing:t => t*(2-t) });
   }
+  if (state.currentLocality) showComunaPanel(state.currentLocality, { waitForCamera:fly });
   updateExplorationBreadcrumb();
   renderPlacesRail();
 }
@@ -13868,15 +13873,34 @@ function updateComunaPanelMoreButton(locality, shownCount){
 // Cambio comuna ↔ localidad con el panel ya visible: transición suave del contenido (sin re-entrar el panel).
 // El token cancela cambios pendientes si el usuario cambia rápido de contexto o sale de la comuna.
 let comunaPanelSwapToken = 0;
-function showComunaPanel(locality){
+// Fluidez del cambio "En [Comuna]" ↔ "En [Localidad]":
+// 1) Si la cámara está volando hacia el destino (waitForCamera), el contenido nuevo se arma al LLEGAR
+//    (moveend), no a los 180 ms: reconstruir tarjetas y fotos en medio del vuelo competía con el mapa.
+//    Mientras vuela, el contenido viejo ya se desvaneció (content-swap) y las fotos nuevas se precargan.
+// 2) La altura del panel ya no salta de golpe cuando el contenido nuevo es más alto o más bajo:
+//    se anima desde la altura anterior a la nueva (lo que se sentía como un "choque").
+function animateComunaPanelHeight(fromH){
+  const toH = comunaPanel.getBoundingClientRect().height;
+  if (!fromH || Math.abs(toH - fromH) < 2 || !comunaPanel.animate) return;
+  comunaPanel.animate(
+    [{ height: fromH + 'px', overflow:'hidden' }, { height: toH + 'px', overflow:'hidden' }],
+    { duration:280, easing:'cubic-bezier(.32,.9,.34,1)' }
+  );
+}
+function showComunaPanel(locality, opts = {}){
   if (!comunaPanel.classList.contains('hidden') && !state.nav.active){
     const myToken = ++comunaPanelSwapToken;
     comunaPanel.classList.add('content-swap');
     const urls = curateComunaPanelPlaces(locality, 3).map(p => p.image).filter(Boolean);
     const preload = Promise.race([Promise.all(urls.map(preloadMomentImage)), new Promise(r => setTimeout(r, 350))]);
-    Promise.all([preload, new Promise(r => setTimeout(r, 180))]).then(() => {
+    const arrival = (opts.waitForCamera && map.isMoving())
+      ? Promise.race([new Promise(r => map.once('moveend', r)), new Promise(r => setTimeout(r, 2500))])
+      : new Promise(r => setTimeout(r, 180));
+    Promise.all([preload, arrival]).then(() => {
       if (myToken !== comunaPanelSwapToken) return;
+      const fromH = comunaPanel.getBoundingClientRect().height;
       showComunaPanelNow(locality, { skipEnter:true });
+      animateComunaPanelHeight(fromH);
       requestAnimationFrame(() => comunaPanel.classList.remove('content-swap'));
     });
     return;
