@@ -9408,20 +9408,20 @@ function getSunTimes(date, lat, lng){
 function getDayPeriod(at){
 const now = at ? new Date(at) : new Date();
   const { sunrise, sunset, solarNoon } = getSunTimes(now, CHOAPA_SUN_LAT, CHOAPA_SUN_LNG);
-  const TWILIGHT_MS = 45 * 60 * 1000;
-  if (Math.abs(now - sunrise) < TWILIGHT_MS || Math.abs(now - sunset) < TWILIGHT_MS) return 'dusk';
-  if (now > sunrise && now < sunset){
-    // "midday" — solo el tramo central del día, cerca del sol más alto/
-    // directo (donde de verdad hace falta más luminosidad para leer la
-    // pantalla al aire libre). Antes todo el rango entre los dos crepúsculos
-    // contaba igual como "day", con el mismo ajuste sutil (8%) sin importar
-    // si eran las 8am o el mediodía con sol pegando de lleno.
-    const MIDDAY_MS = 150 * 60 * 1000; // ±2.5h alrededor del mediodía solar real
-       if (Math.abs(now - solarNoon) < MIDDAY_MS) return 'midday';
-    // Tarde: midday se mantiene hasta las 18:00 (hora local del dispositivo) como mínimo.
-    // dusk se evalúa antes y conserva su prioridad solar; la mañana no cambia.
-    const MIDDAY_MIN_END_HOUR = 18;
-    if (now > solarNoon && now.getHours() < MIDDAY_MIN_END_HOUR) return 'midday';
+  const MIN = 60 * 1000;
+  // Mañana: dusk ±45 min alrededor de la salida del sol (sin cambios).
+  if (Math.abs(now - sunrise) < 45 * MIN) return 'dusk';
+  // Tarde: dusk empieza 6 min antes de la puesta real y dura hasta 54 min después
+  // (hoy en el Choapa: ~20:10 → ~21:10). Antes era ±45 min y empezaba con mucho sol aún.
+  const duskStart = sunset.getTime() - 6 * MIN;
+  const duskEnd = sunset.getTime() + 54 * MIN;
+  if (now >= duskStart && now < duskEnd) return 'dusk';
+  if (now > sunrise && now < duskStart){
+    // "midday" — el tramo central del día, con el sol alto (±2.5 h alrededor del mediodía solar).
+    if (Math.abs(now - solarNoon) < 150 * MIN) return 'midday';
+    // Tarde: midday sigue mientras haya sol alto; los últimos 45 min antes de dusk son "day"
+    // (puente de luz de tarde, igual que la mañana). Sigue al sol todo el año, sin horas fijas.
+    if (now > solarNoon && now < duskStart - 45 * MIN) return 'midday';
     return 'day';
   }
   return 'night';
