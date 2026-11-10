@@ -4158,46 +4158,60 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
 .pd-discover-row{ margin-bottom:6px; }
 
 /* ================= DESBLOQUEO — «EL LUGAR SE REVELA» + COMPARTIR LOGRO =================
-   Solo se ve en un desbloqueo nuevo (ver celebrateDiscovery). Anuncio breve que no bloquea,
-   la foto se revela, sello «Descubierta» y la invitación a compartir el logro. */
-.ach-banner{
-  position:fixed; left:50%; top:calc(var(--safe-top) + 18%); z-index:95; pointer-events:none;
-  width:max-content; max-width:min(82vw, 360px); padding:18px 26px 20px; border-radius:22px;
-  display:flex; flex-direction:column; align-items:center; text-align:center;
-  background:rgba(10,24,38,0.88); border:1px solid rgba(95,225,232,0.34);
-  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
-  box-shadow:0 24px 60px rgba(2,8,15,0.55), 0 0 0 1px rgba(255,255,255,0.03) inset, 0 0 46px rgba(22,184,196,0.18);
-  opacity:0; transform:translate(-50%, 10px) scale(.94);
-  animation:ach-banner-in .5s cubic-bezier(.22,.61,.36,1) forwards;
+   Solo se ve en un desbloqueo nuevo (ver celebrateDiscovery). El anuncio vive DENTRO de la foto
+   del lugar (no tapa la ficha), la foto se revela, sello «Descubierta» y la invitación a compartir. */
+.ach-moment{
+  position:absolute; inset:0; z-index:2; pointer-events:none;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
+  padding:0 28px 18px;
+  background:radial-gradient(80% 90% at 50% 48%, rgba(5,14,22,0.74) 0%, rgba(5,14,22,0.46) 62%, rgba(5,14,22,0.18) 100%);
+  opacity:0; animation:ach-moment-in .45s cubic-bezier(.22,.61,.36,1) forwards, ach-moment-out .55s cubic-bezier(.4,0,.2,1) 2.15s forwards;
 }
-.ach-banner.is-leaving{ animation:ach-banner-out .45s cubic-bezier(.4,0,.2,1) forwards; }
-@keyframes ach-banner-in{ to{ opacity:1; transform:translate(-50%, 0) scale(1); } }
-@keyframes ach-banner-out{ from{ opacity:1; transform:translate(-50%, 0) scale(1); } to{ opacity:0; transform:translate(-50%, -10px) scale(.98); } }
-.ach-banner-ring{
-  width:52px; height:52px; border-radius:50%; margin-bottom:10px;
+@keyframes ach-moment-in{ to{ opacity:1; } }
+@keyframes ach-moment-out{ from{ opacity:1; } to{ opacity:0; } }
+.ach-moment-ring{
+  position:relative; width:48px; height:48px; border-radius:50%; margin-bottom:10px;
   display:flex; align-items:center; justify-content:center; color:#5FE1E8;
-  background:radial-gradient(circle at 35% 30%, rgba(95,225,232,0.22), rgba(22,184,196,0.06) 72%);
-  box-shadow:inset 0 0 0 1px rgba(95,225,232,0.35), 0 0 22px rgba(22,184,196,0.25);
+  background:radial-gradient(circle at 35% 30%, rgba(95,225,232,0.24), rgba(22,184,196,0.08) 72%);
+  box-shadow:inset 0 0 0 1px rgba(95,225,232,0.42), 0 0 24px rgba(22,184,196,0.35);
+  transform:scale(.7); animation:ach-pop .55s cubic-bezier(.34,1.56,.64,1) .1s forwards;
 }
+/* Onda de luz que sale del check, una sola vez */
+.ach-moment-ring::after{
+  content:''; position:absolute; inset:0; border-radius:50%;
+  box-shadow:0 0 0 1.5px rgba(95,225,232,0.7);
+  opacity:0; animation:ach-ripple 1.1s cubic-bezier(.22,.61,.36,1) .75s forwards;
+}
+@keyframes ach-pop{ to{ transform:scale(1); } }
+@keyframes ach-ripple{ 0%{ opacity:.9; transform:scale(1); } 100%{ opacity:0; transform:scale(2.4); } }
 .ach-check circle{ stroke-dasharray:57; stroke-dashoffset:57; animation:ach-draw .6s cubic-bezier(.65,0,.35,1) .2s forwards; }
-.ach-check path{ stroke-dasharray:12; stroke-dashoffset:12; animation:ach-draw .35s cubic-bezier(.65,0,.35,1) .7s forwards; }
+.ach-check path{ stroke-dasharray:12; stroke-dashoffset:12; animation:ach-draw .35s cubic-bezier(.65,0,.35,1) .65s forwards; }
 @keyframes ach-draw{ to{ stroke-dashoffset:0; } }
-.ach-banner-eyebrow{ font-size:10.5px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:#5FE1E8; }
-.ach-banner-name{ margin-top:4px; font-family:var(--font-display); font-size:20px; font-weight:800; line-height:1.2; letter-spacing:-0.2px; color:#fff; }
+.ach-moment-eyebrow{
+  font-size:10.5px; font-weight:700; letter-spacing:1.6px; text-transform:uppercase; color:#5FE1E8;
+  opacity:0; transform:translateY(6px); animation:ach-in .45s cubic-bezier(.22,.61,.36,1) .45s forwards;
+}
+.ach-moment-name{
+  margin-top:5px; max-width:100%;
+  font-family:var(--font-display); font-size:21px; font-weight:800; line-height:1.18; letter-spacing:-0.3px; color:#fff;
+  text-shadow:0 2px 14px rgba(2,8,15,0.55);
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  opacity:0; transform:translateY(8px); animation:ach-in .55s cubic-bezier(.22,.61,.36,1) .55s forwards;
+}
 
 /* La foto se revela: de apagada a viva, con un rayo de luz que la cruza una vez */
 .ach-veil{
   position:absolute; inset:0; z-index:1; pointer-events:none;
   background:rgba(6,16,26,0.42);
   -webkit-backdrop-filter:saturate(0.15) brightness(0.8); backdrop-filter:saturate(0.15) brightness(0.8);
-  animation:ach-veil-out 1.15s cubic-bezier(.4,0,.2,1) .35s forwards;
+  animation:ach-veil-out 1.3s cubic-bezier(.4,0,.2,1) .5s forwards;
 }
 @keyframes ach-veil-out{ to{ opacity:0; } }
 .ach-sweep{
   position:absolute; top:0; bottom:0; left:0; width:45%; z-index:1; pointer-events:none;
   background:linear-gradient(100deg, transparent 0%, rgba(255,255,255,0) 30%, rgba(214,252,255,0.30) 50%, rgba(255,255,255,0) 70%, transparent 100%);
   transform:translateX(-110%);
-  animation:ach-sweep 1.25s cubic-bezier(.45,0,.25,1) .45s forwards;
+  animation:ach-sweep 1.35s cubic-bezier(.45,0,.25,1) .6s forwards;
 }
 @keyframes ach-sweep{ to{ transform:translateX(240%); } }
 
@@ -4209,31 +4223,40 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
   background:rgba(7,17,28,0.62); border:1px solid rgba(95,225,232,0.45);
 }
 .pd-seal svg{ color:#5FE1E8; display:block; }
-.pd-seal.is-new{ opacity:0; transform:translateY(-4px) scale(.96); animation:ach-in .5s cubic-bezier(.22,.61,.36,1) 1.3s forwards; }
+.pd-seal.is-new{ opacity:0; transform:translateY(-4px) scale(.96); animation:ach-in .5s cubic-bezier(.22,.61,.36,1) 2.3s forwards; }
 @keyframes ach-in{ to{ opacity:1; transform:none; } }
 
-/* Confirmación dentro de la ficha (en lugar del botón de desbloquear) */
+/* Confirmación dentro de la ficha (en lugar del botón de desbloquear), con la miniatura del logro */
 .ach-confirm{
-  position:relative; margin:2px 0 8px; padding:14px 14px 12px; border-radius:16px;
+  position:relative; margin:2px 0 8px; padding:14px 14px 12px; border-radius:16px; overflow:hidden;
   background:
     radial-gradient(120% 140% at 0% 0%, rgba(95,225,232,0.12) 0%, rgba(95,225,232,0) 60%),
     linear-gradient(160deg, #15304A 0%, #0F2236 100%);
   border:1px solid rgba(95,225,232,0.30);
   box-shadow:inset 0 1px 0 rgba(255,255,255,0.06);
   opacity:0; transform:translateY(10px);
-  animation:ach-in .55s cubic-bezier(.22,.61,.36,1) 2.1s forwards;
+  animation:ach-in .55s cubic-bezier(.22,.61,.36,1) 2.35s forwards;
 }
+.ach-confirm-top{ display:flex; align-items:flex-start; gap:12px; }
+.ach-confirm-text{ flex:1; min-width:0; }
 .ach-eyebrow{ display:flex; align-items:center; gap:7px; margin-bottom:6px; font-size:10.5px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#5FE1E8; }
-.ach-line{ font-family:var(--font-display); font-size:15.5px; font-weight:700; line-height:1.35; color:#F4F7FA; letter-spacing:-0.1px; }
-.ach-line b{ color:#fff; }
+.ach-line{ font-family:var(--font-display); font-size:16px; font-weight:700; line-height:1.3; color:#F4F7FA; letter-spacing:-0.1px; }
 .ach-meta{ margin-top:4px; font-size:12px; line-height:1.45; color:var(--text-secondary); }
+/* Miniatura de la imagen para compartir: aparece cuando está lista y abre "Comparte tu logro" */
+.ach-thumb{
+  flex-shrink:0; width:46px; height:82px; margin-top:2px; border-radius:9px; overflow:hidden; padding:0;
+  background:rgba(255,255,255,0.05); box-shadow:0 8px 18px rgba(2,8,15,0.45), 0 0 0 1px rgba(255,255,255,0.12);
+  transform:rotate(4deg); opacity:0; transition:opacity .4s ease;
+}
+.ach-thumb.ready{ opacity:1; }
+.ach-thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
 .ach-actions{ display:flex; align-items:center; gap:6px; margin-top:12px; }
 .ach-share{
   flex:1; display:inline-flex; align-items:center; justify-content:center; gap:7px; white-space:nowrap;
   padding:10px 14px; border-radius:999px; font-size:12.5px; font-weight:700; color:#052024;
   background:linear-gradient(180deg, #7BE9EE 0%, #5FE1E8 100%);
   box-shadow:0 4px 12px rgba(22,184,196,0.28), inset 0 1px 0 rgba(255,255,255,0.4);
-  transition:transform .16s cubic-bezier(.34,1.56,.64,1);
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1), opacity .2s ease;
 }
 .ach-share:active{ transform:scale(.97); }
 .ach-share:disabled{ opacity:.55; }
@@ -4242,34 +4265,54 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
 /* Cámara: suelta el candado con un único pulso (ahora puede sumar sus fotos) */
 .poi-card .btn-memory.ach-cam-pulse::after{
   content:''; position:absolute; inset:-1px; border-radius:inherit; pointer-events:none;
-  animation:ach-ring 1.1s cubic-bezier(.22,.61,.36,1) 2.4s 1 both;
+  animation:ach-ring 1.1s cubic-bezier(.22,.61,.36,1) 2.6s 1 both;
 }
 @keyframes ach-ring{ 0%{ box-shadow:0 0 0 0 rgba(95,225,232,0.55); } 100%{ box-shadow:0 0 0 10px rgba(95,225,232,0); } }
 
 /* «Comparte tu logro» */
 .ach-share-layer{
   position:fixed; inset:0; z-index:90; display:flex; align-items:flex-end; justify-content:center;
-  background:rgba(3,9,16,0.62); opacity:0; animation:ach-fade .25s ease forwards;
+  background:rgba(3,9,16,0.66); opacity:0; animation:ach-fade .25s ease forwards;
 }
 @keyframes ach-fade{ to{ opacity:1; } }
 .ach-sheet{
-  width:100%; max-width:480px; max-height:96vh; overflow-y:auto;
-  padding:14px 18px calc(16px + var(--safe-bottom));
-  background:linear-gradient(180deg, #13293C 0%, #0B1A29 100%);
+  position:relative; width:100%; max-width:480px; max-height:96vh; overflow-y:auto;
+  padding:14px 18px calc(14px + var(--safe-bottom));
+  background:
+    radial-gradient(90% 60% at 50% 0%, rgba(95,225,232,0.08) 0%, rgba(95,225,232,0) 70%),
+    linear-gradient(180deg, #13293C 0%, #0B1A29 100%);
   border-top:1px solid rgba(255,255,255,0.08); border-radius:24px 24px 0 0;
   box-shadow:0 -20px 50px rgba(2,8,15,0.5);
   display:flex; flex-direction:column; align-items:center;
   opacity:0; transform:translateY(24px); animation:ach-in .4s cubic-bezier(.22,.61,.36,1) forwards;
 }
 .ach-grab{ width:40px; height:4px; border-radius:4px; background:rgba(255,255,255,0.16); margin-bottom:12px; flex-shrink:0; }
+.ach-sheet-close{
+  position:absolute; top:12px; right:12px; width:32px; height:32px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center; color:var(--text-secondary);
+  background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.08);
+}
 .ach-sheet h3{ margin:0; font-family:var(--font-display); font-size:16px; font-weight:700; color:#F4F7FA; }
 .ach-sheet p{ margin:4px 0 12px; font-size:12px; color:var(--text-secondary); text-align:center; line-height:1.45; }
-.ach-preview{
-  height:min(42vh, 380px); aspect-ratio:9/16; border-radius:14px; overflow:hidden; flex-shrink:0;
-  background:#0B1A29; box-shadow:0 14px 34px rgba(2,8,15,0.5), 0 0 0 1px rgba(255,255,255,0.08);
-  display:flex; align-items:center; justify-content:center; color:var(--text-tertiary); font-size:12px;
+/* Formato: historia (9:16) o publicación (4:5) */
+.ach-format{
+  display:flex; gap:4px; padding:3px; margin-bottom:12px; border-radius:999px;
+  background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08);
 }
-.ach-preview img{ width:100%; height:100%; object-fit:cover; display:block; }
+.ach-format button{
+  padding:7px 14px; border-radius:999px; font-size:12px; font-weight:700; color:var(--text-secondary);
+  transition:background .2s ease, color .2s ease;
+}
+.ach-format button.active{ color:#052024; background:#5FE1E8; }
+.ach-preview{
+  position:relative; height:min(40vh, 360px); aspect-ratio:9/16; border-radius:14px; overflow:hidden; flex-shrink:0;
+  background:#0B1A29; box-shadow:0 16px 38px rgba(2,8,15,0.55), 0 0 0 1px rgba(255,255,255,0.10);
+  display:flex; align-items:center; justify-content:center; color:var(--text-tertiary); font-size:12px;
+  transition:aspect-ratio .3s ease;
+}
+.ach-preview.is-post{ aspect-ratio:4/5; height:min(34vh, 300px); }
+.ach-preview img{ width:100%; height:100%; object-fit:cover; display:block; transition:opacity .25s ease; }
+.ach-preview.is-busy img{ opacity:.45; }
 .ach-photos{ display:flex; align-items:center; gap:10px; width:100%; margin-top:14px; }
 .ach-photos-label{ flex:1; font-size:12px; line-height:1.35; color:var(--text-secondary); }
 .ach-photos-label b{ display:block; color:var(--text-primary); font-size:12.5px; }
@@ -4285,19 +4328,22 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
   display:flex; align-items:center; justify-content:center; color:#fff; background:rgba(7,17,28,0.72);
 }
 .ach-row{ display:flex; gap:10px; width:100%; margin-top:14px; }
-.ach-row .ach-share{ padding:12px 14px; font-size:13.5px; }
-.ach-copy{
-  flex:0 0 auto; display:inline-flex; align-items:center; gap:6px; padding:12px 14px; border-radius:999px;
-  font-size:12.5px; font-weight:700; color:#5FE1E8; background:rgba(95,225,232,0.08); border:1px solid rgba(95,225,232,0.30);
+.ach-row .ach-share{ padding:13px 14px; font-size:14px; }
+.ach-save{
+  flex:0 0 auto; display:inline-flex; align-items:center; gap:7px; padding:13px 16px; border-radius:999px;
+  font-size:13px; font-weight:700; color:#F4F7FA; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.14);
 }
-.ach-status{ min-height:16px; margin-top:10px; font-size:11.5px; color:var(--text-secondary); text-align:center; }
-.ach-dismiss{ margin-top:2px; padding:8px; font-size:12.5px; font-weight:600; color:var(--text-tertiary); }
+.ach-save:disabled{ opacity:.55; }
+.ach-copy{
+  margin-top:10px; display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px;
+  font-size:12px; font-weight:700; color:#5FE1E8;
+}
+.ach-status{ min-height:16px; margin-top:4px; font-size:11.5px; line-height:1.45; color:var(--text-secondary); text-align:center; }
 
 @media (prefers-reduced-motion: reduce){
-  .ach-banner, .pd-seal.is-new, .ach-confirm, .ach-sheet, .ach-share-layer{ animation:none; opacity:1; }
-  .ach-banner{ transform:translate(-50%, 0); }
-  .ach-banner.is-leaving{ opacity:0; }
-  .pd-seal.is-new, .ach-confirm, .ach-sheet{ transform:none; }
+  .ach-moment{ animation:ach-moment-out .3s ease 1.8s forwards; opacity:1; }
+  .ach-moment-ring, .ach-moment-eyebrow, .ach-moment-name, .pd-seal.is-new, .ach-confirm, .ach-sheet, .ach-share-layer{ animation:none; opacity:1; transform:none; }
+  .ach-moment-ring::after{ display:none; }
   .ach-check circle, .ach-check path{ animation:none; stroke-dashoffset:0; }
   .poi-card .btn-memory.ach-cam-pulse::after{ animation:none; }
 }
@@ -8311,7 +8357,9 @@ const achCheckSvg = (size, cls) => `<svg class="${cls || ''}" width="${size}" he
 const ACH_SHARE_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>';
 const ACH_AT_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/></svg>';
 const ACH_PLUS_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
-let achievementState = null; // { place, comuna, photos:[File|null, File|null], build:Promise, result }
+const ACH_SAVE_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>';
+const ACH_CLOSE_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+let achievementState = null; // { place, comuna, photos:[File|null, File|null], format:'story'|'post', build:Promise, result }
 
 function prefersReducedMotion(){ return !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); }
 function comunaOfPlace(place){
@@ -8320,7 +8368,7 @@ function comunaOfPlace(place){
 }
 // Limpia la celebración de la ficha (al abrir otra experiencia o al tocar "Ahora no").
 function clearDiscoveryCelebration(){
-  document.querySelectorAll('#poiDetail .ach-veil, #poiDetail .ach-sweep, #poiDetail .ach-confirm').forEach(n => n.remove());
+  document.querySelectorAll('#poiDetail .ach-moment, #poiDetail .ach-veil, #poiDetail .ach-sweep, #poiDetail .ach-confirm').forEach(n => n.remove());
   const cam = document.getElementById('poiDetailMemoryBtn');
   if (cam) cam.classList.remove('ach-cam-pulse');
   const seal = document.getElementById('poiDetailSeal');
@@ -8333,19 +8381,19 @@ function celebrateDiscovery(place){
   const photo = document.getElementById('poiDetailThumb');
   const row = document.getElementById('poiDiscoverRow');
 
-  // 1) Anuncio breve en pantalla: no recibe toques, se retira solo
-  const banner = document.createElement('div');
-  banner.className = 'ach-banner';
-  banner.setAttribute('role', 'status'); banner.setAttribute('aria-live', 'polite');
-  banner.innerHTML = `<div class="ach-banner-ring">${achCheckSvg(28, 'ach-check')}</div><div class="ach-banner-eyebrow">Desbloqueaste</div><div class="ach-banner-name"></div>`;
-  banner.querySelector('.ach-banner-name').textContent = place.name;
-  document.body.appendChild(banner);
-  setTimeout(() => banner.classList.add('is-leaving'), 2000);
-  setTimeout(() => banner.remove(), 2600);
+  // 1) El anuncio vive dentro de la foto del lugar: check que se dibuja, onda de luz y el nombre.
+  //    No recibe toques y se desvanece solo, dejando la foto ya revelada.
+  const moment = document.createElement('div');
+  moment.className = 'ach-moment';
+  moment.setAttribute('role', 'status'); moment.setAttribute('aria-live', 'polite');
+  moment.innerHTML = `<div class="ach-moment-ring">${achCheckSvg(26, 'ach-check')}</div><div class="ach-moment-eyebrow">Desbloqueaste</div><div class="ach-moment-name"></div>`;
+  moment.querySelector('.ach-moment-name').textContent = place.name;
+  photo.prepend(moment);
+  setTimeout(() => moment.remove(), 2800);
 
   // 2) La foto se revela + sello "Descubierta"
   if (!reduced){
-    ['ach-veil', 'ach-sweep'].forEach(cls => { const d = document.createElement('div'); d.className = cls; photo.appendChild(d); });
+    ['ach-veil', 'ach-sweep'].forEach(cls => { const d = document.createElement('div'); d.className = cls; photo.prepend(d); });
   }
   const seal = document.getElementById('poiDetailSeal');
   seal.style.display = '';
@@ -8357,16 +8405,21 @@ function celebrateDiscovery(place){
   const box = document.createElement('div');
   box.className = 'ach-confirm';
   box.innerHTML = `
-    <div class="ach-eyebrow">${achCheckSvg(16)}<span>Descubierta hoy · ${fecha}</span></div>
-    <div class="ach-line"><b></b> ya es parte de tu Choapa.</div>
-    <div class="ach-meta">Quedó en tu álbum. Ahora puedes sumar tus propias fotos.</div>
+    <div class="ach-confirm-top">
+      <div class="ach-confirm-text">
+        <div class="ach-eyebrow">${achCheckSvg(16)}<span>Descubierta hoy · ${fecha}</span></div>
+        <div class="ach-line">Ya es parte de tu Choapa.</div>
+        <div class="ach-meta">Quedó en tu álbum. Ahora puedes sumar tus propias fotos.</div>
+      </div>
+      <button class="ach-thumb" type="button" aria-label="Ver tu logro"></button>
+    </div>
     <div class="ach-actions">
       <button class="ach-share" type="button">${ACH_SHARE_SVG}Compartir logro</button>
       <button class="ach-later" type="button">Ahora no</button>
     </div>`;
-  box.querySelector('.ach-line b').textContent = place.name;
   row.after(box);
   box.querySelector('.ach-share').addEventListener('click', (e) => { e.stopPropagation(); openShareAchievement(); });
+  box.querySelector('.ach-thumb').addEventListener('click', (e) => { e.stopPropagation(); openShareAchievement(); });
   box.querySelector('.ach-later').addEventListener('click', (e) => { e.stopPropagation(); box.remove(); row.style.display = 'block'; });
 
   // 4) La cámara suelta el candado con un pulso
@@ -8379,13 +8432,24 @@ function celebrateDiscovery(place){
     if (!box.isConnected || !body) return;
     const top = box.offsetTop - body.clientHeight + box.offsetHeight + 24;
     if (top > body.scrollTop) body.scrollTo({ top, behavior: reduced ? 'auto' : 'smooth' });
-  }, reduced ? 100 : 2150);
+  }, reduced ? 100 : 2400);
 
   try { if (navigator.vibrate) navigator.vibrate(12); } catch (e){}
 
-  // La imagen se prepara desde ya: compartir debe ocurrir dentro del mismo toque
-  achievementState = { place, comuna: comunaOfPlace(place), photos: [null, null] };
+  // La imagen se prepara desde ya (compartir debe ocurrir dentro del mismo toque);
+  // cuando está lista, su miniatura aparece en la confirmación.
+  achievementState = { place, comuna: comunaOfPlace(place), photos: [null, null], format:'story' };
   achievementState.build = buildAchievementImage(achievementState);
+  achievementState.build.then((res) => {
+    const thumb = box.querySelector('.ach-thumb');
+    if (!thumb || !box.isConnected) return;
+    const url = URL.createObjectURL(res.blob);
+    const img = new Image();
+    img.alt = '';
+    img.onload = () => { thumb.classList.add('ready'); };
+    img.src = url;
+    thumb.appendChild(img);
+  });
 }
 
 function loadAchievementImage(src, cors){
@@ -8409,12 +8473,16 @@ function achDrawCover(ctx, img, x, y, w, h, focusY){
   const dw = img.width * s, dh = img.height * s;
   ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) * (focusY == null ? 0.5 : focusY), dw, dh);
 }
-// Imagen vertical 1080×1920: foto real del lugar, hasta 2 fotos del usuario en recuadros encima,
-// y el texto del logro. Sirve para historias, WhatsApp o cualquier app.
+// Imagen del logro: foto real del lugar, hasta 2 fotos del usuario en recuadros encima (collage)
+// y el texto. Dos formatos: historia 1080×1920 (9:16) y publicación 1080×1350 (4:5, feed).
 async function buildAchievementImage(st){
   const { place, comuna } = st;
+  const isPost = st.format === 'post';
   try { await document.fonts.load('800 100px Sora'); await document.fonts.load('600 40px Inter'); } catch (e){}
-  const W = 1080, H = 1920;
+  const W = 1080, H = isPost ? 1350 : 1920;
+  const L = isPost
+    ? { brandY:96,  textBottom:150, nameSize:92,  lineH:98,  locSize:36, frames1:[{ cx:540, cy:560, w:440, h:540, rot:-3 }], frames2:[{ cx:390, cy:500, w:360, h:450, rot:-5 }, { cx:690, cy:620, w:360, h:450, rot:4 }] }
+    : { brandY:256, textBottom:330, nameSize:112, lineH:118, locSize:40, frames1:[{ cx:540, cy:860, w:560, h:700, rot:-3 }], frames2:[{ cx:375, cy:800, w:450, h:570, rot:-5 }, { cx:705, cy:960, w:450, h:570, rot:4 }] };
   const c = document.createElement('canvas'); c.width = W; c.height = H;
   const ctx = c.getContext('2d');
   const userUrls = st.photos.filter(Boolean).map(f => URL.createObjectURL(f));
@@ -8446,15 +8514,13 @@ async function buildAchievementImage(st){
   if (userImgs.length){ ctx.fillStyle = 'rgba(5,14,22,0.18)'; ctx.fillRect(0, 0, W, H); }
 
   // Lectura: sombra arriba (marca) y abajo (texto)
-  let g = ctx.createLinearGradient(0, 0, 0, 420); g.addColorStop(0, 'rgba(5,14,22,0.55)'); g.addColorStop(1, 'rgba(5,14,22,0)');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, 420);
+  let g = ctx.createLinearGradient(0, 0, 0, L.brandY + 170); g.addColorStop(0, 'rgba(5,14,22,0.55)'); g.addColorStop(1, 'rgba(5,14,22,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, L.brandY + 170);
   g = ctx.createLinearGradient(0, H * 0.48, 0, H); g.addColorStop(0, 'rgba(5,14,22,0)'); g.addColorStop(0.55, 'rgba(5,14,22,0.72)'); g.addColorStop(1, 'rgba(5,14,22,0.92)');
   ctx.fillStyle = g; ctx.fillRect(0, H * 0.48, W, H * 0.52);
 
   // Fotos del usuario: recuadros más pequeños encima de la foto del lugar (tipo collage)
-  const frames = userImgs.length === 1
-    ? [{ cx:540, cy:860, w:560, h:700, rot:-3 }]
-    : [{ cx:375, cy:800, w:450, h:570, rot:-5 }, { cx:705, cy:960, w:450, h:570, rot:4 }];
+  const frames = userImgs.length === 1 ? L.frames1 : L.frames2;
   userImgs.slice(0, ACHIEVEMENT_MAX_PHOTOS).forEach((img, i) => {
     const f = frames[i];
     ctx.save();
@@ -8474,49 +8540,67 @@ async function buildAchievementImage(st){
   const brand = 'CHOAPA EXPLORE';
   const bw = ctx.measureText(brand).width + (logo ? 64 : 0);
   let bx = (W - bw) / 2;
-  if (logo){ try { ctx.drawImage(logo, bx, 230, 48, 48); } catch (e){} bx += 64; }
-  ctx.fillText(brand, bx, 256);
+  if (logo){ try { ctx.drawImage(logo, bx, L.brandY - 26, 48, 48); } catch (e){} bx += 64; }
+  ctx.fillText(brand, bx, L.brandY);
   ctx.letterSpacing = '0px';
 
-  // Texto del logro (deja libre la zona inferior que tapan las apps)
+  // Texto del logro (en historia deja libre la zona inferior que tapan las apps)
   const left = 96, maxW = W - left * 2;
-  ctx.font = '800 112px Sora, system-ui, sans-serif';
+  ctx.font = `800 ${L.nameSize}px Sora, system-ui, sans-serif`;
   const words = String(place.name || '').split(/\s+/), nameLines = []; let line = '';
   words.forEach(w => { const t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > maxW && line){ nameLines.push(line); line = w; } else line = t; });
   if (line) nameLines.push(line);
   const lines = nameLines.slice(0, 3);
-  let y = H - 330 - (lines.length - 1) * 118;
+  const nameBase = H - L.textBottom - 30 - (lines.length - 1) * L.lineH;
   ctx.textBaseline = 'alphabetic';
   ctx.font = '700 32px Inter, system-ui, sans-serif'; ctx.fillStyle = '#5FE1E8';
-  ctx.letterSpacing = '8px'; ctx.fillText('DESCUBRÍ', left, y - 150); ctx.letterSpacing = '0px';
-  ctx.font = '800 112px Sora, system-ui, sans-serif'; ctx.fillStyle = '#FFFFFF';
-  lines.forEach((l, i) => ctx.fillText(l, left, y - 30 + i * 118));
-  y = y - 30 + (lines.length - 1) * 118;
-  ctx.font = '500 40px Inter, system-ui, sans-serif'; ctx.fillStyle = 'rgba(232,240,246,0.86)';
-  ctx.fillText([place.locality, comuna].filter(Boolean).join(' · '), left, y + 74);
-  ctx.fillStyle = '#5FE1E8'; ctx.fillRect(left, y + 118, 64, 4);
+  ctx.letterSpacing = '8px'; ctx.fillText('DESCUBRÍ', left, nameBase - L.nameSize - 8); ctx.letterSpacing = '0px';
+  ctx.font = `800 ${L.nameSize}px Sora, system-ui, sans-serif`; ctx.fillStyle = '#FFFFFF';
+  lines.forEach((l, i) => ctx.fillText(l, left, nameBase + i * L.lineH));
+  const y = nameBase + (lines.length - 1) * L.lineH;
+  ctx.font = `500 ${L.locSize}px Inter, system-ui, sans-serif`; ctx.fillStyle = 'rgba(232,240,246,0.86)';
+  ctx.fillText([place.locality, comuna].filter(Boolean).join(' · '), left, y + L.locSize + 30);
+  ctx.fillStyle = '#5FE1E8'; ctx.fillRect(left, y + L.locSize + 74, 64, 4);
   ctx.font = '700 34px Inter, system-ui, sans-serif'; ctx.fillStyle = 'rgba(244,247,250,0.92)';
-  ctx.fillText(ACHIEVEMENT_HANDLE, left + 84, y + 132);
-  if (illustrated){ ctx.font = '500 24px Inter, system-ui, sans-serif'; ctx.fillStyle = 'rgba(244,247,250,0.45)'; ctx.fillText('Ilustración', W - left - 120, H - 120); }
+  ctx.fillText(ACHIEVEMENT_HANDLE, left + 84, y + L.locSize + 88);
+  if (illustrated){ ctx.font = '500 24px Inter, system-ui, sans-serif'; ctx.fillStyle = 'rgba(244,247,250,0.45)'; ctx.fillText('Ilustración', W - left - 120, H - 60); }
 
   const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.9));
   const slug = String(place.name || 'experiencia').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-');
-  const file = new File([blob], `${slug}-choapa-explore.jpg`, { type:'image/jpeg' });
-  return { blob, file, illustrated, canShare: !!(navigator.canShare && navigator.canShare({ files:[file] })) };
+  const file = new File([blob], `${slug}-choapa-explore${isPost ? '-post' : ''}.jpg`, { type:'image/jpeg' });
+  // Solo la imagen (sin texto adjunto): así Android e iPhone muestran Instagram (historia y feed),
+  // Facebook, WhatsApp y "Guardar imagen" en el menú de compartir.
+  return { blob, file, illustrated, format: st.format, canShare: !!(navigator.canShare && navigator.canShare({ files:[file] })) };
 }
 
-// Pantalla "Comparte tu logro": vista previa, hasta 2 fotos propias y compartir con cualquier app.
+// Guarda la imagen en el teléfono (Descargas / Fotos)
+function saveAchievementImage(res){
+  const url = URL.createObjectURL(res.blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = res.file.name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+// Pantalla "Comparte tu logro": formato historia o publicación, hasta 2 fotos propias,
+// compartir con cualquier app (Instagram historia o feed, Facebook, WhatsApp…) o guardar en el teléfono.
 function openShareAchievement(){
   const st = achievementState;
   if (!st) return;
   document.querySelector('.ach-share-layer')?.remove();
+  const caption = `Descubrí ${st.place.name} en el Valle del Choapa con ${ACHIEVEMENT_HANDLE}`;
   const layer = document.createElement('div');
   layer.className = 'ach-share-layer';
   layer.innerHTML = `
     <div class="ach-sheet" role="dialog" aria-modal="true" aria-label="Comparte tu logro">
       <div class="ach-grab"></div>
+      <button class="ach-sheet-close" type="button" aria-label="Cerrar">${ACH_CLOSE_SVG}</button>
       <h3>Comparte tu logro</h3>
-      <p>Compártelo donde quieras. Si lo subes a Instagram, menciona a ${ACHIEVEMENT_HANDLE}.</p>
+      <p>En una historia, en tu feed o donde quieras.</p>
+      <div class="ach-format" role="tablist">
+        <button type="button" data-format="story" role="tab">Historia</button>
+        <button type="button" data-format="post" role="tab">Publicación</button>
+      </div>
       <div class="ach-preview">Preparando imagen…</div>
       <div class="ach-photos">
         <div class="ach-photos-label"><b>Tus fotos</b>Opcional · hasta ${ACHIEVEMENT_MAX_PHOTOS}</div>
@@ -8525,20 +8609,21 @@ function openShareAchievement(){
       </div>
       <div class="ach-row">
         <button class="ach-share" type="button" disabled>${ACH_SHARE_SVG}<span>Compartir</span></button>
-        <button class="ach-copy" type="button">${ACH_AT_SVG}Copiar</button>
+        <button class="ach-save" type="button" disabled>${ACH_SAVE_SVG}Guardar</button>
       </div>
+      <button class="ach-copy" type="button">${ACH_AT_SVG}Copiar texto con ${ACHIEVEMENT_HANDLE}</button>
       <div class="ach-status" aria-live="polite"></div>
-      <button class="ach-dismiss" type="button">Ahora no</button>
     </div>`;
   document.body.appendChild(layer);
 
   const preview = layer.querySelector('.ach-preview');
   const shareBtn = layer.querySelector('.ach-row .ach-share');
+  const saveBtn = layer.querySelector('.ach-save');
   const status = layer.querySelector('.ach-status');
   const input = document.createElement('input');
   input.type = 'file'; input.accept = 'image/*'; input.style.display = 'none';
   layer.appendChild(input);
-  let previewUrl = null, thumbUrls = [], pendingSlot = 0, renderToken = 0;
+  let previewUrl = null, thumbUrls = [], pendingSlot = 0, renderToken = 0, sharing = false;
 
   const close = () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -8546,12 +8631,19 @@ function openShareAchievement(){
     layer.remove();
   };
   layer.addEventListener('click', (e) => { if (e.target === layer) close(); });
-  layer.querySelector('.ach-dismiss').addEventListener('click', close);
+  layer.querySelector('.ach-sheet-close').addEventListener('click', close);
   layer.querySelector('.ach-copy').addEventListener('click', async () => {
-    try { await navigator.clipboard.writeText(ACHIEVEMENT_HANDLE); status.textContent = `${ACHIEVEMENT_HANDLE} copiado. Pégalo como mención.`; }
+    try { await navigator.clipboard.writeText(caption); status.textContent = 'Texto copiado. Pégalo al publicar para mencionarnos.'; }
     catch (e){ status.textContent = `Menciona a ${ACHIEVEMENT_HANDLE} al publicar.`; }
   });
 
+  const paintFormat = () => {
+    layer.querySelectorAll('.ach-format button').forEach(b => {
+      const on = b.dataset.format === st.format;
+      b.classList.toggle('active', on); b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    preview.classList.toggle('is-post', st.format === 'post');
+  };
   const paintSlots = () => {
     layer.querySelectorAll('.ach-slot').forEach(slot => {
       const i = +slot.dataset.i, f = st.photos[i];
@@ -8570,7 +8662,8 @@ function openShareAchievement(){
   };
   const render = () => {
     const token = ++renderToken;
-    shareBtn.disabled = true;
+    shareBtn.disabled = true; saveBtn.disabled = true;
+    preview.classList.add('is-busy');
     st.result = null;
     st.build.then((res) => {
       if (token !== renderToken || !layer.isConnected) return;
@@ -8578,26 +8671,63 @@ function openShareAchievement(){
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       previewUrl = URL.createObjectURL(res.blob);
       preview.innerHTML = `<img alt="Vista previa del logro" src="${previewUrl}">`;
-      shareBtn.querySelector('span').textContent = res.canShare ? 'Compartir' : 'Descargar imagen';
-      shareBtn.disabled = false;
+      preview.classList.remove('is-busy');
+      shareBtn.querySelector('span').textContent = res.canShare ? 'Compartir' : 'Descargar';
+      shareBtn.disabled = false; saveBtn.disabled = false;
+      saveBtn.style.display = res.canShare ? '' : 'none'; // sin menú de compartir, el botón principal ya descarga
       if (res.illustrated) status.textContent = 'Sin foto del lugar disponible: se usa una ilustración.';
     });
   };
+  const rebuild = () => { st.build = buildAchievementImage(st); render(); };
 
+  layer.querySelectorAll('.ach-format button').forEach(b => b.addEventListener('click', () => {
+    if (st.format === b.dataset.format) return;
+    st.format = b.dataset.format;
+    paintFormat(); status.textContent = ''; rebuild();
+  }));
   layer.querySelectorAll('.ach-slot').forEach(slot => slot.addEventListener('click', () => {
     const i = +slot.dataset.i;
-    if (st.photos[i]){ st.photos[i] = null; paintSlots(); st.build = buildAchievementImage(st); render(); return; }
+    if (st.photos[i]){ st.photos[i] = null; paintSlots(); rebuild(); return; }
     pendingSlot = i; input.value = ''; input.click();
   }));
   input.addEventListener('change', () => {
     const f = input.files && input.files[0];
     if (!f) return;
     st.photos[pendingSlot] = f;
-    paintSlots();
-    status.textContent = '';
-    st.build = buildAchievementImage(st);
-    render();
+    paintSlots(); status.textContent = ''; rebuild();
   });
+
+  saveBtn.addEventListener('click', () => {
+    if (!st.result) return;
+    saveAchievementImage(st.result);
+    status.textContent = 'Imagen guardada en tu teléfono. Ya puedes subirla desde tu galería.';
+  });
+  shareBtn.addEventListener('click', async () => {
+    const res = st.result;
+    if (!res || sharing) return;
+    if (!res.canShare){
+      saveAchievementImage(res);
+      status.textContent = 'Imagen guardada. Ya puedes compartirla desde tu galería.';
+      return;
+    }
+    sharing = true;
+    try {
+      // Solo el archivo: con texto adjunto, algunas apps (Instagram) desaparecen del menú
+      await navigator.share({ files:[res.file] });
+      status.textContent = '¡Listo! Gracias por compartir el Choapa.';
+    } catch (e){
+      if (!e || e.name !== 'AbortError'){
+        // El teléfono no abrió el menú (o quedó uno pendiente): se guarda la imagen para no perderla
+        saveAchievementImage(res);
+        status.textContent = 'Tu teléfono no abrió el menú de compartir. Guardamos la imagen para que la subas desde tu galería.';
+      }
+    } finally { sharing = false; }
+  });
+
+  paintFormat();
+  paintSlots();
+  render();
+});
 
   shareBtn.addEventListener('click', async () => {
     const res = st.result;
