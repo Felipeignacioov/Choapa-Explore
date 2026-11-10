@@ -8724,27 +8724,7 @@ function openShareAchievement(){
     } finally { sharing = false; }
   });
 
-  paintFormat();
-  paintSlots();
-  render();
-});
-
-  shareBtn.addEventListener('click', async () => {
-    const res = st.result;
-    if (!res) return;
-    if (res.canShare){
-      try {
-        await navigator.share({ files:[res.file], title:`Descubrí ${st.place.name}`, text:`Descubrí ${st.place.name} en el Valle del Choapa con ${ACHIEVEMENT_HANDLE}` });
-        status.textContent = '¡Listo! Gracias por compartir el Choapa.';
-      } catch (e){ status.textContent = (e && e.name === 'AbortError') ? '' : 'No se pudo abrir el menú de compartir.'; }
-    } else {
-      const a = document.createElement('a');
-      a.href = previewUrl; a.download = res.file.name;
-      document.body.appendChild(a); a.click(); a.remove();
-      status.textContent = 'Imagen descargada. Ya puedes compartirla.';
-    }
-  });
-
+    paintFormat();
   paintSlots();
   render();
 }
