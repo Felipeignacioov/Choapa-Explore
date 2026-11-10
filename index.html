@@ -4350,6 +4350,109 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
 }
 .ach-status{ min-height:16px; margin-top:4px; font-size:11.5px; line-height:1.45; color:var(--text-secondary); text-align:center; }
 
+/* «Invitación a compartir»: aparece UNA sola vez, justo después del anuncio de desbloqueo, encima de todo.
+   Solo se cierra con la X o compartiendo; después queda el acceso discreto en la ficha (.pd-share-btn). */
+.ach-invite-layer{
+  position:fixed; inset:0; z-index:90; display:flex; align-items:center; justify-content:center;
+  padding:20px 16px calc(20px + var(--safe-bottom));
+  background:rgba(3,9,16,0.72);
+  -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
+  opacity:0; animation:ach-fade .3s ease forwards;
+}
+.ach-invite-layer.is-leaving{ animation:ach-invite-out .2s ease forwards; }
+@keyframes ach-invite-out{ from{ opacity:1; } to{ opacity:0; } }
+.ach-invite{
+  position:relative; width:100%; max-width:340px; max-height:100%; overflow-y:auto;
+  padding:26px 22px 20px; border-radius:26px; text-align:center;
+  display:flex; flex-direction:column; align-items:center;
+  background:
+    radial-gradient(90% 55% at 50% 0%, rgba(95,225,232,0.16) 0%, rgba(95,225,232,0) 72%),
+    linear-gradient(180deg, #15304A 0%, #0B1A29 100%);
+  border:1px solid rgba(95,225,232,0.22);
+  box-shadow:0 30px 70px rgba(2,8,15,0.6), inset 0 1px 0 rgba(255,255,255,0.07);
+  opacity:0; transform:translateY(22px) scale(.96);
+  animation:ach-invite-in .5s cubic-bezier(.22,1.2,.36,1) .05s forwards;
+}
+@keyframes ach-invite-in{ to{ opacity:1; transform:none; } }
+/* Toque fuera de la tarjeta: no la cierra, solo un leve rebote (se cierra con la X) */
+.ach-invite.is-nudge{ opacity:1; transform:none; animation:ach-nudge .34s cubic-bezier(.34,1.56,.64,1); }
+@keyframes ach-nudge{ 40%{ transform:scale(1.025); } }
+.ach-invite-close{
+  position:absolute; top:12px; right:12px; z-index:2; width:34px; height:34px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center; color:var(--text-secondary);
+  background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.10);
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1);
+}
+.ach-invite-close:active{ transform:scale(.92); }
+/* La imagen del logro ya armada, presentada como una historia lista para publicar */
+.ach-invite-stage{ position:relative; display:flex; justify-content:center; margin:4px 0 18px; }
+.ach-invite-stage::before{
+  content:''; position:absolute; inset:-18px -48px; pointer-events:none;
+  background:radial-gradient(50% 50% at 50% 50%, rgba(22,184,196,0.30) 0%, rgba(22,184,196,0) 70%);
+}
+.ach-invite-card{
+  position:relative; height:min(30vh, 236px); aspect-ratio:9/16; border-radius:14px; overflow:hidden;
+  background:#0B1A29 center/cover no-repeat;
+  box-shadow:0 18px 40px rgba(2,8,15,0.55), 0 0 0 1px rgba(255,255,255,0.14);
+  transform:rotate(-4deg);
+  animation:ach-invite-float .7s cubic-bezier(.22,1.2,.36,1) .15s backwards;
+}
+@keyframes ach-invite-float{ from{ opacity:0; transform:rotate(0deg) translateY(12px) scale(.92); } }
+.ach-invite-card.is-busy{ filter:saturate(.5) brightness(.6); }
+.ach-invite-card.is-busy::after{
+  content:''; position:absolute; top:50%; left:50%; width:28px; height:28px; margin:-14px 0 0 -14px; border-radius:50%;
+  border:2.5px solid rgba(95,225,232,0.16); border-top-color:var(--turquoise-bright);
+  animation:auth-spin .8s linear infinite;
+}
+.ach-invite-card img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; opacity:0; transition:opacity .35s ease; }
+.ach-invite-card.ready img{ opacity:1; }
+.ach-invite-card::before{
+  content:''; position:absolute; top:0; bottom:0; left:0; width:60%; z-index:1; pointer-events:none;
+  background:linear-gradient(100deg, rgba(255,255,255,0) 20%, rgba(214,252,255,0.35) 50%, rgba(255,255,255,0) 80%);
+  transform:translateX(-120%);
+}
+.ach-invite-card.ready::before{ animation:ach-sweep 1.1s cubic-bezier(.45,0,.25,1) .15s forwards; }
+.ach-invite .ach-eyebrow{ justify-content:center; margin-bottom:8px; }
+.ach-invite h3{ margin:0; font-family:var(--font-display); font-size:21px; font-weight:800; line-height:1.2; letter-spacing:-0.3px; color:#F4F7FA; }
+.ach-invite p{ margin:8px 0 18px; font-size:13px; line-height:1.5; color:var(--text-secondary); }
+.ach-invite p b{ color:#F4F7FA; font-weight:700; }
+.ach-invite-cta{
+  width:100%; display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  padding:14px 16px; border-radius:999px; font-size:14.5px; font-weight:800; color:#052024;
+  background:linear-gradient(180deg, #7BE9EE 0%, #5FE1E8 100%);
+  box-shadow:0 8px 22px rgba(22,184,196,0.35), inset 0 1px 0 rgba(255,255,255,0.45);
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1);
+  animation:ach-cta-glow 2.4s ease-in-out 1.2s infinite;
+}
+.ach-invite-cta:active{ transform:scale(.97); }
+@keyframes ach-cta-glow{
+  0%, 100%{ box-shadow:0 8px 22px rgba(22,184,196,0.35), inset 0 1px 0 rgba(255,255,255,0.45); }
+  50%{ box-shadow:0 8px 30px rgba(22,184,196,0.6), 0 0 0 6px rgba(95,225,232,0.10), inset 0 1px 0 rgba(255,255,255,0.45); }
+}
+
+/* Acceso discreto y permanente a «Compartir logro» en la ficha de una experiencia ya descubierta */
+.pd-discover-actions{ display:flex; gap:8px; }
+.pd-discover-actions .pd-discover-btn{ flex:1; width:auto; min-width:0; }
+.pd-share-btn{
+  position:relative; flex:0 0 auto; width:44px; display:flex; align-items:center; justify-content:center;
+  border-radius:var(--radius-m); color:var(--turquoise-bright);
+  background:rgba(95,225,232,0.06); border:1px solid rgba(95,225,232,0.22);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.06);
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1);
+}
+.pd-share-btn:active{ transform:scale(.94); }
+/* Al cerrar la invitación, el botón discreto late dos veces: así el usuario aprende dónde quedó */
+.pd-share-btn.is-hint::after{
+  content:''; position:absolute; inset:-1px; border-radius:inherit; pointer-events:none;
+  animation:ach-ring 1.1s cubic-bezier(.22,.61,.36,1) .25s 2 both;
+}
+@media (prefers-reduced-motion: reduce){
+  .ach-invite-layer, .ach-invite, .ach-invite.is-nudge{ animation:none; opacity:1; transform:none; }
+  .ach-invite-card{ animation:none; }
+  .ach-invite-cta, .ach-invite-card.ready::before, .pd-share-btn.is-hint::after{ animation:none; }
+  .ach-invite-card.is-busy::after{ animation-duration:1.6s; }
+}
+
 @media (prefers-reduced-motion: reduce){
     .ach-moment{ animation:ach-moment-out .3s ease 2.3s forwards; opacity:1; }
   .ach-moment-ring, .ach-moment-eyebrow, .ach-moment-name, .pd-seal.is-new, .ach-confirm, .ach-sheet, .ach-share-layer{ animation:none; opacity:1; transform:none; }
@@ -4548,10 +4651,16 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
            Reutiliza el mismo lenguaje visual de la ficha, sin modal ni
            componente nuevo. -->
       <div class="pd-discover-row" id="poiDiscoverRow" style="display:none;">
-        <button class="pd-discover-btn" id="poiDiscoverBtn">
-          <span id="poiDiscoverBtnIcon"></span>
-          <span id="poiDiscoverBtnText">Desbloquear experiencia</span>
-        </button>
+             <div class="pd-discover-actions">
+          <button class="pd-discover-btn" id="poiDiscoverBtn">
+            <span id="poiDiscoverBtnIcon"></span>
+            <span id="poiDiscoverBtnText">Desbloquear experiencia</span>
+          </button>
+          <!-- Compartir logro, discreto: solo en experiencias ya descubiertas (ver setPOIDiscoverBtnState) -->
+          <button class="pd-share-btn" id="poiShareAchBtn" type="button" aria-label="Compartir logro" title="Compartir logro" style="display:none;">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
+          </button>
+        </div>
         <div class="pd-discover-status" id="poiDiscoverStatus" style="display:none;"></div>
       </div>
 
@@ -8273,6 +8382,8 @@ function setPOIDiscoverBtnState(mode){
   const btn = document.getElementById('poiDiscoverBtn');
   const iconEl = document.getElementById('poiDiscoverBtnIcon');
   const text = document.getElementById('poiDiscoverBtnText');
+  const shareAchBtn = document.getElementById('poiShareAchBtn');
+  if (shareAchBtn) shareAchBtn.style.display = mode === 'memories' ? '' : 'none'; // solo si ya está descubierta
   if (mode === 'loading'){
     btn.disabled = true;
     iconEl.innerHTML = '';
@@ -8356,6 +8467,11 @@ async function handleDiscoverClick(){
   });
 }
 document.getElementById('poiDiscoverBtn').addEventListener('click', handleDiscoverClick);
+document.getElementById('poiShareAchBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const p = state.selectedPlace;
+  if (p && discoveredExperienceIds.has(p.id)) openShareAchievementFor(p);
+});
 
 /* ---------- MOMENTO DE DESBLOQUEO + COMPARTIR LOGRO ----------
    Solo se celebra un desbloqueo NUEVO (discoverExperience → alreadyDiscovered:false): reabrir la
@@ -8410,57 +8526,97 @@ function celebrateDiscovery(place){
   seal.style.display = '';
   seal.classList.add('is-new');
 
-  // 3) Confirmación + "Compartir logro" (en el lugar del botón de desbloquear)
-  row.style.display = 'none';
-  const fecha = new Date().toLocaleDateString('es-CL', { day:'numeric', month:'short' }).replace('.', '').toUpperCase();
-  const box = document.createElement('div');
-  box.className = 'ach-confirm';
-  box.innerHTML = `
-    <div class="ach-confirm-top">
-      <div class="ach-confirm-text">
-        <div class="ach-eyebrow">${achCheckSvg(16)}<span>Descubierta hoy · ${fecha}</span></div>
-        <div class="ach-line">Ya es parte de tu Choapa.</div>
-        <div class="ach-meta">Quedó en tu álbum. Ahora puedes sumar tus propias fotos.</div>
-      </div>
-      <button class="ach-thumb" type="button" aria-label="Ver tu logro"></button>
-    </div>
-    <div class="ach-actions">
-      <button class="ach-share" type="button">${ACH_SHARE_SVG}Compartir logro</button>
-      <button class="ach-later" type="button">Ahora no</button>
-    </div>`;
-  row.after(box);
-  box.querySelector('.ach-share').addEventListener('click', (e) => { e.stopPropagation(); openShareAchievement(); });
-  box.querySelector('.ach-thumb').addEventListener('click', (e) => { e.stopPropagation(); openShareAchievement(); });
-  box.querySelector('.ach-later').addEventListener('click', (e) => { e.stopPropagation(); box.remove(); row.style.display = 'block'; });
+  // 3) La ficha ya quedó en su estado final (updatePOIDiscoverUI): "Ver mis recuerdos" + el acceso
+  //    discreto a compartir. La invitación grande se muestra aparte, una sola vez (paso 5).
 
   // 4) La cámara suelta el candado con un pulso
   const cam = document.getElementById('poiDetailMemoryBtn');
   if (cam) cam.classList.add('ach-cam-pulse');
 
-  // Lleva la confirmación a la vista, sin saltos
-  const body = document.querySelector('#poiDetail .body');
-  setTimeout(() => {
-    if (!box.isConnected || !body) return;
-    const top = box.offsetTop - body.clientHeight + box.offsetHeight + 24;
-    if (top > body.scrollTop) body.scrollTo({ top, behavior: reduced ? 'auto' : 'smooth' });
-   }, reduced ? 100 : 2900);
-
   try { if (navigator.vibrate) navigator.vibrate(12); } catch (e){}
 
-  // La imagen se prepara desde ya (compartir debe ocurrir dentro del mismo toque);
-  // cuando está lista, su miniatura aparece en la confirmación.
-  achievementState = { place, comuna: comunaOfPlace(place), photos: [null, null], format:'story' };
-  achievementState.build = buildAchievementImage(achievementState);
-  achievementState.build.then((res) => {
-    const thumb = box.querySelector('.ach-thumb');
-    if (!thumb || !box.isConnected) return;
-    const url = URL.createObjectURL(res.blob);
-    const img = new Image();
-    img.alt = '';
-    img.onload = () => { thumb.classList.add('ready'); };
-    img.src = url;
-    thumb.appendChild(img);
+  // 5) La imagen se arma desde ya; apenas termina el anuncio "Desbloqueaste" aparece la invitación
+  //    a compartir, encima de todo. Es la única vez: después solo queda el botón discreto.
+  achievementState = null;
+  ensureAchievementState(place);
+  clearTimeout(achInviteTimer);
+  achInviteTimer = setTimeout(() => showShareInvite(place), reduced ? 2700 : 3150);
+}
+
+// Estado del logro para un lugar (imagen, formato, fotos propias). Se reutiliza si es el mismo lugar,
+// así reabrir "Compartir" desde la ficha conserva las fotos y el formato que el usuario ya eligió.
+function ensureAchievementState(place){
+  if (!achievementState || achievementState.place.id !== place.id){
+    achievementState = { place, comuna: comunaOfPlace(place), photos: [null, null], format:'story' };
+    achievementState.build = buildAchievementImage(achievementState);
+  }
+  return achievementState;
+}
+// Acceso discreto desde la ficha (experiencia ya descubierta): abre directo "Comparte tu logro"
+function openShareAchievementFor(place){
+  ensureAchievementState(place);
+  openShareAchievement();
+}
+
+// Invitación a compartir: tarjeta encima de todo con la imagen del logro ya armada.
+// Solo se cierra con la X (o compartiendo); tocar fuera no la cierra, solo la hace rebotar.
+let achInviteTimer = null;
+function showShareInvite(place){
+  const st = achievementState;
+  if (!st || st.place.id !== place.id) return;
+  document.querySelector('.ach-invite-layer')?.remove();
+  const fecha = new Date().toLocaleDateString('es-CL', { day:'numeric', month:'short' }).replace('.', '').toUpperCase();
+  const layer = document.createElement('div');
+  layer.className = 'ach-invite-layer';
+  layer.innerHTML = `
+    <div class="ach-invite" role="dialog" aria-modal="true" aria-labelledby="achInviteTitle">
+      <button class="ach-invite-close" type="button" aria-label="Cerrar">${ACH_CLOSE_SVG}</button>
+      <div class="ach-invite-stage"><div class="ach-invite-card is-busy"></div></div>
+      <div class="ach-eyebrow">${achCheckSvg(16)}<span>Descubierta hoy · ${fecha}</span></div>
+      <h3 id="achInviteTitle">Comparte tu logro</h3>
+      <p>Cuéntales a todos que descubriste <b></b>. Tu imagen ya está lista para tu historia o tu feed.</p>
+      <button class="ach-invite-cta" type="button">${ACH_SHARE_SVG}Compartir logro</button>
+    </div>`;
+  layer.querySelector('p b').textContent = place.name;
+  const dialog = layer.querySelector('.ach-invite');
+  const card = layer.querySelector('.ach-invite-card');
+  if (place.image) card.style.backgroundImage = `url(${JSON.stringify(place.image)})`; // mientras se arma la imagen
+  document.body.appendChild(layer);
+
+  let url = null;
+  const close = (after) => {
+    if (layer.classList.contains('is-leaving')) return;
+    layer.classList.add('is-leaving');
+    setTimeout(() => { layer.remove(); if (url) URL.revokeObjectURL(url); if (after) after(); }, prefersReducedMotion() ? 0 : 200);
+  };
+  layer.querySelector('.ach-invite-close').addEventListener('click', (e) => { e.stopPropagation(); close(hintDiscreetShare); });
+  layer.querySelector('.ach-invite-cta').addEventListener('click', (e) => {
+    e.stopPropagation();
+    openShareAchievement(); // la hoja "Comparte tu logro" queda encima; la invitación se desvanece debajo
+    close();
   });
+  layer.addEventListener('click', (e) => {
+    if (e.target !== layer) return;
+    dialog.classList.remove('is-nudge'); void dialog.offsetWidth; dialog.classList.add('is-nudge');
+  });
+
+  st.build.then((res) => {
+    if (!layer.isConnected || !res || !res.blob) return;
+    url = URL.createObjectURL(res.blob);
+    const img = new Image();
+    img.alt = 'Tu logro';
+    img.onload = () => { card.classList.remove('is-busy'); card.classList.add('ready'); };
+    img.src = url;
+    card.appendChild(img);
+  });
+}
+// Tras cerrar la invitación con la X: el botón discreto late para mostrar dónde quedó "Compartir"
+function hintDiscreetShare(){
+  const b = document.getElementById('poiShareAchBtn');
+  if (!b || b.offsetParent === null) return;
+  try { b.scrollIntoView({ block:'nearest', behavior: prefersReducedMotion() ? 'auto' : 'smooth' }); } catch (e){}
+  b.classList.remove('is-hint'); void b.offsetWidth; b.classList.add('is-hint');
+  setTimeout(() => b.classList.remove('is-hint'), 3000);
 }
 
 function loadAchievementImage(src, cors){
