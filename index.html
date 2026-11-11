@@ -3964,6 +3964,14 @@ body.map-moving :is(.searchbar, .chip:not(.active), .profile-btn, .map-controls,
 :root{
   --choapa-today-symbol:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Ccircle cx='12' cy='12' r='4.6' stroke='%235FE1E8' stroke-width='1.7'/%3E%3Ccircle cx='12' cy='12' r='1.7' fill='%235FE1E8'/%3E%3Cpath d='M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.35 5.35l1.55 1.55M17.1 17.1l1.55 1.55M5.35 18.65l1.55-1.55M17.1 6.9l1.55-1.55' stroke='%235FE1E8' stroke-width='1.6' stroke-linecap='round' opacity='.6'/%3E%3C/svg%3E");
 }
+/* El símbolo sigue a la hora del día (data-today-symbol, lo pone syncTodaySymbol()):
+   midday = sol · day = el de «Esta tarde» · dusk y night = la luna de «Esta noche». */
+:root[data-today-symbol="day"]{
+  --choapa-today-symbol:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235FE1E8' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 17.5h18'/%3E%3Cpath d='M7 17.5a5 5 0 0 1 10 0'/%3E%3Cpath d='M12 8.3v1.7M6.4 10.6l1.2 1.2M17.6 10.6l-1.2 1.2'/%3E%3C/svg%3E");
+}
+:root[data-today-symbol="night"]{
+  --choapa-today-symbol:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235FE1E8' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M19.6 13.6A7.8 7.8 0 1 1 10.4 4.4a6 6 0 0 0 9.2 9.2Z'/%3E%3C/svg%3E");
+}
 /* Píldora del mapa */
 .sheet-pill .pill-text > svg{ display:none; }
 .sheet-pill .pill-text::before{
@@ -5939,7 +5947,8 @@ map.on('load', () => {
   registerPOIBackgroundImages(); // Fondo con gradiente/volumen de POI, una imagen por categoría
   registerPOILabelBackgroundImage(); // Placa de fondo (pill) para el nombre del POI
   startPOIBreathingAnimation(); // Fase 5a — respiración del fondo de POIs
- currentDayPeriod = getDayPeriod();
+  currentDayPeriod = getDayPeriod();
+  syncTodaySymbol();
   applyMoodAtmosphere('todos'); // sin categoría activa: --mood-glow queda 'transparent', sin halo extra
   applyDayLightLift(); // aumento de luminosidad diurna — aplica el estado real al cargar
   lastAppliedAtmosphere = currentResolvedAtmosphere; // ya escrita por la carga inicial
@@ -11100,7 +11109,8 @@ function runAtmosphereClock(){
   atmosphereClockStarted = true;
   clearTimeout(atmosphereTimer);
   const now = atmosphereNow();
-  currentDayPeriod = getDayPeriod(now);
+   currentDayPeriod = getDayPeriod(now);
+  syncTodaySymbol();
   const next = computeAtmosphereAt(now);
   currentResolvedAtmosphere = next;
   if (!lastAppliedAtmosphere || JSON.stringify(next) !== JSON.stringify(lastAppliedAtmosphere)){
@@ -11302,10 +11312,19 @@ function applyDayLightLift(){
 // Se revisa cada 3 minutos — suficiente para que la transición se sienta natural
 // sin recalcular en cada frame. Solo reaplica si el período realmente cambió
 // (evita reiniciar transiciones sin necesidad cada vez que corre el intervalo).
+// Símbolo de «¿Qué hacer hoy en el Choapa?» según la hora: midday = sol (por defecto),
+// day = el de «Esta tarde», dusk y night = la luna de «Esta noche». Solo cambia el dibujo (CSS).
+function syncTodaySymbol(){
+  const p = currentDayPeriod;
+  const v = p === 'day' ? 'day' : (p === 'dusk' || p === 'night') ? 'night' : null;
+  if (v) document.documentElement.dataset.todaySymbol = v;
+  else delete document.documentElement.dataset.todaySymbol;
+}
 function updateDayPeriod(){
   const period = getDayPeriod();
   if (period === currentDayPeriod) return;
-  currentDayPeriod = period;
+   currentDayPeriod = period;
+  syncTodaySymbol();
   applyDayLightLift();
   applyMoodAtmosphere(state.activeExperience);
 }
