@@ -1553,6 +1553,16 @@ body.map-covered .tg-edge::after{animation-play-state:paused;}
   text-shadow:0 2px 8px rgba(2,8,15,0.4);
 }
 .sheet-hero-title .accent{color:var(--turquoise-bright);}
+/* «¿Qué hacer hoy?» (auditoría UX nov-2026): en pantallas de ~360 px el título dejaba «Choapa?» sola en
+   la segunda línea y la tarjeta Premium dejaba «PREMIUM» huérfana. text-wrap:balance reparte las líneas
+   de forma pareja (los navegadores sin soporte lo ignoran y quedan como hoy). */
+.sheet-hero-title,
+.premium-entry .pe-title,
+.premium-entry .pe-tag{ text-wrap:balance; }
+/* Rótulo del carrusel: antes las tarjetas aparecían sin presentación bajo el Planificador y se leían
+   como otro bloque. Mismo estilo que «Recomendación de…», en tono secundario para no competir. */
+.today-rail-eyebrow{ margin:22px 0 0; color:var(--text-secondary); }
+.today-rail-eyebrow[hidden]{ display:none; }
 .sheet-hero-tagline{font-size:13px; color:var(--text-secondary); font-weight:500; margin-top:10px; text-shadow:0 1px 4px rgba(2,8,15,0.4); transition:opacity .16s ease;}
 
 /* Hero más nocturno para el momento "Esta noche" — capa extra de tinte frío. */
@@ -4834,6 +4844,7 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
           </span>
           <span class="pe-arrow"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
         </button>
+               <div class="featured-eyebrow today-rail-eyebrow" id="todayRailEyebrow" hidden></div>
         <div class="rail" id="experiencesRail"></div>
       </div>
     </div>
@@ -14229,8 +14240,15 @@ function renderTimeFilters(){
       chip.dataset.tf = tf.id;
        chip.addEventListener('click', () => {
       if (tf.id === activeTimeFilter) return; // ya está seleccionada: no hay nada que cambiar
-      activeTimeFilter = tf.id;
+          activeTimeFilter = tf.id;
       syncTimeFilterChips();
+      // El chip elegido queda entero a la vista (antes «Esta noche» quedaba cortado en el borde).
+      // Solo desplaza la fila horizontal; el panel no se mueve.
+      const pad = 18, view = timeFilters.scrollLeft, vw = timeFilters.clientWidth;
+      const left = chip.getBoundingClientRect().left - timeFilters.getBoundingClientRect().left + view;
+      const right = left + chip.offsetWidth;
+      if (left - pad < view) timeFilters.scrollTo({ left:Math.max(0, left - pad), behavior:'smooth' });
+      else if (right + pad > view + vw) timeFilters.scrollTo({ left:right + pad - vw, behavior:'smooth' });
       applyMomentTransition();
     });
     timeFilters.appendChild(chip);
@@ -14298,6 +14316,14 @@ function applyMomentTransition(){
     suppressTodayEntryAnimation = false;
   });
 }
+// Textos según el momento elegido. Antes, con «Esta noche» o «Fin de semana» la tarjeta seguía
+// diciendo «Recomendación de ahora» y «Hoy»: el contenido contradecía al selector.
+const TODAY_MOMENT_COPY = {
+  ahora: { eyebrow:'Recomendación de ahora',              badge:'Hoy',           iconKey:'todaySun',    more:'Más ideas para hoy' },
+  tarde: { eyebrow:'Recomendación para esta tarde',       badge:'Esta tarde',    iconKey:'tfAfternoon', more:'Más ideas para esta tarde' },
+  noche: { eyebrow:'Recomendación para esta noche',       badge:'Esta noche',    iconKey:'tfNight',     more:'Más ideas para esta noche' },
+  finde: { eyebrow:'Recomendación para el fin de semana', badge:'Fin de semana', iconKey:'tfWeekend',   more:'Más ideas para el fin de semana' },
+};
 function buildTodayTagInfo(place){
   const cat = expById(place.category);
   const primaryExp = place.categoryPrimary ? expById(place.categoryPrimary) : null;
@@ -14310,6 +14336,9 @@ function renderTodayRail(){
   experiencesRail.innerHTML = '';
   todayFeatured.innerHTML = '';
   const picks = curateTodayExperiences();
+  const momentCopy = TODAY_MOMENT_COPY[activeTimeFilter] || TODAY_MOMENT_COPY.ahora;
+  const railEyebrow = document.getElementById('todayRailEyebrow');
+  if (railEyebrow){ railEyebrow.textContent = momentCopy.more; railEyebrow.hidden = picks.length < 2; }
 
   if (!picks.length){
     todayFeatured.style.display = 'none';
@@ -14327,10 +14356,10 @@ function renderTodayRail(){
   todayFeatured.style.display = 'block';
   const featuredTag = buildTodayTagInfo(featured);
   todayFeatured.innerHTML = `
-    <div class="featured-eyebrow">${icon('nowDot', 11)} Recomendación de ahora</div>
+      <div class="featured-eyebrow">${icon('nowDot', 11)} ${momentCopy.eyebrow}</div>
     <div class="featured-card">
       <div class="photo" style="background-image:url(${featured.image})">
-        <span class="featured-badge">${icon('todaySun', 11)}Hoy</span>
+        <span class="featured-badge">${icon(momentCopy.iconKey, 11)}${momentCopy.badge}</span>
         <span class="tc-tag" style="--tag-color:${featuredTag.color}">${featuredTag.tagInfo.icon}${featuredTag.tagInfo.label}</span>
       </div>
       <div class="tc-info">
@@ -14350,8 +14379,7 @@ function renderTodayRail(){
       card.style.setProperty('--tc-delay', (i * 45) + 'ms');
     if (suppressTodayEntryAnimation) card.style.animation = 'none';
     card.innerHTML = `
-      <div class="photo" style="background-image:url(${place.image})">
-        <span class="today-badge">${icon('todaySun', 11)}Hoy</span>
+           <div class="photo" style="background-image:url(${place.image})">
        <span class="tc-tag" style="--tag-color:${color}">${tagInfo.icon}${tagInfo.label}</span>
       </div>
       <div class="tc-info">
