@@ -2206,6 +2206,35 @@ body.map-covered .tg-edge::after{animation-play-state:paused;}
   background:rgba(8,19,31,0.68); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
   padding:4px 9px; border-radius:var(--radius-pill);
 }
+/* «Cerca de mí» — tarjeta propia (.nb-card) sobre la base de .gd-card:
+   foto más alta y completa, nombre sobre la foto y fila de tiempos estimados
+   a pie / bicicleta / auto. Guardados no cambia. */
+.gd-card.nb-card{ border-color:rgba(255,255,255,0.07); }
+.nb-card .gd-photo{ height:auto; aspect-ratio:16 / 10.5; }
+.nb-card .gd-photo::after{
+  background:linear-gradient(to top, rgba(6,15,25,0.92) 0%, rgba(6,15,25,0.5) 26%, rgba(6,15,25,0) 56%);
+}
+.nb-card .nb-overlay{ position:absolute; left:14px; right:14px; bottom:12px; z-index:1; }
+.nb-card .nb-overlay .gd-tag{ margin-bottom:4px; text-shadow:0 1px 6px rgba(2,8,15,0.7); }
+.nb-card .nb-overlay .gd-name{
+  font-size:17px; line-height:1.18; margin-bottom:4px; letter-spacing:-0.3px;
+  text-shadow:0 1px 10px rgba(2,8,15,0.65);
+}
+.nb-card .nb-overlay .gd-loc{ margin:0; color:rgba(226,236,243,0.8); }
+.nb-card .nb-overlay .gd-loc svg{ color:rgba(226,236,243,0.6); }
+.nb-travel{ display:flex; align-items:center; gap:6px; padding:11px 12px 12px; }
+.nb-mode{
+  flex:1; min-width:0; display:flex; align-items:center; justify-content:center; gap:6px;
+  padding:7px 4px; border-radius:12px;
+  font-size:12px; font-weight:600; color:var(--text-secondary);
+  background:rgba(255,255,255,0.04); border:1px solid transparent;
+}
+.nb-mode svg{ flex-shrink:0; color:var(--text-tertiary); }
+.nb-mode.is-best{
+  color:var(--text-primary); background:rgba(95,225,232,0.09); border-color:rgba(95,225,232,0.32);
+}
+.nb-mode.is-best svg{ color:var(--turquoise-bright); }
+.nb-mode.is-off{ opacity:0.38; }
 
 /* ================= ÁLBUM DEL CHOAPA ================= */
 .album-screen{
@@ -13728,9 +13757,36 @@ function renderNearbyFilters(){
   });
 }
 
-// Misma tarjeta visual que Guardados (.gd-card) — solo cambia qué badge lleva
-// encima: distancia real en vez del botón de guardar.
-function buildNearbyCard(place, distanceLabel){
+// Tiempos estimados de viaje para «Cerca de mí». Se calculan desde la distancia
+// en línea recta × un factor de camino (las rutas del valle no son rectas) y una
+// velocidad media por medio (el auto suma 2 min de partida y estacionamiento).
+// Son aproximados: el tiempo exacto lo da la ruta real al tocar «Cómo llegar».
+// Un medio se apaga cuando deja de ser razonable para esa distancia.
+const NEARBY_TRAVEL_MODES = [
+  { key:'walk', iconKey:'transportWalk', label:'A pie',     kmh:4.5, extraMin:0, maxKm:6 },
+  { key:'bike', iconKey:'transportBike', label:'Bicicleta', kmh:14,  extraMin:0, maxKm:25 },
+  { key:'car',  iconKey:'transportCar',  label:'Auto',      kmh:60,  extraMin:2, maxKm:Infinity },
+];
+const NEARBY_ROAD_FACTOR = 1.35;
+function formatTravelMinutes(min){
+  const total = Math.max(1, Math.round(min));
+  if (total < 60) return `${total} min`;
+  const h = Math.floor(total / 60), m = total % 60;
+  return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`;
+}
+function buildNearbyTravelRow(km){
+  const roadKm = km * NEARBY_ROAD_FACTOR;
+  const modes = NEARBY_TRAVEL_MODES.map(m => ({ ...m, min: roadKm / m.kmh * 60 + m.extraMin, off: roadKm > m.maxKm }));
+  // Recomendado: caminar si son ≤ 15 min; si no, bici si son ≤ 20 min; si no, auto.
+  const best = (!modes[0].off && modes[0].min <= 15) ? 'walk' : (!modes[1].off && modes[1].min <= 20) ? 'bike' : 'car';
+  return `<div class="nb-travel" aria-label="Tiempo estimado de viaje">${modes.map(m => `
+      <span class="nb-mode${m.key === best ? ' is-best' : ''}${m.off ? ' is-off' : ''}" title="${m.label}">${icon(m.iconKey, 15)}<span>${m.off ? '—' : formatTravelMinutes(m.min)}</span></span>`).join('')}
+    </div>`;
+}
+
+// Tarjeta de «Cerca de mí»: misma base que Guardados (.gd-card) con la clase
+// .nb-card — foto más completa, nombre sobre la foto y tiempos de viaje.
+function buildNearbyCard(place, km){
   const cat = expById(place.category);
   const primaryExp = place.categoryPrimary ? expById(place.categoryPrimary) : null;
   // Con una categoría activa, la etiqueta muestra esa categoría (solo si la
@@ -13738,22 +13794,23 @@ function buildNearbyCard(place, distanceLabel){
   const tagInfo = (nearbyActiveFilter !== 'todos' && place.experiences.includes(nearbyActiveFilter) && expById(nearbyActiveFilter)) || primaryExp || cat;
   const color = expColor(tagInfo);
   const comuna = LOCALITIES.find(l => l.aliases.includes(place.locality));
+  const hasKm = typeof km === 'number' && isFinite(km);
 
   const card = document.createElement('div');
-  card.className = 'gd-card';
+  card.className = 'gd-card nb-card';
   card.innerHTML = `
     <div class="gd-photo" style="background-image:url(${place.image})">
-      ${distanceLabel ? `<span class="gd-distance">${icon('pin', 12)}${distanceLabel}</span>` : ''}
+      ${hasKm ? `<span class="gd-distance">${icon('pin', 12)}${formatDistance(km)}</span>` : ''}
+      <div class="nb-overlay">
+        <span class="gd-tag" style="color:${color}">${tagInfo.icon}${tagInfo.label}</span>
+        <div class="gd-name">${place.name}</div>
+        <div class="gd-loc">${icon('pin', 12)}<span>${place.locality}${comuna && comuna.name !== place.locality ? ', ' + comuna.name : ''}</span></div>
+      </div>
     </div>
-    <div class="gd-info">
-      <span class="gd-tag" style="color:${color}">${tagInfo.icon}${tagInfo.label}</span>
-      <div class="gd-name">${place.name}</div>
-      <div class="gd-loc">${icon('pin', 12)}<span>${place.locality}${comuna && comuna.name !== place.locality ? ', ' + comuna.name : ''}</span></div>
-    </div>`;
+    ${hasKm ? buildNearbyTravelRow(km) : ''}`;
   card.addEventListener('click', () => { closeNearby(); selectPlaceById(place.id); });
   return card;
 }
-
 function showNearbyEmpty(iconKey, title, sub, btnLabel, btnAction){
   nearbyGrid.style.display = 'none';
   nearbyEmpty.style.display = 'flex';
@@ -13812,7 +13869,7 @@ function renderNearbyContent(){
   nearbyGrid.style.display = 'flex';
   nearbyEmpty.style.display = 'none';
   nearbyGrid.innerHTML = '';
-  withDistance.forEach(({ place, km }) => nearbyGrid.appendChild(buildNearbyCard(place, formatDistance(km))));
+  withDistance.forEach(({ place, km }) => nearbyGrid.appendChild(buildNearbyCard(place, km)));
 }
 
 function requestNearbyLocation(){
