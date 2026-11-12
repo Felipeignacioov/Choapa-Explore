@@ -1164,6 +1164,13 @@ body.map-covered .tg-edge::after{animation-play-state:paused;}
   transition:opacity .24s ease, transform .24s cubic-bezier(.2,.9,.28,1.1);
 }
 .sheet-pill.hidden{opacity:0; transform:translateY(10px) scale(0.97); pointer-events:none;}
+/* Con la ficha de una experiencia abierta, nada flotante del borde inferior debe
+   asomarse detrás: ni la píldora «¿Qué hacer hoy?» ni el panel «En [comuna]».
+   La ficha entra con un fundido, así que se apagan en el mismo instante en que
+   empieza a aparecer, y vuelven solas al cerrarla. */
+body:has(#poiDetail.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pill){
+  opacity:0 !important; pointer-events:none !important; transition:opacity .12s ease;
+}
 .sheet-pill:active{transform:scale(0.97);}
 .sheet-pill .pill-text{
   display:flex; align-items:center; gap:8px;
@@ -9143,9 +9150,19 @@ function openShareAchievement(){
 // place=null limpia la selección. Un solo feature a la vez: setData() reemplaza
 // todo el FeatureCollection, así que elegir un POI nuevo deselecciona el anterior
 // automáticamente, sin lógica adicional.
+// Posición en que se DIBUJA cada POI ahora mismo (puede estar separada unos
+// píxeles de la real por computePOISpreadFeatures). El POI seleccionado se
+// dibuja en esa misma posición, así tapa exactamente al POI normal y nunca
+// aparecen dos círculos. Solo afecta al dibujo: place.lat/lng no se tocan.
+const poiRenderedCoords = new Map();
+let selectedPOIShown = false;
+function syncSelectedPOIGeometry(){
+  if (selectedPOIShown && state.selectedPlace) updateSelectedPOILayer(state.selectedPlace);
+}
 function updateSelectedPOILayer(place){
   ensurePOISelectedLayer();
   const src = map.getSource('poi-selected-source');
+  selectedPOIShown = !!place;
   if (!place){
     src.setData({ type:'FeatureCollection', features:[] });
     return;
@@ -9160,8 +9177,8 @@ function updateSelectedPOILayer(place){
     type:'FeatureCollection',
     features:[{
       type:'Feature',
-      properties:{ id:place.id, icon:`poi-icon-${primaryTag.iconKey}`, displayColor: computePOIDisplayColor(place), hasPhoto, photoIcon, ringIcon },
-      geometry:{ type:'Point', coordinates:[place.lng, place.lat] },
+          properties:{ id:place.id, icon:`poi-icon-${primaryTag.iconKey}`, displayColor: computePOIDisplayColor(place), hasPhoto, photoIcon, ringIcon },
+      geometry:{ type:'Point', coordinates: poiRenderedCoords.get(place.id) || [place.lng, place.lat] },
     }],
   });
 }
@@ -9293,8 +9310,12 @@ function applyPOIRenderSplit(features){
     }
   });
 
-  src.setData({ type:'FeatureCollection', features: standardFeatures });
+    src.setData({ type:'FeatureCollection', features: standardFeatures });
   if (photoSrc) photoSrc.setData({ type:'FeatureCollection', features: photoFeatures });
+  // Guarda dónde quedó dibujado cada POI y mueve el seleccionado junto con él
+  poiRenderedCoords.clear();
+  features.forEach(f => poiRenderedCoords.set(f.properties.id, f.geometry.coordinates));
+  syncSelectedPOIGeometry();
 }
 
 // Recalcula SOLO la separación visual en cada pan/zoom — a diferencia de un
