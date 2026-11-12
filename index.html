@@ -14438,17 +14438,17 @@ function renderTodayRail(){
     const card = document.createElement('div');
     card.className = 'tg-card';
     card.setAttribute('role', 'button');
-    card.setAttribute('aria-label', `${place.name}, ${place.locality}`);
+     card.setAttribute('aria-label', `${place.name}, ${place.locality} · ${tagInfo.label}`);
     if (place.image) card.style.backgroundImage = `url(${place.image})`;
     card.style.setProperty('--tc-delay', (i * 45) + 'ms');
     if (suppressTodayEntryAnimation) card.style.animation = 'none';
-    card.innerHTML = `
-      <span class="tg-tag" style="--tag-color:${color}">${tagInfo.icon}<span>${tagInfo.label}</span></span>
+      card.innerHTML = `
+      <span class="tg-cat" aria-hidden="true">${tagInfo.icon}</span>
       <div class="tg-info">
         <div class="tg-name"></div>
-        <div class="tg-loc">${icon('pin', 11)}<span></span></div>
-      </div>
-      <span class="tg-go" aria-hidden="true">${chevron(14)}</span>`;
+        <div class="tg-loc"><span></span></div>
+      </div>`;
+    card.style.setProperty('--tag-color', color);
     card.querySelector('.tg-name').textContent = place.name;
     card.querySelector('.tg-loc span').textContent = place.locality;
     card.addEventListener('click', () => { collapseSheet(); selectPlaceById(place.id); });
