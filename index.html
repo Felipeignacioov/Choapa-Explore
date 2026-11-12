@@ -3774,11 +3774,15 @@ body:has(#poiDetail.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pill)
 .sheet{
   backdrop-filter:none;
   -webkit-backdrop-filter:none;
-  background:transparent;
+  /* Fluidez: el panel es opaco desde los 260 px hacia abajo, así que ahí el desenfoque no
+     se veía pero igual se calculaba (y se repetía en cada cuadro al abrir o cerrar). Ahora
+     la capa con desenfoque cubre solo la franja superior translúcida y el resto es color
+     sólido: se ve idéntico con un 64 % menos de superficie desenfocada. */
+  background:linear-gradient(180deg, rgba(11,23,38,0) 0px, rgba(11,23,38,0) 258px, var(--bg-primary) 260px);
 }
 .sheet::before{
-  content:''; position:absolute; inset:0; z-index:-1; pointer-events:none;
-  border-radius:inherit;
+  content:''; position:absolute; inset:0; bottom:auto; height:min(100%, 262px); z-index:-1; pointer-events:none;
+  border-radius:inherit; border-bottom-left-radius:0; border-bottom-right-radius:0;
   background:linear-gradient(180deg, rgba(11,23,38,0.6) 0px, rgba(11,23,38,0.9) 170px, var(--bg-primary) 260px);
   backdrop-filter:blur(16px);
   -webkit-backdrop-filter:blur(16px);
@@ -3788,7 +3792,11 @@ body:has(#poiDetail.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pill)
    Cada tarjeta con foto tiene su propia capa gráfica: el navegador la conserva ya
    pintada (foto + recorte redondeado + degradado) y la desplaza entera, en vez de
    volver a rasterizar la foto en cada cuadro. Afecta solo a las tarjetas del panel. */
+/* Con el panel de comuna oculto, su brillo y el paneo lento de sus fotos seguían animándose sin verse */
+.comuna-panel.hidden::before,
+.comuna-panel.hidden .cmc-photo{ animation-play-state:paused; }
 .sheet-body .featured-card,
+.sheet-body .tg-card,
 .sheet-body .today-card{
   will-change:transform;
   backface-visibility:hidden;
@@ -6822,8 +6830,13 @@ startAmbientTicks();
   if (!covers.length || typeof MutationObserver === 'undefined') return;
   const COVER_SETTLE_MS = 450; // estas pantallas entran en 420 ms (transition .42s)
   let covered = false, settleTimer = null;
+  // «¿Qué hacer hoy?» expandido tapa el 93 % del mapa: mientras está abierto, el mapa se
+  // seguía redibujando ~4 veces por segundo por detrás, compitiendo con el desplazamiento
+  // del panel. Mismo trato que las pantallas completas.
+  const sheetCover = document.getElementById('sheet');
   function syncMapCovered(){
-    const nowCovered = covers.some(el => el.classList.contains('visible'));
+    const nowCovered = covers.some(el => el.classList.contains('visible')) ||
+      !!(sheetCover && sheetCover.classList.contains('expanded'));
     if (nowCovered === covered) return;
     covered = nowCovered;
     clearTimeout(settleTimer);
@@ -6843,6 +6856,7 @@ startAmbientTicks();
   }
   const coverObserver = new MutationObserver(syncMapCovered);
   covers.forEach(el => coverObserver.observe(el, { attributes:true, attributeFilter:['class'] }));
+  if (sheetCover) coverObserver.observe(sheetCover, { attributes:true, attributeFilter:['class'] });
   // Si se vuelve a la pestaña con una de estas pantallas abierta, el listener de
   // arriba reanuda el ciclo; este (registrado después) lo vuelve a pausar.
   document.addEventListener('visibilitychange', () => {
@@ -7883,7 +7897,8 @@ function ensurePOIPhotoImage(place){
   if (!place.image){ poiPhotoAttempted.add(place.id); return; } // sin imagen válida — fallback permanente, sin inventar nada
 
   poiPhotoAttempted.add(place.id);
-  loadPOIPhotoBitmap(place.image)
+   loadPOIPhotoBitmap(thumbUrl(place.image, 480))
+    .catch(() => loadPOIPhotoBitmap(place.image)) // si la versión reducida falla, la original de siempre
     .then(img => { poiPhotoQueue.push({ place, img, imgId }); schedulePOIPhotoQueue(0); })
     .catch(() => console.warn(`[POI foto] No se pudo cargar la foto de "${place.name}" — se conserva el ícono de categoría.`));
 }
@@ -12272,7 +12287,7 @@ function selectPlace(place, el){
    const tagInfo = primaryExperienceTag(place);
   const color = expColor(tagInfo);
 
- document.getElementById('poiDetailThumb').style.backgroundImage = `url(${place.image})`;
+ document.getElementById('poiDetailThumb').style.backgroundImage = `url(${thumbUrl(place.image, 960)})`;
   document.getElementById('poiDetailName').textContent = place.name;
 
   // Cabecera editorial: "AVENTURA · SALAMANCA" — categoría con su color + comuna,
@@ -13644,7 +13659,7 @@ function renderGuardadosGrid(){
     const card = document.createElement('div');
     card.className = 'gd-card';
     card.innerHTML = `
-      <div class="gd-photo" style="background-image:url(${place.image})">
+           <div class="gd-photo" style="background-image:url(${thumbUrl(place.image, 960)})">
         <button class="gd-save-btn saved" aria-label="Quitar de guardados">${icon('bookmark', 15)}</button>
       </div>
       <div class="gd-info">
@@ -13820,7 +13835,7 @@ function buildNearbyCard(place, km){
   const card = document.createElement('div');
   card.className = 'gd-card nb-card';
   card.innerHTML = `
-    <div class="gd-photo" style="background-image:url(${place.image})">
+     <div class="gd-photo" style="background-image:url(${thumbUrl(place.image, 960)})">
       ${hasKm ? `<span class="gd-distance">${icon('pin', 12)}${formatDistance(km)}</span>` : ''}
       <div class="nb-overlay">
         <span class="gd-tag" style="color:${color}">${tagInfo.icon}${tagInfo.label}</span>
@@ -14425,6 +14440,25 @@ let momentTransitionToken = 0;
 // llegar tarde "saltaba" justo después del fade-in. Un solo Image por URL
 // (momentImagePromises evita peticiones duplicadas y reutiliza la caché del
 // navegador); si una imagen falla, se resuelve igual para no bloquear nada.
+/* ---------- FOTOS A LA MEDIDA (fluidez, auditoría nov-2026) ----------
+   Las tarjetas chicas descargaban y decodificaban la foto ORIGINAL (hasta 2000 px y
+   ~900 KB) para mostrarla a 160 px. Supabase puede entregar la misma foto ya reducida:
+   thumbUrl() cambia solo la dirección (misma imagen, mismo encuadre). La galería y
+   «Compartir logro» siguen usando la original. Si Supabase rechazara la versión
+   reducida, se vuelve sola a las originales. */
+var imgThumbsOK = true, imgThumbsProbed = false;
+function thumbUrl(url, width){
+  const OBJ = '/storage/v1/object/public/';
+  if (imgThumbsOK === false || typeof url !== 'string' || !url.includes(OBJ) || url.includes('?')) return url;
+  const out = url.replace(OBJ, '/storage/v1/render/image/public/') + `?width=${width}&resize=contain&quality=75`;
+  if (!imgThumbsProbed){
+    imgThumbsProbed = true;
+    const probe = new Image();
+    probe.onerror = () => { imgThumbsOK = false; try { renderTodayRail(); } catch(e){} };
+    probe.src = out;
+  }
+  return out;
+}
 const momentImagePromises = new Map();
 function preloadMomentImage(url){
   if (momentImagePromises.has(url)) return momentImagePromises.get(url);
@@ -14440,7 +14474,7 @@ function preloadMomentImage(url){
 // Destacada + 3 primeras del carrusel (las que se ven al revelar). Espera como
 // máximo maxWaitMs: si alguna tarda más, la interfaz continúa igual.
 function preloadMomentImages(maxWaitMs){
-  const urls = [...new Set(curateTodayExperiences().slice(0, 4).map(p => p.image).filter(Boolean))];
+  const urls = [...new Set(curateTodayExperiences().slice(0, 4).map(p => thumbUrl(p.image, 480)).filter(Boolean))];
   if (!urls.length) return Promise.resolve();
   return Promise.race([
     Promise.all(urls.map(preloadMomentImage)),
@@ -14522,7 +14556,7 @@ function renderTodayRail(){
     card.className = 'tg-card';
     card.setAttribute('role', 'button');
      card.setAttribute('aria-label', `${place.name}, ${place.locality} · ${tagInfo.label}`);
-    if (place.image) card.style.backgroundImage = `url(${place.image})`;
+      if (place.image) card.style.backgroundImage = `url(${thumbUrl(place.image, 480)})`;
     card.style.setProperty('--tc-delay', (i * 45) + 'ms');
     if (suppressTodayEntryAnimation) card.style.animation = 'none';
       card.innerHTML = `
@@ -14552,7 +14586,7 @@ function renderTodayRail(){
       card.style.setProperty('--tc-delay', (i * 45) + 'ms');
     if (suppressTodayEntryAnimation) card.style.animation = 'none';
     card.innerHTML = `
-           <div class="photo" style="background-image:url(${place.image})">
+                     <div class="photo" style="background-image:url(${thumbUrl(place.image, 640)})">
        <span class="tc-tag" style="--tag-color:${color}">${tagInfo.icon}${tagInfo.label}</span>
       </div>
       <div class="tc-info">
@@ -15067,7 +15101,7 @@ function renderComunaPanelFullList(locality){
     const color = expColor(tag);
        return `
       <div class="comuna-list-item" data-place-id="${place.id}">
-        <div class="cli-photo" style="background-image:url(${place.image})"></div>
+               <div class="cli-photo" style="background-image:url(${thumbUrl(place.image, 480)})"></div>
         <div class="cli-info">
           <div class="cli-name">${place.name}</div>
           <span class="cli-tag" style="--tag-color:${color}"><span class="dot"></span>${tag.label}</span>
@@ -15183,7 +15217,7 @@ function renderComunaPanelRail(locality){
     const color = expColor(tag);
        return `
       <div class="comuna-mini-card" data-place-id="${place.id}">
-        <div class="cmc-photo" style="background-image:url(${place.image})"></div>
+               <div class="cmc-photo" style="background-image:url(${thumbUrl(place.image, 480)})"></div>
         <div class="cmc-info">
           <div class="cmc-name">${place.name}</div>
           <span class="cmc-tag" style="--tag-color:${color}"><span class="dot"></span>${tag.label}</span>
@@ -15249,7 +15283,7 @@ function showComunaPanel(locality, opts = {}){
       if (myToken === comunaPanelSwapToken) comunaPanel.classList.add('content-swap');
       setTimeout(r, 200); // duración del desvanecido (.comuna-panel.content-swap)
     }, fadeDelay));
-    const urls = curateComunaPanelPlaces(locality, 3).map(p => p.image).filter(Boolean);
+     const urls = curateComunaPanelPlaces(locality, 3).map(p => thumbUrl(p.image, 480)).filter(Boolean);
     const preload = Promise.race([Promise.all(urls.map(preloadMomentImage)), new Promise(r => setTimeout(r, 350))]);
     const arrival = flying
       ? Promise.race([new Promise(r => map.once('moveend', r)), new Promise(r => setTimeout(r, 2500))])
