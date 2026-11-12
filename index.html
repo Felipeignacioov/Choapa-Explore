@@ -14930,7 +14930,7 @@ const COMUNA_HERO_IMAGES = {
   salamanca: 'assets/cerro-chico/02-vista-aerea.jpg',
   illapel: null,
   canela: null,
-  losvilos: null,
+    losvilos: 'https://gfsnhjxsqbsapnpfqpyy.supabase.co/storage/v1/object/public/Choapa%20explore%20Recursos/Los%20vilos%20portada.jpg',
 };
 function updateSheetHero(){
   if (state.currentLocality){
@@ -16383,7 +16383,13 @@ function renderAlbumIndex(){
 
   albumChapters.innerHTML = '';
 
-   LOCALITIES.forEach(locality => {
+     // Orden fijo de los capítulos del Álbum (solo aquí; el resto de la app no cambia)
+  const ALBUM_COMUNA_ORDER = ['losvilos', 'salamanca', 'illapel', 'canela'];
+  const albumLocalities = [...LOCALITIES].sort((a, b) => {
+    const ia = ALBUM_COMUNA_ORDER.indexOf(a.id), ib = ALBUM_COMUNA_ORDER.indexOf(b.id);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+  });
+   albumLocalities.forEach(locality => {
     const localityPlaces = placesInLocality(locality);
     const discoveredCount = localityPlaces.filter(p => discoveredExperienceIds.has(p.id)).length;
     const total = localityPlaces.length;
