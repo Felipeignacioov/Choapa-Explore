@@ -2288,6 +2288,59 @@ body:has(#poiDetail.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pill)
 /* Vista índice / vista detalle dentro de la misma pantalla de álbum */
 .album-view{display:none;}
 .album-view.active{display:block;}
+/* Buscador del Álbum — experiencias DESCUBIERTAS por nombre. En el índice busca en todo el Choapa;
+   dentro de una comuna, solo en esa comuna. Mismo lenguaje que el buscador principal. */
+.album-search{
+  display:flex; align-items:center; gap:9px; flex-shrink:0;
+  height:42px; margin:12px 18px 0; padding:0 7px 0 14px;
+  background:rgba(16,36,56,0.6); border:1px solid var(--border-glass); border-radius:21px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.05);
+  transition:border-color .2s ease, background-color .2s ease, box-shadow .2s ease;
+}
+.album-search[hidden]{display:none;}
+.album-search:focus-within{
+  border-color:rgba(95,225,232,0.5); background:rgba(20,43,61,0.85);
+  box-shadow:0 0 0 3px rgba(22,184,196,0.14), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.album-search > svg{flex-shrink:0; color:var(--turquoise-bright);}
+.album-search input{
+  flex:1; min-width:0; background:none; border:none; outline:none;
+  color:var(--text-primary); font-size:13.5px; font-weight:500; text-overflow:ellipsis;
+}
+.album-search input::placeholder{color:var(--text-secondary);}
+.album-search-clear{
+  width:28px; height:28px; border-radius:50%; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  color:var(--text-secondary); background:rgba(145,164,184,0.12);
+  transition:transform .16s ease;
+}
+.album-search-clear[hidden]{display:none;}
+.album-search-clear:active{transform:scale(0.9);}
+/* Mientras se busca desde el índice, el lema y las cifras ceden el espacio a los resultados */
+.album-view.searching .album-tagline,
+.album-view.searching .album-progress,
+.album-view.searching .album-stats{display:none;}
+.album-search-count{font-size:11.5px; color:var(--text-secondary); font-weight:600;}
+.album-search-group{
+  display:flex; align-items:baseline; gap:8px; margin-top:4px;
+  font-family:var(--font-display); font-size:14px; font-weight:700; color:var(--text-primary);
+}
+.album-search-group span{font-family:var(--font-body); font-size:11.5px; font-weight:600; color:var(--turquoise-bright);}
+.album-card.unlocked.as-result{animation:none;} /* al escribir, los resultados no vuelven a "entrar" con cada letra */
+.album-search-empty{
+  grid-column:1 / -1; display:flex; flex-direction:column; align-items:center; text-align:center;
+  padding:40px 20px 20px; color:var(--text-secondary);
+}
+.album-search-empty .ase-icon{display:flex; color:var(--turquoise-bright); opacity:0.85; margin-bottom:12px;}
+.album-search-empty .ase-title{font-family:var(--font-display); font-size:15px; font-weight:700; color:var(--text-primary); margin-bottom:6px;}
+.album-search-empty .ase-sub{font-size:12.5px; line-height:1.5; max-width:280px;}
+.album-search-empty .ase-btn{
+  margin-top:16px; padding:10px 18px; border-radius:var(--radius-pill);
+  font-size:12.5px; font-weight:700; color:var(--turquoise-bright);
+  background:rgba(95,225,232,0.08); border:1px solid rgba(95,225,232,0.32);
+  transition:transform .16s ease;
+}
+.album-search-empty .ase-btn:active{transform:scale(0.96);}
 
 /* Portadas de capítulo — Salamanca, Illapel, Los Vilos, Canela, Caimanes, Recuerdos del Choapa */
 .album-chapters{display:flex; flex-direction:column; gap:16px;}
@@ -3910,6 +3963,9 @@ body:has(#poiDetail.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pill)
 .locality-marker.sublocality.ring-near svg circle:nth-child(2){ stroke-opacity:0.9; }
 .locality-marker.sublocality svg circle:nth-child(3){ fill:#B9AEFF; }  /* núcleo lavanda */
 .locality-marker.sublocality svg circle:nth-child(4){ opacity:0; }     /* brillo innecesario sobre núcleo claro */
+/* Localidades que se retiran (clearSublocalityMarkers): fundido corto, sin responder al dedo */
+.locality-marker.sublocality.leaving{ pointer-events:none; }
+.locality-marker.sublocality.leaving .loc-visual{ opacity:0; transition:opacity .18s ease; pointer-events:none; }
 /* ================= ATMÓSFERA DE CATEGORÍA — MARCO DE COLOR =================
    --mood-glow (ya lo fija applyCategoryAtmosphere: color de la categoría, o
    'transparent' en «Todos») se registra como color animable para que el cambio
@@ -5029,6 +5085,14 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
         <span class="album-emoji"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 5.5A1.5 1.5 0 0 1 7 4h5v16H7a1.5 1.5 0 0 1-1.5-1.5v-13Z"/><path d="M12 4h6.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H12"/><path d="M8.4 8.5h2M8.4 12h2"/></svg></span>
        <span id="albumTitleText">Mi Álbum del Choapa</span>
       </div>
+    </div>
+
+       <div class="album-search" id="albumSearch" hidden>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="m21 21-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input type="text" id="albumSearchInput" placeholder="Buscar experiencias descubiertas" aria-label="Buscar entre tus experiencias descubiertas" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false">
+      <button class="album-search-clear" id="albumSearchClear" type="button" aria-label="Borrar búsqueda" hidden>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+      </button>
     </div>
 
     <div class="album-body">
@@ -8416,11 +8480,24 @@ function startPOIBreathingAnimation(){
 // seguidas (doble selectPlace). Ahora cada toque se atiende una sola vez.
 let lastPOINativeClickEvent = null;
 const POI_TAP_TOLERANCE_PX = 10; // margen extra de toque alrededor del dedo: zona útil de ~48 px (ver bindPOINativeClickHandlers)
+// Doble toque / doble clic sobre el mapa = zoom, nunca selección. Antes cada toque del doble toque
+// seleccionaba un POI (dos selectPlace seguidos) y además corría el zoom del doble toque: tres movimientos
+// de cámara en 0,2 s y una ficha que nadie pidió. Ahora el segundo toque (a menos de POI_DOUBLE_TAP_MS del
+// primero) no selecciona, y deshace la selección del primero si su ficha todavía no se abrió.
+const POI_DOUBLE_TAP_MS = 400;
+const POI_DOUBLE_TAP_PX = 30; // dos toques más separados que esto son dos toques distintos, no un doble toque
+let lastMapTapAt = 0;
+let lastMapTapPoint = null;
+function isSecondTapOfDoubleTap(point){
+  return !!point && !!lastMapTapPoint && performance.now() - lastMapTapAt < POI_DOUBLE_TAP_MS
+    && Math.hypot(point.x - lastMapTapPoint.x, point.y - lastMapTapPoint.y) < POI_DOUBLE_TAP_PX;
+}
 function handlePOINativeClick(e){
   if (!e.features || !e.features[0]) return;
   if (e.originalEvent){
     if (e.originalEvent === lastPOINativeClickEvent) return;
     lastPOINativeClickEvent = e.originalEvent;
+    if (isSecondTapOfDoubleTap(e.point)) return; // el segundo toque lo atiende el zoom del mapa
   }
   const placeId = e.features[0].properties.id;
     const place = DEMO_PLACES.find(p => p.id === placeId);
@@ -8455,18 +8532,25 @@ function bindPOINativeClickHandlers(){
   // encima. Si el toque no dio en ningún POI, se abre el más cercano dentro de POI_TAP_TOLERANCE_PX.
   // No cambia tamaños ni posiciones: solo agranda la zona que responde al dedo.
   map.on('click', (e) => {
-    if (!e.originalEvent || e.originalEvent === lastPOINativeClickEvent) return; // ya lo atendió una capa
-    if (state.nav.active || map.getZoom() < ZOOM_DETAIL) return;
-    const layers = ['poi-icon-layer', 'poi-bg-layer', 'poi-photo-layer', 'poi-photo-bg-layer'].filter(id => map.getLayer(id));
-    if (!layers.length) return;
-    const R = POI_TAP_TOLERANCE_PX, x = e.point.x, y = e.point.y;
-    let best = null, bestDist = Infinity;
-    map.queryRenderedFeatures([[x - R, y - R], [x + R, y + R]], { layers }).forEach(f => {
-      const p = map.project(f.geometry.coordinates);
-      const d = Math.hypot(p.x - x, p.y - y);
-      if (d < bestDist){ bestDist = d; best = f; }
-    });
-    if (best) handlePOINativeClick({ features:[best], originalEvent:e.originalEvent });
+    if (!e.originalEvent) return;
+    if (isSecondTapOfDoubleTap(e.point)){
+      // Segundo toque de un doble toque: el mapa hace su zoom y no queda ningún POI seleccionado por accidente.
+      lastMapTapAt = performance.now(); lastMapTapPoint = e.point;
+      cancelPOISelectionBeforeDetail();
+      return;
+    }
+    if (e.originalEvent !== lastPOINativeClickEvent && !state.nav.active && map.getZoom() >= ZOOM_DETAIL){ // si no lo atendió ya una capa
+      const layers = ['poi-icon-layer', 'poi-bg-layer', 'poi-photo-layer', 'poi-photo-bg-layer'].filter(id => map.getLayer(id));
+      const R = POI_TAP_TOLERANCE_PX, x = e.point.x, y = e.point.y;
+      let best = null, bestDist = Infinity;
+      if (layers.length) map.queryRenderedFeatures([[x - R, y - R], [x + R, y + R]], { layers }).forEach(f => {
+        const p = map.project(f.geometry.coordinates);
+        const d = Math.hypot(p.x - x, p.y - y);
+        if (d < bestDist){ bestDist = d; best = f; }
+      });
+      if (best) handlePOINativeClick({ features:[best], originalEvent:e.originalEvent });
+    }
+    lastMapTapAt = performance.now(); lastMapTapPoint = e.point;
   });
 }
 
@@ -9358,14 +9442,21 @@ const POI_SPREAD_THROTTLE_MS = 90;
 let poiSpreadAppliedBase = null; // últimas entradas ya aplicadas por esta función (ver más abajo)
 let poiSpreadAppliedKey = '';
 function schedulePOISpreadUpdate(){
-  if (!map.getSource('poi-source') || !lastPOIBaseFeatures.length) return;
+   if (!map.getSource('poi-source') || !lastPOIBaseFeatures.length) return;
+  // Fluidez: las capas de POI no se dibujan bajo ZOOM_DETAIL. Hasta casi llegar a ese zoom no se recalcula
+  // ni se reenvía nada (antes: dos envíos de datos al mapa cada 90 ms durante todo el vuelo a una comuna
+  // o localidad, con los POIs todavía invisibles).
+  if (map.getZoom() < ZOOM_DETAIL - 0.08) return;
   if (poiLocalityIntensity(map.getZoom()) <= 0 && !poiSpreadWasApplied) return;
   poiSpreadPendingRun = true;
   if (poiSpreadRaf) return;
   poiSpreadRaf = requestAnimationFrame(function step(){
     poiSpreadRaf = null;
     const now = performance.now();
-    if (now - poiSpreadLastRun < POI_SPREAD_THROTTLE_MS){
+      // Con POIs encimados, entre un recálculo y el siguiente la separación crece junto con el zoom y luego
+    // vuelve de golpe (1 a 4 px medidos). Mientras hay separación aplicada se recalcula el doble de seguido
+    // (45 ms); sin separación, y en modo liviano, se mantiene el ritmo de siempre.
+    if (now - poiSpreadLastRun < (poiSpreadWasApplied && !CHOAPA_LITE ? 45 : POI_SPREAD_THROTTLE_MS)){
       // Todavía dentro de la ventana de throttle — reintenta más adelante
       // sin ejecutar el cálculo pesado, manteniendo poiSpreadPendingRun
       // en true para no perder la corrida final.
@@ -9386,8 +9477,12 @@ function schedulePOISpreadUpdate(){
     poiSpreadAppliedBase = lastPOIBaseFeatures;
     poiSpreadAppliedKey = spreadKey;
     poiSpreadLastRun = now;
-    poiSpreadPendingRun = false;
-    applyPOIRenderSplit(computePOISpreadFeatures(lastPOIBaseFeatures, map.getZoom()));
+      poiSpreadPendingRun = false;
+    const hadSpread = poiSpreadWasApplied;
+    const spreadFeatures = computePOISpreadFeatures(lastPOIBaseFeatures, map.getZoom());
+    // Sin POIs encimados antes ni ahora, lo dibujado ya es la posición real: no se reenvía nada al mapa.
+    if (!hadSpread && !poiSpreadWasApplied) return;
+    applyPOIRenderSplit(spreadFeatures);
   });
 }
 map.on('move', schedulePOISpreadUpdate);
@@ -9645,10 +9740,14 @@ function renderSublocalityMarkers(subs){
   };
   createBatch();
 }
-   function clearSublocalityMarkers(){
+     function clearSublocalityMarkers(){
   sublocalityRenderToken++; // cancela lotes pendientes de renderSublocalityMarkers
-  sublocalityMarkers.forEach(m => m.remove());
+  // Antes todas las localidades desaparecían en un mismo cuadro (al llegar a una localidad o salir de
+  // la comuna). Ahora se desvanecen en 0,18 s y recién entonces se quitan del mapa.
+  const leaving = sublocalityMarkers;
   sublocalityMarkers = [];
+  leaving.forEach(m => m._el.classList.add('leaving'));
+  if (leaving.length) setTimeout(() => leaving.forEach(m => m.remove()), 200);
   scheduleCollisionCheck();
 }
 
@@ -9814,6 +9913,11 @@ function resolveLabelCollisionsLegacy(){
   });
 }
 let collisionRaf = null;
+// Fluidez: medir las etiquetas obliga al navegador a recalcular el diseño. Con el mapa en
+// movimiento se mide como máximo cada COLLISION_MIN_MS; al detenerse, 'moveend' deja el resultado exacto.
+const COLLISION_MIN_MS = 100;
+let collisionLastRunAt = 0;
+let collisionTrailTimer = null;
 function scheduleCollisionCheck(){
   // Mientras el mapa gira, la posición relativa de las etiquetas cambia en cada cuadro y la
   // decisión (arriba / derecha / abajo / atenuada) saltaba de un estado a otro: el nombre y el
@@ -9821,7 +9925,17 @@ function scheduleCollisionCheck(){
   // vuelve a calcular una sola vez al terminar (rotateend).
   if (map.isRotating()) return;
   if (collisionRaf) return;
-  collisionRaf = requestAnimationFrame(() => { collisionRaf = null; resolveLabelCollisions(); });
+  collisionRaf = requestAnimationFrame(() => {
+    collisionRaf = null;
+    const wait = COLLISION_MIN_MS - (performance.now() - collisionLastRunAt);
+    if (map.isMoving() && wait > 0){
+      // Demasiado pronto: se reintenta al cumplirse el intervalo (la última medición nunca se pierde).
+      if (!collisionTrailTimer) collisionTrailTimer = setTimeout(() => { collisionTrailTimer = null; scheduleCollisionCheck(); }, wait);
+      return;
+    }
+    collisionLastRunAt = performance.now();
+    resolveLabelCollisions();
+  });
 }
 // Fluidez: al ARRASTRAR el mapa (sin cambiar zoom ni giro) las etiquetas se mueven todas juntas y
 // sus choques no cambian, pero antes se medían ~25 etiquetas en cada cuadro (getBoundingClientRect
@@ -9953,6 +10067,30 @@ function updateComunaHaloSpawnScale(){
   const factor = Math.min(Math.max((ZOOM_COMUNA_NEAR - z) / (ZOOM_COMUNA_NEAR - 7.6), 0), 1);
   setZoomCssVar('--comuna-halo-spawn-scale', (1 + factor * 0.3).toFixed(3));
 }
+// Fluidez (auditoría 13-nov-2026): --loc-tier-diff, --loc-secondary-reveal y --comuna-halo-spawn-scale
+// cambiaban en CADA cuadro de zoom. Cada cambio obliga al navegador a recalcular estilo, tamaño de
+// letra y tamaño de punto de todas las localidades visibles: medido, era la causa de los cuadros
+// perdidos al entrar y salir de una localidad. Con el mapa en movimiento ahora se escriben como
+// máximo cada ZOOM_CSS_VARS_MIN_MS; al detenerse se escribe el valor exacto (en reposo, todo idéntico).
+const ZOOM_CSS_VARS_MIN_MS = 120;
+let zoomCssVarsWrittenAt = 0;
+let zoomCssVarsTimer = null;
+function writeZoomCssVars(){
+  clearTimeout(zoomCssVarsTimer);
+  zoomCssVarsTimer = null;
+  zoomCssVarsWrittenAt = performance.now();
+  updateLocalityTierDiff();
+  updateComunaHaloSpawnScale();
+}
+function scheduleZoomCssVars(){
+  const wait = ZOOM_CSS_VARS_MIN_MS - (performance.now() - zoomCssVarsWrittenAt);
+  if (map.isMoving() && wait > 0){
+    if (!zoomCssVarsTimer) zoomCssVarsTimer = setTimeout(writeZoomCssVars, wait); // el último valor nunca se pierde
+    return;
+  }
+  writeZoomCssVars();
+}
+map.on('moveend', () => { if (zoomCssVarsTimer) writeZoomCssVars(); });
 function updateExplorationLevel(){
   const tier = currentZoomTier();
   const showCounts = map.getZoom() >= ZOOM_SHOW_COUNTS;
@@ -9967,9 +10105,7 @@ function updateExplorationLevel(){
   });
     const showPoiNames = map.getZoom() >= ZOOM_POI_NAME;
   document.querySelectorAll('.poi-marker').forEach(el => el.classList.toggle('show-name', showPoiNames));
-  updateLocalityTierDiff();
-  updateComunaHaloSpawnScale();
-
+  scheduleZoomCssVars();
   if (tier === lastTier) return; // sin cambio de nivel, no re-renderizamos
   lastTier = tier;
 
@@ -12268,6 +12404,17 @@ function compressImage(file, maxDim = 900, quality = 0.75){
 }
 
 
+// Doble toque sobre el mapa: si el primer toque alcanzó a seleccionar un POI y su ficha todavía no se
+// abrió (state.poiDetailOpenTimer, ver el final de selectPlace), la selección se deshace: la ficha no
+// llega a aparecer y el gesto queda solo como zoom.
+function cancelPOISelectionBeforeDetail(){
+  if (!state.poiDetailOpenTimer) return;
+  clearTimeout(state.poiDetailOpenTimer);
+  state.poiDetailOpenTimer = null;
+  if (document.getElementById('poiDetail').classList.contains('visible')) return; // había otra ficha abierta: se deja
+  state.selectedPlace = null;
+  updateSelectedPOILayer(null);
+}
 function selectPlace(place, el){
   // el es opcional: la capa nativa de POIs (Fase 2 de la migración) no tiene
   // un elemento DOM real que marcar como .selected — ese mecanismo pertenece
@@ -12409,7 +12556,9 @@ function selectPlace(place, el){
   // vez de dos animaciones compitiendo a la vez. Con la ficha abierta no hace
   // falta la píldora de "¿Qué hacer hoy?" — se oculta en el mismo momento (se
   // restaura al cerrar la ficha).
-  setTimeout(() => {
+    clearTimeout(state.poiDetailOpenTimer);
+  state.poiDetailOpenTimer = setTimeout(() => {
+    state.poiDetailOpenTimer = null;
     sheetPill.classList.add('hidden');
     document.getElementById('poiDetail').classList.add('visible');
   }, POI_SELECT_ZOOM_DURATION * 0.85);
@@ -16324,7 +16473,108 @@ document.getElementById('albumBack').addEventListener('click', () => {
   else closeAlbum();
 });
 
+/* ---------- BUSCADOR DEL ÁLBUM — experiencias DESCUBIERTAS, por nombre ----------
+   Un solo campo. En el índice busca en todo el Choapa (resultados agrupados por comuna); dentro de una
+   comuna busca solo en esa comuna. Trabaja con lo que ya está en memoria (DEMO_PLACES +
+   discoveredExperienceIds): sin consultas de red por cada letra y sin guardar nada nuevo. Las
+   experiencias aún por descubrir nunca aparecen (ni su nombre). Reutiliza smartNorm() del buscador
+   principal para ignorar mayúsculas y tildes. */
+const albumSearchBar = document.getElementById('albumSearch');
+const albumSearchInput = document.getElementById('albumSearchInput');
+const albumSearchClear = document.getElementById('albumSearchClear');
+let albumSearchQuery = '';
+// Orden fijo de los capítulos del Álbum (solo aquí; el resto de la app no cambia)
+const ALBUM_COMUNA_ORDER = ['losvilos', 'salamanca', 'illapel', 'canela'];
+function albumOrderedLocalities(){
+  return [...LOCALITIES].sort((a, b) => {
+    const ia = ALBUM_COMUNA_ORDER.indexOf(a.id), ib = ALBUM_COMUNA_ORDER.indexOf(b.id);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+  });
+}
+// Tarjeta de experiencia DESCUBIERTA: la misma en la grilla de la comuna y en los resultados de búsqueda.
+function fillAlbumUnlockedCard(card, place, memory){
+  const tag = primaryExperienceTag(place); // una de las categorías reales
+  card.className = 'album-card unlocked';
+  card.style.backgroundImage = `url(${memory ? memory.photoUrl : thumbUrl(place.image, 480)})`;
+  card.innerHTML = `<div class="ac-info"><div class="ac-name">${place.name}</div><div class="ac-loc">${tag.label}</div></div>`;
+  card.addEventListener('click', () => openPOIMemories(place));
+}
+function resetAlbumSearch(){
+  albumSearchQuery = '';
+  if (!albumSearchInput) return; // falta el bloque HTML del buscador: el Álbum sigue funcionando sin él
+  albumSearchInput.value = '';
+  albumSearchClear.hidden = true;
+  albumIndexView.classList.remove('searching');
+}
+// El buscador solo se muestra cuando hay algo que buscar (alguna experiencia descubierta en ese contexto).
+function syncAlbumSearchBar(available, locality){
+  if (!albumSearchBar) return;
+  albumSearchBar.hidden = !available && !albumSearchQuery;
+  albumSearchInput.placeholder = locality ? `Buscar en ${locality.name}` : 'Buscar experiencias descubiertas';
+}
+// Pinta los resultados en `container`. locality = comuna en la que se busca (null = todo el Choapa).
+// Devuelve cuántas experiencias descubiertas coinciden.
+function renderAlbumSearchResults(container, locality){
+  const words = smartNorm(albumSearchQuery).split(/\s+/).filter(Boolean);
+  const memories = MemoryStore.getAll();
+  const groups = (locality ? [locality] : albumOrderedLocalities()).map(loc => ({
+    loc,
+    places: placesInLocality(loc).filter(p => {
+      if (!discoveredExperienceIds.has(p.id)) return false; // solo desbloqueos reales
+      const name = smartNorm(p.name);
+      return words.every(w => name.includes(w));
+    }),
+  })).filter(g => g.places.length);
+  const total = groups.reduce((n, g) => n + g.places.length, 0);
+  container.innerHTML = '';
+  if (!total){
+    container.innerHTML = `
+      <div class="album-search-empty">
+        <span class="ase-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.7"/><path d="m21 21-4.3-4.3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>
+        <div class="ase-title">Sin coincidencias</div>
+        <div class="ase-sub">No tienes experiencias descubiertas ${locality ? `en ${locality.name} ` : ''}con ese nombre. Puede que aún esté por descubrir.</div>
+        ${locality ? '<button class="ase-btn" type="button">Buscar en todo el Choapa</button>' : ''}
+      </div>`;
+    const widen = container.querySelector('.ase-btn');
+    if (widen) widen.addEventListener('click', () => {
+      const query = albumSearchInput.value;
+      showAlbumIndex(); // vuelve al índice (limpia la búsqueda) y se repite ahí, en todo el Choapa
+      albumSearchInput.value = query;
+      applyAlbumSearch(query);
+    });
+    return 0;
+  }
+  const appendCards = (grid, places) => places.forEach(place => {
+    const card = document.createElement('div');
+    fillAlbumUnlockedCard(card, place, memories[place.id]);
+    card.classList.add('as-result');
+    grid.appendChild(card);
+  });
+  if (locality){ appendCards(container, groups[0].places); return total; } // `container` ya es la grilla de la comuna
+  container.insertAdjacentHTML('beforeend', `<div class="album-search-count">${total} resultado${total === 1 ? '' : 's'} entre tus experiencias descubiertas</div>`);
+  groups.forEach(g => {
+    container.insertAdjacentHTML('beforeend', `<div class="album-search-group">${g.loc.name}<span>${g.places.length}</span></div>`);
+    const grid = document.createElement('div');
+    grid.className = 'album-detail-grid';
+    appendCards(grid, g.places);
+    container.appendChild(grid);
+  });
+  return total;
+}
+function applyAlbumSearch(value){
+  albumSearchQuery = value.trim();
+  albumSearchClear.hidden = !value;
+  if (currentAlbumLocalityId) renderLocalityAlbum(currentAlbumLocalityId);
+  else if (!currentAlbumIsPersonal) renderAlbumIndex();
+}
+if (albumSearchInput && albumSearchClear){
+  albumSearchInput.addEventListener('input', () => applyAlbumSearch(albumSearchInput.value));
+  albumSearchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') albumSearchInput.blur(); }); // "Buscar" del teclado: lo cierra
+  albumSearchClear.addEventListener('click', () => { albumSearchInput.value = ''; applyAlbumSearch(''); albumSearchInput.focus(); });
+}
+
 function showAlbumIndex(){
+  resetAlbumSearch();
   currentAlbumLocalityId = null;
   currentAlbumIsPersonal = false;
   albumTitleText.textContent = 'Mi Álbum del Choapa';
@@ -16335,7 +16585,9 @@ function showAlbumIndex(){
 
 
 function renderAlbumIndex(){
-  if (albumLoadError){
+   if (albumLoadError){
+    resetAlbumSearch();
+    syncAlbumSearchBar(false);
     ['statExperiences', 'statLocalities', 'statMemories'].forEach(id => { document.getElementById(id).textContent = '—'; });
     document.getElementById('albumProgress').innerHTML = '';
     albumChapters.innerHTML = `
@@ -16381,14 +16633,13 @@ function renderAlbumIndex(){
     </svg>
        <span class="ap-text"><b>${doneUnits}</b> de ${totalUnits} experiencias descubiertas</span>`;
 
+   albumIndexView.classList.toggle('searching', !!albumSearchQuery);
+  syncAlbumSearchBar(discoveredPlaces.length > 0);
+  if (albumSearchQuery){ renderAlbumSearchResults(albumChapters, null); return; }
+
   albumChapters.innerHTML = '';
 
-     // Orden fijo de los capítulos del Álbum (solo aquí; el resto de la app no cambia)
-  const ALBUM_COMUNA_ORDER = ['losvilos', 'salamanca', 'illapel', 'canela'];
-  const albumLocalities = [...LOCALITIES].sort((a, b) => {
-    const ia = ALBUM_COMUNA_ORDER.indexOf(a.id), ib = ALBUM_COMUNA_ORDER.indexOf(b.id);
-    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
-  });
+  const albumLocalities = albumOrderedLocalities();
    albumLocalities.forEach(locality => {
     const localityPlaces = placesInLocality(locality);
     const discoveredCount = localityPlaces.filter(p => discoveredExperienceIds.has(p.id)).length;
@@ -16397,7 +16648,7 @@ function renderAlbumIndex(){
     const chapter = document.createElement('div');
     chapter.className = 'chapter-cover' + (cover ? ' has-memories' : ' blueprint');
     if (cover){
-      chapter.style.backgroundImage = `url(${cover})`;
+        chapter.style.backgroundImage = `url(${thumbUrl(cover, 960)})`;
     }
     chapter.innerHTML = `
       ${cover ? '' : `<span class="bp-icon">${icon('mountain', 46)}</span>`}
@@ -16434,6 +16685,7 @@ function renderAlbumIndex(){
 }
 
 function openLocalityAlbum(localityId){
+  resetAlbumSearch();
   currentAlbumLocalityId = localityId;
   currentAlbumIsPersonal = false;
   const locality = LOCALITIES.find(l => l.id === localityId);
@@ -16488,8 +16740,16 @@ function renderLocalityAlbum(localityId){
   const progressEl = document.getElementById('albumDetailProgress');
   progressEl.style.display = 'block';
   progressEl.textContent = `${discoveredInLocality}/${localityPlaces.length} experiencias descubiertas`;
+  syncAlbumSearchBar(discoveredInLocality > 0, locality);
+  if (albumSearchQuery){
+    const found = renderAlbumSearchResults(albumDetailGrid, locality);
+    if (found) progressEl.textContent = `${found} resultado${found === 1 ? '' : 's'} en ${locality.name}`;
+    return;
+  }
 
-  localityPlaces.forEach(place => {
+  // Primero tu colección (descubiertas) y después las que faltan; dentro de cada grupo, el orden de siempre.
+  const albumOrderedPlaces = [...localityPlaces].sort((a, b) => discoveredExperienceIds.has(b.id) - discoveredExperienceIds.has(a.id));
+  albumOrderedPlaces.forEach(place => {
     const memory = memories[place.id];
     const isDiscovered = discoveredExperienceIds.has(place.id);
     const tag = primaryExperienceTag(place); // una de las 8 categorías reales
@@ -16503,10 +16763,7 @@ function renderLocalityAlbum(localityId){
       // antes. openPlaceMemoryDetail() ya maneja con seguridad el caso sin
       // memoria (retorna sin abrir nada) — comportamiento preexistente, sin
       // tocar.
-      card.className = 'album-card unlocked';
-      card.style.backgroundImage = `url(${memory ? memory.photoUrl : place.image})`;
-      card.innerHTML = `<div class="ac-info"><div class="ac-name">${place.name}</div><div class="ac-loc">${tag.label}</div></div>`;
-            card.addEventListener('click', () => openPOIMemories(place));
+          fillAlbumUnlockedCard(card, place, memory);
     } else {
       // AÚN POR DESCUBRIR — fotografía oficial de la experiencia (place.image,
       // dato real existente, nunca inventado) difuminada/oscurecida detrás de
@@ -16515,7 +16772,7 @@ function renderLocalityAlbum(localityId){
       // experiencia (selectPlaceById) — el desbloqueo real es Fase 2.
             card.className = 'album-card locked';
       card.innerHTML = `
-        <div class="ac-locked-photo" style="background-image:url(${place.image})"></div>
+          <div class="ac-locked-photo" style="background-image:url(${thumbUrl(place.image, 480)})"></div>
         <div class="ac-locked-overlay"></div>
                 <span class="ac-lock-mark"><span class="ac-lock-badge">${icon('lock', 16)}</span></span>
         <span class="lock-label">Aún por descubrir</span>`;
@@ -16526,6 +16783,8 @@ function renderLocalityAlbum(localityId){
 }
 
 function openPersonalAlbum(){
+  resetAlbumSearch();
+  syncAlbumSearchBar(false);
   currentAlbumIsPersonal = true;
   currentAlbumLocalityId = null;
   albumTitleText.textContent = 'Recuerdos del Choapa';
