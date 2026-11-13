@@ -2146,6 +2146,60 @@ body:has(#poiDetail.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pill)
   transition:transform .16s cubic-bezier(.34,1.56,.64,1);
 }
 .guardados-filter-btn:active{transform:scale(0.9);}
+/* Indicador: hay un orden o una comuna distinta de la predeterminada */
+.guardados-filter-btn{position:relative;}
+.guardados-filter-btn.has-active::after{
+  content:''; position:absolute; top:6px; right:6px; width:7px; height:7px; border-radius:50%;
+  background:var(--turquoise-bright); box-shadow:0 0 0 2px var(--bg-night);
+}
+/* Tarjeta de Guardados (.sv-card, sobre la base de «Cerca de mí»): nombre sobre la foto,
+   ubicación en una sola línea, sin la categoría «Todos» y sin repetir la comuna. */
+.sv-card .sv-badges{position:absolute; top:10px; left:10px; z-index:2; display:flex; gap:6px;}
+.sv-card .sv-pill{
+  display:flex; align-items:center; gap:4px; font-size:10.5px; font-weight:700; color:#fff;
+  background:rgba(8,19,31,0.72); padding:4px 9px; border-radius:var(--radius-pill);
+}
+.sv-card .sv-pill.done{color:var(--turquoise-bright);}
+.sv-card .gd-save-btn{backdrop-filter:none; -webkit-backdrop-filter:none;}
+.sv-card .sv-meta{display:flex; gap:6px; flex-wrap:wrap; padding:10px 12px 12px;}
+/* Encabezado de grupo cuando los guardados están ordenados por comuna */
+.sv-group{
+  display:flex; align-items:baseline; gap:8px; margin:6px 2px -4px;
+  font-family:var(--font-display); font-size:14px; font-weight:700; color:var(--text-primary);
+}
+.sv-group span{font-family:var(--font-body); font-size:11.5px; font-weight:600; color:var(--turquoise-bright);}
+/* Panel «Organizar guardados»: sube desde abajo, queda sobre la barra de navegación */
+.sv-backdrop{
+  position:absolute; inset:0; z-index:5; background:rgba(3,10,18,0.55);
+  opacity:0; pointer-events:none; transition:opacity .22s ease;
+}
+.sv-backdrop.visible{opacity:1; pointer-events:auto;}
+.sv-sheet{
+  position:absolute; left:0; right:0; bottom:calc(62px + var(--safe-bottom)); z-index:6;
+  padding:10px 18px 16px; border-radius:22px 22px 0 0;
+  background:var(--surface-elevated, #12263a); border:1px solid var(--border-glass); border-bottom:none;
+  box-shadow:0 -12px 32px rgba(2,8,15,0.45);
+  transform:translateY(calc(100% + 70px)); transition:transform .3s cubic-bezier(.2,.9,.28,1.05);
+}
+.sv-sheet.visible{transform:translateY(0);}
+.sv-sheet .sv-handle{width:38px; height:4px; border-radius:2px; background:rgba(255,255,255,0.18); margin:0 auto 12px;}
+.sv-sheet .sv-title{font-family:var(--font-display); font-size:16px; font-weight:800; color:var(--text-primary); margin-bottom:12px;}
+.sv-sheet .sv-label{font-size:10.5px; font-weight:700; letter-spacing:0.6px; text-transform:uppercase; color:var(--text-tertiary); margin:4px 0 8px;}
+.sv-sheet .sv-options{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;}
+.sv-sheet .sv-opt{
+  display:flex; align-items:center; gap:6px; padding:9px 14px; border-radius:var(--radius-pill);
+  font-size:13px; font-weight:600; color:var(--text-secondary);
+  background:rgba(255,255,255,0.04); border:1px solid var(--border-glass);
+  transition:background .2s ease, color .2s ease, border-color .2s ease, transform .16s ease;
+}
+.sv-sheet .sv-opt .sv-count{font-size:11px; opacity:0.7;}
+.sv-sheet .sv-opt.active{color:var(--turquoise-bright); background:rgba(95,225,232,0.1); border-color:rgba(95,225,232,0.45);}
+.sv-sheet .sv-opt:active{transform:scale(0.95);}
+.sv-sheet .sv-actions{display:flex; gap:10px; margin-top:4px;}
+.sv-sheet .sv-actions button{flex:1; padding:12px; border-radius:var(--radius-pill); font-size:13.5px; font-weight:700; transition:transform .16s ease;}
+.sv-sheet .sv-reset{color:var(--text-secondary); background:rgba(255,255,255,0.05); border:1px solid var(--border-glass);}
+.sv-sheet .sv-done{color:#04222A; background:var(--turquoise-bright);}
+.sv-sheet .sv-actions button:active{transform:scale(0.96);}
 
 .guardados-filters{
   display:flex; gap:8px; overflow-x:auto; -webkit-overflow-scrolling:touch;
@@ -5039,7 +5093,7 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
         <div class="guardados-title">Mis guardados <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4Z"/></svg></div>
         <div class="guardados-subtitle">Experiencias que quieres vivir.</div>
       </div>
-      <button class="guardados-filter-btn" id="guardadosFilterBtn" aria-label="Filtrar guardados">
+           <button class="guardados-filter-btn" id="guardadosFilterBtn" aria-label="Organizar guardados" aria-haspopup="dialog">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M7 12h10M10.5 18h3"/></svg>
       </button>
     </div>
@@ -5050,7 +5104,20 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
         <span class="ge-icon" id="guardadosEmptyIcon"></span>
         <div class="ge-title" id="guardadosEmptyTitle">Todavía no tienes experiencias guardadas</div>
         <div class="ge-sub" id="guardadosEmptySub">Explora el Choapa y guarda aquello que quieras vivir después.</div>
-        <button class="ge-btn" id="guardadosEmptyBtn">Explorar experiencias</button>
+              <button class="ge-btn" id="guardadosEmptyBtn">Explorar experiencias</button>
+      </div>
+    </div>
+    <div class="sv-backdrop" id="svBackdrop"></div>
+    <div class="sv-sheet" id="svSheet" role="dialog" aria-label="Organizar guardados" aria-hidden="true">
+      <div class="sv-handle"></div>
+      <div class="sv-title">Organizar guardados</div>
+      <div class="sv-label">Ordenar por</div>
+      <div class="sv-options" id="svSortOptions"></div>
+      <div class="sv-label">Comuna</div>
+      <div class="sv-options" id="svComunaOptions"></div>
+      <div class="sv-actions">
+        <button class="sv-reset" id="svReset" type="button">Restablecer</button>
+        <button class="sv-done" id="svDone" type="button">Listo</button>
       </div>
     </div>
   </div>
@@ -13739,6 +13806,8 @@ const guardadosGrid = document.getElementById('guardadosGrid');
 const guardadosEmpty = document.getElementById('guardadosEmpty');
 let guardadosActiveFilter = 'todos';
 let guardadosLoadError = false; // true si la carga de saved_places falló (se muestra "No pudimos cargar", no "no tienes")
+let guardadosSort = 'comuna';    // 'comuna' | 'nombre' | 'cerca' — se mantiene durante la sesión
+let guardadosComuna = 'todas';   // id de comuna o 'todas' — vuelve a 'todas' al abrir Guardados
 
 // Sin cambios de lógica — savedPlaceIds sigue siendo el Set en memoria que
 // se filtra contra DEMO_PLACES (ya cargado por SupabaseDataLayer); solo su
@@ -13747,7 +13816,7 @@ function savedPlaces(){
   return DEMO_PLACES.filter(p => savedPlaceIds.has(p.id));
 }
 function renderGuardadosFilters(){
-  const all = savedPlaces();
+  const all = guardadosBase(); // con una comuna elegida, los conteos son de esa comuna
   guardadosFilters.innerHTML = '';
   EXPERIENCE_TAGS.forEach(exp => {
     const count = exp.id === 'todos' ? all.length : all.filter(p => p.experiences.includes(exp.id)).length;
@@ -13766,8 +13835,8 @@ function renderGuardadosFilters(){
 }
 
 function renderGuardadosGrid(){
-  const all = savedPlaces();
-  const filtered = guardadosActiveFilter === 'todos' ? all : all.filter(p => p.experiences.includes(guardadosActiveFilter));
+  const all = guardadosBase();
+  const filtered = guardadosVisiblePlaces();
 
   guardadosGrid.innerHTML = '';
   guardadosGrid.style.display = filtered.length ? 'flex' : 'none';
@@ -13788,59 +13857,35 @@ function renderGuardadosGrid(){
       emptyTitle.textContent = 'Todavía no tienes experiencias guardadas';
       emptySub.textContent = 'Explora el Choapa y guarda aquello que quieras vivir después.';
     } else {
-      const exp = expById(guardadosActiveFilter);
-      emptyTitle.textContent = `No tienes experiencias guardadas en ${exp.label.toLowerCase()}`;
+         const exp = expById(guardadosActiveFilter);
+      const comunaName = (LOCALITIES.find(l => l.id === guardadosComuna) || {}).name;
+      emptyTitle.textContent = `No tienes experiencias guardadas en ${exp.label.toLowerCase()}${comunaName ? ' en ' + comunaName : ''}`;
       emptySub.textContent = 'Prueba con otra categoría o descubre algo nuevo en el mapa.';
     }
     return;
   }
 
-    filtered.forEach(place => {
-       const cat = expById(place.category);
-    const primaryExp = place.categoryPrimary ? expById(place.categoryPrimary) : null;
-        // Con un filtro de categoría activo, la etiqueta muestra esa categoría
-    // (solo si la experiencia realmente pertenece a ella); con "Todos", se
-    // conserva la categoría principal de siempre.
-    const tagInfo = (guardadosActiveFilter !== 'todos' && place.experiences.includes(guardadosActiveFilter) && expById(guardadosActiveFilter)) || primaryExp || cat;
-    const color = expColor(tagInfo);
-    const comuna = LOCALITIES.find(l => l.aliases.includes(place.locality));
-
-    const card = document.createElement('div');
-    card.className = 'gd-card';
-    card.innerHTML = `
-           <div class="gd-photo" style="background-image:url(${thumbUrl(place.image, 960)})">
-        <button class="gd-save-btn saved" aria-label="Quitar de guardados">${icon('bookmark', 15)}</button>
-      </div>
-      <div class="gd-info">
-        <span class="gd-tag" style="color:${color}">${tagInfo.icon}${tagInfo.label}</span>
-        <div class="gd-name">${place.name}</div>
-        <div class="gd-loc">${icon('pin', 12)}<span>${place.locality}${comuna && comuna.name !== place.locality ? ', ' + comuna.name : ''}</span></div>
-        ${comuna ? `<div class="gd-comuna">${icon('mountain', 11)}<span>${comuna.name}</span></div>` : ''}
-        <div class="gd-meta-row">
-          ${place.openingHours ? `<span class="gd-meta-item">${icon('clock', 11)}${place.openingHours}</span>` : ''}
-          ${place.priceRange ? `<span class="gd-meta-item">${icon('coin', 11)}${place.priceRange}</span>` : ''}
-        </div>
-      </div>`;
-    card.addEventListener('click', () => { closeGuardados(); selectPlaceById(place.id); });
-      card.querySelector('.gd-save-btn').addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const result = await toggleSavedPlace(place.id);
-   if (!result.ok){ showSaveErrorNotice(true, null); return; } // Supabase falló — no se toca el Set ni la UI, mismo criterio de "no inventar estado"
-      if (state.selectedPlace && state.selectedPlace.id === place.id){
-        document.getElementById('poiDetailSave').classList.remove('saved');
-      }
-      card.style.opacity = '0';
-      card.style.transform = 'scale(0.96)';
-      setTimeout(renderGuardados, 180);
-    });
-    guardadosGrid.appendChild(card);
+    // Ordenados por comuna (y con más de una comuna): un título por comuna antes de sus tarjetas.
+  const showGroups = guardadosSort === 'comuna' && new Set(filtered.map(p => (guardadosComunaOf(p) || {}).id)).size > 1;
+  let lastGroup = null;
+  filtered.forEach(place => {
+    const comuna = guardadosComunaOf(place);
+    if (showGroups && comuna && comuna.id !== lastGroup){
+      lastGroup = comuna.id;
+      const n = filtered.filter(p => guardadosComunaOf(p) === comuna).length;
+      guardadosGrid.insertAdjacentHTML('beforeend', `<div class="sv-group">${comuna.name}<span>${n}</span></div>`);
+    }
+    guardadosGrid.appendChild(buildGuardadoCard(place));
   });
 }
 
 function renderGuardados(){
   // si el filtro activo se quedó sin resultados (ej. quitaste el último guardado
   // de esa categoría), volvemos a "Todos" para no dejar una vista vacía confusa
-  const all = savedPlaces();
+  if (guardadosComuna !== 'todas' && !savedPlaces().some(p => (guardadosComunaOf(p) || {}).id === guardadosComuna)){
+    guardadosComuna = 'todas';
+  }
+  const all = guardadosBase();
   if (guardadosActiveFilter !== 'todos' && !all.some(p => p.experiences.includes(guardadosActiveFilter))){
     guardadosActiveFilter = 'todos';
   }
@@ -13857,6 +13902,8 @@ function openGuardados(){
   // ejecuta nada de lo de abajo.
   return requireAuth(async () => {
     guardadosActiveFilter = 'todos';
+    guardadosComuna = 'todas';
+    closeGuardadosSheet(true);
     nearbyScreen.classList.remove('visible');
     document.getElementById('albumScreen').classList.remove('visible');
     document.getElementById('guardadosEmptyIcon').innerHTML = icon('bookmark', 34);
@@ -13877,6 +13924,7 @@ function openGuardados(){
   });
 }
 function closeGuardados(){
+  closeGuardadosSheet(true);
   guardadosScreen.classList.remove('visible');
   document.querySelectorAll('.bottom-nav .nav-item').forEach(n => n.classList.remove('active'));
   document.querySelector('.bottom-nav .nav-item').classList.add('active'); // vuelve a "Explorar"
@@ -13890,8 +13938,164 @@ async function retryGuardados(){
   if (guardadosLoadError) showAppNotice({ text: navigator.onLine ? 'Todavía no pudimos cargar tus guardados.' : 'Sin conexión: todavía no pudimos cargar tus guardados.' });
 }
 document.getElementById('guardadosEmptyBtn').addEventListener('click', () => { if (guardadosLoadError) retryGuardados(); else closeGuardados(); });
-document.getElementById('guardadosFilterBtn').addEventListener('click', () => {
-  guardadosFilters.scrollIntoView({ behavior:'smooth', block:'nearest' });
+/* ---------- GUARDADOS: tarjeta, orden y panel «Organizar guardados» ----------
+   El botón de arriba a la derecha antes solo intentaba desplazar la fila de categorías (que ya
+   está siempre a la vista), así que no hacía nada. Ahora abre un panel para ordenar (por comuna,
+   por nombre o por cercanía) y para ver solo una comuna. Todo trabaja sobre savedPlaceIds en
+   memoria: sin consultas nuevas ni datos nuevos. */
+function guardadosComunaOf(place){ return LOCALITIES.find(l => l.aliases.includes(place.locality)) || null; }
+// Guardados de la comuna elegida (o todos) — base de los conteos de categoría.
+function guardadosBase(){
+  const all = savedPlaces();
+  return guardadosComuna === 'todas' ? all : all.filter(p => (guardadosComunaOf(p) || {}).id === guardadosComuna);
+}
+// Mismo orden de comunas que el Álbum.
+function guardadosComunaOrder(){
+  return (typeof albumOrderedLocalities === 'function' ? albumOrderedLocalities() : LOCALITIES).map(l => l.id);
+}
+function guardadosVisiblePlaces(){
+  const list = guardadosBase().filter(p => guardadosActiveFilter === 'todos' || p.experiences.includes(guardadosActiveFilter));
+  const byName = (a, b) => a.name.trim().localeCompare(b.name.trim(), 'es');
+  if (guardadosSort === 'cerca' && nearbyCoords){
+    const km = p => distanceKm(nearbyCoords.lat, nearbyCoords.lng, p.lat, p.lng);
+    return list.sort((a, b) => km(a) - km(b));
+  }
+  if (guardadosSort === 'nombre') return list.sort(byName);
+  const order = guardadosComunaOrder();
+  const rank = p => { const i = order.indexOf((guardadosComunaOf(p) || {}).id); return i < 0 ? 99 : i; };
+  return list.sort((a, b) => (rank(a) - rank(b)) || byName(a, b));
+}
+function buildGuardadoCard(place){
+  const cat = expById(place.category);
+  const primaryExp = place.categoryPrimary ? expById(place.categoryPrimary) : null;
+  // Con un filtro de categoría activo, la etiqueta muestra esa categoría (solo si la experiencia
+  // pertenece a ella); con "Todos", la principal. «Todos» no es una categoría: no se muestra.
+  const tagInfo = (guardadosActiveFilter !== 'todos' && place.experiences.includes(guardadosActiveFilter) && expById(guardadosActiveFilter)) || primaryExp || cat;
+  const showTag = tagInfo && tagInfo.id !== 'todos';
+  const color = showTag ? expColor(tagInfo) : '';
+  const comuna = guardadosComunaOf(place);
+  const where = place.locality + (comuna && comuna.name !== place.locality ? ` · ${comuna.name}` : '');
+  const km = guardadosSort === 'cerca' && nearbyCoords ? distanceKm(nearbyCoords.lat, nearbyCoords.lng, place.lat, place.lng) : null;
+  const discovered = discoveredExperienceIds.has(place.id);
+  const meta = [
+    place.openingHours ? `<span class="gd-meta-item">${icon('clock', 11)}${place.openingHours}</span>` : '',
+    place.priceRange ? `<span class="gd-meta-item">${icon('coin', 11)}${place.priceRange}</span>` : '',
+  ].join('');
+
+  const card = document.createElement('div');
+  card.className = 'gd-card nb-card sv-card';
+  card.innerHTML = `
+    <div class="gd-photo" style="background-image:url(${thumbUrl(place.image, 960)})">
+      ${km !== null || discovered ? `<div class="sv-badges">
+        ${km !== null ? `<span class="sv-pill">${icon('pin', 11)}${formatDistance(km)}</span>` : ''}
+        ${discovered ? `<span class="sv-pill done"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.2 4L19 7"/></svg>Descubierta</span>` : ''}
+      </div>` : ''}
+      <button class="gd-save-btn saved" aria-label="Quitar de guardados">${icon('bookmark', 15)}</button>
+      <div class="nb-overlay">
+        ${showTag ? `<span class="gd-tag" style="color:${color}">${tagInfo.icon}${tagInfo.label}</span>` : ''}
+        <div class="gd-name">${place.name}</div>
+        <div class="gd-loc">${icon('pin', 12)}<span>${where}</span></div>
+      </div>
+    </div>
+    ${meta ? `<div class="sv-meta">${meta}</div>` : ''}`;
+  card.addEventListener('click', () => { closeGuardados(); selectPlaceById(place.id); });
+  card.querySelector('.gd-save-btn').addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const result = await toggleSavedPlace(place.id);
+    if (!result.ok){ showSaveErrorNotice(true, null); return; } // Supabase falló — no se toca el Set ni la UI
+    if (state.selectedPlace && state.selectedPlace.id === place.id){
+      document.getElementById('poiDetailSave').classList.remove('saved');
+    }
+    card.style.opacity = '0';
+    card.style.transform = 'scale(0.96)';
+    setTimeout(renderGuardados, 180);
+  });
+  return card;
+}
+
+const svSheet = document.getElementById('svSheet');
+const svBackdrop = document.getElementById('svBackdrop');
+const GUARDADOS_SORTS = [
+  { id:'comuna', label:'Comuna' },
+  { id:'nombre', label:'Nombre (A–Z)' },
+  { id:'cerca',  label:'Más cerca de ti' },
+];
+function syncGuardadosFilterBtn(){
+  document.getElementById('guardadosFilterBtn').classList.toggle('has-active', guardadosSort !== 'comuna' || guardadosComuna !== 'todas');
+}
+function renderGuardadosSheet(){
+  const sortWrap = document.getElementById('svSortOptions');
+  sortWrap.innerHTML = '';
+  GUARDADOS_SORTS.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'sv-opt' + (opt.id === guardadosSort ? ' active' : '');
+    btn.textContent = opt.label;
+    btn.addEventListener('click', () => setGuardadosSort(opt.id));
+    sortWrap.appendChild(btn);
+  });
+  const comunaWrap = document.getElementById('svComunaOptions');
+  comunaWrap.innerHTML = '';
+  const all = savedPlaces();
+  const options = [{ id:'todas', name:'Todas', count: all.length }].concat(
+    guardadosComunaOrder().map(id => LOCALITIES.find(l => l.id === id)).filter(Boolean)
+      .map(l => ({ id:l.id, name:l.name, count: all.filter(p => (guardadosComunaOf(p) || {}).id === l.id).length }))
+      .filter(o => o.count > 0) // solo comunas donde tienes algo guardado
+  );
+  options.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'sv-opt' + (opt.id === guardadosComuna ? ' active' : '');
+    btn.innerHTML = `${opt.name}<span class="sv-count">${opt.count}</span>`;
+    btn.addEventListener('click', () => {
+      guardadosComuna = opt.id;
+      renderGuardadosSheet();
+      renderGuardados();
+    });
+    comunaWrap.appendChild(btn);
+  });
+  syncGuardadosFilterBtn();
+}
+function setGuardadosSort(id){
+  if (id !== 'cerca' || nearbyCoords){
+    guardadosSort = id;
+    renderGuardadosSheet();
+    renderGuardados();
+    return;
+  }
+  // «Más cerca de ti» necesita tu ubicación: se pide una vez y se comparte con «Cerca de mí».
+  if (!navigator.geolocation){ showAppNotice({ text:'Tu dispositivo no permite usar la ubicación.' }); return; }
+  navigator.geolocation.getCurrentPosition(pos => {
+    nearbyCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    placeUserMarker(nearbyCoords.lat, nearbyCoords.lng);
+    guardadosSort = 'cerca';
+    renderGuardadosSheet();
+    renderGuardados();
+  }, () => {
+    showAppNotice({ text:'Activa tu ubicación para ordenar por cercanía.' });
+  }, { enableHighAccuracy:true, timeout:10000, maximumAge:60000 });
+}
+function openGuardadosSheet(){
+  renderGuardadosSheet();
+  svBackdrop.classList.add('visible');
+  svSheet.classList.add('visible');
+  svSheet.setAttribute('aria-hidden', 'false');
+}
+function closeGuardadosSheet(){
+  if (!svSheet) return;
+  svBackdrop.classList.remove('visible');
+  svSheet.classList.remove('visible');
+  svSheet.setAttribute('aria-hidden', 'true');
+  syncGuardadosFilterBtn();
+}
+document.getElementById('guardadosFilterBtn').addEventListener('click', openGuardadosSheet);
+svBackdrop.addEventListener('click', () => closeGuardadosSheet());
+document.getElementById('svDone').addEventListener('click', () => closeGuardadosSheet());
+document.getElementById('svReset').addEventListener('click', () => {
+  guardadosSort = 'comuna';
+  guardadosComuna = 'todas';
+  renderGuardadosSheet();
+  renderGuardados();
 });
 document.querySelectorAll('.bottom-nav .nav-item').forEach(item => {
   if (item.id !== 'navGuardados' && item.id !== 'navAlbum'){
