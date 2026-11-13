@@ -16436,6 +16436,42 @@ let currentAlbumIsPersonal = false;
 // Comprueba que descubrimientos y recuerdos estén cargados. Si algo falló, el álbum muestra
 // "No pudimos cargar tu álbum" + Reintentar, en vez de todo bloqueado o sin fotos (estado falso).
 let albumLoadError = false;
+
+/* ---------- PORTADAS DEL ÁLBUM PRECARGADAS ----------
+   Las portadas (Los Vilos, Salamanca, Illapel…) recién se pedían al abrir el Álbum, y Supabase
+   tarda entre 0,8 y 2 s en entregarlas: el capítulo aparecía vacío y la foto llegaba después.
+   Ahora se descargan y decodifican en segundo plano apenas la app está tranquila (con sesión
+   iniciada), junto con las fotos de tus experiencias descubiertas. Las imágenes quedan guardadas
+   en albumImageKeep para que el navegador no las descarte: al abrir el Álbum se pintan de una. */
+const albumImageKeep = new Map(); // dirección → imagen ya decodificada
+let albumPreloadTimer = null;
+// withAllPlaces = true (solo con el Álbum ya abierto): suma las fotos de todas las experiencias,
+// las que se ven al entrar a una comuna (también las «Aún por descubrir»).
+function preloadAlbumImages(withAllPlaces){
+  if (!currentAuthUser || !LOCALITIES.length) return; // el Álbum exige sesión y datos cargados
+  const urls = LOCALITIES.map(l => thumbUrl(communeHeroImage(l), 960));
+  const places = withAllPlaces === true ? DEMO_PLACES : [...discoveredExperienceIds].map(id => DEMO_PLACES.find(p => p.id === id));
+  places.forEach(place => {
+    if (place) urls.push(thumbUrl(place.image, 480)); // misma dirección que usa la tarjeta del Álbum
+  });
+  urls.forEach(url => {
+    if (!url || albumImageKeep.has(url)) return;
+    const img = new Image();
+    img.decoding = 'async';
+    img.onerror = () => albumImageKeep.delete(url); // si falla, se reintenta la próxima vez
+    img.src = url;
+    albumImageKeep.set(url, img);
+    if (img.decode) img.decode().catch(() => {});
+  });
+}
+// Espera 2,5 s y un momento libre, para no competir con el mapa mientras carga.
+function scheduleAlbumImagePreload(){
+  clearTimeout(albumPreloadTimer);
+  albumPreloadTimer = setTimeout(() => {
+    if ('requestIdleCallback' in window) requestIdleCallback(() => preloadAlbumImages(), { timeout:2000 });
+    else preloadAlbumImages();
+  }, 2500);
+}
 async function refreshAlbumData(){
   const uid = currentAuthUser && currentAuthUser.id;
   if (!uid) return;
@@ -16455,7 +16491,8 @@ function openAlbum(){
   // requireAuth() — sin sesión, abre el login y ninguna línea de acá abajo
   // se ejecuta; con sesión, corre tal cual siempre corrió.
   return requireAuth(() => {
-    refreshAlbumData(); // en segundo plano: si algo no cargó, el índice pasa a "No pudimos cargar tu álbum"
+      refreshAlbumData(); // en segundo plano: si algo no cargó, el índice pasa a "No pudimos cargar tu álbum"
+    setTimeout(() => preloadAlbumImages(true), 400); // con el Álbum abierto: fotos de las comunas en segundo plano
     showAlbumIndex();
     albumScreen.classList.add('visible');
     document.querySelectorAll('.bottom-nav .nav-item').forEach(n => n.classList.remove('active'));
@@ -16468,6 +16505,8 @@ function closeAlbum(){
   document.querySelector('.bottom-nav .nav-item').classList.add('active'); // vuelve a "Explorar"
 }
 document.getElementById('navAlbum').addEventListener('click', openAlbum);
+// Al apoyar el dedo en «Mi Álbum» (antes de soltarlo) se piden de inmediato las que aún falten.
+document.getElementById('navAlbum').addEventListener('pointerdown', () => preloadAlbumImages(), { passive:true });
 document.getElementById('albumBack').addEventListener('click', () => {
   if (albumDetailView.classList.contains('active')) showAlbumIndex();
   else closeAlbum();
@@ -17174,7 +17213,8 @@ function applySupabaseData({ newLocalities, newSublocalities, newPlaces }){
   // visible — cualquier experiencia nueva sincronizada desde Supabase queda
   // cubierta automáticamente, sin lista ni condición manual.
 
-  console.info(`[Supabase] Datos remotos aplicados: ${newPlaces.length} experiencias, ${newLocalities.length} comunas.`);
+  scheduleAlbumImagePreload(); // portadas del Álbum listas antes de que el usuario lo abra
+  console.info(`[Supabase] Datos remotos aplicados:${newPlaces.length} experiencias, ${newLocalities.length} comunas.`);
 }
 
 // Aviso cuando no cargan las experiencias, con "Reintentar". Si fue por falta de internet,
@@ -17500,7 +17540,8 @@ if (supabaseClient){
     // ya la había iniciado); sin sesión, se limpia todo de inmediato.
        if (currentAuthUser){
       loadSavedPlaces();
-      loadDiscoveredExperiences(); // mismo listener único — sin crear uno nuevo
+         loadDiscoveredExperiences(); // mismo listener único — sin crear uno nuevo
+      scheduleAlbumImagePreload(); // con sesión: portadas del Álbum en segundo plano
     } else {
       savedPlaceIds.clear();
       savedPlacesLoaded = true;
