@@ -207,6 +207,12 @@ img{-webkit-user-drag:none; user-select:none;}
 }
 
 .search-wrap{position:relative;}
+/* Al entrar/salir de una comuna el buscador ya no desaparece de golpe (los chips saltaban 48 px
+   en un solo cuadro): se pliega y se despliega en 0,28 s y los chips se deslizan a su lugar. */
+.search-wrap{
+  max-height:56px;
+  transition:max-height .28s cubic-bezier(.4,0,.2,1), opacity .2s ease, margin-top .28s cubic-bezier(.4,0,.2,1), visibility 0s;
+}
 
 .searchbar{
   display:flex; align-items:center; gap:9px;
@@ -515,6 +521,12 @@ button.smart-card:focus-visible{outline:2px solid rgba(95,225,232,0.45); outline
   transform:translateY(-1px);
 }
 .chip:active{transform:scale(0.95);}
+/* Chips de categorías sin desenfoque de fondo y con un fondo un poco más sólido. Antes, al empezar
+   y al terminar cada movimiento del mapa (entrar o salir de una comuna o localidad) el desenfoque
+   se apagaba y se volvía a encender de golpe: el celular rehacía la capa y los chips parpadeaban.
+   Ahora se ven siempre igual (de día ya usaban este mismo fondo sólido). */
+.chips-row .chip{ backdrop-filter:none; -webkit-backdrop-filter:none; }
+.chips-row .chip:not(.active){ background:rgba(16,36,56,0.82); }
 
 /* ---------------- HEADER COMPACTO ----------------
    Se activa mientras el usuario explora el mapa (pan/zoom real, nunca vuelos
@@ -562,8 +574,11 @@ button.smart-card:focus-visible{outline:2px solid rgba(95,225,232,0.45); outline
    propia, independiente de nav-voy-hidden, para que ambos disparadores
    (navegación GPS y contexto de comuna) no se pisen entre sí. */
 .search-wrap.locality-hidden{
-  display:none;
+  max-height:0; opacity:0; overflow:hidden; visibility:hidden; pointer-events:none;
+  margin-top:-12px; /* descuenta el espacio entre filas del encabezado: los chips quedan donde siempre */
+  transition:max-height .28s cubic-bezier(.4,0,.2,1), opacity .2s ease, margin-top .28s cubic-bezier(.4,0,.2,1), visibility 0s linear .28s;
 }
+.top-ui.compact .search-wrap.locality-hidden{ margin-top:-7px; }
 /* .breadcrumb-pill ya alterna display:none/flex vía su propia clase
    .visible — !important necesario solo para poder forzar el ocultamiento
    por encima de esa clase mientras dura la navegación activa. */
@@ -4146,7 +4161,7 @@ body:has(#poiDetail.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pill)
    El desenfoque de fondo de los controles sobre el mapa se recalcula en cada cuadro del mapa.
    Solo mientras se arrastra (body.map-moving) se apaga y un velo oscuro sutil compensa el tono;
    al soltar vuelve el vidrio. El chip activo no se toca. */
-body.map-moving :is(.searchbar, .chip:not(.active), .profile-btn, .map-controls, .locate-btn, .compass-btn, .zone-prompt, .sheet-pill, .comuna-panel, .comuna-panel-pill, .bottom-nav){
+body.map-moving :is(.searchbar, .profile-btn, .map-controls, .locate-btn, .compass-btn, .zone-prompt, .sheet-pill, .comuna-panel, .comuna-panel-pill, .bottom-nav){
   backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
   box-shadow:inset 0 0 0 100vmax rgba(11,23,38,.18), var(--shadow-float, 0 0 0 transparent);
 }
