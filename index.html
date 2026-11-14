@@ -1183,7 +1183,9 @@ body.map-covered .tg-edge::after{animation-play-state:paused;}
    asomarse detrás: ni la píldora «¿Qué hacer hoy?» ni el panel «En [comuna]».
    La ficha entra con un fundido, así que se apagan en el mismo instante en que
    empieza a aparecer, y vuelven solas al cerrarla. */
-body:has(#poiDetail.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pill){
+body:has(#poiDetail.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pill),
+body:has(#routeSummaryPanel.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pill),
+body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pill){
   opacity:0 !important; pointer-events:none !important; transition:opacity .12s ease;
 }
 .sheet-pill:active{transform:scale(0.97);}
@@ -3105,11 +3107,11 @@ body:has(#poiDetail.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pill)
    normal), con volumen (gradiente) y pulso propio. Solo se aplica mientras dura
    la navegación (ver setUserMarkerNavStyle); fuera de este flujo el marcador
    sigue usando .user-dot tal cual, sin ningún cambio. */
-.nav-user-marker{width:34px; height:34px;}
+.nav-user-marker{width:44px; height:44px; overflow:visible;}
 .nav-user-marker .halo{animation: nav-user-pulse 3.4s ease-in-out infinite; transform-origin:center;}
 @keyframes nav-user-pulse{
-  0%,100%{ opacity:0.10; r:11; }
-  50%{ opacity:0.22; r:12; }
+  0%,100%{ opacity:0.10; r:17; }
+  50%{ opacity:0.20; r:19; }
 }
 @media (min-width:640px){ .nav-recenter-btn{right:calc(50% - 320px + 16px);} }
 
@@ -4161,7 +4163,8 @@ body:has(#poiDetail.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pill)
    El desenfoque de fondo de los controles sobre el mapa se recalcula en cada cuadro del mapa.
    Solo mientras se arrastra (body.map-moving) se apaga y un velo oscuro sutil compensa el tono;
    al soltar vuelve el vidrio. El chip activo no se toca. */
-body.map-moving :is(.searchbar, .profile-btn, .map-controls, .locate-btn, .compass-btn, .zone-prompt, .sheet-pill, .comuna-panel, .comuna-panel-pill, .bottom-nav){
+body.map-moving :is(.searchbar, .profile-btn, .map-controls, .locate-btn, .compass-btn, .zone-prompt, .sheet-pill, .comuna-panel, .comuna-panel-pill, .bottom-nav),
+body.nav-live :is(.profile-btn, .compass-btn, .bottom-nav){
   backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
   box-shadow:inset 0 0 0 100vmax rgba(11,23,38,.18), var(--shadow-float, 0 0 0 transparent);
 }
@@ -6003,7 +6006,15 @@ const COMMUNE_LABEL_SIZE_NAV = 11.5;
 // solo se realza el tramo intermedio de localidad, de forma progresiva
 // (sube y vuelve a bajar suave, sin ningún salto).
 const HILLSHADE_EXAGGERATION_NORMAL = ['interpolate', ['linear'], ['zoom'], 8, 0.37, 10, 0.39, 12.5, 0.39, 14, 0.31, 16, 0.20, 17.5, 0.14];
-const HILLSHADE_EXAGGERATION_NAV    = ['interpolate', ['linear'], ['zoom'], 8, 0.46, 14, 0.40, 16, 0.26, 17.5, 0.18];
+const HILLSHADE_EXAGGERATION_NAV    = ['interpolate', ['linear'], ['zoom'], 8, 0.46, 12, 0.42, 13.5, 0.52, 15, 0.46, 16.5, 0.30, 17.5, 0.18];
+// Caminos menores y senderos: un escalón más visibles SOLO durante el flujo de ruta.
+// [capa, propiedad, multiplicador] — se guarda el valor real antes de tocarlo y se devuelve tal cual al terminar.
+const NAV_ROAD_BOOSTS = [
+  ['highway_minor', 'line-opacity', 1.3],
+  ['highway_minor', 'line-width', 1.3],
+  ['highway_path', 'line-opacity', 1.6],
+];
+const navRoadBase = {};
 let NAV_COMMUNE_LABEL_LAYER_IDS = []; // se completa dentro de tintMapLayers()
 let navCartographyBoosted = false;
 
@@ -6016,9 +6027,16 @@ function applyNavCartographyBoost(){
     map.setPaintProperty(id, 'text-opacity', COMMUNE_LABEL_OPACITY_NAV);
     map.setLayoutProperty(id, 'text-size', COMMUNE_LABEL_SIZE_NAV);
   });
-  if (map.getLayer('hillshade-subtle')){
+   if (map.getLayer('hillshade-subtle')){
     map.setPaintProperty('hillshade-subtle', 'hillshade-exaggeration', HILLSHADE_EXAGGERATION_NAV);
   }
+  NAV_ROAD_BOOSTS.forEach(([id, prop, mult]) => {
+    if (!map.getLayer(id)) return;
+    const base = map.getPaintProperty(id, prop);
+    if (base == null) return;
+    navRoadBase[id + '|' + prop] = base;
+    map.setPaintProperty(id, prop, scaleOpacityValue(base, mult));
+  });
 }
 function restoreNormalCartography(){
   if (!navCartographyBoosted) return;
@@ -6028,9 +6046,15 @@ function restoreNormalCartography(){
     map.setPaintProperty(id, 'text-opacity', COMMUNE_LABEL_OPACITY_NORMAL);
     map.setLayoutProperty(id, 'text-size', COMMUNE_LABEL_SIZE_NORMAL);
   });
-  if (map.getLayer('hillshade-subtle')){
+   if (map.getLayer('hillshade-subtle')){
    applyDayHillshade(getResolvedAtmosphere());
   }
+  NAV_ROAD_BOOSTS.forEach(([id, prop]) => {
+    const key = id + '|' + prop;
+    if (!(key in navRoadBase)) return;
+    if (map.getLayer(id)) map.setPaintProperty(id, prop, navRoadBase[key]);
+    delete navRoadBase[key];
+  });
 }
 
 let state = { activeExperience:'todos', selectedPlace:null, sheetExpanded:false, currentLocality:null, currentSublocality:null };
@@ -12802,10 +12826,11 @@ function renderNavDestinationMarker(place){
     el.className = 'nav-dest-marker nav-dest-photo';
     el.style.setProperty('--ndm-ring', blendHex(color, '#07131F', 0.22)); // mismo tono de aro que los POIs con foto
     el.innerHTML = `<div class="ndm-ring"><div class="ndm-photo"></div></div>`;
-    el.querySelector('.ndm-photo').style.backgroundImage = `url("${place.image}")`;
+       const destThumb = thumbUrl(place.image, 160);
+    el.querySelector('.ndm-photo').style.backgroundImage = `url("${destThumb}")`;
     const probe = new Image();
     probe.onerror = useIconFallback; // la foto no cargó: vuelve al ícono de categoría
-    probe.src = place.image;
+    probe.src = destThumb;
   } else {
     useIconFallback();
   }
@@ -12824,13 +12849,14 @@ function setDestBadge(el, place, color, iconKey, iconSize){
   };
   if (!place || !place.image){ showIcon(); return; }
   el.innerHTML = '<span style="display:block;width:100%;height:100%;border-radius:50%;background-size:cover;background-position:center;box-shadow:inset 0 0 0 1px rgba(7,19,31,0.55);"></span>';
-  el.firstChild.style.backgroundImage = `url("${place.image}")`;
+    const badgeThumb = thumbUrl(place.image, 160);
+  el.firstChild.style.backgroundImage = `url("${badgeThumb}")`;
   el.style.padding = '2px'; // el aro es el propio fondo del contenedor
   el.style.color = '';
   el.style.background = blendHex(color, '#07131F', 0.22);
   const probe = new Image();
   probe.onerror = showIcon;
-  probe.src = place.image;
+  probe.src = badgeThumb;
 }
 function clearNavDestinationMarker(){
   if (state.nav.destMarker){ state.nav.destMarker.remove(); state.nav.destMarker = null; }
@@ -12849,7 +12875,9 @@ function clearNavRoute(){
   clearNavConnector();
   stopRouteGlow();
    routeSummaryPanel.classList.remove('visible');
-  clearNavDestinationMarker();
+   clearNavDestinationMarker();
+  state.nav.requestToken++; // una respuesta de ruta que llegue después de cancelar/terminar se descarta (ver fetchRoute)
+  state.nav.flowId = (state.nav.flowId || 0) + 1; // y un error tardío tampoco se muestra
   state.nav.active = false;
   restoreNormalCartography();
   state.nav.routeGeoJSON = null;
@@ -12907,7 +12935,11 @@ function routeErrorMessage(err, mode){
 }
 async function fetchRoute(mode, from, to){
   const myToken = ++state.nav.requestToken;
+  // Límite de espera: sin esto, con mala señal «Calculando ruta…» podía quedarse para siempre.
+  const routeAbort = typeof AbortController === 'function' ? new AbortController() : null;
+  if (routeAbort) setTimeout(() => routeAbort.abort(), 15000);
   const res = await fetch(`https://api.openrouteservice.org/v2/directions/${mode}/geojson`, {
+    signal: routeAbort ? routeAbort.signal : undefined,
     method:'POST',
     headers:{ 'Authorization': ORS_API_KEY, 'Content-Type':'application/json' },
     // language:'es' — mismo endpoint de siempre, solo se pide el idioma
@@ -13291,6 +13323,8 @@ function renderRouteSummaryPanel(){
 // mapa + panel. Se llama tanto desde la Fase 1 (apenas hay ubicación) como al
 // cambiar de modo dentro del propio panel de resumen.
 async function calculateAndShowRoute(mode){
+  const prevMode = state.nav.mode;
+  const myFlow = state.nav.flowId = (state.nav.flowId || 0) + 1; // cambia si el usuario cancela o pide otra ruta mientras se calcula
   state.nav.mode = mode;
   const place = state.nav.targetPlace;
   const userCoords = state.nav.userCoords;
@@ -13340,9 +13374,15 @@ document.getElementById('app').classList.add('route-preview'); // estilo de "pun
     rspStatus.style.display = 'none';
     renderRouteSummaryPanel();
   } catch(err){
-    console.error('Error calculando ruta ORS', err);
+      console.error('Error calculando ruta ORS', err);
+    if (myFlow !== state.nav.flowId) return; // se canceló o se pidió otra ruta mientras tanto: este error ya no corresponde
     rspStatus.className = 'rsp-status error';
 rspStatus.innerHTML = `${icon('pin', 13)} ${routeErrorMessage(err, mode)}`;
+    // Si ya había una ruta dibujada (cambio de modo que falló), el panel vuelve a marcar el modo de ESA ruta.
+    if (state.nav.routeGeoJSON && prevMode && prevMode !== mode){
+      state.nav.mode = prevMode;
+      renderRouteSummaryPanel();
+    }
   }
 }
 
@@ -13460,9 +13500,13 @@ function navUserInnerSVG(heading){
         <stop offset="100%" stop-color="${color}" stop-opacity="0.85"/>
       </radialGradient>
     </defs>
-    <circle class="halo" cx="17" cy="17" r="11" fill="${color}" opacity="0.14"/>
-    <path class="nav-heading" d="M17 2 L22 12 L17 9 L12 12 Z" fill="${color}" opacity="0.9" transform="rotate(${hasHeading ? heading : 0} 17 17)"${hasHeading ? '' : ' style="display:none"'}/>
-    <circle cx="17" cy="17" r="7.5" fill="url(#navUserGrad)" stroke="#07131F" stroke-width="2"/>
+       <circle class="halo" cx="22" cy="22" r="17" fill="${color}" opacity="0.14"/>
+    <circle class="nav-puck" cx="22" cy="22" r="10.5" fill="url(#navUserGrad)" stroke="#07131F" stroke-width="2.4"/>
+    <g class="nav-heading" transform="rotate(${hasHeading ? heading : 0} 22 22)"${hasHeading ? '' : ' style="display:none"'}>
+      <path d="M22 1.6 L28.6 11.6 Q22 8.4 15.4 11.6 Z" fill="#F2FDFE" stroke="#07131F" stroke-width="1.6" stroke-linejoin="round"/>
+      <path d="M22 15.6 L26.6 27 L22 24.6 L17.4 27 Z" fill="#07131F" opacity="0.82"/>
+    </g>
+    <circle class="nav-core" cx="22" cy="22" r="3" fill="#07131F" opacity="0.82"${hasHeading ? ' style="display:none"' : ''}/>
   `;
 }
 // Alterna el marcador de usuario (nodo SVG único, reutilizado por
@@ -13478,7 +13522,7 @@ function setUserMarkerNavStyle(active, heading){
   const el = userMarker.getElement();
   if (active){
     if (el.dataset.navMode !== 'nav'){
-      el.setAttribute('viewBox', '0 0 34 34');
+       el.setAttribute('viewBox', '0 0 44 44');
       el.classList.remove('user-dot');
       el.classList.add('nav-user-marker'); // classList: conserva las clases de MapLibre
       el.innerHTML = navUserInnerSVG(heading);
@@ -13488,8 +13532,10 @@ function setUserMarkerNavStyle(active, heading){
     const arrow = el.querySelector('.nav-heading');
     if (!arrow) return;
     const hasHeading = heading != null && !isNaN(heading);
-    arrow.style.display = hasHeading ? '' : 'none';
-    if (hasHeading) arrow.setAttribute('transform', `rotate(${heading.toFixed(1)} 17 17)`);
+       arrow.style.display = hasHeading ? '' : 'none';
+    const core = el.querySelector('.nav-core');
+    if (core) core.style.display = hasHeading ? 'none' : '';
+    if (hasHeading) arrow.setAttribute('transform', `rotate(${heading.toFixed(1)} 22 22)`);
   } else {
     if (el.dataset.navMode !== 'nav') return; // ya está como punto normal
     el.setAttribute('viewBox', '0 0 22 22');
@@ -13553,7 +13599,7 @@ function startNavMarkerAnimation(toLat, toLng, toHeadingRaw){
   duration = Math.min(Math.max(duration, MARKER_ANIM_MIN_DURATION), MARKER_ANIM_MAX_DURATION);
   state.nav.lastFixTime = now;
 
-  state.nav.animFrom = state.nav.displayLngLat;
+    state.nav.animFrom = state.nav.displayLngLat || [toLng, toLat];
   state.nav.animTo = [toLng, toLat];
   state.nav.animFromHeading = state.nav.displayHeading != null ? state.nav.displayHeading : (toHeadingRaw != null ? toHeadingRaw : 0);
   state.nav.animToHeading = toHeadingRaw != null ? toHeadingRaw : state.nav.animFromHeading;
@@ -13602,11 +13648,36 @@ function handleManualMapInteraction(e){
 map.on('dragstart', handleManualMapInteraction);
 map.on('zoomstart', handleManualMapInteraction);
 
+// Zoom de seguimiento según el modo: en auto se necesita ver más camino por delante que a pie.
+const NAV_FOLLOW_ZOOM = { 'foot-walking':15.5, 'cycling-regular':15, 'driving-car':14.4 };
+function navFollowZoom(){ return NAV_FOLLOW_ZOOM[state.nav.mode] || 15.5; }
+// Centra al usuario en la parte del mapa que realmente se ve (entre el encabezado y el panel de viaje),
+// no en el centro de la pantalla, que queda medio tapado por el panel.
+function navFollowOffset(){
+  const mapH = map.getContainer().clientHeight;
+  if (!activeNavHud.classList.contains('visible')) return [0, 0];
+  const hudTop = activeNavHud.getBoundingClientRect().top - map.getContainer().getBoundingClientRect().top;
+  const visibleTop = 84;
+  if (!(hudTop > visibleTop + 120)) return [0, 0];
+  return [0, Math.round((visibleTop + hudTop) / 2 - mapH / 2)];
+}
+// Avisos dentro del panel de viaje (recalculando / sin señal). Sin texto = se oculta.
+function setNavStatus(kind, html){
+  const anhStatus = document.getElementById('anhStatus');
+  if (!html){ anhStatus.style.display = 'none'; }
+  else {
+    anhStatus.style.display = 'flex';
+    anhStatus.className = 'anh-status' + (kind === 'error' ? ' error' : '');
+    anhStatus.innerHTML = html;
+  }
+  requestAnimationFrame(updateNavRecenterOffset);
+}
 navRecenterBtn.addEventListener('click', () => {
   state.nav.followMode = true;
   navRecenterBtn.classList.remove('visible');
-  if (state.nav.userCoords){
-    map.easeTo({ center:[state.nav.userCoords.lng, state.nav.userCoords.lat], zoom:15.5, duration:600 });
+  const c = state.nav.displayLngLat || (state.nav.userCoords ? [state.nav.userCoords.lng, state.nav.userCoords.lat] : null);
+  if (c){
+    map.easeTo({ center:c, zoom:navFollowZoom(), offset:navFollowOffset(), duration:600 });
   }
 });
 
@@ -13640,7 +13711,25 @@ function startActiveNavigation(){
     document.getElementById('anhDestName').textContent = navDestPlace.name;
   }
 
-                  updateManeuverDisplay(null); // se muestra recién con el primer fix real de GPS
+                    updateManeuverDisplay(null); // se muestra recién con el primer fix real de GPS
+  // El panel no arranca con «—»: muestra desde ya el tiempo y la distancia de la ruta recién calculada.
+  document.getElementById('anhEta').textContent = formatDuration(state.nav.routeDuration);
+  document.getElementById('anhDist').textContent = `${formatRouteDistance(state.nav.routeDistance)} · Llegas a las ${formatArrivalTime(state.nav.routeDuration)}`;
+  setNavStatus(null);
+  // Estado limpio para este viaje.
+  state.nav.heading = null;
+  state.nav.headingAnchor = null;
+  state.nav.offRouteCount = 0;
+  state.nav.farCount = 0;
+  state.nav.arriving = false;
+  state.nav.displayLngLat = null;
+  state.nav.displayHeading = null;
+  state.nav.lastFixTime = null;
+  // Distancia inicial hasta el camino (si el usuario parte lejos de una calle, eso no cuenta como desvío).
+  state.nav.offRouteBaseM = state.nav.userCoords
+    ? distanceKm(state.nav.userCoords.lat, state.nav.userCoords.lng, state.nav.routeGeoJSON.coordinates[0][1], state.nav.routeGeoJSON.coordinates[0][0]) * 1000
+    : 0;
+  document.body.classList.add('nav-live');
   routeSummaryPanel.classList.remove('visible');
   activeNavHud.classList.add('visible');
   requestAnimationFrame(updateNavRecenterOffset); // altura real del HUD recién visible
@@ -13650,34 +13739,46 @@ function startActiveNavigation(){
   // Fuera de este flujo, #btnCenterMe sigue funcionando exactamente igual.
   document.getElementById('btnCenterMe').style.display = 'none';
 
-  state.nav.watchId = navigator.geolocation.watchPosition(
-    pos => onNavPositionUpdate({ lat: pos.coords.latitude, lng: pos.coords.longitude }, pos.coords.heading),
+   state.nav.watchId = navigator.geolocation.watchPosition(
+    pos => onNavPositionUpdate({ lat: pos.coords.latitude, lng: pos.coords.longitude }, pos.coords.heading, pos.coords.accuracy),
     err => onNavPositionError(err),
     { enableHighAccuracy:true, maximumAge:2000, timeout:12000 }
   );
+  // Primer encuadre con la ubicación ya conocida (la misma con la que se calculó la ruta):
+  // el indicador y la cámara no esperan al primer dato nuevo del GPS.
+  if (state.nav.userCoords) onNavPositionUpdate(state.nav.userCoords, null, null);
 }
 
-function onNavPositionUpdate(userCoords, gpsHeading){
-  document.getElementById('anhStatus').style.display = 'none';
+function onNavPositionUpdate(userCoords, gpsHeading, accuracyM){
+  if (state.nav.watchId == null || !state.nav.routeGeoJSON || !state.nav.targetPlace) return; // el viaje ya terminó
+  if (!state.nav.offRouteRecalculating) setNavStatus(null);
   state.nav.userCoords = userCoords;
+  // Un dato muy impreciso (más de 50 m de margen) mueve el indicador, pero no decide llegada ni desvío.
+  const accOk = accuracyM == null || isNaN(accuracyM) || accuracyM <= 50;
 
-  // Dirección: se prioriza el heading real del GPS; si no viene disponible, se
-  // calcula a partir del último tramo recorrido. Si el usuario no se movió lo
-  // suficiente (menos de 2m) para un cálculo confiable, se conserva el último
-  // rumbo conocido en vez de mostrar un cono errático.
+  // Dirección: se prioriza el rumbo real del GPS. Si no viene, se calcula con el
+  // desplazamiento ACUMULADO desde un punto de referencia que solo avanza cuando el
+  // usuario se movió lo suficiente (antes se comparaba con el dato anterior y, caminando
+  // a paso normal, nunca se superaba el mínimo: la flecha no aparecía). Detenido, se
+  // conserva el último rumbo real; nunca se inventa uno.
   if (gpsHeading != null && !isNaN(gpsHeading)){
     state.nav.heading = gpsHeading;
-  } else if (state.nav.lastUserCoords){
-    const movedM = distanceKm(state.nav.lastUserCoords.lat, state.nav.lastUserCoords.lng, userCoords.lat, userCoords.lng) * 1000;
-    if (movedM > 2){
-      state.nav.heading = computeBearing(state.nav.lastUserCoords.lat, state.nav.lastUserCoords.lng, userCoords.lat, userCoords.lng);
+    state.nav.headingAnchor = userCoords;
+  } else if (!state.nav.headingAnchor){
+    state.nav.headingAnchor = userCoords;
+  } else {
+    const a = state.nav.headingAnchor;
+    const movedM = distanceKm(a.lat, a.lng, userCoords.lat, userCoords.lng) * 1000;
+    if (movedM >= Math.max(6, (accuracyM || 0) * 0.6)){
+      state.nav.heading = computeBearing(a.lat, a.lng, userCoords.lat, userCoords.lng);
+      state.nav.headingAnchor = userCoords;
     }
   }
   state.nav.lastUserCoords = userCoords;
 
   const place = state.nav.targetPlace;
   const distToDestM = distanceKm(userCoords.lat, userCoords.lng, place.lat, place.lng) * 1000;
-  if (distToDestM <= ARRIVAL_RADIUS_M){
+  if (distToDestM <= ARRIVAL_RADIUS_M && accOk){
     finishNavigation('arrived');
     return;
   }
@@ -13685,6 +13786,21 @@ function onNavPositionUpdate(userCoords, gpsHeading){
    const coords = state.nav.routeGeoJSON.coordinates;
   const nearest = nearestPointOnLine(coords, [userCoords.lng, userCoords.lat]);
   const remaining = trimRouteFromPoint(coords, nearest);
+
+  // Desvío: distancia real entre el usuario y la ruta. Hace falta que se repita en 2 datos
+  // seguidos (un salto aislado del GPS no cuenta) y que supere tanto el umbral como la
+  // distancia que ya había hasta el camino al partir (quien sale desde un lugar sin calle
+  // no está "desviado").
+  const offRouteM = distanceKm(userCoords.lat, userCoords.lng, nearest.point[1], nearest.point[0]) * 1000;
+  if (offRouteM < OFF_ROUTE_THRESHOLD_M) state.nav.offRouteBaseM = 0; // ya está sobre el camino
+  const offLimitM = Math.max(OFF_ROUTE_THRESHOLD_M, (accuracyM || 0) * 1.5, (state.nav.offRouteBaseM || 0) + 25);
+  state.nav.offRouteCount = (accOk && offRouteM > offLimitM) ? (state.nav.offRouteCount || 0) + 1 : 0;
+  const isOffRoute = state.nav.offRouteCount >= 2;
+  // El indicador se ancla a la ruta solo si el usuario está realmente sobre ella (dentro del margen
+  // normal del GPS). Si lleva 2 datos seguidos más lejos que eso, se dibuja en su posición real.
+  const snapLimitM = Math.max(25, (accuracyM || 0) * 1.2);
+  state.nav.farCount = offRouteM > snapLimitM ? (state.nav.farCount || 0) + 1 : 0;
+  const showReal = isOffRoute || state.nav.farCount >= 2 || (!state.nav.displayLngLat && offRouteM > snapLimitM);
   drawRouteOnMap({ type:'LineString', coordinates: remaining }); // reutiliza la función existente de Fase 2, sin tocarla
   // El conector se recalcula contra el inicio de la geometría RESTANTE (ya
   // recortada), no la original — así siempre conecta con el tramo de ruta que
@@ -13700,11 +13816,32 @@ function onNavPositionUpdate(userCoords, gpsHeading){
   // no era un offset de cámara ni del marcador. La detección de llegada, el
   // rumbo y el ETA/distancia siguen calculándose con userCoords (GPS real),
   // sin tocar — esto solo cambia DÓNDE se dibuja el punto en el mapa.
-  const displayLng = nearest.point[0], displayLat = nearest.point[1];
-  placeUserMarker(displayLat, displayLng);
-  setUserMarkerNavStyle(true, state.nav.heading);
+   // Lejos de la ruta se muestra la posición REAL (no se "pega" a un camino donde el usuario no está).
+  const displayLng = showReal ? userCoords.lng : nearest.point[0];
+  const displayLat = showReal ? userCoords.lat : nearest.point[1];
+  const firstDraw = !state.nav.displayLngLat;
+  if (firstDraw){
+    // Primer dibujo del viaje: se coloca directo, no hay punto anterior desde el cual deslizar.
+    placeUserMarker(displayLat, displayLng);
+    setUserMarkerNavStyle(true, null); // arma el indicador de viaje una sola vez
+    state.nav.displayLngLat = [displayLng, displayLat];
+    state.nav.displayHeading = state.nav.heading;
+    state.nav.lastFixTime = performance.now();
+    state.nav.animDuration = 700;
+    updateNavUserMarkerRotation();
+  } else {
+    // Desliza el indicador hasta la nueva posición en el mismo tiempo que tardó en llegar este dato.
+    startNavMarkerAnimation(displayLat, displayLng, state.nav.heading);
+  }
 
       const remainingM = lineLengthMeters(remaining);
+
+  // Recalcular solo cuando sirve: desvío confirmado, con internet, respetando la pausa entre
+  // intentos, y no en los últimos metros (ahí el tramo final se hace a pie hasta el lugar).
+  if (isOffRoute && !state.nav.offRouteRecalculating && remainingM > 80 && navigator.onLine
+      && Date.now() - (state.nav.lastRecalcAttempt || 0) > OFF_ROUTE_RECALC_COOLDOWN_MS){
+    recalculateRouteFromOffRoute();
+  }
   const remainingS = state.nav.speedMps > 0 ? remainingM / state.nav.speedMps : 0;
   document.getElementById('anhEta').textContent = formatDuration(remainingS);
   // Se compone igual que ya hace recalculateRouteFromOffRoute() — antes solo
@@ -13718,7 +13855,13 @@ function onNavPositionUpdate(userCoords, gpsHeading){
   // ningún cálculo geográfico nuevo. La distancia hasta la maniobra se mide
   // sobre el mismo tramo `remaining` ya recortado, acotado hasta el punto de
   // esa maniobra.
-  const nextStep = findNextManeuverStep(nearest.segmentIndex);
+   // Proximidad: cuando quedan pocos metros de ruta, el bloque de la próxima maniobra pasa a
+  // «Estás llegando» (una sola vez por viaje: no vuelve atrás por pequeñas variaciones del GPS).
+  const arrivingLimitM = state.nav.mode === 'driving-car' ? 300 : (state.nav.mode === 'cycling-regular' ? 150 : 80);
+  if (!isOffRoute && remainingM <= arrivingLimitM) state.nav.arriving = true;
+  const nextStep = state.nav.arriving
+    ? { type:10, instruction:'Estás llegando a tu destino', way_points:[coords.length - 1, coords.length - 1] }
+    : findNextManeuverStep(nearest.segmentIndex);
   if (nextStep){
     const wpIndexInRemaining = Math.max(0, Math.min(remaining.length - 1, nextStep.way_points[0] - nearest.segmentIndex));
     const distToManeuverM = lineLengthMeters(remaining.slice(0, wpIndexInRemaining + 1));
@@ -13734,8 +13877,12 @@ function onNavPositionUpdate(userCoords, gpsHeading){
   // modifica la elasticidad/bounds/moveend del mapa en modo exploración normal.
   // Sigue el mismo punto anclado a la ruta que usa el marcador (arriba), así
   // cámara y marcador nunca quedan en desacuerdo sobre dónde "está" el usuario.
-  if (state.nav.followMode){
-    map.easeTo({ center:[displayLng, displayLat], zoom: Math.max(map.getZoom(), 15.5), duration:700 });
+   if (state.nav.followMode){
+    // Misma duración y ritmo (lineal) que el deslizamiento del indicador: los dos avanzan juntos
+    // y el indicador se mantiene quieto en pantalla, en vez de saltar y que la cámara lo alcance después.
+    const cam = { center:[displayLng, displayLat], zoom: Math.max(map.getZoom(), navFollowZoom()), offset: navFollowOffset(), duration: firstDraw ? 700 : state.nav.animDuration };
+    if (!firstDraw) cam.easing = t => t; // lineal solo al acompañar el deslizamiento; el primer encuadre usa la curva normal
+    map.easeTo(cam);
   }
 }
 
@@ -13755,9 +13902,13 @@ async function recalculateRouteFromOffRoute(){
 
   state.nav.offRouteRecalculating = true;
   state.nav.lastRecalcAttempt = Date.now();
+  setNavStatus('info', `${icon('compassRose', 13)} Recalculando ruta…`);
   try{
     const route = await fetchRoute(state.nav.mode, userCoords, place);
-    if (!route) return; // descartada por una petición más nueva (mismo requestToken de fetchRoute)
+    if (!route || state.nav.watchId == null) return; // descartada: hay una petición más nueva o el viaje ya terminó
+    state.nav.offRouteCount = 0;
+    state.nav.arriving = false;
+    state.nav.offRouteBaseM = distanceKm(userCoords.lat, userCoords.lng, route.geometry.coordinates[0][1], route.geometry.coordinates[0][0]) * 1000;
        state.nav.routeGeoJSON = route.geometry;
     state.nav.routeDuration = route.durationS;
     state.nav.routeDistance = route.distanceM;
@@ -13773,8 +13924,9 @@ async function recalculateRouteFromOffRoute(){
     // como estaban; el cooldown ya se marcó arriba, así que no reintenta en
     // bucle inmediato, solo vuelve a intentar en el próximo desvío detectado
     // después de que pase el cooldown.
-  } finally {
+   } finally {
     state.nav.offRouteRecalculating = false;
+    if (state.nav.watchId != null) setNavStatus(null);
   }
 }
 
@@ -13805,6 +13957,16 @@ function finishNavigation(reason){
     setUserMarkerNavStyle(false);
   state.nav.heading = null;
   state.nav.lastUserCoords = null;
+  state.nav.headingAnchor = null;
+  state.nav.offRouteCount = 0;
+  state.nav.farCount = 0;
+  state.nav.offRouteBaseM = 0;
+  state.nav.arriving = false;
+  state.nav.lastFixTime = null;
+  document.body.classList.remove('nav-live');
+  document.getElementById('anhStatus').style.display = 'none';
+  // El punto vuelve a la ubicación real (durante el viaje se dibuja anclado a la ruta).
+  if (userMarker && state.nav.userCoords) userMarker.setLngLat([state.nav.userCoords.lng, state.nav.userCoords.lat]);
   state.nav.followMode = true; // reset — la próxima navegación empieza siempre en modo seguimiento
   if (state.nav.animRaf) cancelAnimationFrame(state.nav.animRaf);
   state.nav.animRaf = null;
