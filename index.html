@@ -10920,12 +10920,26 @@ function scaleZoomExpression(expr, mult){
   return expr.map((item, i) => (i >= 4 && i % 2 === 0) ? +(item * mult).toFixed(3) : item);
 }
 // Realce diurno del relieve. En navegación activa se respeta su propio refuerzo.
+// Cuánto cede el color propio del momento del día cuando hay una categoría activa (res.moodYield, 0 → 1).
+// Hoy solo dusk lo usa: su luz rosada se mezclaba con el color de la categoría y lo ensuciaba
+// (Naturaleza se veía café, Aventura rojiza). Sin categoría devuelve 0: el estado queda exacto.
+function atmoMoodYield(res){
+  return (res && res.moodYield && state.activeExperience && state.activeExperience !== 'todos') ? res.moodYield : 0;
+}
+// Fondo del momento del día, llevado hacia un tono neutro de la misma luminosidad según atmoMoodYield().
+function atmoMoodBg(res){
+  const y = atmoMoodYield(res);
+  return y ? blendHex(res.bg, blendHex(BASE_BG_COLOR, '#8A93A8', 0.08), y) : res.bg;
+}
 function applyDayHillshade(res){
   if (!map.getLayer('hillshade-subtle')) return;
    // luz cálida de día; blanco original en dusk/night
-  map.setPaintProperty('hillshade-subtle', 'hillshade-highlight-color', `rgba(${res.hillshadeHighlightRGB},${res.hillshadeHighlightAlpha})`);
-  map.setPaintProperty('hillshade-subtle', 'hillshade-shadow-color', res.hillshadeShadow);
-  map.setPaintProperty('hillshade-subtle', 'hillshade-accent-color', res.hillshadeAccent);
+  const moodY = atmoMoodYield(res); // con categoría activa: luz y sombras hacia neutro
+  const hlRGB = moodY ? atmoBlendRGB(res.hillshadeHighlightRGB, '255,244,232', moodY) : res.hillshadeHighlightRGB;
+  const hlAlpha = moodY ? +(res.hillshadeHighlightAlpha * (1 - 0.25 * moodY)).toFixed(3) : res.hillshadeHighlightAlpha;
+  map.setPaintProperty('hillshade-subtle', 'hillshade-highlight-color', `rgba(${hlRGB},${hlAlpha})`);
+  map.setPaintProperty('hillshade-subtle', 'hillshade-shadow-color', moodY ? blendHex(res.hillshadeShadow, '#050B12', moodY) : res.hillshadeShadow);
+  map.setPaintProperty('hillshade-subtle', 'hillshade-accent-color', moodY ? blendHex(res.hillshadeAccent, '#08111A', moodY) : res.hillshadeAccent);
   if (navCartographyBoosted) return;
   map.setPaintProperty('hillshade-subtle', 'hillshade-exaggeration', scaleZoomExpression(dampLocalityRelief(HILLSHADE_EXAGGERATION_NORMAL, res.hillshadeLocalityDamp), res.hillshadeBoost));
 }
@@ -10937,7 +10951,7 @@ function applyDayVignette(res){
  el.style.setProperty('--vignette-bottom', res.vignetteBottom);
   el.style.setProperty('--vignette-edge', res.vignetteEdge);
    el.style.setProperty('--moon-wash', res.moonWash);
-  el.style.setProperty('--sun-wash', res.sunWash || 0);
+   el.style.setProperty('--sun-wash', +((res.sunWash || 0) * (1 - 0.8 * atmoMoodYield(res))).toFixed(3));
   // Tarde: el sol se pone sobre el mar (izquierda). Amanecer: sale por la cordillera (derecha).
   el.style.setProperty('--sun-wash-x', new Date(atmosphereNow()).getHours() < 12 ? '115%' : '-15%');
 }
@@ -11041,7 +11055,7 @@ const TIME_ATMOSPHERE = {
   // — el chrome de la interfaz (header, buscador, chips, sheet) no se toca
   // en este cambio.
   midday:{ bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.42, bgLift:0.30, bgLiftTint:'#728C7D', liftTint:'#2482A9', layerTints:{ vegetation:'#387F62', residential:'#596165', building:'#808580' }, hillshadeShadow:'#0B1519', hillshadeAccent:'#123326', hillshadeBoost:1.3, hillshadeLocalityDamp:0.78, hillshadeHighlightRGB:'196,228,186', hillshadeHighlight:0.20, vignette:{ top:0.66, bottom:0.54, edge:0.33 }, reliefSecond:1, waterLife:1, coastShelf:1 },
-  dusk:  { bgTint:'#AE707F', bgAmount:0.08, glowAmount:0.22, glowOpacity:0.055, illum:292, dayLift:0, hillshadeHighlight:0.175, hillshadeHighlightRGB:'255,190,158', hillshadeShadow:'#0A0918', hillshadeAccent:'#1A1024', hillshadeBoost:1.2, hillshadeLocalityDamp:0.85, vignette:{ top:0.78, bottom:0.66, edge:0.40 }, waterTint:'#1A2A46', waterLift:0.40, waterLife:0.3, coastShelf:0.60, coastShelfHue:178, coastShelfSat:-0.20, coastShelfBright:0.95, shorelineColor:'#F6D6C0', shorelineOp:0.36, sunWash:1 },
+  dusk:  { bgTint:'#AE707F', bgAmount:0.08, glowAmount:0.22, glowOpacity:0.055, illum:292, dayLift:0, hillshadeHighlight:0.175, hillshadeHighlightRGB:'255,190,158', hillshadeShadow:'#0A0918', hillshadeAccent:'#1A1024', hillshadeBoost:1.2, hillshadeLocalityDamp:0.85, vignette:{ top:0.78, bottom:0.66, edge:0.40 }, waterTint:'#1A2A46', waterLift:0.40, waterLife:0.3, coastShelf:0.60, coastShelfHue:178, coastShelfSat:-0.20, coastShelfBright:0.95, shorelineColor:'#F6D6C0', shorelineOp:0.36, sunWash:1, moodYield:0.7 },
   night: { bgTint:'#88558D', bgAmount:0.13, glowAmount:0.15, glowOpacity:0.07, illum:300, dayLift:0.16, layerTints:{ vegetation:'#12241D', residential:'#C8913F', building:'#C8913F' }, vignette:{ top:0.88, bottom:0.74, edge:0.48 }, roadLight:0.12, moonWash:1, hillshadeHighlight:0.13, hillshadeHighlightRGB:'206,220,255', hillshadeShadow:'#04060F', hillshadeAccent:'#0B0E24', hillshadeBoost:1.12, hillshadeLocalityDamp:0.9, waterTint:'#0C2538', waterLift:0.5,coastGlow:1, waterShimmer:0.07, waterLife:0.35, coastShelf:0.45, coastShelfHue:40, coastShelfSat:-0.50, coastShelfBright:0.65,warmGlow:1, shorelineColor:'#C9CBE8', shorelineOp:0.26 },
 };
 let currentDayPeriod = null;
@@ -11318,7 +11332,8 @@ function resolveAtmosphere(periodCfg){
       ? blendHex(BASE_PALETTE.water, p.waterTint, p.waterLift || 0)   // tinte propio del agua (no toca la tierra)
       : blendHex(BASE_PALETTE.water, liftTint, amount),
    moonWash: p.moonWash || 0,                                          // 0 = sin velo de luna
-    sunWash: p.sunWash || 0,                                            // 0 = sin resplandor del sol bajo (solo dusk lo enciende)
+       sunWash: p.sunWash || 0,                                            // 0 = sin resplandor del sol bajo (solo dusk lo enciende)
+    moodYield: p.moodYield || 0,                                        // 0 = el estado no cede ante la categoría activa
     waterShimmer: p.waterShimmer || 0.03,                               // brillo de la respiración del agua
     roadLight: p.roadLight || 0,                                       // 0 = carreteras como siempre
            coastGlow: p.coastGlow != null ? p.coastGlow : 1,                   // 1 = costa como siempre
@@ -11416,7 +11431,8 @@ shorelineOp: atmoLerp(a.shorelineOp, b.shorelineOp, p, 0.01),
  
   roadLight: atmoLerp(a.roadLight, b.roadLight, p, 0.01),
       moonWash: atmoLerp(a.moonWash, b.moonWash, p, 0.01),
-    sunWash: atmoLerp(a.sunWash, b.sunWash, p, 0.01),
+       sunWash: atmoLerp(a.sunWash, b.sunWash, p, 0.01),
+    moodYield: atmoLerp(a.moodYield, b.moodYield, p, 0.01),
     waterShimmer: atmoLerp(a.waterShimmer, b.waterShimmer, p, 0.002),
     hillshadeShadow: blendHex(a.hillshadeShadow, b.hillshadeShadow, p),
     hillshadeAccent: blendHex(a.hillshadeAccent, b.hillshadeAccent, p),
@@ -11463,15 +11479,15 @@ function applyAtmosphereChanges(prev, next){
  if (changed('shorelineColor') || changed('shorelineOp')) applyShoreline(next);
   if (changed('warmGlow')) applyWarmGlow(next);
 
-if (changed('vignetteTop') || changed('vignetteBottom') || changed('vignetteEdge') || changed('moonWash') || changed('sunWash')) applyDayVignette(next);
-  if (changed('bg') || changed('glowColor') || changed('glowOpacity')){
+if (changed('vignetteTop') || changed('vignetteBottom') || changed('vignetteEdge') || changed('moonWash') || changed('sunWash') || changed('moodYield')) applyDayVignette(next);
+    if (changed('bg') || changed('moodYield') || changed('glowColor') || changed('glowOpacity')){
     const { tint, active } = getCategoryMix(state.activeExperience);
-    if (changed('bg')){
+    if (changed('bg') || changed('moodYield')){
       if (!atmosphereBgLayerId){
         const bgLayer = map.getStyle().layers.find(l => l.type === 'background');
         atmosphereBgLayerId = bgLayer ? bgLayer.id : null;
       }
-      if (atmosphereBgLayerId) map.setPaintProperty(atmosphereBgLayerId, 'background-color', blendHex(next.bg, tint, active ? 0.07 : 0));
+      if (atmosphereBgLayerId) map.setPaintProperty(atmosphereBgLayerId, 'background-color', blendHex(atmoMoodBg(next), tint, active ? 0.07 : 0));
     }
     if (map.getLayer('comuna-glow-layer')){
       if (changed('glowColor')) map.setPaintProperty('comuna-glow-layer', 'circle-color', blendHex(next.glowColor, tint, active ? 0.35 : 0));
@@ -11483,8 +11499,7 @@ if (changed('vignetteTop') || changed('vignetteBottom') || changed('vignetteEdge
   if (map.getLayer('hillshade-subtle')){
     if (changed('illum')) map.setPaintProperty('hillshade-subtle', 'hillshade-illumination-direction', next.illum);
     // applyDayHillshade() conserva el guard de navegación sobre la exageración.
-    if (['hillshadeShadow', 'hillshadeAccent', 'hillshadeHighlightRGB', 'hillshadeHighlightAlpha', 'hillshadeBoost', 'hillshadeLocalityDamp'].some(changed)) applyDayHillshade(next);
-  }
+    if (['hillshadeShadow', 'hillshadeAccent', 'hillshadeHighlightRGB', 'hillshadeHighlightAlpha', 'hillshadeBoost', 'hillshadeLocalityDamp', 'moodYield'].some(changed)) applyDayHillshade(next);
 }
 
 // Planificador: calcula, aplica diferencias y programa la próxima ejecución por hora real.
@@ -11557,7 +11572,7 @@ function applyMoodAtmosphere(expId){
 // Parte TEMPORAL de la atmósfera: viñeteado, fondo, brillo de comunas y relieve.
 // La categoría solo llega como tinte para mezclar encima (4.5 % fondo, 35 % brillo).
 function applyTimeAtmosphere(res, tint, active){
-  const bgTimeBase = res.bg;
+  const bgTimeBase = atmoMoodBg(res);
 applyDayVignette(res);
      applyCoastGlow(res);
   applyReliefSecond(res);
