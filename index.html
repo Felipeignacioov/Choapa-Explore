@@ -4186,14 +4186,18 @@ body.nav-live :is(.profile-btn, .compass-btn, .bottom-nav){
    con la transición gradual. Luz lavanda desde arriba a la izquierda (misma dirección
    que la luz del relieve nocturno) + un leve resplandor teal en el centro del valle. */
 @property --moon-wash{ syntax:'<number>'; inherits:true; initial-value:0; }
+/* --sun-wash (0 → 1): resplandor rosado del sol bajo, solo en dusk. Entra desde el lado del sol
+   (--sun-wash-x: el mar al atardecer, la cordillera al amanecer) y se funde con la transición gradual. */
+@property --sun-wash{ syntax:'<number>'; inherits:true; initial-value:0; }
 .map-vignette{
-  transition:--vignette-top .6s ease, --vignette-bottom .6s ease, --vignette-edge .6s ease, --moon-wash .6s ease;
+  transition:--vignette-top .6s ease, --vignette-bottom .6s ease, --vignette-edge .6s ease, --moon-wash .6s ease, --sun-wash .6s ease;
 }
 .map-vignette::before{
   content:''; position:absolute; inset:0; pointer-events:none;
   background:
    radial-gradient(120% 90% at 18% 8%, rgba(214,208,240, calc(0.045 * var(--moon-wash))) 0%, rgba(214,208,240,0) 60%),
-    radial-gradient(90% 70% at 50% 55%, rgba(95,225,232, calc(0.018 * var(--moon-wash))) 0%, rgba(95,225,232,0) 70%);
+    radial-gradient(90% 70% at 50% 55%, rgba(95,225,232, calc(0.018 * var(--moon-wash))) 0%, rgba(95,225,232,0) 70%),
+    radial-gradient(80% 120% at var(--sun-wash-x, -15%) 58%, rgba(255,150,128, calc(0.10 * var(--sun-wash))) 0%, rgba(255,140,130, calc(0.035 * var(--sun-wash))) 40%, rgba(255,140,130,0) 64%);
 }
 /* ================= SÍMBOLO «¿QUÉ HACER HOY EN EL CHOAPA?» =================
    El SVG anterior se oculta y el nuevo se dibuja en su mismo lugar (píldora del mapa
@@ -10932,7 +10936,10 @@ function applyDayVignette(res){
  el.style.setProperty('--vignette-top', res.vignetteTop);
  el.style.setProperty('--vignette-bottom', res.vignetteBottom);
   el.style.setProperty('--vignette-edge', res.vignetteEdge);
-  el.style.setProperty('--moon-wash', res.moonWash);
+   el.style.setProperty('--moon-wash', res.moonWash);
+  el.style.setProperty('--sun-wash', res.sunWash || 0);
+  // Tarde: el sol se pone sobre el mar (izquierda). Amanecer: sale por la cordillera (derecha).
+  el.style.setProperty('--sun-wash-x', new Date(atmosphereNow()).getHours() < 12 ? '115%' : '-15%');
 }
 
 // ---------- Paleta base "adaptable" al estado 'day' de TIME_ATMOSPHERE ----------
@@ -11026,7 +11033,7 @@ const TIME_ATMOSPHERE = {
   // edificios/agua) hacia DAY_LIGHT_TINT. 0 en dusk/night preserva su
   // apariencia exactamente igual a como está hoy; el resto de las claves
   // (bgTint, bgAmount, glowAmount, glowOpacity, illum) no se toca.
-  day:   { bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.12, bgLift:0.14, hillshadeBoost:1.15, hillshadeHighlight:0.12, vignette:{ top:0.76, bottom:0.64, edge:0.36 }, coastShelf:0.75, coastShelfHue:6, coastShelfSat:-0.10, coastShelfBright:0.95, shorelineColor:'#C2F0F2', shorelineOp:0.38 },
+  day:   { bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.12, bgLift:0.14, hillshadeBoost:1.26, hillshadeLocalityDamp:0.9, hillshadeHighlight:0.15, hillshadeAccent:'#0A1A1E', waterLife:0.5, vignette:{ top:0.76, bottom:0.64, edge:0.36 }, coastShelf:0.75, coastShelfHue:6, coastShelfSat:-0.10, coastShelfBright:0.95, shorelineColor:'#C2F0F2', shorelineOp:0.38 },
   // midday — mismo resto de valores que "day" (nunca cambia el mood de
   // categoría, el glow ni el ángulo de sombra), solo dayLift mucho más
   // fuerte: de un matiz sutil (8%) a un salto real de luminosidad (42%),
@@ -11034,8 +11041,8 @@ const TIME_ATMOSPHERE = {
   // — el chrome de la interfaz (header, buscador, chips, sheet) no se toca
   // en este cambio.
   midday:{ bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.42, bgLift:0.30, bgLiftTint:'#728C7D', liftTint:'#2482A9', layerTints:{ vegetation:'#387F62', residential:'#596165', building:'#808580' }, hillshadeShadow:'#0B1519', hillshadeAccent:'#123326', hillshadeBoost:1.3, hillshadeLocalityDamp:0.78, hillshadeHighlightRGB:'196,228,186', hillshadeHighlight:0.20, vignette:{ top:0.66, bottom:0.54, edge:0.33 }, reliefSecond:1, waterLife:1, coastShelf:1 },
-  dusk:  { bgTint:'#E8A24D', bgAmount:0.05, glowAmount:0.22, glowOpacity:0.055, illum:305, dayLift:0, hillshadeHighlight:0.085,hillshadeHighlightRGB:'255,214,168', coastShelf:0.50, coastShelfHue:210, coastShelfSat:-0.25, coastShelfBright:0.85, shorelineColor:'#F3DDB8', shorelineOp:0.30 },
-  night: { bgTint:'#88558D', bgAmount:0.13, glowAmount:0.15, glowOpacity:0.07, illum:300, dayLift:0.16, layerTints:{ vegetation:'#12241D', residential:'#C8913F', building:'#C8913F' }, vignette:{ top:0.88, bottom:0.74, edge:0.48 }, roadLight:0.12, hillshadeHighlight:0.085, hillshadeHighlightRGB:'220,214,240', waterTint:'#0C2538', waterLift:0.5,coastGlow:1, waterShimmer:0.06, coastShelf:0.45, coastShelfHue:40, coastShelfSat:-0.50, coastShelfBright:0.65,warmGlow:1, shorelineColor:'#C9CBE8', shorelineOp:0.26 },
+  dusk:  { bgTint:'#AE707F', bgAmount:0.08, glowAmount:0.22, glowOpacity:0.055, illum:292, dayLift:0, hillshadeHighlight:0.175, hillshadeHighlightRGB:'255,190,158', hillshadeShadow:'#0A0918', hillshadeAccent:'#1A1024', hillshadeBoost:1.2, hillshadeLocalityDamp:0.85, vignette:{ top:0.78, bottom:0.66, edge:0.40 }, waterTint:'#1A2A46', waterLift:0.40, waterLife:0.3, coastShelf:0.60, coastShelfHue:178, coastShelfSat:-0.20, coastShelfBright:0.95, shorelineColor:'#F6D6C0', shorelineOp:0.36, sunWash:1 },
+  night: { bgTint:'#88558D', bgAmount:0.13, glowAmount:0.15, glowOpacity:0.07, illum:300, dayLift:0.16, layerTints:{ vegetation:'#12241D', residential:'#C8913F', building:'#C8913F' }, vignette:{ top:0.88, bottom:0.74, edge:0.48 }, roadLight:0.12, moonWash:1, hillshadeHighlight:0.13, hillshadeHighlightRGB:'206,220,255', hillshadeShadow:'#04060F', hillshadeAccent:'#0B0E24', hillshadeBoost:1.12, hillshadeLocalityDamp:0.9, waterTint:'#0C2538', waterLift:0.5,coastGlow:1, waterShimmer:0.07, waterLife:0.35, coastShelf:0.45, coastShelfHue:40, coastShelfSat:-0.50, coastShelfBright:0.65,warmGlow:1, shorelineColor:'#C9CBE8', shorelineOp:0.26 },
 };
 let currentDayPeriod = null;
 // Legibilidad al sol: con luz de día (day y midday) se activa .sun-legible en <html>.
@@ -11310,7 +11317,8 @@ function resolveAtmosphere(periodCfg){
    water: p.waterTint
       ? blendHex(BASE_PALETTE.water, p.waterTint, p.waterLift || 0)   // tinte propio del agua (no toca la tierra)
       : blendHex(BASE_PALETTE.water, liftTint, amount),
-  moonWash: p.moonWash || 0,                                          // 0 = sin velo de luna
+   moonWash: p.moonWash || 0,                                          // 0 = sin velo de luna
+    sunWash: p.sunWash || 0,                                            // 0 = sin resplandor del sol bajo (solo dusk lo enciende)
     waterShimmer: p.waterShimmer || 0.03,                               // brillo de la respiración del agua
     roadLight: p.roadLight || 0,                                       // 0 = carreteras como siempre
            coastGlow: p.coastGlow != null ? p.coastGlow : 1,                   // 1 = costa como siempre
@@ -11407,7 +11415,8 @@ shorelineOp: atmoLerp(a.shorelineOp, b.shorelineOp, p, 0.01),
     warmGlow: atmoLerp(a.warmGlow, b.warmGlow, p, 0.01),
  
   roadLight: atmoLerp(a.roadLight, b.roadLight, p, 0.01),
-    moonWash: atmoLerp(a.moonWash, b.moonWash, p, 0.01),
+      moonWash: atmoLerp(a.moonWash, b.moonWash, p, 0.01),
+    sunWash: atmoLerp(a.sunWash, b.sunWash, p, 0.01),
     waterShimmer: atmoLerp(a.waterShimmer, b.waterShimmer, p, 0.002),
     hillshadeShadow: blendHex(a.hillshadeShadow, b.hillshadeShadow, p),
     hillshadeAccent: blendHex(a.hillshadeAccent, b.hillshadeAccent, p),
@@ -11454,7 +11463,7 @@ function applyAtmosphereChanges(prev, next){
  if (changed('shorelineColor') || changed('shorelineOp')) applyShoreline(next);
   if (changed('warmGlow')) applyWarmGlow(next);
 
-if (changed('vignetteTop') || changed('vignetteBottom') || changed('vignetteEdge') || changed('moonWash')) applyDayVignette(next);
+if (changed('vignetteTop') || changed('vignetteBottom') || changed('vignetteEdge') || changed('moonWash') || changed('sunWash')) applyDayVignette(next);
   if (changed('bg') || changed('glowColor') || changed('glowOpacity')){
     const { tint, active } = getCategoryMix(state.activeExperience);
     if (changed('bg')){
