@@ -11500,9 +11500,10 @@ if (changed('vignetteTop') || changed('vignetteBottom') || changed('vignetteEdge
     if (changed('illum')) map.setPaintProperty('hillshade-subtle', 'hillshade-illumination-direction', next.illum);
     // applyDayHillshade() conserva el guard de navegación sobre la exageración.
     if (['hillshadeShadow', 'hillshadeAccent', 'hillshadeHighlightRGB', 'hillshadeHighlightAlpha', 'hillshadeBoost', 'hillshadeLocalityDamp', 'moodYield'].some(changed)) applyDayHillshade(next);
+  }
 }
 
-// Planificador: calcula, aplica diferencias y programa la próxima ejecución por hora real.
+// Planificador
 function runAtmosphereClock(){
   atmosphereClockStarted = true;
   clearTimeout(atmosphereTimer);
