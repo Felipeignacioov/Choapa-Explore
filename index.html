@@ -8,8 +8,15 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
-<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<!-- Arranque sin destellos: desde el primer cuadro el documento ya tiene el fondo del splash
+     (nunca blanco ni el fondo de la app). Se retira cuando el splash termina. -->
+<style>
+html.sp-boot{ background:#050F19 radial-gradient(120% 80% at 50% 30%, #0F2A3A 0%, #081826 55%, #050F19 100%) no-repeat fixed; }
+html.sp-boot.sp-boot-night{ background:#0A0B17 radial-gradient(120% 80% at 50% 30%, #1E2140 0%, #121427 55%, #0A0B17 100%) no-repeat fixed; }
+</style>
+<script>
+(function(){ var c = document.documentElement.classList, h = new Date().getHours(); c.add('sp-boot'); if (h >= 20 || h < 6) c.add('sp-boot-night'); })();
+</script>
 <style>
 /* ============================================================
    CHOAPA EXPLORE — DESIGN TOKENS
@@ -1630,10 +1637,12 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
   font-size:9.5px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase;
   color:rgba(226,236,243,0.74);
 }
-/* Trazo del color de la categoría: el acento propio de cada experiencia */
+/* Punto del color de la categoría (el mismo del ícono de arriba a la izquierda), con un halo suave */
 .tg-card .tg-loc::before{
-  content:''; flex-shrink:0; width:10px; height:2px; border-radius:2px;
+  content:''; flex-shrink:0; width:5px; height:5px; border-radius:50%; margin:0 2px;
   background:var(--tag-color, var(--turquoise-bright));
+  box-shadow:0 0 0 2px color-mix(in srgb, var(--tag-color, var(--turquoise-bright)) 18%, transparent),
+             0 0 6px color-mix(in srgb, var(--tag-color, var(--turquoise-bright)) 60%, transparent);
 }
 .tg-card .tg-loc span{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .today-grid-more{
@@ -4780,7 +4789,8 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
 </div>
 <script>
 // Splash v2: se retira solo cuando la página cargó Y el mapa avisó que el valle ya está dibujado
-// completo (window.__choapaMapPainted, ver signalMapPaintedWhenReady). Mínimo 2,6 s, máximo 7 s.
+// completo (window.__choapaMapPainted, ver signalMapPaintedWhenReady). Mínimo 2,6 s; máximo 16 s,
+// solo como red de seguridad si la conexión falla: el splash nunca deja ver el mapa a medio cargar.
 (function(){
   var el = document.getElementById('choapaSplash');
   if (!el) return;
@@ -4791,7 +4801,7 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
   function showFonts(){ if (fontsShown) return; fontsShown = true; el.classList.add('fonts-ready'); }
   try { document.fonts.load('800 29px Sora').then(showFonts, showFonts); } catch (e){ showFonts(); }
   setTimeout(showFonts, 1200);
-  var start = Date.now(), MIN = 2600, MAX = 7000, done = false, pageReady = false, mapPainted = false;
+  var start = Date.now(), MIN = 2600, MAX = 16000, done = false, pageReady = false, mapPainted = false;
   function hide(){
     if (done) return; done = true;
     el.classList.add('is-done'); // la línea de progreso se completa
@@ -4800,16 +4810,24 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
       // El territorio se asienta mientras el splash se desvanece (solo el mapa; la interfaz queda quieta).
       var m = document.getElementById('map');
       if (m && m.animate) m.animate([{ transform:'scale(1.05)' }, { transform:'none' }], { duration:1500, easing:'cubic-bezier(.22,.61,.36,1)' });
-      setTimeout(function(){ if (el.parentNode) el.parentNode.removeChild(el); }, 950);
+         setTimeout(function(){
+        if (el.parentNode) el.parentNode.removeChild(el);
+        document.documentElement.classList.remove('sp-boot', 'sp-boot-night'); // la app ya cubre toda la pantalla
+      }, 950);
     }, 380);
   }
   function tryHide(){ if (pageReady && mapPainted) setTimeout(hide, Math.max(0, MIN - (Date.now() - start))); }
   window.__choapaMapPainted = function(){ mapPainted = true; tryHide(); };
   if (document.readyState === 'complete') pageReady = true;
   else window.addEventListener('load', function(){ pageReady = true; tryHide(); }, { once:true });
-  setTimeout(hide, MAX);
+   setTimeout(hide, MAX);
 })();
 </script>
+<!-- Librerías del mapa y de la cuenta: van DESPUÉS del splash. En el encabezado bloqueaban el primer
+     dibujo de la página: al recargar se seguía viendo la pantalla anterior (o el fondo) hasta que
+     terminaban de descargarse, y el splash aparecía de golpe. Aquí el splash ya está en pantalla. -->
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <div id="app">
     <div id="map"></div>
   <div class="map-vignette"></div>
@@ -6245,13 +6263,13 @@ map.on('load', () => {
   signalMapPaintedWhenReady(); // el splash espera a que el valle esté dibujado completo
 });
 // Avisa al splash cuando el spawn ya está completo: mapa base, relieve (terrain-dem) y plataforma
-// costera cargados y pintados. Tope de 6,5 s: con mala conexión el splash no se queda pegado.
+// costera cargados y pintados. Tope de 10 s: con mala conexión el splash no se queda pegado.
 function signalMapPaintedWhenReady(){
   const t0 = Date.now();
   const check = () => {
     const elapsed = Date.now() - t0;
     const coastReady = !!map.getLayer('coast-shelf') || elapsed > 3000;
-    if ((map.areTilesLoaded() && coastReady) || elapsed > 6500){
+         if ((map.areTilesLoaded() && coastReady) || elapsed > 10000){
       map.once('render', () => requestAnimationFrame(() => { if (window.__choapaMapPainted) window.__choapaMapPainted(); }));
       map.triggerRepaint();
       return;
