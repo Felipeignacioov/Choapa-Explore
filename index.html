@@ -6911,9 +6911,14 @@ function renderTerrainDepth(){
       // general, sin tocar los extremos ya calibrados.
                 'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 28, 8, 42, 10, 65, 13, 120],
       'circle-color': turquoise,
-      'circle-opacity': 0.05,
+            'circle-opacity': 0.05,
       'circle-blur': 1,
       'circle-pitch-alignment':'map',
+      // Fluidez: la respiración del radio se escribe cada 240 ms y cada paso mueve el brillo menos de
+      // 0,1 px. Con la transición por defecto (300 ms, más larga que el ciclo) el mapa nunca terminaba
+      // una transición y se redibujaba completo en CADA cuadro aunque nadie lo tocara. Sin transición
+      // propia (igual que el agua) se dibuja una sola vez por ciclo: mismo brillo, misma respiración.
+      'circle-radius-transition':{ duration:0 },
     },
   });
   // Variación mínima (±2.5%) del radio — la comuna "respira" sin que se note
@@ -7251,10 +7256,17 @@ function renderTerrainDepth(){
     // factor de zoom se recalcula en cada tick (no solo al mover), así queda
     // correcto incluso si el usuario cambia de zoom sin generar un gesto de
     // arrastre completo (ej. botones +/-).
-    registerAmbientTick(() => {
+     registerAmbientTick(() => {
       if (!map.getLayer('rio-choapa-halo')) return;
       const wobble = Math.sin(performance.now() / 3500) * 0.015;
-      map.setPaintProperty('rio-choapa-halo', 'line-opacity', Math.max(0, (riverHaloBase + wobble) * riverZoomDamp()));
+      const haloOpacity = Math.max(0, (riverHaloBase + wobble) * riverZoomDamp());
+      // Fluidez: la respiración mueve la opacidad ~0,001 por ciclo (invisible), pero cada escritura abría
+      // una transición de 500 ms y, escribiendo cada 240 ms, el mapa se redibujaba completo en CADA cuadro.
+      // Ahora solo se escribe cuando el cambio es apreciable (zoom, movimiento o la deriva acumulada):
+      // la transición de 500 ms se conserva para esos cambios, y en reposo el mapa descansa.
+      const haloPrev = map.getPaintProperty('rio-choapa-halo', 'line-opacity');
+      if (typeof haloPrev === 'number' && Math.abs(haloOpacity - haloPrev) < 0.008) return;
+      map.setPaintProperty('rio-choapa-halo', 'line-opacity', haloOpacity);
     });
   }
 
@@ -14951,6 +14963,14 @@ function communeHeroImage(locality){
   const first = placesInLocality(locality)[0];
   return first ? first.image : '';
 }
+// Portada del capítulo de cada comuna en el Álbum. Si una comuna tiene aquí su propia portada, el Álbum
+// usa esa; si no, la misma de siempre (communeHeroImage). No cambia la portada del panel «¿Qué hacer hoy?».
+const ALBUM_COVER_IMAGES = {
+  salamanca: 'https://gfsnhjxsqbsapnpfqpyy.supabase.co/storage/v1/object/public/Choapa%20explore%20Recursos/Salamanca%20Portada.jpg',
+};
+function albumCoverImage(locality){
+  return ALBUM_COVER_IMAGES[locality.id] || communeHeroImage(locality);
+}
 
 function renderExploreMoreRail(){
   const wrap = document.getElementById('exploreMoreRail');
@@ -16111,18 +16131,21 @@ function buildSmartCard(item){
   const photo = smartEl('div', 'smart-photo');
   if (lead) photo.style.setProperty('--tag-color', expColor(lead));
   photo.innerHTML = icon(lead ? lead.iconKey : 'compassIcon', 20); // ícono de respaldo, propio de la app
-  const imgUrl = smartImageUrl(item, place);
+   const imgUrl = smartImageUrl(item, place);
   if (imgUrl){
     const img = new Image();
     img.alt = '';
     img.decoding = 'async';
     img.loading = 'lazy';
     img.onload = () => photo.classList.add('has-img');
-    img.onerror = () => img.remove();
-    img.src = imgUrl;
+    // Fluidez: la tarjeta mide 56 px; antes se descargaba y decodificaba la foto original (hasta 2000 px)
+    // por cada resultado mientras se escribe. Versión reducida a 160 px (nítida en pantallas 2–3×);
+    // si la reducida falla, se usa la original de siempre y solo si esa también falla se retira.
+    const imgThumb = thumbUrl(imgUrl, 160);
+    img.onerror = () => { if (img.src !== imgUrl && imgThumb !== imgUrl){ img.onerror = () => img.remove(); img.src = imgUrl; } else img.remove(); };
+    img.src = imgThumb;
     photo.appendChild(img);
   }
-
   const body = smartEl('div', 'smart-body');
   body.appendChild(smartEl('div', 'smart-name', smartText(item.name) || (place && place.name) || ''));
     // Localidad, y la comuna solo si aporta (no "Salamanca Centro · Salamanca").
@@ -16492,7 +16515,7 @@ let albumPreloadTimer = null;
 // las que se ven al entrar a una comuna (también las «Aún por descubrir»).
 function preloadAlbumImages(withAllPlaces){
   if (!currentAuthUser || !LOCALITIES.length) return; // el Álbum exige sesión y datos cargados
-  const urls = LOCALITIES.map(l => thumbUrl(communeHeroImage(l), 960));
+  const urls = LOCALITIES.map(l => thumbUrl(albumCoverImage(l), 960));
   const places = withAllPlaces === true ? DEMO_PLACES : [...discoveredExperienceIds].map(id => DEMO_PLACES.find(p => p.id === id));
   places.forEach(place => {
     if (place) urls.push(thumbUrl(place.image, 480)); // misma dirección que usa la tarjeta del Álbum
@@ -16726,7 +16749,7 @@ function renderAlbumIndex(){
     const localityPlaces = placesInLocality(locality);
     const discoveredCount = localityPlaces.filter(p => discoveredExperienceIds.has(p.id)).length;
     const total = localityPlaces.length;
-    const cover = communeHeroImage(locality);
+      const cover = albumCoverImage(locality);
     const chapter = document.createElement('div');
     chapter.className = 'chapter-cover' + (cover ? ' has-memories' : ' blueprint');
     if (cover){
@@ -17065,7 +17088,7 @@ function renderMemoryExperience(place, keepScroll){
       </div>
       ${place.image ? `
       <div class="md-exp-context">
-        <div class="md-exp-context-photo" style="background-image:url(${place.image})"></div>
+              <div class="md-exp-context-photo" style="background-image:url(${thumbUrl(place.image, 160)})"></div>
         <div class="md-exp-context-label">Foto oficial de la experiencia</div>
       </div>` : ''}`;
 
