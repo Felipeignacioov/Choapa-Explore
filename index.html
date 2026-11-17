@@ -298,10 +298,7 @@ img{-webkit-user-drag:none; user-select:none;}
 .search-empty{padding:16px; font-size:12.5px; color:var(--text-tertiary); text-align:center;}
 /* Aviso discreto al pulsar Enter con menos de 3 letras (no es un resultado). */
 .search-hint{padding:10px 14px 4px; font-size:11.5px; color:var(--text-tertiary);}
-.search-results-header{padding:12px 14px 6px;}
-.search-results-header .srh-title{font-size:12.5px; font-weight:700; color:var(--text-primary); letter-spacing:-0.005em;}
-.search-results-header .srh-section{margin-top:9px; font-size:9.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-tertiary);}
-
+     
 /* ================= BUSCADOR INTELIGENTE =================
    Vive dentro del mismo buscador y del mismo desplegable (#searchResults):
    las sugerencias locales instantáneas siguen igual; el modo "smart" solo
@@ -1140,15 +1137,6 @@ body.map-covered .tg-edge::after{animation-play-state:paused;}
 .zone-prompt .zp-icon{transition:opacity .14s ease, color .3s cubic-bezier(.4,0,.2,1);}
 .zone-prompt.content-swap .zp-icon, .zone-prompt.content-swap .zp-text{opacity:0;}
 
-/* ---------------- CLUSTERS ---------------- */
-.cluster-marker{
-  display:flex; align-items:center; justify-content:center;
-  width:42px; height:42px; border-radius:50%;
-  background:radial-gradient(circle at 35% 30%, var(--surface-elevated-2), var(--bg-night));
-  border:2px solid var(--turquoise);
-  color:var(--turquoise-bright); font-family:var(--font-display); font-weight:700; font-size:14px;
-  box-shadow:0 0 0 6px rgba(22,184,196,0.12), 0 4px 10px rgba(0,0,0,0.4);
-}
 
 /* ---------------- BOTTOM SHEET ---------------- */
 .sheet{
@@ -1546,20 +1534,6 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
   background:linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-primary) 100%);
   border-radius:18px 18px 0 0;
 }
-.sheet-section-head{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:12px;}
-.sheet-section-title{font-family:var(--font-display); font-size:17px; font-weight:700; letter-spacing:-0.1px;}
-.sheet-section-title svg{vertical-align:-3px; color:var(--turquoise-bright); margin-right:1px;}
-.sheet-section-title .accent{color:var(--turquoise-bright);}
-.sheet-section-subtitle{font-size:11.5px; color:var(--text-secondary); margin-top:2px; font-weight:500;}
-.sheet-see-all{font-size:12px; font-weight:600; color:var(--turquoise-bright); display:flex; align-items:center; gap:3px; flex-shrink:0; transition:opacity .15s ease;}
-.sheet-see-all:active{opacity:0.6;}
-
-.demo-badge{
-  display:inline-flex; align-items:center; gap:5px;
-  font-family:var(--font-mono); font-size:9px; font-weight:500; letter-spacing:0.4px;
-  color:#F0C25B; background:rgba(240,194,91,0.12); border:1px solid rgba(240,194,91,0.3);
-  padding:3px 8px; border-radius:6px; margin-left:8px; vertical-align:middle;
-}
 
 .rail{display:flex; gap:13px; overflow-x:auto; scrollbar-width:none; padding:0 18px 6px; margin:0 -18px;}
 .rail::-webkit-scrollbar{display:none;}
@@ -1669,58 +1643,6 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
   font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;
   color:var(--turquoise-bright); margin-bottom:9px;
 }
-.featured-card{
-  border-radius:var(--radius-l); overflow:hidden;
-  background:var(--surface); border:1px solid var(--border-glass);
-  box-shadow:var(--shadow-card), inset 0 1px 0 rgba(255,255,255,0.05);
-  transition:transform .16s cubic-bezier(.34,1.56,.64,1);
-  animation:featured-in .45s cubic-bezier(.2,.9,.28,1.05) backwards;
-  animation-delay:80ms;
-}
-.featured-card:active{transform:scale(0.98);}
-.featured-card .photo{position:relative; height:186px; width:100%; background:var(--surface-elevated) center/cover no-repeat;}
-.featured-card .photo::after{
-  content:''; position:absolute; inset:0;
-  background:linear-gradient(to bottom, rgba(7,19,31,0) 40%, rgba(7,19,31,0.68) 100%);
-}
-.featured-card .featured-badge{
-  position:absolute; top:11px; left:11px; z-index:1;
-  display:flex; align-items:center; gap:4px;
-  font-size:10.5px; font-weight:700; color:#04222A;
-  background:var(--turquoise-bright); padding:5px 11px 5px 8px; border-radius:var(--radius-pill);
-}
-.featured-card .tc-tag{
-  position:absolute; right:11px; bottom:11px; z-index:1;
-  display:flex; align-items:center; gap:5px;
-  font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.3px;
-  background:rgba(8,19,31,0.6); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
-  padding:5px 10px; border-radius:var(--radius-pill);
-}
-.featured-card .tc-info{padding:14px 16px 16px;}
-.featured-card .tc-name{font-family:var(--font-display); font-size:17px; font-weight:700; margin-bottom:5px; letter-spacing:-0.1px;}
-.featured-card .tc-loc{display:flex; align-items:center; gap:5px; font-size:11.5px; color:var(--text-secondary); margin-bottom:8px;}
-.featured-card .tc-loc svg{flex-shrink:0; color:var(--text-tertiary);}
-.featured-card .tc-desc{font-size:12.5px; line-height:1.5; color:var(--text-secondary);}
-@keyframes featured-in{
-  from{opacity:0; transform:translateY(16px) scale(0.97);}
-  to{opacity:1; transform:translateY(0) scale(1);}
-}
-
-.exp-card{
-  flex-shrink:0; width:148px; padding:13px;
-  background:linear-gradient(160deg, var(--surface-elevated) 0%, var(--surface) 100%);
-  border:1px solid var(--border-glass); border-radius:var(--radius-m);
-  box-shadow:var(--shadow-card), inset 0 1px 0 rgba(255,255,255,0.05);
-  transition:transform .16s cubic-bezier(.34,1.56,.64,1), border-color .16s ease;
-}
-.exp-card:active{transform:scale(0.96);}
-.exp-card .icon-badge{
-  width:32px; height:32px; border-radius:10px;
-  display:flex; align-items:center; justify-content:center;
-  font-size:16px;
-}
-.exp-card .label{font-size:12.5px; font-weight:600; line-height:1.3; color:var(--text-primary);}
-.exp-card .label b{display:block; color:var(--turquoise-bright); font-weight:700; font-size:13.5px; margin-top:1px;}
 
 /* Chips de franja horaria — arquitectura preparada para filtrar la curaduría por
    momento del día más adelante; hoy solo cambian de estado visualmente. */
@@ -1774,12 +1696,7 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
   background:linear-gradient(to bottom, rgba(7,19,31,0) 45%, rgba(7,19,31,0.62) 100%);
   pointer-events:none;
 }
-.today-card .today-badge{
-  position:absolute; top:9px; right:9px; z-index:1;
-  display:flex; align-items:center; gap:4px;
-  font-size:10px; font-weight:700; color:#04222A;
-  background:var(--turquoise-bright); padding:4px 9px 4px 7px; border-radius:var(--radius-pill);
-}
+
 .today-card .tc-tag{
   position:absolute; left:10px; bottom:9px; z-index:1;
   display:flex; align-items:center; gap:5px;
@@ -1836,10 +1753,6 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
 .today-card .tc-name{font-size:13.5px; font-weight:700; line-height:1.28; margin-bottom:4px; letter-spacing:-0.1px;}
 .today-card .tc-loc{display:flex; align-items:center; gap:4px; font-size:10.5px; color:var(--text-secondary); margin-bottom:6px;}
 .today-card .tc-loc svg{flex-shrink:0; color:var(--text-tertiary);}
-.today-card .tc-desc{
-  font-size:11px; line-height:1.45; color:var(--text-secondary);
-  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
-}
 
 .place-card{
   flex-shrink:0; width:164px; border-radius:var(--radius-m); overflow:hidden;
@@ -1882,14 +1795,6 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
 }
 .rail-empty .re-icon{color:var(--turquoise-bright); opacity:0.6; display:flex;}
 .rail-empty .re-title{color:var(--text-secondary); font-weight:600; font-size:13px;}
-
-.rail-prompt{
-  display:flex; flex-direction:column; align-items:center; gap:6px;
-  padding:26px 20px; font-size:12.5px; color:var(--text-secondary); text-align:center;
-  border:1px dashed var(--border-glass); border-radius:var(--radius-m);
-}
-.rail-prompt .rp-icon{display:flex; margin-bottom:2px;}
-.rail-prompt .rp-title{font-weight:700; font-size:13.5px;}
 
 /* ---------------- POI DISCOVERY CARD (on select) ---------------- */
 .poi-card{
@@ -1943,22 +1848,9 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
   background:rgba(7,19,31,0.55); backdrop-filter:blur(6px);
   padding:5px 10px; border-radius:var(--radius-pill);
 }
-.poi-card .gallery-dots{
-  position:absolute; left:0; right:0; bottom:9px; z-index:1;
-  display:flex; justify-content:center; gap:5px; pointer-events:none;
-}
-.poi-card .gallery-dots span{
-  width:5px; height:5px; border-radius:50%;
-  background:rgba(255,255,255,0.4);
-}
-.poi-card .gallery-dots span.active{
-  background:#fff;
-}
-
 .poi-card .body{padding:14px 16px 14px; overflow-y:auto;}
 .poi-card .pname{font-family:var(--font-display); font-size:18px; font-weight:700; letter-spacing:-0.2px; margin-bottom:3px;}
 .poi-card .ploc{font-size:10.5px; font-weight:700; letter-spacing:0.6px; color:var(--text-secondary); margin-bottom:14px;}
-.poi-card .ploc .cat-part{}
 
 .poi-card .pd-section{margin-bottom:14px;}
 .poi-card .pd-section-title{
@@ -1992,10 +1884,6 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
   font-size:11px; font-weight:500; padding:4px 11px; border-radius:var(--radius-pill);
   background:transparent; border:1px solid rgba(145,164,184,0.22); color:var(--text-tertiary);
 }
-
-.poi-card .meta-row{display:flex; gap:14px; margin-bottom:12px;}
-.poi-card .meta-item{display:flex; align-items:center; gap:5px; font-size:11.5px; color:var(--text-tertiary); font-weight:500;}
-.poi-card .meta-row:empty{display:none; margin:0;}
 
 /* CTA de desbloqueo GPS — mismo radius/paleta/tipografía ya usados en el
    resto de .poi-card, sin ningún componente/modal nuevo. */
@@ -2085,22 +1973,6 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
   background:rgba(8,19,31,0.6); backdrop-filter:blur(8px);
   padding:5px 12px; border-radius:var(--radius-pill);
 }
-
-/* ---------------- TOAST — confirmación de recuerdo guardado ---------------- */
-.memory-toast{
-  position:absolute; left:16px; right:16px; top:calc(var(--safe-top) + 14px); z-index:40;
-  display:flex; align-items:center; gap:11px; padding:13px 16px;
-  background:rgba(13,29,45,0.92); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
-  border:1px solid rgba(95,225,232,0.35); box-shadow:var(--shadow-modal); border-radius:var(--radius-m);
-  transform:translateY(-16px); opacity:0; pointer-events:none;
-  transition:transform .38s cubic-bezier(.2,.9,.28,1.1), opacity .26s ease;
-}
-.memory-toast.visible{transform:translateY(0); opacity:1;}
-#memoryToast{z-index:76;}
-.memory-toast .mt-icon{color:var(--turquoise-bright); flex-shrink:0; display:flex;}
-.memory-toast .mt-title{font-family:var(--font-display); font-size:13.5px; font-weight:700; color:var(--text-primary);}
-.memory-toast .mt-sub{font-size:11.5px; color:var(--turquoise-bright); font-style:italic; margin-top:1px;}
-@media (min-width:640px){ .memory-toast{max-width:520px; left:50%; transform:translateX(-50%) translateY(-16px);} .memory-toast.visible{transform:translateX(-50%) translateY(0);} }
 
 /* ---------------- BOTTOM NAV ---------------- */
 .bottom-nav{
@@ -2277,8 +2149,6 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
 .gd-card .gd-name{font-family:var(--font-display); font-size:15.5px; font-weight:700; color:var(--text-primary); margin-bottom:6px; letter-spacing:-0.1px;}
 .gd-card .gd-loc{display:flex; align-items:center; gap:5px; font-size:12px; color:var(--text-secondary); margin-bottom:3px;}
 .gd-card .gd-loc svg{flex-shrink:0; color:var(--text-tertiary);}
-.gd-card .gd-comuna{display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-tertiary); margin-bottom:9px;}
-.gd-card .gd-meta-row{display:flex; gap:6px; flex-wrap:wrap;}
 .gd-card .gd-meta-item{
   display:flex; align-items:center; gap:4px; font-size:10.5px; font-weight:600; color:var(--text-secondary);
   background:rgba(255,255,255,0.05); border-radius:var(--radius-pill); padding:3.5px 9px;
@@ -2526,12 +2396,7 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
   border-style:solid; border-color:rgba(95,225,232,0.16);
   padding-bottom:14px;
 }
-.album-card.locked .lock-badge{
-  width:52px; height:52px; border-radius:50%; margin-bottom:10px;
-  border:1px dashed var(--border-glass);
-  display:flex; align-items:center; justify-content:center;
-  color:var(--text-tertiary); opacity:0.4;
-}
+
 .album-card.locked .lock-label{font-size:10px; color:var(--text-tertiary); font-weight:600; text-align:center; padding:0 8px;}
 .album-card.add-tile{
   display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
@@ -2571,8 +2436,7 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
   display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
   border-style:dashed; border-color:var(--border-glass);
 }
-.album-card.locked .lock-icon{color:var(--text-tertiary); opacity:0.55; display:flex;}
-.album-card.locked .lock-type{opacity:0.3; display:flex; color:var(--text-tertiary);}
+     
 .album-card.locked .lock-label{font-size:10px; color:var(--text-tertiary); font-weight:600; text-align:center; padding:0 8px;}
 
 .album-card.add-tile{
@@ -2602,19 +2466,7 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
     linear-gradient(180deg, rgba(7,19,31,0.22) 0%, rgba(7,19,31,0.68) 100%),
     linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4));
 }
-/* Dos cadenas cruzadas en X — mismo ícono/color/lenguaje visual de marca de
-   siempre (icon('chain', ...), turquesa), cada una rotada 45°/-45° y
-   centrada sobre la tarjeta vía position:absolute, sin agrandar el ícono. */
-.album-card.locked .ac-chain-cross{
-  position:absolute; inset:0; z-index:1;
-  display:flex; align-items:center; justify-content:center;
-}
-.album-card.locked .ac-chain-cross svg{
-  position:absolute; color:var(--turquoise-bright);
-  filter:drop-shadow(0 2px 5px rgba(2,8,15,0.5));
-}
-.album-card.locked .ac-chain-cross svg:first-child{ transform:rotate(45deg); }
-.album-card.locked .ac-chain-cross svg:last-child{ transform:rotate(-45deg); }
+     
 .album-card.locked .lock-label{position:relative; z-index:1; color:var(--text-primary); opacity:0.9;}
 .album-card.locked .ac-lock-mark{
   position:absolute; inset:0; z-index:1;
@@ -2845,15 +2697,6 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
 .md-act-btn.cancel{justify-content:center; color:var(--text-secondary);}
 .md-exp-thumb{position:relative;}
 .md-exp-add.md-exp-add--wide{width:100%; margin-top:22px;}
-.md-exp-del{
-  position:absolute; top:10px; right:10px; z-index:2;
-  width:30px; height:30px; border-radius:50%;
-  background:rgba(8,19,31,0.72); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
-  border:1px solid var(--border-glass); color:#fff;
-  display:flex; align-items:center; justify-content:center;
-  transition:transform .16s cubic-bezier(.34,1.56,.64,1);
-}
-.md-exp-del:active{transform:scale(0.85);}
 .md-exp-context{display:flex; align-items:center; gap:10px; margin-top:22px;}
 .md-exp-context-photo{
   width:44px; height:44px; border-radius:var(--radius-s); flex-shrink:0;
@@ -2861,7 +2704,6 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
   border:1px solid var(--border-glass);
 }
 .md-exp-context-label{font-size:10.5px; font-weight:600; color:var(--text-tertiary);}
-.md-exp-actions{display:flex; gap:9px; margin-top:28px;}
 /* La galería (z-index 70, antes en el DOM) quedaba debajo de #memoryDetail (z-index 70, después) —
    se sube SOLO mientras "Mis recuerdos" está abierto. */
 #app:has(.memory-detail.visible) .gallery-screen{z-index:72;}
@@ -3220,15 +3062,6 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
 .auth-cat-icon{ width:44px; height:44px; border-radius:50%; background:rgba(255,255,255,0.04); border:1px solid var(--border-glass); display:flex; align-items:center; justify-content:center; }
 .auth-cat-label{ font-size:10px; font-weight:600; color:var(--text-secondary); text-align:center; white-space:nowrap; }
 
-.auth-info-card{
-  display:flex; align-items:flex-start; gap:11px; padding:15px 16px; border-radius:var(--radius-l);
-  background:rgba(16,36,56,0.55); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
-  border:1px solid var(--border-glass); box-shadow:var(--shadow-card), inset 0 1px 0 rgba(255,255,255,0.04);
-}
-.auth-info-icon{ flex-shrink:0; margin-top:1px; }
-.auth-info-title{ font-family:var(--font-display); font-size:14px; font-weight:700; color:var(--text-primary); margin-bottom:3px; }
-.auth-info-sub{ font-size:12px; color:var(--text-secondary); line-height:1.45; }
-
 .auth-btn-primary{
   width:100%; padding:15px; border-radius:var(--radius-m);
   background:linear-gradient(135deg, var(--turquoise-bright), var(--turquoise));
@@ -3293,21 +3126,6 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
   border-color:color-mix(in srgb, currentColor 30%, transparent);
 }
 .auth-cat-label{ font-size:10.5px; letter-spacing:0.2px; }
-
-/* Mensaje «¿Qué hacer hoy…?»: de tarjeta pesada a bloque ligero integrado */
-.auth-info-card{
-  align-items:center; gap:13px; padding:0 2px; border-radius:0;
-  background:none; border:none; box-shadow:none;
-  backdrop-filter:none; -webkit-backdrop-filter:none;
-}
-.auth-info-icon{
-  width:34px; height:34px; margin-top:0; border-radius:50%;
-  display:flex; align-items:center; justify-content:center;
-  border:1px solid rgba(95,225,232,0.28); background:rgba(95,225,232,0.06);
-}
-.auth-info-icon svg{ width:21px; height:21px; }
-.auth-info-title{ letter-spacing:-0.1px; margin-bottom:2px; }
-.auth-info-sub{ line-height:1.4; }
 
 /* Botones: mismo sistema (altura y radio), jerarquía principal > secundaria > alternativa */
 .auth-sheet .auth-btn-primary,
@@ -3382,7 +3200,6 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
 .auth-sheet > .auth-btn-secondary{ grid-row:6; margin-top:10px; }
 .auth-sheet > .auth-guest-row{ grid-row:7; margin-top:14px; }
 .auth-sheet > .auth-trust-row{ grid-row:8; margin-top:24px; }
-.auth-sheet > .auth-info-card{ display:none; }
 .auth-mood-line{
   font-size:10.5px; font-weight:700; letter-spacing:1.6px; text-transform:uppercase;
   color:rgba(95,225,232,0.72); margin-bottom:-2px;
@@ -3820,23 +3637,6 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
 /* 2) Tarjeta principal: superficie propia, profundidad controlada y mejor jerarquía */
 .featured-today{margin-top:6px; margin-bottom:0;}
 .featured-eyebrow{font-size:10px; letter-spacing:0.9px; margin-bottom:10px;}
-.featured-card{
-  background:linear-gradient(180deg, var(--surface-elevated) 0%, var(--surface) 100%);
-  border:1px solid rgba(255,255,255,0.07);
-  box-shadow:0 18px 40px rgba(2,8,15,0.42), 0 2px 6px rgba(2,8,15,0.3), inset 0 1px 0 rgba(255,255,255,0.06);
-}
-.featured-card .photo{height:171px;}
-.featured-card .photo::after{
-  background:
-    linear-gradient(to bottom, rgba(7,19,31,0.26) 0%, rgba(7,19,31,0) 26%),
-    linear-gradient(to bottom, rgba(7,19,31,0) 52%, rgba(7,19,31,0.6) 100%);
-}
-.featured-card .featured-badge{top:12px; left:12px;}
-.featured-card .tc-tag{right:12px; bottom:12px;}
-.featured-card .tc-info{padding:16px 18px 18px;}
-.featured-card .tc-name{font-size:18px; letter-spacing:-0.2px; margin-bottom:6px;}
-.featured-card .tc-loc{margin-bottom:10px;}
-.featured-card .tc-desc{line-height:1.55;}
 
 /* 3) «Arma un plan a tu medida»: acción principal del módulo, por diseño y no por efectos */
 .premium-entry{
@@ -3867,7 +3667,6 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
   color:var(--turquoise-bright);
 }
 /* «¿Qué hacer hoy?» sin descripciones: la ubicación pasa a ser la última línea */
-.featured-card .tc-loc{margin-bottom:0;}
 .today-card .tc-loc{margin-bottom:0;}
 
 /* Indicador de contenido inferior del panel. Se ubica justo sobre la barra inferior
@@ -4229,13 +4028,7 @@ body.nav-live :is(.profile-btn, .compass-btn, .bottom-nav){
   width:22px; height:22px;
   background:var(--choapa-today-symbol) center/contain no-repeat;
 }
-/* Pantalla de bienvenida */
-.auth-info-icon > svg{ display:none; }
-.auth-info-icon::before{
-  content:''; display:block; flex-shrink:0;
-  width:21px; height:21px;
-  background:var(--choapa-today-symbol) center/contain no-repeat;
-}
+
 /* ================= SPLASH «EL VALLE SE DIBUJA» — v2 =================
    Todo se anima solo con transform y opacity: lo mueve la tarjeta gráfica, así que
    sigue fluido aunque el teléfono esté ocupado cargando la app y el mapa. */
@@ -4527,20 +4320,7 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
     opacity:0; transform:translateY(10px);
   animation:ach-in .55s cubic-bezier(.22,.61,.36,1) 2.85s forwards;
 }
-.ach-confirm-top{ display:flex; align-items:flex-start; gap:12px; }
-.ach-confirm-text{ flex:1; min-width:0; }
 .ach-eyebrow{ display:flex; align-items:center; gap:7px; margin-bottom:6px; font-size:10.5px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#5FE1E8; }
-.ach-line{ font-family:var(--font-display); font-size:16px; font-weight:700; line-height:1.3; color:#F4F7FA; letter-spacing:-0.1px; }
-.ach-meta{ margin-top:4px; font-size:12px; line-height:1.45; color:var(--text-secondary); }
-/* Miniatura de la imagen para compartir: aparece cuando está lista y abre "Comparte tu logro" */
-.ach-thumb{
-  flex-shrink:0; width:46px; height:82px; margin-top:2px; border-radius:9px; overflow:hidden; padding:0;
-  background:rgba(255,255,255,0.05); box-shadow:0 8px 18px rgba(2,8,15,0.45), 0 0 0 1px rgba(255,255,255,0.12);
-  transform:rotate(4deg); opacity:0; transition:opacity .4s ease;
-}
-.ach-thumb.ready{ opacity:1; }
-.ach-thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
-.ach-actions{ display:flex; align-items:center; gap:6px; margin-top:12px; }
 .ach-share{
   flex:1; display:inline-flex; align-items:center; justify-content:center; gap:7px; white-space:nowrap;
   padding:10px 14px; border-radius:999px; font-size:12.5px; font-weight:700; color:#052024;
@@ -4550,7 +4330,6 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
 }
 .ach-share:active{ transform:scale(.97); }
 .ach-share:disabled{ opacity:.55; }
-.ach-later{ padding:9px 8px; white-space:nowrap; font-size:12.5px; font-weight:600; color:var(--text-secondary); }
 
 /* Cámara: suelta el candado con un único pulso (ahora puede sumar sus fotos) */
 .poi-card .btn-memory.ach-cam-pulse::after{
@@ -5026,15 +4805,6 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
     </div>
   </div>
 
-  <!-- TOAST — confirmación al guardar un recuerdo -->
-  <div class="memory-toast" id="memoryToast">
-    <span class="mt-icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5c.7 4 2.4 6.9 5.9 9.5-3.5 2.6-5.2 5.5-5.9 9.5-.7-4-2.4-6.9-5.9-9.5 3.5-2.6 5.2-5.5 5.9-9.5Z" fill="currentColor" stroke="none"/></svg></span>
-    <div class="mt-text">
-      <div class="mt-title">Recuerdo guardado</div>
-      <div class="mt-sub" id="memoryToastSub">—</div>
-    </div>
-  </div>
-
     <!-- PÍLDORA "¿QUÉ HACER HOY?" — estado por defecto -->
   <button class="sheet-pill" id="sheetPill">
      <span class="pill-text"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true" style="flex-shrink:0;">
@@ -5342,15 +5112,6 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
     <div class="anh-status" id="anhStatus" style="display:none;"></div>
   </div>
 
-  <!-- Confirmación breve de llegada — reutiliza el mismo estilo de memory-toast -->
-   <div class="memory-toast" id="arrivalToast">
-    <span class="mt-icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5c.7 4 2.4 6.9 5.9 9.5-3.5 2.6-5.2 5.5-5.9 9.5-.7-4-2.4-6.9-5.9-9.5 3.5-2.6 5.2-5.5 5.9-9.5Z" fill="currentColor" stroke="none"/></svg></span>
-    <div class="mt-text">
-      <div class="mt-title">¡Llegaste a tu destino!</div>
-      <div class="mt-sub" id="arrivalToastSub">—</div>
-    </div>
-  </div>
-
   <!-- ================= PANTALLA DE BIENVENIDA / AUTENTICACIÓN (Fase 1 — solo UI) =================
        Sin Supabase todavía: los formularios no crean ni autentican nada real.
        Toda la lógica vive detrás de AuthService (ver <script>) — hoy funciones
@@ -5517,29 +5278,6 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
 
         <button class="auth-form-switch" id="authFormSwitch">¿Ya tienes cuenta? <span>Ingresar</span></button>
       </div>
-    </div>
-  </div>
-
-  <!-- Toast de bienvenida al iniciar sesión — reutiliza la clase .memory-toast
-       ya existente (mismo lenguaje visual que "Recuerdo guardado" y
-       "¡Llegaste a tu destino!"), sin ningún estilo nuevo. -->
-     <div class="memory-toast" id="authWelcomeToast">
-    <span class="mt-icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5c.7 4 2.4 6.9 5.9 9.5-3.5 2.6-5.2 5.5-5.9 9.5-.7-4-2.4-6.9-5.9-9.5 3.5-2.6 5.2-5.5 5.9-9.5Z" fill="currentColor" stroke="none"/></svg></span>
-    <div class="mt-text">
-      <div class="mt-title">¡Bienvenido de vuelta!</div>
-      <div class="mt-sub" id="authWelcomeToastSub">—</div>
-    </div>
-  </div>
-
-  <!-- Confirmación de desbloqueo por GPS — nueva instancia de .memory-toast
-       (mismo componente ya usado 3 veces en la app), un check de trazo fino
-       en vez de candados/puntos/confeti, coherente con el resto del sistema
-       de íconos. -->
-  <div class="memory-toast" id="discoverSuccessToast">
-    <span class="mt-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 9.5 17 19 7"/></svg></span>
-    <div class="mt-text">
-      <div class="mt-title">Experiencia desbloqueada</div>
-      <div class="mt-sub">Ahora forma parte de tu álbum.</div>
     </div>
   </div>
 
@@ -8260,15 +7998,6 @@ function registerPOILabelBackgroundImage(){
     stretchY:[[m, m + POI_LABEL_BG_PILL_H]],
   });
 }
-// Variante en negrita del stack de fuente que ya usa el resto del mapa
-// (getStyleTextFont() toma el mismo stack verificado que usan las etiquetas de
-// calles/lugares del estilo base) — swap "Regular"→"Bold" es la convención
-// estándar de los paquetes de glifos de OpenMapTiles. Si tu mapa base no
-// tuviera esa variante, el texto simplemente no se pintaría — en ese caso
-// dímelo y volvemos a getStyleTextFont() tal cual.
-function getBoldStyleTextFont(){
-  return getStyleTextFont().map(f => f.replace('Regular', 'Bold'));
-}
 
 // Reutiliza el mismo stack de fuente que ya usa el estilo base del mapa (para
 // que los glifos de texto carguen correctamente contra ese mismo estilo), en
@@ -8804,18 +8533,9 @@ function updateMemoryButtonLockState(place){
   memoryBtn.classList.toggle('locked', !discoveredExperienceIds.has(place.id));
 }
 
-// Confirmación breve tras un desbloqueo exitoso — nueva instancia de
-// .memory-toast (ver HTML); no se reutiliza showMemoryToast() porque su
-// título "Recuerdo guardado" viene fijo en el HTML y no aplica acá. Se
-// retira sola, sin bloquear ninguna otra interacción.
-let discoverToastTimer = null;function showDiscoverSuccessToast(){
+// Confirmación breve tras un desbloqueo exitoso (componente de avisos de la app).
+function showDiscoverSuccessToast(){
   showAppNotice({ tone:'success', title:'Experiencia desbloqueada', text:'Ahora forma parte de tu álbum.', duration:3200 });
-}
-function showDiscoverSuccessToastLegacy(){
-  const toast = document.getElementById('discoverSuccessToast');
-  toast.classList.add('visible');
-  clearTimeout(discoverToastTimer);
-  discoverToastTimer = setTimeout(() => toast.classList.remove('visible'), 1800);
 }
 
 function setPOIDiscoverBtnState(mode){
@@ -9990,69 +9710,7 @@ function resolveLabelCollisions(){
     m._el.classList.toggle('label-below', pos === 'below');
   });
 }
-function resolveLabelCollisionsLegacy(){
-  const locVisible = [...localityMarkers, ...sublocalityMarkers]
-    .filter(m => m._el && !m._el.classList.contains('hidden-level'));
-  // POIs entran a este mismo sistema de colisión, pero con la prioridad más
-  // baja (tier 2) — un nombre de comuna o localidad nunca cede espacio frente
-  // a un nombre de POI; los POIs solo compiten por espacio entre sí.
-  const poiVisible = markers.filter(m => m._el && m._el.classList.contains('show-name'));
-  const visible = [...locVisible, ...poiVisible];
-  if (!visible.length) return;
 
-    const center = map.getCenter();
-  const ranked = visible.map(m => {
-    const loc = m._locality || m._sub || m._place;
-    const tier = m._locality ? 0 : (m._sub ? 1 : 2);
-    // Dentro del tier de sub-localidad (1), primary siempre gana sobre
-    // secondary — antes de decidir por distancia. Comunas y POIs no tienen
-    // este sub-nivel (subTier 0 fijo, sin efecto en su orden relativo).
-    const subTier = (m._sub && m._sub.tier === 'secondary') ? 1 : 0;
-    return { m, tier, subTier, dist: Math.hypot(loc.lat - center.lat, loc.lng - center.lng) };
-  }).sort((a, b) => {
-    if (a.tier !== b.tier) return a.tier - b.tier;
-    if (a.subTier !== b.subTier) return a.subTier - b.subTier;
-    return a.dist - b.dist;
-  });
-
-   // Margen de aire exclusivo para sub-localidades: exige una separación real
-  // entre pills, no solo "no tocarse" — sin esto, dos pills a 1-2px de
-  // distancia pasaban como "sin colisión" y se veían apiñadas (ej. "El Tebal"
-  // / "Chalinga" / "Salamanca Centro" muy pegadas entre sí). Solo infla el
-  // rect de la unidad sub-localidad (texto+punto); comunas y POIs conservan
-  // exactamente su criterio de colisión de siempre, sin margen extra.
-  const SUBLOCALITY_COLLISION_MARGIN_PX = 6;
-
-  const placed = [];
-  ranked.forEach(({ m }) => {
-    const label = m._el.querySelector('.loc-label') || m._el.querySelector('.poi-name-label');
-    if (!label) return;
-        // Para SUB-localidades únicamente (Nivel 2, m._sub) la unidad visual a
-    // proteger es el nombre + su punto (svg), no solo el texto — así una
-    // colisión "punto contra nombre/punto vecino" también se detecta ahí.
-    // Las comunas (Nivel 1, m._locality) quedan deliberadamente fuera de esto:
-    // su punto es más grande (26px + halo respirando) y generaba falsos
-    // positivos entre comunas que ni siquiera están cerca visualmente — para
-    // comunas se mantiene el comportamiento original (solo colisión de texto).
-    let rect = label.getBoundingClientRect();
-    const isSublocalityUnit = !!m._sub;
-    if (isSublocalityUnit){
-      const dot = m._el.querySelector('svg');
-      if (dot) rect = unionRect(rect, dot.getBoundingClientRect());
-      rect = {
-        left: rect.left - SUBLOCALITY_COLLISION_MARGIN_PX,
-        right: rect.right + SUBLOCALITY_COLLISION_MARGIN_PX,
-        top: rect.top - SUBLOCALITY_COLLISION_MARGIN_PX,
-        bottom: rect.bottom + SUBLOCALITY_COLLISION_MARGIN_PX,
-      };
-    }
-    const collides = placed.some(r =>
-      rect.left < r.right && rect.right > r.left && rect.top < r.bottom && rect.bottom > r.top
-    );
-    m._el.classList.toggle('label-collapsed', collides);
-    if (!collides) placed.push(rect);
-  });
-}
 let collisionRaf = null;
 // Fluidez: medir las etiquetas obliga al navegador a recalcular el diseño. Con el mapa en
 // movimiento se mide como máximo cada COLLISION_MIN_MS; al detenerse, 'moveend' deja el resultado exacto.
@@ -12261,27 +11919,13 @@ const MemoryStore = {
     return { ok:true };
   },
 };
-// Aviso de error con el mismo toast de recuerdos (el título fijo "Recuerdo guardado" no sirve para errores).
+// Aviso de error de recuerdos (componente de avisos de la app).
 function showMemoryErrorToast(message){
   showAppNotice({ text: message || 'No se pudo completar. Inténtalo de nuevo.' });
 }
-function showMemoryErrorToastLegacy(message){
-  const t = memoryToast.querySelector('.mt-title');
-  t.textContent = 'No se pudo completar';
-  showMemoryToast(message || 'Inténtalo de nuevo', '');
-   setTimeout(() => { t.textContent = 'Recuerdo guardado'; }, 2700);
-}
-// Éxito de recuerdos libres: mismo toast (#memoryToast), el mensaje va en el título para no contradecir el texto fijo.
-let freeMemoryToastTitleTimer = null;
+// Éxito de recuerdos libres (componente de avisos de la app).
 function showFreeMemorySuccessToast(message, subtitle){
   showAppNotice({ tone:'success', title: message, text: subtitle || 'Recuerdos del Choapa', duration:3200 });
-}
-function showFreeMemorySuccessToastLegacy(message, subtitle){
-  const t = memoryToast.querySelector('.mt-title');
-  t.textContent = message;
-   showMemoryToast(subtitle || 'Recuerdos del Choapa', '');
-  clearTimeout(freeMemoryToastTitleTimer);
-  freeMemoryToastTitleTimer = setTimeout(() => { t.textContent = 'Recuerdo guardado'; }, 2700);
 }
 
 // Recuerdo libre asociado solo a una localidad (sin experiencia/POI específico).
@@ -12311,8 +11955,7 @@ const LocalityMemoryStore = {
 // "Recuerdos del Choapa" — recuerdos libres (sin lugar, localidad ni experiencia).
 // Supabase es la fuente de verdad: tabla public.free_memories + bucket privado user-media,
 // ruta {user_id}/free/{memory_id}.jpg, URLs firmadas. Independiente de public.memories (experiencias).
-// Los datos antiguos de localStorage (PERSONAL_MEMORY_KEY) ya NO se leen ni se escriben (tampoco se borran).
-const PERSONAL_MEMORY_KEY = 'choapa_explore_personal_memories_v1'; // legado, sin uso
+// Los datos antiguos de localStorage ('choapa_explore_personal_memories_v1') ya NO se leen ni se escriben (tampoco se borran).
 const FREE_MEMORY_TABLE = 'free_memories';
 let freeMemoryCache = [];                  // [{ id, photoUrl, photoPath, caption, createdAt }], más reciente primero
 let freeMemoriesLoadedForUser = null;      // usuario cuyos datos están en la caché (solo tras una carga EXITOSA)
@@ -13478,7 +13121,6 @@ function lineLengthMeters(coords){
 
 /* ---------- Fase 3: navegación activa ---------- */
 const activeNavHud = document.getElementById('activeNavHud');
-const arrivalToast = document.getElementById('arrivalToast');
 const ARRIVAL_RADIUS_M = 35;
 // No existía un umbral discreto de "desvío" — drawNavConnector() siempre
 // dibujaba la línea punteada, sin importar la distancia real (se estira o
@@ -14568,18 +14210,10 @@ document.querySelectorAll('.bottom-nav .nav-item').forEach(item => {
 
 /* ---------- MI ÁLBUM — guardar recuerdo desde la ficha del POI ---------- */
 const memoryFileInput = document.getElementById('memoryFileInput');
-const memoryToast = document.getElementById('memoryToast');
-let toastTimer = null;
 
 // Confirmación "Recuerdo guardado" — componente de avisos (abajo, con check), ya no el toast superior.
 function showMemoryToast(title, subtitle){
   showAppNotice({ tone:'success', title:'Recuerdo guardado', text: subtitle ? `${title} · ${subtitle}` : title, duration:3200 });
-}
-function showMemoryToastLegacy(title, subtitle){
-  document.getElementById('memoryToastSub').textContent = subtitle ? `${title} · ${subtitle}` : title;
-  memoryToast.classList.add('visible');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => memoryToast.classList.remove('visible'), 2600);
 }
 document.getElementById('poiDetailMemoryBtn').addEventListener('click', (e) => {
   e.stopPropagation();
@@ -14829,14 +14463,6 @@ if (!navigator.onLine){
   setTimeout(() => showAppNotice({ text:'Sin conexión. Algunas funciones no estarán disponibles por ahora.', duration:6000 }), 1200);
 }
 
-function centerOnUserLegacy(){
-  if (!navigator.geolocation){ return; }
-  navigator.geolocation.getCurrentPosition(pos => {
-    const { latitude, longitude } = pos.coords;
-    placeUserMarker(latitude, longitude);
-    map.easeTo({ center:[longitude, latitude], zoom:13, duration:600 });
-  }, () => { /* permiso denegado — no bloqueamos la UI */ });
-}
 document.getElementById('btnCenterMe').addEventListener('click', centerOnUser);
 document.getElementById('btnZoomIn').addEventListener('click', () => map.zoomIn());
 document.getElementById('btnZoomOut').addEventListener('click', () => map.zoomOut());
@@ -16008,16 +15634,6 @@ updateChromeOffset();
 window.addEventListener('resize', updateChromeOffset);
 
 /* ---------- 10. BUSCADOR — orientado a intención: "¿qué te gustaría hacer?" ---------- */
-const EXPERIENCE_SYNONYMS = {
-  cita:        'cita romantico romántico pareja enamorados salida en pareja atardecer',
-  aventura:    'aventura trekking senderismo caminata explorar aire libre montaña',
-  tranquilo:   'tranquilo relax relajarse descansar paz atardecer fotos paisaje instagrameable',
-  familia:     'familia niños niñas kids plan familiar',
-  adrenalina:  'adrenalina extremo intenso emocion emoción',
-  gastronomia: 'gastronomia gastronomía comer restaurantes cocina almuerzo cena',
-    noche:       'noche estrellas cielo cielos astronomia astronomía observatorio despejado',
-  cultura:     'cultura historia historico histórico patrimonio arquitectura iglesia iglesias capilla capillas monumento monumentos identidad local tradicion tradición tradiciones sitio historico estacion antigua',
-};
 
 // Placeholder del buscador según la experiencia activa — misma pregunta corta
 // que ya define el brief de producto para cada categoría. "todos" conserva el
@@ -16034,16 +15650,6 @@ const SEARCH_PLACEHOLDERS = {
     noche:       '¿Dónde quieres salir esta noche?',
    cultura:     '¿Qué historia quieres descubrir?',
 };
-
-// Palabras de relleno que se ignoran al interpretar frases de intención
-// ("¿qué hacer con niños?", "dónde comer", "ver el atardecer"...)
-const SEARCH_STOPWORDS = new Set([
-  'que','qué','hacer','con','una','uno','el','la','los','las','para','de','en',
-  'sacar','algo','me','gustaria','gustaría','quiero','busco','y','o','ver','donde','dónde','del','al'
-]);
-function searchTokens(q){
-  return q.toLowerCase().split(/\s+/).map(w => w.trim()).filter(w => w.length > 2 && !SEARCH_STOPWORDS.has(w));
-}
 
 // Sugerencias instantáneas = solo navegación directa por NOMBRE:
 //  · comunas cuyo nombre contiene lo escrito ("sala" → Salamanca),
@@ -17189,19 +16795,6 @@ function primaryExperienceTag(place){
   return expById('todos');
 }
 
-// Dos cadenas de eslabones cruzadas en X (ícono de "aún bloqueado"). Cada cadena: 2 eslabones
-// externos de frente y 2 centrales de perfil, que se tocan para leerse como una cadena.
-const LOCKED_CHAINS_SVG = (() => {
-  const chain = `
-    <rect x="4" y="34" width="18" height="12" rx="6"/>
-    <rect x="22" y="36.5" width="18" height="7" rx="3.5"/>
-    <rect x="40" y="36.5" width="18" height="7" rx="3.5"/>
-    <rect x="58" y="34" width="18" height="12" rx="6"/>`;
-  return `<svg width="58" height="58" viewBox="0 0 80 80" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-    <g transform="rotate(45 40 40)">${chain}</g>
-    <g transform="rotate(-45 40 40)">${chain}</g>
-  </svg>`;
-})();
 
 function renderLocalityAlbum(localityId){
   const locality = LOCALITIES.find(l => l.id === localityId);
@@ -17545,10 +17138,7 @@ function openPOIMemories(place){
   memoryDetail.classList.add('memory-detail--experience');
   memoryDetail.classList.add('visible');
 }
-function openLocalityMemoryDetail(locality, memory){
-  memoryDetailContext = { type:'locality', localityId:locality.id, memoryId:memory.id };
-  populateMemoryDetail({ photoUrl:memory.photoUrl, name:locality.name, loc:'Recuerdo libre', caption:memory.caption, createdAt:memory.createdAt });
-}
+
 function openPersonalMemoryDetail(memory){
   memoryDetailContext = { type:'personal', memoryId:memory.id };
 const freeTitle = memory.createdAt
@@ -18128,21 +17718,11 @@ function resetPasswordVisibility(){
   });
 }
 
-// Toast de bienvenida al iniciar sesión — MISMA clase CSS .memory-toast ya
-// existente (sin ningún estilo nuevo), como segunda instancia del
-// componente, igual patrón que arrivalToast ya es respecto a memoryToast.
-// Timer propio para no interferir con el de los recuerdos guardados.
-let authWelcomeToastTimer = null;
+// Aviso de bienvenida al iniciar sesión (componente de avisos de la app).
 // Aparece justo al cerrarse la pantalla de ingreso (el aviso espera a que se cierre).
 // name = nombre visible o null. Nunca recibe el correo (textContent: texto seguro).
 function showAuthWelcomeToast(name){
   showAppNotice({ tone:'success', title: name ? `¡Hola, ${name}!` : '¡Bienvenido de vuelta!', text:'Sesión iniciada correctamente', duration:3200 });
-}
-function showAuthWelcomeToastLegacy(email){
-  document.getElementById('authWelcomeToastSub').textContent = email || 'Sesión iniciada correctamente';
-  document.getElementById('authWelcomeToast').classList.add('visible');
-  clearTimeout(authWelcomeToastTimer);
-  authWelcomeToastTimer = setTimeout(() => document.getElementById('authWelcomeToast').classList.remove('visible'), 2600);
 }
 
 // Registro en curso: oculta el botón y muestra el spinner EN EL MISMO hueco
