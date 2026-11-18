@@ -1572,10 +1572,13 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
    Foto a sangre, categoría arriba, nombre y lugar abajo, y una flecha que invita a abrir. */
 .today-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 /* Tarjeta destacada: la foto manda. Sobre ella solo quedan el nombre y el lugar;
-   la categoría se resume en un ícono pequeño y toda la tarjeta es el botón (sin flecha). */
+   la categoría se resume en un ícono pequeño y toda la tarjeta es el botón (sin flecha).
+   Mosaico compacto (nov-2026): proporción apaisada 1 : 0.78 (antes 1 : 0,86), así las 4 fotos
+   siguen grandes pero ocupan menos alto. Encuadre «center 42%»: la mitad baja la cubre el texto,
+   así que se privilegia la parte alta de la foto (cascadas, torres, cerros). */
 .tg-card{
-  position:relative; aspect-ratio:1 / 0.86; min-height:124px; border-radius:20px; overflow:hidden; isolation:isolate;
-  background:var(--surface-elevated) center/cover no-repeat;
+  position:relative; aspect-ratio:1 / 0.78; min-height:112px; border-radius:20px; overflow:hidden; isolation:isolate;
+  background:var(--surface-elevated) center 42%/cover no-repeat;
   box-shadow:0 16px 28px -14px rgba(2,8,15,0.78);
   transition:transform .16s cubic-bezier(.34,1.56,.64,1);
   animation:tc-in .38s cubic-bezier(.2,.9,.28,1.1) backwards;
@@ -1584,7 +1587,7 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
 /* Velo solo en el tercio inferior: la parte alta de la foto queda limpia */
 .tg-card::after{
   content:''; position:absolute; inset:0; pointer-events:none;
-  background:linear-gradient(to top, rgba(5,14,24,0.94) 0%, rgba(5,14,24,0.62) 24%, rgba(5,14,24,0) 60%);
+  background:linear-gradient(to top, rgba(5,14,24,0.90) 0%, rgba(5,14,24,0.58) 30%, rgba(5,14,24,0) 60%);
 }
 /* Filo de luz interior: da el acabado de «vidrio» sin recargar */
 .tg-card::before{
@@ -1599,10 +1602,10 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
   color:var(--tag-color, var(--turquoise-bright));
   background:rgba(6,16,27,0.62); border:1px solid rgba(255,255,255,0.12);
 }
-.tg-card .tg-cat svg{ width:13px; height:13px; }
-.tg-card .tg-info{ position:absolute; left:11px; right:10px; bottom:11px; z-index:1; }
+.tg-card .tg-cat svg{ width:14px; height:14px; }
+.tg-card .tg-info{ position:absolute; left:11px; right:10px; bottom:10px; z-index:1; }
 .tg-card .tg-name{
-  font-family:var(--font-display); font-size:13.5px; font-weight:700; line-height:1.2; letter-spacing:-0.25px;
+  font-family:var(--font-display); font-size:14px; font-weight:700; line-height:1.18; letter-spacing:-0.25px;
   color:var(--text-primary); text-shadow:0 1px 8px rgba(2,8,15,0.6);
   display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
 }
@@ -1619,16 +1622,20 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
              0 0 6px color-mix(in srgb, var(--tag-color, var(--turquoise-bright)) 60%, transparent);
 }
 .tg-card .tg-loc span{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-/* Por qué esta experiencia ahora: distancia (si ya usaste «Cerca de mí») o el motivo de la selección */
-.tg-card .tg-why{
-  margin-top:4px; font-size:10.5px; font-weight:500; line-height:1.25;
-  color:rgba(232,240,246,0.88); text-shadow:0 1px 6px rgba(2,8,15,0.7);
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-}
-.tg-card .tg-why:empty{ display:none; }
+/* Distancia real, solo si ya usaste «Cerca de mí»: va en la misma línea del lugar y nunca se corta */
+.tg-card .tg-loc .tg-dist{ flex-shrink:0; overflow:visible; color:rgba(240,246,250,0.92); }
+.tg-card .tg-loc .tg-dist::before{ content:'·'; margin-right:5px; opacity:.7; }
+.tg-card .tg-loc .tg-dist:empty{ display:none; }
+/* Cabecera de la cuadrícula: rótulo a la izquierda y «Ver más» a la derecha en la misma línea
+   (antes «Ver más experiencias» ocupaba una fila propia bajo las tarjetas). El botón conserva un
+   área táctil de 44 px con márgenes negativos, sin agrandar la fila. */
+.tg-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
+.tg-head .featured-eyebrow{ margin-bottom:0; min-width:0; }
+.tg-head .featured-eyebrow span{ min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .today-grid-more{
-  display:flex; align-items:center; justify-content:center; gap:5px; width:100%;
-  margin-top:12px; padding:6px 0; font-size:12.5px; font-weight:600; color:var(--turquoise-bright);
+  display:flex; align-items:center; justify-content:flex-end; gap:2px; flex-shrink:0; width:auto;
+  min-height:44px; margin:-12px -8px -12px 0; padding:0 8px;
+  font-size:12px; font-weight:600; letter-spacing:0; color:var(--turquoise-bright);
 }
 .today-grid-more[hidden]{ display:none; }
 .sheet-hero-tagline{font-size:13px; color:var(--text-secondary); font-weight:500; margin-top:10px; text-shadow:0 1px 4px rgba(2,8,15,0.4); transition:opacity .16s ease;}
@@ -14788,10 +14795,10 @@ function applyMomentTransition(){
 // Textos según el momento elegido. Antes, con «Esta noche» o «Fin de semana» la tarjeta seguía
 // diciendo «Recomendación de ahora» y «Hoy»: el contenido contradecía al selector.
 const TODAY_MOMENT_COPY = {
-  ahora: { eyebrow:'Experiencias destacadas de hoy',               badge:'Hoy',           iconKey:'todaySun',    more:'Más ideas para hoy' },
-  tarde: { eyebrow:'Experiencias destacadas para esta tarde',       badge:'Esta tarde',    iconKey:'tfAfternoon', more:'Más ideas para esta tarde' },
-  noche: { eyebrow:'Experiencias destacadas para esta noche',       badge:'Esta noche',    iconKey:'tfNight',     more:'Más ideas para esta noche' },
-  finde: { eyebrow:'Experiencias destacadas para el fin de semana', badge:'Fin de semana', iconKey:'tfWeekend',   more:'Más ideas para el fin de semana' },
+   ahora: { eyebrow:'Destacadas de hoy',            badge:'Hoy',           iconKey:'todaySun',    more:'Más ideas para hoy' },
+  tarde: { eyebrow:'Destacadas para esta tarde',   badge:'Esta tarde',    iconKey:'tfAfternoon', more:'Más ideas para esta tarde' },
+  noche: { eyebrow:'Destacadas para esta noche',   badge:'Esta noche',    iconKey:'tfNight',     more:'Más ideas para esta noche' },
+  finde: { eyebrow:'Destacadas del fin de semana', badge:'Fin de semana', iconKey:'tfWeekend',   more:'Más ideas para el fin de semana' },
 };
 function buildTodayTagInfo(place){
   const cat = expById(place.category);
@@ -14800,23 +14807,14 @@ function buildTodayTagInfo(place){
   const color = expColor(tagInfo);
   return { tagInfo, color };
 }
-// «Por qué ahora» de cada tarjeta, sin inventar nada:
-// · si ya usaste «Cerca de mí» y estás en el Choapa → la distancia real (nunca pide permiso);
-// · si no → la categoría por la que la curación la eligió para este momento (TODAY_CURATION_ORDERS).
-// Si la tarjeta entró solo para completar las 4, no se le dice «ideal»: se muestra su categoría.
-const TODAY_WHY_PHRASE = { ahora:'ideal ahora', tarde:'ideal esta tarde', noche:'ideal esta noche', finde:'ideal este finde' };
-function todayWhyLine(place, tagInfo){
-  const phrase = TODAY_WHY_PHRASE[activeTimeFilter] || TODAY_WHY_PHRASE.ahora;
-  const order = TODAY_CURATION_ORDERS[activeTimeFilter] || TODAY_CURATION_ORDERS.ahora;
-  const reasonId = order.find(id => (place.experiences || []).includes(id));
-  const reason = reasonId ? expById(reasonId) : null;
-  const label = reason ? `${reason.label} · ${phrase}` : (tagInfo && tagInfo.label) || '';
-  if (nearbyCoords && isInsideChoapa(nearbyCoords.lat, nearbyCoords.lng)){
-    const km = distanceKm(nearbyCoords.lat, nearbyCoords.lng, place.lat, place.lng);
-    const kmTxt = km < 10 ? km.toFixed(1).replace('.', ',') : String(Math.round(km));
-    return `A ${kmTxt} km · ${reason ? phrase : label}`;
-  }
-  return label;
+// Distancia real a la experiencia, solo si ya usaste «Cerca de mí» y estás dentro del Choapa
+// (nunca pide permiso). Sin ubicación devuelve '' y la tarjeta muestra solo el lugar.
+// (Reemplaza a la línea «… · ideal ahora»: repetía en las 4 tarjetas lo que ya dice el rótulo
+// y sumaba un tercer renglón sobre la foto.)
+function todayDistanceText(place){
+  if (!nearbyCoords || !isInsideChoapa(nearbyCoords.lat, nearbyCoords.lng)) return '';
+  const km = distanceKm(nearbyCoords.lat, nearbyCoords.lng, place.lat, place.lng);
+  return (km < 10 ? km.toFixed(1).replace('.', ',') : String(Math.round(km))) + ' km';
 }
 
 function renderTodayRail(){
@@ -14850,32 +14848,33 @@ function renderTodayRail(){
   // Las 4 destacadas del momento, en cuadrícula 2×2.
   const chevron = size => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9.5 6 6 6-6 6"/></svg>`;
   todayFeatured.style.display = 'block';
-  todayFeatured.innerHTML = `
-    <div class="featured-eyebrow">${icon('nowDot', 11)} ${momentCopy.eyebrow}</div>
-    <div class="today-grid"></div>
-    <button class="today-grid-more" type="button"${railPicks.length ? '' : ' hidden'}>Ver más experiencias ${chevron(13)}</button>`;
+   todayFeatured.innerHTML = `
+    <div class="tg-head">
+      <div class="featured-eyebrow">${icon('nowDot', 11)}<span>${momentCopy.eyebrow}</span></div>
+      <button class="today-grid-more" type="button"${railPicks.length ? '' : ' hidden'}>Ver más ${chevron(12)}</button>
+    </div>
+    <div class="today-grid"></div>`;
   const grid = todayFeatured.querySelector('.today-grid');
   picks.forEach((place, i) => {
     const { tagInfo, color } = buildTodayTagInfo(place);
     const card = document.createElement('div');
     card.className = 'tg-card';
     card.setAttribute('role', 'button');
-       const why = todayWhyLine(place, tagInfo);
-    card.setAttribute('aria-label', `${place.name}, ${place.locality} · ${why || tagInfo.label}`);
-      if (place.image) card.style.backgroundImage = `url(${thumbUrl(place.image, 480)})`;
+         const dist = todayDistanceText(place);
+    card.setAttribute('aria-label', `${place.name}, ${place.locality}${dist ? ` (a ${dist})` : ''} · ${tagInfo.label}`);
+    if (place.image) card.style.backgroundImage = `url(${thumbUrl(place.image, 480)})`;
     card.style.setProperty('--tc-delay', (i * 45) + 'ms');
     if (suppressTodayEntryAnimation) card.style.animation = 'none';
-      card.innerHTML = `
+    card.innerHTML = `
       <span class="tg-cat" aria-hidden="true">${tagInfo.icon}</span>
       <div class="tg-info">
         <div class="tg-name"></div>
-               <div class="tg-loc"><span></span></div>
-        <div class="tg-why"></div>
+        <div class="tg-loc"><span></span><span class="tg-dist"></span></div>
       </div>`;
     card.style.setProperty('--tag-color', color);
     card.querySelector('.tg-name').textContent = place.name;
     card.querySelector('.tg-loc span').textContent = place.locality;
-    card.querySelector('.tg-why').textContent = why;
+    card.querySelector('.tg-dist').textContent = dist;
     card.addEventListener('click', () => { collapseSheet(); selectPlaceById(place.id); });
     grid.appendChild(card);
   });
