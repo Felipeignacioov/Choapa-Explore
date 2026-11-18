@@ -1619,6 +1619,13 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
              0 0 6px color-mix(in srgb, var(--tag-color, var(--turquoise-bright)) 60%, transparent);
 }
 .tg-card .tg-loc span{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* Por qué esta experiencia ahora: distancia (si ya usaste «Cerca de mí») o el motivo de la selección */
+.tg-card .tg-why{
+  margin-top:4px; font-size:10.5px; font-weight:500; line-height:1.25;
+  color:rgba(232,240,246,0.88); text-shadow:0 1px 6px rgba(2,8,15,0.7);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.tg-card .tg-why:empty{ display:none; }
 .today-grid-more{
   display:flex; align-items:center; justify-content:center; gap:5px; width:100%;
   margin-top:12px; padding:6px 0; font-size:12.5px; font-weight:600; color:var(--turquoise-bright);
@@ -1626,11 +1633,67 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
 .today-grid-more[hidden]{ display:none; }
 .sheet-hero-tagline{font-size:13px; color:var(--text-secondary); font-weight:500; margin-top:10px; text-shadow:0 1px 4px rgba(2,8,15,0.4); transition:opacity .16s ease;}
 
-/* Hero más nocturno para el momento "Esta noche" — capa extra de tinte frío. */
-.sheet-hero.night::before{
-  content:''; position:absolute; inset:0; pointer-events:none;
-  background:linear-gradient(200deg, rgba(30,20,60,0.35) 0%, rgba(7,19,31,0.1) 55%);
+/* ---------- LUZ DEL MOMENTO (nov-2026) ----------
+   Cada momento (Ahora, Esta tarde, Esta noche, Fin de semana) enciende una luz propia detrás del
+   título, sin fotos: da atmósfera sin quitarle protagonismo a las 4 experiencias. «Ahora» sigue la
+   hora real del Choapa (de noche se ve la luz nocturna; al amanecer y al atardecer, la dorada).
+   La luz nace detrás del título y se apaga suave antes de las tarjetas: arriba no tiene borde y
+   abajo la sección de las tarjetas la va cubriendo hasta quedar sólida.
+   Fluidez: los degradados se pintan una sola vez; lo único que se mueve es un resplandor que
+   deriva muy lento con transform/opacity (lo hace la tarjeta gráfica, no el procesador), y se
+   detiene con el panel cerrado o con «reducir movimiento». Los colores se funden en 0,9 s.
+   Nada se sale del ancho del panel (no aparece scroll lateral). */
+@property --hl-a{ syntax:'<color>'; inherits:true; initial-value:rgba(7,19,31,0); }
+@property --hl-b{ syntax:'<color>'; inherits:true; initial-value:rgba(7,19,31,0); }
+@property --hl-c{ syntax:'<color>'; inherits:true; initial-value:rgba(7,19,31,0); }
+.sheet-hero{
+  isolation:isolate;
+  /* Ahora (de día): turquesa de marca, luz limpia */
+  --hl-a:rgba(95,225,232,0.30); --hl-b:rgba(52,190,160,0.16); --hl-c:rgba(200,250,246,0.16);
+  transition:--hl-a .9s ease, --hl-b .9s ease, --hl-c .9s ease;
 }
+/* Esta tarde: hora dorada — ámbar y un rosa suave */
+.sheet-hero[data-luz="tarde"]{ --hl-a:rgba(255,160,70,0.34); --hl-b:rgba(236,104,120,0.20); --hl-c:rgba(255,214,140,0.20); }
+/* Esta noche: índigo profundo y una luz de luna fría */
+.sheet-hero[data-luz="noche"]{ --hl-a:rgba(104,88,220,0.36); --hl-b:rgba(36,104,190,0.22); --hl-c:rgba(186,198,255,0.17); }
+/* Fin de semana: escapada — verde menta con un beso dorado */
+.sheet-hero[data-luz="finde"]{ --hl-a:rgba(56,214,160,0.28); --hl-b:rgba(250,196,100,0.30); --hl-c:rgba(255,236,190,0.15); }
+/* Sin foto de comuna, el título queda sobre el vidrio del panel (sin franja oscura propia) y la
+   sección siguiente se vuelve sólida en degradado: así la luz respira sin cortes. */
+.sheet-hero:not(.hero-foto){ background:none; }
+.sheet-hero:not(.hero-foto) + .sheet-section{
+  background:linear-gradient(180deg, rgba(7,19,31,0) 0px, var(--bg-primary) 120px);
+}
+/* Luz base (quieta): fuente principal a la derecha + luz de relleno a la izquierda */
+.sheet-hero::before,
+.sheet-hero::after{
+  content:''; position:absolute; top:0; left:0; right:0; bottom:-110px; z-index:-1; pointer-events:none;
+}
+.sheet-hero::before{
+  background:
+    radial-gradient(62% 46% at 84% 38%, var(--hl-a) 0%, transparent 100%),
+    radial-gradient(56% 42% at 10% 50%, var(--hl-b) 0%, transparent 100%);
+  /* nace suave bajo la manilla del panel: sin borde arriba */
+  -webkit-mask-image:linear-gradient(180deg, transparent 0, #000 40px);
+          mask-image:linear-gradient(180deg, transparent 0, #000 40px);
+}
+/* Resplandor que «respira» y deriva lento — la luz se siente viva sin distraer */
+.sheet-hero::after{
+  background:radial-gradient(34% 30% at 66% 34%, var(--hl-c) 0%, transparent 100%);
+  animation:hero-luz 18s ease-in-out infinite alternate;
+  will-change:transform, opacity;
+}
+@keyframes hero-luz{
+  from{ transform:translate3d(-3%, 3%, 0) scale(.94); opacity:.65; }
+  to  { transform:translate3d(3%, -2%, 0) scale(.94); opacity:1;   }
+}
+/* «hoy» toma un halo suave del color del momento */
+.sheet-hero-title .accent{ text-shadow:0 0 18px var(--hl-a), 0 2px 8px rgba(2,8,15,0.4); }
+/* En una comuna con foto propia manda la foto: la luz se apaga (comportamiento de siempre) */
+.sheet-hero.hero-foto::before, .sheet-hero.hero-foto::after{ display:none; }
+/* Panel cerrado o «reducir movimiento»: la luz queda quieta */
+.sheet.collapsed .sheet-hero::after{ animation-play-state:paused; }
+@media (prefers-reduced-motion: reduce){ .sheet-hero::after{ animation:none; opacity:.85; } }
 @keyframes hero-in{
   from{opacity:0; transform:translateY(10px);}
   to{opacity:1; transform:translateY(0);}
@@ -14648,7 +14711,7 @@ function renderTimeFilters(){
 function updateMomentContent(){
   const tagline = document.getElementById('sheetHeroTagline');
   if (tagline) tagline.textContent = HERO_SUBTITLES[activeTimeFilter] || HERO_SUBTITLES.ahora;
-  if (sheetHero) sheetHero.classList.toggle('night', activeTimeFilter === 'noche');
+   syncHeroLight();
   renderTodayRail();
   renderExploreMoreRail();
   renderCollectionsRail();
@@ -14737,6 +14800,24 @@ function buildTodayTagInfo(place){
   const color = expColor(tagInfo);
   return { tagInfo, color };
 }
+// «Por qué ahora» de cada tarjeta, sin inventar nada:
+// · si ya usaste «Cerca de mí» y estás en el Choapa → la distancia real (nunca pide permiso);
+// · si no → la categoría por la que la curación la eligió para este momento (TODAY_CURATION_ORDERS).
+// Si la tarjeta entró solo para completar las 4, no se le dice «ideal»: se muestra su categoría.
+const TODAY_WHY_PHRASE = { ahora:'ideal ahora', tarde:'ideal esta tarde', noche:'ideal esta noche', finde:'ideal este finde' };
+function todayWhyLine(place, tagInfo){
+  const phrase = TODAY_WHY_PHRASE[activeTimeFilter] || TODAY_WHY_PHRASE.ahora;
+  const order = TODAY_CURATION_ORDERS[activeTimeFilter] || TODAY_CURATION_ORDERS.ahora;
+  const reasonId = order.find(id => (place.experiences || []).includes(id));
+  const reason = reasonId ? expById(reasonId) : null;
+  const label = reason ? `${reason.label} · ${phrase}` : (tagInfo && tagInfo.label) || '';
+  if (nearbyCoords && isInsideChoapa(nearbyCoords.lat, nearbyCoords.lng)){
+    const km = distanceKm(nearbyCoords.lat, nearbyCoords.lng, place.lat, place.lng);
+    const kmTxt = km < 10 ? km.toFixed(1).replace('.', ',') : String(Math.round(km));
+    return `A ${kmTxt} km · ${reason ? phrase : label}`;
+  }
+  return label;
+}
 
 function renderTodayRail(){
   experiencesRail.innerHTML = '';
@@ -14779,7 +14860,8 @@ function renderTodayRail(){
     const card = document.createElement('div');
     card.className = 'tg-card';
     card.setAttribute('role', 'button');
-     card.setAttribute('aria-label', `${place.name}, ${place.locality} · ${tagInfo.label}`);
+       const why = todayWhyLine(place, tagInfo);
+    card.setAttribute('aria-label', `${place.name}, ${place.locality} · ${why || tagInfo.label}`);
       if (place.image) card.style.backgroundImage = `url(${thumbUrl(place.image, 480)})`;
     card.style.setProperty('--tc-delay', (i * 45) + 'ms');
     if (suppressTodayEntryAnimation) card.style.animation = 'none';
@@ -14787,11 +14869,13 @@ function renderTodayRail(){
       <span class="tg-cat" aria-hidden="true">${tagInfo.icon}</span>
       <div class="tg-info">
         <div class="tg-name"></div>
-        <div class="tg-loc"><span></span></div>
+               <div class="tg-loc"><span></span></div>
+        <div class="tg-why"></div>
       </div>`;
     card.style.setProperty('--tag-color', color);
     card.querySelector('.tg-name').textContent = place.name;
     card.querySelector('.tg-loc span').textContent = place.locality;
+    card.querySelector('.tg-why').textContent = why;
     card.addEventListener('click', () => { collapseSheet(); selectPlaceById(place.id); });
     grid.appendChild(card);
   });
@@ -15158,6 +15242,22 @@ function collapseSheet(){
 // — no se inventa ninguna imagen mientras tanto. Se engancha a enterLocality/
 // exitLocality, que ya existen, sin tocar su lógica de navegación.
 const sheetHero = document.querySelector('.sheet-hero');
+// Luz del momento: el CSS ([data-luz]) pinta la luz; aquí solo se decide cuál.
+// «Ahora» sigue la hora real del Choapa (misma getDayPeriod del mapa): de noche → luz nocturna,
+// al amanecer/atardecer → luz dorada, de día → turquesa. Las demás franjas usan la suya.
+function heroLightMoment(){
+  if (activeTimeFilter !== 'ahora') return activeTimeFilter;
+  const period = getDayPeriod(atmosphereNow());
+  return period === 'night' ? 'noche' : (period === 'dusk' ? 'tarde' : 'ahora');
+}
+function syncHeroLight(){
+  if (!sheetHero) return;
+  const luz = heroLightMoment();
+  if (sheetHero.dataset.luz !== luz) sheetHero.dataset.luz = luz;
+}
+syncHeroLight();
+// Una revisión por minuto basta para que «Ahora» cambie de luz cuando cae la tarde o la noche.
+setInterval(syncHeroLight, 60000);
 const COMUNA_HERO_IMAGES = {
   salamanca: 'assets/cerro-chico/02-vista-aerea.jpg',
    illapel: 'https://gfsnhjxsqbsapnpfqpyy.supabase.co/storage/v1/object/public/Choapa%20explore%20Recursos/Illapel%20portada.jpg',
@@ -15170,7 +15270,8 @@ function updateSheetHero(){
     // (communeHeroImage) — reutilizado tal cual: imagen manual de
     // COMUNA_HERO_IMAGES si existe, si no la primera experiencia real de esa
     // comuna vía placesInLocality (ya 100% Supabase), si no, cadena vacía.
-    const img = communeHeroImage(state.currentLocality);
+      const img = communeHeroImage(state.currentLocality);
+    sheetHero.classList.toggle('hero-foto', !!img);
     if (img){
       sheetHero.style.setProperty('--hero-img', `url('${img}')`);
     } else {
@@ -15182,7 +15283,8 @@ function updateSheetHero(){
   } else {
     // Sin comuna seleccionada (vista general del Choapa): mismo
     // comportamiento de siempre, el CSS por defecto de .sheet-hero decide.
-    sheetHero.style.removeProperty('--hero-img');
+        sheetHero.style.removeProperty('--hero-img');
+    sheetHero.classList.remove('hero-foto');
   }
   renderClosingFeature(); // el cierre editorial sigue a la comuna que se explora
 }
