@@ -1761,6 +1761,19 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
   to{opacity:1; transform:translateY(0) scale(1);}
 }
 .today-card .photo{position:relative; height:118px; width:100%; background:var(--surface-elevated) center/cover no-repeat;}
+/* Experiencia sin foto (aún no subida): en vez de un recuadro vacío, un fondo con el color de su
+   categoría y su ícono grande y tenue. Mismo tamaño y posición que la foto; no cambia nada en las que sí tienen. */
+.today-card .photo.no-photo,
+.tg-card.no-photo{
+  background-image:
+    radial-gradient(120% 95% at 82% 8%, color-mix(in srgb, var(--tag-color, #5FE1E8) 30%, transparent) 0%, transparent 62%),
+    linear-gradient(160deg, #15304A 0%, #0B1A28 100%);
+}
+.tc-noimg, .tg-noimg{
+  position:absolute; left:50%; top:42%; transform:translate(-50%, -50%);
+  display:flex; color:var(--tag-color, #5FE1E8); opacity:.42; pointer-events:none;
+}
+.tc-noimg svg, .tg-noimg svg{ width:34px; height:34px; }
 .today-card .photo::after{
   content:''; position:absolute; inset:0;
   background:linear-gradient(to bottom, rgba(7,19,31,0) 45%, rgba(7,19,31,0.62) 100%);
@@ -14862,11 +14875,12 @@ function renderTodayRail(){
     card.setAttribute('role', 'button');
          const dist = todayDistanceText(place);
     card.setAttribute('aria-label', `${place.name}, ${place.locality}${dist ? ` (a ${dist})` : ''} · ${tagInfo.label}`);
-    if (place.image) card.style.backgroundImage = `url(${thumbUrl(place.image, 480)})`;
+      if (place.image) card.style.backgroundImage = `url(${thumbUrl(place.image, 480)})`;
+    else card.classList.add('no-photo'); // sin foto: fondo con el color de su categoría (ver .tg-card.no-photo)
     card.style.setProperty('--tc-delay', (i * 45) + 'ms');
     if (suppressTodayEntryAnimation) card.style.animation = 'none';
     card.innerHTML = `
-      <span class="tg-cat" aria-hidden="true">${tagInfo.icon}</span>
+         ${place.image ? '' : `<span class="tg-noimg" aria-hidden="true">${tagInfo.icon}</span>`}<span class="tg-cat" aria-hidden="true">${tagInfo.icon}</span>
       <div class="tg-info">
         <div class="tg-name"></div>
         <div class="tg-loc"><span></span><span class="tg-dist"></span></div>
@@ -14893,8 +14907,8 @@ function renderTodayRail(){
       card.style.setProperty('--tc-delay', (i * 45) + 'ms');
     if (suppressTodayEntryAnimation) card.style.animation = 'none';
     card.innerHTML = `
-                     <div class="photo" style="background-image:url(${thumbUrl(place.image, 640)})">
-       <span class="tc-tag" style="--tag-color:${color}">${tagInfo.icon}${tagInfo.label}</span>
+                         <div class="photo${place.image ? '' : ' no-photo'}" style="${place.image ? `background-image:url(${thumbUrl(place.image, 640)})` : `--tag-color:${color}`}">
+       ${place.image ? '' : `<span class="tc-noimg" aria-hidden="true">${tagInfo.icon}</span>`}<span class="tc-tag" style="--tag-color:${color}">${tagInfo.icon}${tagInfo.label}</span>
       </div>
       <div class="tc-info">
         <div class="tc-name">${place.name}</div>
