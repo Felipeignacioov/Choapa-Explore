@@ -4050,11 +4050,21 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
   .loc-halo-html{ animation:none !important; opacity:.2; }
 }
 
-/* ================= SIN DESENFOQUE MIENTRAS SE MUEVE EL MAPA (validado por consola) =================
-   El desenfoque de fondo de los controles sobre el mapa se recalcula en cada cuadro del mapa.
-   Solo mientras se arrastra (body.map-moving) se apaga y un velo oscuro sutil compensa el tono;
-   al soltar vuelve el vidrio. El chip activo no se toca. */
-body.map-moving :is(.searchbar, .profile-btn, .map-controls, .locate-btn, .compass-btn, .zone-prompt, .sheet-pill, .comuna-panel, .comuna-panel-pill, .bottom-nav),
+/* ================= CONTROLES SOBRE EL MAPA: VIDRIO ESTABLE (nov-2026) =================
+   Antes, al mover el mapa se apagaba el desenfoque y aparecía un velo oscuro (body.map-moving):
+   se notaba como una «sombra» que entraba y salía en el buscador, +/−, ubicación, perfil,
+   «¿Qué hacer hoy?» y la barra inferior. Ahora estos controles no usan desenfoque nunca (igual que
+   los chips de categorías) y tienen un fondo un poco más sólido: se ven siempre iguales, quietos o
+   en movimiento, y el celular no recalcula desenfoques en cada cuadro del mapa. */
+.searchbar, .profile-btn, .map-controls, .locate-btn, .compass-btn, .zone-prompt, .sheet-pill, .comuna-panel, .comuna-panel-pill, .bottom-nav{
+  backdrop-filter:none; -webkit-backdrop-filter:none;
+}
+.searchbar{ background-color:rgba(16,36,56,0.82); }
+.profile-btn, .map-controls, .locate-btn, .compass-btn{ background:rgba(16,36,56,0.84); }
+.zone-prompt, .sheet-pill, .comuna-panel-pill{ background:rgba(16,36,56,0.86); }
+.comuna-panel{ background:rgba(16,36,56,0.9); }
+.bottom-nav{ background:rgba(7,19,31,0.94); }
+/* Navegación en curso: se mantiene como estaba. */
 body.nav-live :is(.profile-btn, .compass-btn, .bottom-nav){
   backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
   box-shadow:inset 0 0 0 100vmax rgba(11,23,38,.18), var(--shadow-float, 0 0 0 transparent);
@@ -11311,11 +11321,9 @@ document.addEventListener('visibilitychange', () => {
 map.on('movestart', () => {
   stopAmbientTicks();
   map.getContainer().classList.add('is-moving');
-  document.body.classList.add('map-moving'); // controles sin desenfoque mientras se mueve (ver CSS)
 });
 map.on('moveend', () => {
-  map.getContainer().classList.remove('is-moving');
-  document.body.classList.remove('map-moving');
+    map.getContainer().classList.remove('is-moving');
   if (!document.hidden) startAmbientTicks();
 });
 
