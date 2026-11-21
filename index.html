@@ -94,7 +94,13 @@ button{font-family:inherit; border:none; background:none; color:inherit; cursor:
 input{font-family:inherit;}
 img{-webkit-user-drag:none; user-select:none;}
 
-#app{position:relative; width:100vw; height:100vh; height:100dvh;}
+#app{position:relative; width:100vw; height:100vh; height:100dvh;
+  /* Las pantallas ocultas (Guardados, Cerca de mí, Mi Álbum) esperan fuera de la vista,
+     debajo de la pantalla. Sin este recorte la página quedaba más alta que el celular y el
+     navegador podía desplazarla unos píxeles: aparecía una franja vacía bajo la barra inferior
+     (con el botón «volver» del álbum asomando) y el logo se cortaba arriba. */
+  overflow:hidden; overflow:clip;
+}
 
 /* ---------------- MAP ---------------- */
 #map{position:absolute; inset:0; background:var(--bg-primary); touch-action:none;}
