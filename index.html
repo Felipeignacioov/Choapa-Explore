@@ -9673,13 +9673,32 @@ function renderLocalityMarkers(){
 let sublocalityRenderToken = 0;
 let sublocalityCascadeEndsAt = 0;
 const SUBLOCALITY_BATCH = 4;
+// Fluidez (nov-2026): al salir de una localidad (o entrar a una comuna) con vuelo de cámara, las ~20
+// localidades de la comuna se creaban DURANTE el vuelo (al salir, justo al despegar): crear y animar
+// esos marcadores mientras la cámara se mueve era el tirón. Ahora, si la cámara está volando por uno
+// de esos dos vuelos, se crean apenas aterriza, con la misma cascada de entrada de siempre.
+// Con gestos manuales (pellizco) no cambia nada: se crean como siempre.
+let sublocalityDeferUntilArrival = false;
+function deferSublocalityMarkersToArrival(){
+  sublocalityDeferUntilArrival = true;
+  map.once('moveend', () => { sublocalityDeferUntilArrival = false; });
+}
 function renderSublocalityMarkers(subs){
   clearSublocalityMarkers();
   // Mientras hay una ruta de navegación activa, las localidades (violeta) no
   // deben mostrarse en ningún nivel de zoom — se corta acá, antes de crear
   // ningún marcador nuevo. La lógica normal de tiers no se toca: apenas
   // termine la navegación, esta misma función vuelve a renderizar normal.
-  if (state.nav.active) return;
+   if (state.nav.active) return;
+  if (sublocalityDeferUntilArrival && map.isMoving()){
+    const deferToken = sublocalityRenderToken;
+    map.once('moveend', () => {
+      if (deferToken !== sublocalityRenderToken) return; // se limpiaron o se volvieron a dibujar entre medio
+      if (!state.currentLocality || state.currentSublocality || currentZoomTier() !== 'sublocalidad') return;
+      renderSublocalityMarkers(SUBLOCALITIES[state.currentLocality.id] || subs);
+    });
+    return;
+  }
   const token = ++sublocalityRenderToken;
   const origin = state.currentLocality || map.getCenter();
   const dist = s => Math.hypot(s.lat - origin.lat, s.lng - origin.lng);
@@ -9898,8 +9917,12 @@ function updateSublocalityHaloDensity(){
         weight += 1 - (d / HALO_DENSITY_RADIUS_PX); // más peso cuanto más cerca, 0 en el borde del radio
       }
     });
-    const intensity = Math.max(HALO_DENSITY_FLOOR, 1 - weight * HALO_DENSITY_STEP);
-    marker.getElement().style.setProperty('--loc-halo-density', intensity.toFixed(3));
+       const intensity = Math.max(HALO_DENSITY_FLOOR, 1 - weight * HALO_DENSITY_STEP).toFixed(3);
+    // Fluidez: solo se escribe si cambió (en pleno zoom la mayoría queda igual y cada escritura obliga
+    // al navegador a recalcular el estilo de esa localidad).
+    if (marker._haloDensity === intensity) return;
+    marker._haloDensity = intensity;
+    marker.getElement().style.setProperty('--loc-halo-density', intensity);
   });
 }
 let haloDensityRaf = null;
@@ -9921,13 +9944,25 @@ map.on('zoom', scheduleHaloDensityCheck);
 /* ---------- Desvanecido de sub-localidades en los bordes laterales ----------
    Mismo patrón que la densidad de halos: map.project() + rAF, sin tocar el DOM salvo una variable CSS. */
 const EDGE_FADE_BAND_PX = 72; // distancia al borde donde empieza a desvanecerse
+// Fluidez (nov-2026): antes se leía el ancho del mapa (clientWidth) en CADA cuadro del vuelo de cámara.
+// Como MapLibre acaba de mover todos los marcadores, esa lectura obligaba al navegador a recalcular el
+// diseño de la página a mitad del cuadro: era el principal tirón al salir de una localidad. Ahora el
+// ancho se guarda y se renueva solo si cambia el tamaño del mapa; y la variable de cada localidad se
+// escribe solo cuando su valor cambia (las del centro, siempre 1, ya no se tocan). Se ve igual.
+let edgeFadeMapWidth = 0;
+const resetEdgeFadeMapWidth = () => { edgeFadeMapWidth = 0; };
+map.on('resize', resetEdgeFadeMapWidth);
+window.addEventListener('resize', resetEdgeFadeMapWidth);
 function updateSublocalityEdgeFade(){
   if (!sublocalityMarkers.length) return;
-  const w = map.getContainer().clientWidth;
+  const w = edgeFadeMapWidth || (edgeFadeMapWidth = map.getContainer().clientWidth);
   sublocalityMarkers.forEach(marker => {
     const x = map.project(marker.getLngLat()).x;
     const t = Math.min(Math.max(Math.min(x, w - x) / EDGE_FADE_BAND_PX, 0), 1);
-    marker.getElement().style.setProperty('--edge-fade', (t * t * (3 - 2 * t)).toFixed(3)); // suavizado
+    const fade = (t * t * (3 - 2 * t)).toFixed(3); // suavizado
+    if (marker._edgeFade === fade) return;
+    marker._edgeFade = fade;
+    marker.getElement().style.setProperty('--edge-fade', fade);
   });
 }
 let edgeFadeRaf = null;
@@ -10401,8 +10436,9 @@ function enterLocality(locality, { fly }){
         easing:t => t*(2-t),
       });
     } else {
-     map.flyTo({ center:[locality.lng, locality.lat], zoom, offset:getComunaFlyOffset(), duration:1400, curve:1.3, easing:t => t*(2-t) });
+         map.flyTo({ center:[locality.lng, locality.lat], zoom, offset:getComunaFlyOffset(), duration:1400, curve:1.3, easing:t => t*(2-t) });
     }
+    deferSublocalityMarkersToArrival(); // fluidez: las localidades aparecen al llegar (ver renderSublocalityMarkers)
     // El panel "En [Comuna]" aparece recién cuando el vuelo de cámara termina
     // — antes se disparaba en paralelo con el propio flyTo, compitiendo
     // visualmente con la llegada del mapa. 'moveend' marca el fin real de esta
@@ -10509,7 +10545,8 @@ function exitSublocality({ fly }){
   // siempre, ahora con el objeto de comuna en vez del de localidad.
     // La cámara arranca primero y el panel vuelve a "En [Comuna]" al llegar (ver showComunaPanel).
   if (fly && state.currentLocality){
-    map.flyTo({ center:[state.currentLocality.lng, state.currentLocality.lat], zoom:10.6, duration:1100, curve:1.3, easing:t => t*(2-t) });
+       map.flyTo({ center:[state.currentLocality.lng, state.currentLocality.lat], zoom:10.6, duration:1100, curve:1.3, easing:t => t*(2-t) });
+    deferSublocalityMarkersToArrival(); // fluidez: las localidades aparecen al llegar (ver renderSublocalityMarkers)
   }
    if (state.currentLocality) showComunaPanel(state.currentLocality, { waitForCamera:fly, flightMs:1100 });
   updateExplorationBreadcrumb();
