@@ -15132,6 +15132,7 @@ function communeHeroImage(locality){
 // usa esa; si no, la misma de siempre (communeHeroImage). No cambia la portada del panel «¿Qué hacer hoy?».
 const ALBUM_COVER_IMAGES = {
   salamanca: 'https://gfsnhjxsqbsapnpfqpyy.supabase.co/storage/v1/object/public/Choapa%20explore%20Recursos/Salamanca%20Portada.jpg',
+  canela:    'https://gfsnhjxsqbsapnpfqpyy.supabase.co/storage/v1/object/public/Choapa%20explore%20Recursos/Canela%20Portada.jpg',
 };
 function albumCoverImage(locality){
   return ALBUM_COVER_IMAGES[locality.id] || communeHeroImage(locality);
