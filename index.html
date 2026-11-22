@@ -10493,8 +10493,12 @@ function exitLocality({ fly }){
     // valor de arriba, o el zoom/centro final no coincide con el spawn real,
     // percibiéndose como un segundo reacomodo.
    const overviewCam = getOverviewCamera();
-    if (overviewCam) map.easeTo({ ...overviewCam, duration:1200 });
-    else map.fitBounds(CHOAPA_BOUNDS, { padding:{ top:180, bottom:180, left:40, right:40 }, duration:1200 });
+       // Salida de la comuna (nov-2026): vuelo suave de 1,7 s, con arranque y aterrizaje simétricos,
+    // en vez del easeTo de 1,2 s que hacía el 75 % del alejamiento en el primer medio segundo
+    // (el relieve no alcanzaba a cargar en el celular). Mismo destino exacto que antes.
+    const exitEasing = t => -(Math.cos(Math.PI * t) - 1) / 2;
+    if (overviewCam) map.flyTo({ ...overviewCam, duration:1700, curve:1.4, easing:exitEasing });
+    else map.fitBounds(CHOAPA_BOUNDS, { padding:{ top:180, bottom:180, left:40, right:40 }, duration:1700, easing:exitEasing });
   }
   updateExplorationBreadcrumb();
   renderPlacesRail();
