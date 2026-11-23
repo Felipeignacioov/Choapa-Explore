@@ -12972,6 +12972,20 @@ function clearNavConnector(){
    termina el camino, se dibuja el último tramo a pie con una línea de puntos y se avisa. */
 const ROUTE_TRAIL_MIN_GAP_M = 60;      // menos que esto es el margen normal de cualquier ruta
 const OFFROAD_WALK_SPEED_MPS = 1.1;    // paso tranquilo por terreno abierto (para la hora de llegada)
+// Puntos de llegada en auto elegidos a mano: lugares donde sí hay camino hasta cerca, pero el
+// último tramo es complicado para un auto. En automóvil la ruta termina en este punto y el resto
+// se hace a pie (aviso + línea de puntos). A pie y en bici la ruta se calcula como siempre.
+// El lugar se reconoce por su nombre Y por estar a menos de 3 km del punto (no afecta a otro
+// lugar con nombre parecido en otra comuna).
+const CAR_ACCESS_POINTS = [
+  { name:/cerro\s+(de\s+)?la\s+cruz/i, lat:-31.769599, lng:-70.959852 }, // Salamanca · Matilde Salamanca, antes de la subida
+];
+function routeTargetFor(mode, place){
+  if (mode !== 'driving-car' || !place) return place;
+  const access = CAR_ACCESS_POINTS.find(a => a.name.test(place.name || '')
+    && distanceKm(a.lat, a.lng, place.lat, place.lng) <= 3);
+  return access ? { lat:access.lat, lng:access.lng } : place;
+}
 function updateRouteTrail(geometry, place){
   const c = geometry && geometry.coordinates;
   const end = c && c.length ? c[c.length - 1] : null;
@@ -13332,7 +13346,7 @@ document.getElementById('app').classList.add('route-preview'); // estilo de "pun
   try{
  const tooFar = routeTooFarMessage(mode, userCoords, place);
     if (tooFar){ const e = new Error('too-far'); e.userMessage = tooFar; throw e; }
-    const route = await fetchRoute(mode, userCoords, place);
+       const route = await fetchRoute(mode, userCoords, routeTargetFor(mode, place)); // en auto, algunos lugares terminan en su punto de llegada
     if (!route) return; // respuesta descartada por una petición más nueva
        state.nav.routeGeoJSON = route.geometry;
     state.nav.routeDuration = route.durationS;
@@ -13906,7 +13920,7 @@ async function recalculateRouteFromOffRoute(){
   state.nav.lastRecalcAttempt = Date.now();
   setNavStatus('info', `${icon('compassRose', 13)} Recalculando ruta…`);
   try{
-    const route = await fetchRoute(state.nav.mode, userCoords, place);
+     const route = await fetchRoute(state.nav.mode, userCoords, routeTargetFor(state.nav.mode, place));
     if (!route || state.nav.watchId == null) return; // descartada: hay una petición más nueva o el viaje ya terminó
     state.nav.offRouteCount = 0;
     state.nav.arriving = false;
