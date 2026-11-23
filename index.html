@@ -1154,16 +1154,27 @@ body.map-covered .tg-edge::after{animation-play-state:paused;}
   background:linear-gradient(180deg, rgba(11,23,38,0.6) 0px, rgba(11,23,38,0.9) 170px, var(--bg-primary) 260px);
   backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
   border-top:1px solid var(--border-glass);
-  border-radius:24px 24px 0 0;
+    border-radius:24px 24px 0 0;
   box-shadow:var(--shadow-sheet), inset 0 1px 0 rgba(255,255,255,0.05);
-  transition:height .38s cubic-bezier(.32,.9,.34,1), opacity .28s ease;
+  /* Fluidez (nov-2026): el panel ya no anima su alto (eso obligaba a recalcular, repintar y
+     reacomodar todo su contenido en cada cuadro). Tiene siempre su alto final y se desliza
+     con translate, que lo mueve la tarjeta gráfica: fluido en cualquier celular. (translate y no
+     transform: en pantallas anchas el panel ya usa transform para centrarse y ambos se suman.) */
+  height:93vh; height:93dvh;
+  translate:0 0;
+  transition:translate .38s cubic-bezier(.32,.9,.34,1), opacity .28s ease, visibility 0s linear 0s;
   display:flex; flex-direction:column;
   touch-action:none;
 }
 .sheet.expanded{height:93vh; height:93dvh;}
 .sheet.collapsed{
-  height:0; opacity:0; box-shadow:none; border-top-color:transparent;
+  translate:0 100%; opacity:0; box-shadow:none; border-top-color:transparent;
   pointer-events:none;
+  /* oculto del todo recién al terminar de bajar: cerrado no se pinta ni se puede enfocar */
+  visibility:hidden;
+  transition:translate .38s cubic-bezier(.32,.9,.34,1), opacity .28s ease, visibility 0s linear .38s;
+}
+.sheet.dragging{transition:none;}
 }
 .sheet.dragging{transition:none;}
 
@@ -1663,7 +1674,9 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
   isolation:isolate;
   /* Ahora (de día): turquesa de marca, luz limpia */
   --hl-a:rgba(95,225,232,0.30); --hl-b:rgba(52,190,160,0.16); --hl-c:rgba(200,250,246,0.16);
-  transition:--hl-a .9s ease, --hl-b .9s ease, --hl-c .9s ease;
+  /* Fluidez (nov-2026): antes los colores se fundían en 0,9 s, lo que obligaba a repintar la luz
+     en cada cuadro (en celulares modestos, el cambio de momento se trababa). Ahora la luz se
+     apaga y vuelve a encender por opacidad (la mueve la tarjeta gráfica) con el color nuevo. */
 }
 /* Esta tarde: hora dorada — ámbar y un rosa suave */
 .sheet-hero[data-luz="tarde"]{ --hl-a:rgba(255,160,70,0.34); --hl-b:rgba(236,104,120,0.20); --hl-c:rgba(255,214,140,0.20); }
@@ -1687,9 +1700,12 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
     radial-gradient(62% 46% at 84% 38%, var(--hl-a) 0%, transparent 100%),
     radial-gradient(56% 42% at 10% 50%, var(--hl-b) 0%, transparent 100%);
   /* nace suave bajo la manilla del panel: sin borde arriba */
-  -webkit-mask-image:linear-gradient(180deg, transparent 0, #000 40px);
+   -webkit-mask-image:linear-gradient(180deg, transparent 0, #000 40px);
           mask-image:linear-gradient(180deg, transparent 0, #000 40px);
+  will-change:opacity;
+  transition:opacity .26s ease;
 }
+.sheet-hero.moment-swap::before{ opacity:0; transition-duration:.14s; }
 /* Resplandor que «respira» y deriva lento — la luz se siente viva sin distraer */
 .sheet-hero::after{
   background:radial-gradient(34% 30% at 66% 34%, var(--hl-c) 0%, transparent 100%);
@@ -3817,11 +3833,17 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
 .sheet::before{
   content:''; position:absolute; inset:0; bottom:auto; height:min(100%, 262px); z-index:-1; pointer-events:none;
   border-radius:inherit; border-bottom-left-radius:0; border-bottom-right-radius:0;
-  background:linear-gradient(180deg, rgba(11,23,38,0.6) 0px, rgba(11,23,38,0.9) 170px, var(--bg-primary) 260px);
-  backdrop-filter:blur(16px);
-  -webkit-backdrop-filter:blur(16px);
+  /* Vidrio estable (nov-2026): antes era translúcida con desenfoque, y a través de ella se
+     veían borrosos el buscador y el chip turquesa «Todos» justo sobre el título (una «luz
+     rara»); además el desenfoque se recalculaba en cada cuadro al abrir o cerrar. Ahora es
+     opaca, con el mismo tono que se veía, y sin desenfoque. */
+  background:linear-gradient(180deg, #11212E 0px, #0C1927 170px, var(--bg-primary) 260px);
   box-shadow:inset 0 1px 0 rgba(255,255,255,0.05);
 }
+/* Cambio de momento (Ahora / Esta tarde / Esta noche / Fin de semana): el contenido responde en
+   el mismo toque atenuándose, y vuelve a aparecer ya con el momento nuevo (solo opacidad). */
+#todayFeatured, #experiencesRail, #todayRailEyebrow{ transition:opacity .22s ease; }
+#todayFeatured.moment-swap, #experiencesRail.moment-swap, #todayRailEyebrow.moment-swap{ opacity:.3; transition-duration:.14s; }
 /* «¿Qué hacer hoy?» — fotos sin parpadeo al desplazar.
    Cada tarjeta con foto tiene su propia capa gráfica: el navegador la conserva ya
    pintada (foto + recorte redondeado + degradado) y la desplaza entera, en vez de
@@ -6873,7 +6895,7 @@ startAmbientTicks();
     .map(id => document.getElementById(id)).filter(Boolean);
   if (!covers.length || typeof MutationObserver === 'undefined') return;
   const COVER_SETTLE_MS = 450; // estas pantallas entran en 420 ms (transition .42s)
-  let covered = false, settleTimer = null;
+   let covered = false, settleTimer = null, coveredBySheet = false;
   // «¿Qué hacer hoy?» expandido tapa el 93 % del mapa: mientras está abierto, el mapa se
   // seguía redibujando ~4 veces por segundo por detrás, compitiendo con el desplazamiento
   // del panel. Mismo trato que las pantallas completas.
@@ -6885,17 +6907,29 @@ startAmbientTicks();
     covered = nowCovered;
     clearTimeout(settleTimer);
     if (covered){
+      // «¿Qué hacer hoy?» (nov-2026): el ciclo ambiental se detiene en el mismo toque (no 450 ms
+      // después), así el mapa no se redibuja mientras el panel sube. La clase map-covered (pausa de
+      // animaciones CSS) sigue entrando al terminar, para no recalcular estilos en plena animación.
+      coveredBySheet = !covers.some(el => el.classList.contains('visible'));
+      if (coveredBySheet) stopAmbientTicks();
       settleTimer = setTimeout(() => {
         if (!covered) return;
         document.body.classList.add('map-covered');
         stopAmbientTicks();
       }, COVER_SETTLE_MS);
     } else {
-      document.body.classList.remove('map-covered');
-      if (!document.hidden && !ambientTickTimer){
-        ambientTickCallbacks.forEach(fn => fn()); // la fase actual entra ya, sin salto al reaparecer el mapa
-        startAmbientTicks();
-      }
+      const resume = () => {
+        if (covered) return; // se volvió a tapar entretanto
+        document.body.classList.remove('map-covered');
+        if (!document.hidden && !ambientTickTimer){
+          ambientTickCallbacks.forEach(fn => fn()); // la fase actual entra ya, sin salto al reaparecer el mapa
+          startAmbientTicks();
+        }
+      };
+      // Al cerrar «¿Qué hacer hoy?», el mapa retoma su ciclo cuando el panel terminó de bajar
+      // (0,4 s): así el cierre no compite con un redibujado del mapa. Las pantallas, al instante.
+      if (coveredBySheet){ coveredBySheet = false; settleTimer = setTimeout(resume, 400); }
+      else resume();
     }
   }
   const coverObserver = new MutationObserver(syncMapCovered);
@@ -14797,15 +14831,15 @@ const HERO_SUBTITLES = {
   noche: 'El valle bajo un cielo distinto.',
   finde: 'Planifica tu próxima escapada por el Choapa.',
 };
-function curateTodayExperiences(){
-  const order = TODAY_CURATION_ORDERS[activeTimeFilter] || TODAY_CURATION_ORDERS.ahora;
+function curateTodayExperiences(moment = activeTimeFilter){
+  const order = TODAY_CURATION_ORDERS[moment] || TODAY_CURATION_ORDERS.ahora;
   const used = new Set();
   const picks = [];
   order.forEach(expId => {
     if (picks.length >= 6) return;
     const place = DEMO_PLACES.find(p =>
       p.experiences.includes(expId) && !used.has(p.id) &&
-      (!p.availableTimes || !p.availableTimes.length || p.availableTimes.includes(activeTimeFilter))
+      (!p.availableTimes || !p.availableTimes.length || p.availableTimes.includes(moment))
     );
     if (place){ picks.push(place); used.add(place.id); }
   });
@@ -14913,14 +14947,27 @@ function preloadMomentImages(maxWaitMs){
 let suppressTodayEntryAnimation = false;
 function applyMomentTransition(){
   const myToken = ++momentTransitionToken;
-  // Las fotos nuevas se preparan con el contenido actual todavía visible; cuando
-  // están listas (máx. 400 ms) se sustituye todo de una vez, sin ocultar nada.
-  preloadMomentImages(400).then(() => {
+  // Respuesta inmediata (nov-2026): antes el contenido esperaba hasta 400 ms sin ninguna señal
+  // (se sentía «pegado»). Ahora se atenúa en el mismo toque; en cuanto las fotos nuevas están
+  // listas (normalmente ya precargadas, máx. 450 ms) se sustituye y vuelve a aparecer.
+  const blocks = [todayFeatured, experiencesRail, document.getElementById('todayRailEyebrow'), document.querySelector('.sheet-hero')].filter(Boolean);
+  blocks.forEach(el => el.classList.add('moment-swap'));
+  const fadeOut = new Promise(resolve => setTimeout(resolve, 140));
+  Promise.all([preloadMomentImages(450), fadeOut]).then(() => {
     if (myToken !== momentTransitionToken) return; // una selección más reciente invalida esta
     suppressTodayEntryAnimation = true;
     updateMomentContent();
     suppressTodayEntryAnimation = false;
+    blocks.forEach(el => el.classList.remove('moment-swap')); // vuelve a aparecer (opacidad) ya con el momento nuevo
   });
+}
+// Precarga, en segundo plano y de a una, las fotos de las 4 destacadas de cada momento, para que
+// al tocar «Esta tarde», «Esta noche» o «Fin de semana» ya estén listas. Se lanza al abrir el
+// panel, después de su animación; las ya pedidas no se vuelven a pedir (momentImagePromises).
+function preloadAllMomentGrids(){
+  const urls = [];
+  TODAY_TIME_FILTERS.forEach(tf => curateTodayExperiences(tf.id).slice(0, 4).forEach(p => { if (p.image) urls.push(thumbUrl(p.image, 480)); }));
+  [...new Set(urls)].reduce((chain, url) => chain.then(() => preloadMomentImage(url)), Promise.resolve());
 }
 // Textos según el momento elegido. Antes, con «Esta noche» o «Fin de semana» la tarjeta seguía
 // diciendo «Recomendación de ahora» y «Hoy»: el contenido contradecía al selector.
@@ -15329,11 +15376,18 @@ const sheetHandle = document.getElementById('sheetHandle');
 const sheetPill = document.getElementById('sheetPill');
 let dragStartY = 0, dragStartHeight = 0, dragging = false;
 
+var lastSheetOffsetValue = '';
 function updateChromeOffset(){
   const px = sheet.classList.contains('collapsed')
     ? document.querySelector('.bottom-nav').offsetHeight + 10 + sheetPill.offsetHeight + 10
     : sheet.getBoundingClientRect().height;
-  document.documentElement.style.setProperty('--sheet-offset', px + 'px');
+  // Fluidez (nov-2026): antes se escribía en la raíz del documento, y cambiar una variable ahí obliga
+  // a recalcular los estilos de toda la app justo al cerrar el panel. Solo la usan el botón de
+  // ubicación y la ficha de experiencia: se escribe directo en ellos, y solo si cambió.
+  const value = px + 'px';
+  if (value === lastSheetOffsetValue) return;
+  lastSheetOffsetValue = value;
+  ['btnCenterMe', 'poiDetail'].forEach(id => { const el = document.getElementById(id); if (el) el.style.setProperty('--sheet-offset', value); });
 }
 // La píldora solo debe verse cuando el sheet está en su estado "colapsado" — se
 // usa al cerrar la ficha del POI para devolverla a como estaba, sin pisar la
@@ -15354,14 +15408,17 @@ function expandSheet(){
   sheet.classList.remove('collapsed');
   sheet.classList.add('expanded');
   sheet.style.height = '';
+  sheet.style.translate = '';
   sheetPill.classList.add('hidden');
   state.sheetExpanded = true;
   setTimeout(updateChromeOffset, 400);
+  setTimeout(preloadAllMomentGrids, 450); // fotos de los demás momentos, ya con el panel quieto
 }
 function collapseSheet(){
   sheet.classList.remove('expanded');
   sheet.classList.add('collapsed');
   sheet.style.height = '';
+  sheet.style.translate = '';
   sheetPill.classList.remove('hidden');
   state.sheetExpanded = false;
   updateChromeOffset();
@@ -15845,25 +15902,28 @@ sheetHandle.addEventListener('click', () => {
   collapseSheet();
 });
 
+// Arrastre (nov-2026): el panel ya no cambia de alto al arrastrarlo; se desplaza hacia abajo
+// con translate (mismo gesto y mismos umbrales, sin reacomodar el contenido en cada cuadro).
+let dragOffset = 0;
 function onDragStart(y){
   if (sheet.classList.contains('collapsed')) return; // se abre solo tocando la píldora
   dragging = true;
   dragStartY = y;
   dragStartHeight = sheet.getBoundingClientRect().height;
+  dragOffset = 0;
   sheet.classList.add('dragging');
 }
 function onDragMove(y){
   if (!dragging) return;
-  const delta = dragStartY - y;
-  let newHeight = dragStartHeight + delta;
-  newHeight = Math.max(60, Math.min(window.innerHeight * 0.9, newHeight));
-  sheet.style.height = newHeight + 'px';
+  dragOffset = Math.max(0, Math.min(dragStartHeight - 60, y - dragStartY));
+  sheet.style.translate = `0 ${dragOffset}px`;
 }
 function onDragEnd(){
   if (!dragging) return;
   dragging = false;
   sheet.classList.remove('dragging');
-  const h = sheet.getBoundingClientRect().height;
+  const h = dragStartHeight - dragOffset; // alto visible al soltar
+  sheet.style.translate = '';
   sheet.style.height = '';
   // Antes existía un tercer estado "compacto" (230px, sin colapsar del todo) —
   // con el Hero grande actual ese estado se veía roto: mostraba casi toda la
