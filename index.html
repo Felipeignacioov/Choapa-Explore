@@ -12979,11 +12979,17 @@ const OFFROAD_WALK_SPEED_MPS = 1.1;    // paso tranquilo por terreno abierto (pa
 // lugar con nombre parecido en otra comuna).
 const CAR_ACCESS_POINTS = [
   { name:/cerro\s+(de\s+)?la\s+cruz/i, lat:-31.769599, lng:-70.959852 }, // Salamanca · Matilde Salamanca, antes de la subida
+  { name:/cerro\s+(de\s+)?la\s+cruz/i, lat:-31.794167, lng:-71.006706 }, // El Tambo
 ];
 function routeTargetFor(mode, place){
   if (mode !== 'driving-car' || !place) return place;
-  const access = CAR_ACCESS_POINTS.find(a => a.name.test(place.name || '')
-    && distanceKm(a.lat, a.lng, place.lat, place.lng) <= 3);
+  // Si hay varios puntos para el mismo nombre (dos «Cerro la Cruz»), se usa el más cercano al lugar.
+  let access = null, bestKm = 3;
+  CAR_ACCESS_POINTS.forEach(a => {
+    if (!a.name.test(place.name || '')) return;
+    const km = distanceKm(a.lat, a.lng, place.lat, place.lng);
+    if (km <= bestKm){ bestKm = km; access = a; }
+  });
   return access ? { lat:access.lat, lng:access.lng } : place;
 }
 function updateRouteTrail(geometry, place){
