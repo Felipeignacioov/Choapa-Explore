@@ -3612,6 +3612,123 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
 .about-modal-text{font-size:12.5px; color:var(--text-secondary); line-height:1.55; margin-bottom:14px;}
 .about-modal-version{font-size:10.5px; color:var(--text-tertiary); font-family:var(--font-mono);}
 
+/* ================= CHOAPA EXPLORE PREMIUM =================
+   Una sola tarjeta para todos los accesos (Planificador y perfil). Reutiliza la capa de
+   «Acerca de» (.about-modal: fondo, aparición y cierre) y el botón principal de la app
+   (.auth-btn-primary). El dorado es solo un acento: insignias y detalles finos. */
+:root{ --premium-gold:#D6B571; --premium-gold-soft:rgba(214,181,113,0.12); --premium-gold-line:rgba(214,181,113,0.38); }
+.premium-modal .premium-card{
+  max-width:372px; padding:0; text-align:left; overflow:hidden;
+  display:flex; flex-direction:column;
+  max-height:calc(100vh - 40px);
+  max-height:calc(100dvh - 40px - var(--safe-top) - var(--safe-bottom));
+  background:
+    radial-gradient(130% 60% at 50% 0%, rgba(214,181,113,0.09) 0%, rgba(214,181,113,0) 62%),
+    linear-gradient(180deg, #16314A 0%, var(--surface-elevated) 42%, #0F2236 100%);
+}
+/* Filo dorado muy fino en el borde superior */
+.premium-modal .premium-card::before{
+  content:''; position:absolute; top:0; left:18%; right:18%; height:1px; z-index:1;
+  background:linear-gradient(90deg, rgba(214,181,113,0), var(--premium-gold-line), rgba(214,181,113,0));
+}
+.premium-modal .about-modal-close{z-index:2;}
+.premium-scroll{
+  overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
+  padding:26px 20px 18px;
+}
+.pm-eyebrow{
+  display:inline-flex; align-items:center; gap:7px;
+  font-size:10px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase;
+  color:var(--premium-gold);
+}
+.pm-eyebrow svg{flex-shrink:0;}
+.pm-title{
+  font-family:var(--font-display); font-size:22px; font-weight:800; line-height:1.18;
+  letter-spacing:-0.3px; color:var(--text-primary); margin:10px 0 8px; text-wrap:balance;
+}
+.pm-lead{font-size:13px; line-height:1.5; color:var(--text-secondary); text-wrap:pretty;}
+.pm-price{
+  display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;
+  margin:18px 0 18px; padding:14px 0;
+  border-top:1px solid var(--border-subtle); border-bottom:1px solid var(--border-subtle);
+}
+.pm-price-amount{font-family:var(--font-display); font-size:30px; font-weight:800; letter-spacing:-0.5px; color:var(--text-primary); line-height:1;}
+.pm-price-unit{font-size:13px; font-weight:600; color:var(--text-secondary);}
+.pm-price-note{flex-basis:100%; font-size:11px; color:var(--text-tertiary); margin-top:6px;}
+.pm-benefits{display:flex; flex-direction:column; gap:14px;}
+.pm-benefit{display:flex; gap:12px; align-items:flex-start;}
+.pm-benefit-icon{
+  width:34px; height:34px; border-radius:11px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(95,225,232,0.08); border:1px solid var(--border-glass); color:var(--turquoise-bright);
+}
+.pm-benefit-text{min-width:0; display:flex; flex-direction:column; gap:3px;}
+.pm-benefit-title{font-family:var(--font-display); font-size:13.5px; font-weight:700; color:var(--text-primary);}
+.pm-benefit-desc{font-size:12px; line-height:1.45; color:var(--text-secondary); text-wrap:pretty;}
+/* Beneficio principal: el Planificador, con más presencia */
+.pm-benefit.is-featured{
+  padding:14px; border-radius:var(--radius-m);
+  background:linear-gradient(160deg, rgba(95,225,232,0.09) 0%, rgba(95,225,232,0.03) 100%);
+  border:1px solid rgba(95,225,232,0.28);
+}
+.pm-benefit.is-featured .pm-benefit-icon{
+  width:42px; height:42px; border-radius:13px;
+  background:linear-gradient(160deg, rgba(95,225,232,0.18), rgba(95,225,232,0.06));
+  border-color:rgba(95,225,232,0.35);
+}
+.pm-benefit.is-featured .pm-benefit-title{font-size:14.5px;}
+.pm-chips{display:flex; flex-wrap:wrap; gap:5px; margin-top:7px;}
+.pm-chips span{
+  font-size:10.5px; font-weight:600; color:var(--text-secondary);
+  padding:3px 8px; border-radius:var(--radius-pill);
+  background:rgba(255,255,255,0.04); border:1px solid var(--border-subtle);
+}
+.pm-actions{margin-top:20px; display:flex; flex-direction:column; gap:6px;}
+.pm-cta-note{
+  display:flex; gap:8px; align-items:flex-start; margin-top:4px; padding:10px 12px;
+  border-radius:var(--radius-m); font-size:12px; line-height:1.45; color:var(--text-primary);
+  background:rgba(95,225,232,0.07); border:1px solid rgba(95,225,232,0.26);
+}
+.pm-cta-note svg{color:var(--turquoise-bright); flex-shrink:0; margin-top:1px;}
+.pm-cta-note[hidden], .pm-member[hidden]{display:none;}
+.pm-secondary{
+  width:100%; min-height:44px; border-radius:var(--radius-m);
+  font-size:13px; font-weight:600; color:var(--text-secondary);
+}
+.pm-secondary:active{background:rgba(255,255,255,0.05);}
+.pm-fineprint{text-align:center; font-size:10.5px; color:var(--text-tertiary); margin-top:2px;}
+/* Suscripción activa (solo con verificación real desde Supabase) */
+.pm-member{
+  display:flex; gap:9px; align-items:center; padding:12px 14px; border-radius:var(--radius-m);
+  font-size:12.5px; line-height:1.45; color:var(--text-primary);
+  background:var(--premium-gold-soft); border:1px solid var(--premium-gold-line);
+}
+.pm-member svg{color:var(--premium-gold); flex-shrink:0;}
+.premium-modal.is-member .pm-subscribe,
+.premium-modal.is-member .pm-cta-note,
+.premium-modal.is-member .pm-fineprint{display:none;}
+
+/* Acceso en el menú de perfil */
+.profile-menu-item.is-premium{background:linear-gradient(90deg, rgba(214,181,113,0.09), rgba(214,181,113,0.02));}
+.profile-menu-item.is-premium svg{color:var(--premium-gold);}
+.profile-menu-item.is-premium:active{background:var(--premium-gold-soft);}
+.profile-menu-item.is-premium > span:first-of-type{min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.pm-menu-badge{
+  margin-left:auto; flex-shrink:0;
+  font-size:8.5px; font-weight:700; letter-spacing:0.8px; text-transform:uppercase;
+  color:var(--premium-gold); padding:2px 6px; border-radius:var(--radius-pill);
+  border:1px solid var(--premium-gold-line); background:var(--premium-gold-soft);
+}
+/* Insignia de suscriptor junto al nombre — solo con suscripción activa verificada */
+.profile-menu-name-row{display:flex; align-items:center; gap:7px; min-width:0;}
+.pm-member-badge{
+  display:inline-flex; align-items:center; gap:3px; flex-shrink:0;
+  font-size:9px; font-weight:700; letter-spacing:0.6px; text-transform:uppercase;
+  color:var(--premium-gold); padding:2px 6px 2px 4px; border-radius:var(--radius-pill);
+  border:1px solid var(--premium-gold-line); background:var(--premium-gold-soft);
+}
+.pm-member-badge[hidden]{display:none;}
+
 /* ================= MI PERFIL =================
    Reutiliza el modal de "Acerca de" (.about-modal) y los campos/botones del formulario de acceso
    (.auth-field, .auth-btn-primary, .auth-form-status). Solo se agrega lo propio de la foto. */
@@ -5412,7 +5529,10 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
        <div class="profile-menu-header">
       <span class="profile-menu-avatar" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9Z"/><path d="M4 20c1.4-3.8 4.6-6 8-6s6.6 2.2 8 6"/></svg></span>
       <div class="profile-menu-id">
-        <div class="profile-menu-name" id="profileMenuName">—</div>
+            <div class="profile-menu-name-row">
+          <div class="profile-menu-name" id="profileMenuName">—</div>
+          <span class="pm-member-badge" id="profileMenuPremium" hidden><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>Premium</span>
+        </div>
         <div class="profile-menu-sub" id="profileMenuSub">—</div>
       </div>
     </div>
@@ -5431,6 +5551,60 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
       <div class="about-modal-title">Choapa Explore</div>
       <div class="about-modal-text">Descubre experiencias curadas en el Valle del Choapa — Salamanca, Illapel, Los Vilos y Canela.</div>
         <div class="about-modal-version">Versión 1.0</div>
+    </div>
+  </div>
+
+  <!-- ================= CHOAPA EXPLORE PREMIUM =================
+       Una sola tarjeta para todos los accesos (Planificador y perfil): la abre openPremium(). -->
+  <div class="about-modal premium-modal" id="premiumModal" role="dialog" aria-modal="true" aria-labelledby="premiumModalTitle">
+    <div class="about-modal-card premium-card">
+      <button class="about-modal-close" id="premiumModalClose" type="button" aria-label="Cerrar">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <div class="premium-scroll">
+        <div class="pm-eyebrow"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2.5c.7 4 2.4 6.9 5.9 9.5-3.5 2.6-5.2 5.5-5.9 9.5-.7-4-2.4-6.9-5.9-9.5 3.5-2.6 5.2-5.5 5.9-9.5Z" fill="currentColor" stroke="none"/></svg>Choapa Explore Premium</div>
+        <div class="pm-title" id="premiumModalTitle">El Choapa, a tu manera</div>
+        <div class="pm-lead">Explora con más libertad, más información y planes pensados para ti.</div>
+
+        <div class="pm-price">
+          <span class="pm-price-amount">$2.990</span>
+          <span class="pm-price-unit">CLP / mes</span>
+          <span class="pm-price-note">Suscripción mensual · un solo plan</span>
+        </div>
+
+        <div class="pm-benefits">
+          <div class="pm-benefit is-featured">
+            <span class="pm-benefit-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 15.5C5.8 11.2 10.2 9.5 14.8 11.2C17.5 12.2 19.5 14 20.5 16.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M4.5 18.5C7.5 18.5 9.5 14.5 13 14.5C15.8 14.5 17.5 17.5 19.5 17.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="0.5 2.5"/><path d="M12 2.5L13.35 6.65L17.5 8L13.35 9.35L12 13.5L10.65 9.35L6.5 8L10.65 6.65L12 2.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><circle cx="5.5" cy="14" r="1.25" fill="currentColor"/><circle cx="19" cy="15.2" r="1.25" fill="currentColor"/><circle cx="12" cy="8" r="0.75" fill="currentColor"/></svg></span>
+            <span class="pm-benefit-text">
+              <span class="pm-benefit-title">Planificador inteligente</span>
+              <span class="pm-benefit-desc">Cuéntanos cómo quieres vivir el día y te sugerimos un plan a tu medida, sin tener que elegir entre decenas de opciones.</span>
+              <span class="pm-chips"><span>Tu tiempo</span><span>Tu presupuesto</span><span>Tus gustos</span><span>Tipo de experiencia</span></span>
+            </span>
+          </div>
+          <div class="pm-benefit">
+            <span class="pm-benefit-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3.5 6v14L9 18l6 2 5.5-2V4L15 6 9 4Z"/><path d="M9 4v14M15 6v14"/></svg></span>
+            <span class="pm-benefit-text">
+              <span class="pm-benefit-title">Mapas sin conexión</span>
+              <span class="pm-benefit-desc">Consulta el mapa y tus lugares guardados aunque no tengas señal en el valle.</span>
+            </span>
+          </div>
+          <div class="pm-benefit">
+            <span class="pm-benefit-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7 8 6 8-6"/></svg></span>
+            <span class="pm-benefit-text">
+              <span class="pm-benefit-title">El Choapa en tu correo</span>
+              <span class="pm-benefit-desc">Una selección cuidada de experiencias, novedades y oportunidades del valle.</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="pm-actions">
+          <div class="pm-member" id="premiumMember" hidden><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.3 2.4 2.4 4.6-4.9"/></svg>Tu suscripción Premium está activa.</div>
+          <button class="auth-btn-primary pm-subscribe" id="premiumSubscribeBtn" type="button">Suscribirme a Premium</button>
+          <div class="pm-cta-note" id="premiumCtaNote" role="status" hidden><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/></svg><span>Estamos preparando las suscripciones. Muy pronto podrás suscribirte desde aquí.</span></div>
+          <button class="pm-secondary" id="premiumBackBtn" type="button">Seguir explorando</button>
+          <div class="pm-fineprint">Pago mensual a través de Mercado Pago.</div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -15192,7 +15366,94 @@ renderTodayRail();
 // esta función es el ÚNICO lugar a reemplazar para abrir el planificador (y
 // comprobar el acceso Premium). Mientras tanto reutiliza el mismo aviso honesto
 // «Próximamente» que ya usan Perfil y Configuración, sin simular la función.
-function openPremiumPlanner(){ showAppNotice({ tone:'info', title:'Planificador inteligente', text:'Muy pronto disponible.', duration:3200 }); }
+/* ================= CHOAPA EXPLORE PREMIUM =================
+   Una sola tarjeta (#premiumModal) y una sola función para abrirla: openPremium(origen).
+   La usan el Planificador inteligente y el menú de perfil. Los listeners se registran
+   UNA vez aquí; abrir y cerrar solo alterna la clase 'visible' (igual que «Acerca de»). */
+const PREMIUM_CONFIG = {
+  planId: 'choapa_explore_premium_monthly',
+  priceCLP: 2990,
+    // ── PUNTO DE INTEGRACIÓN CON MERCADO PAGO ──
+  // Único lugar donde vive el enlace del plan. Con checkoutEnabled en true, «Suscribirme a
+  // Premium» lleva directo a la pasarela de Mercado Pago (sin avisos intermedios).
+  // Pagar NO activa Premium en la app: eso lo hará n8n + Supabase al verificar el pago
+  // (tablas subscriptions / payment_events). Con false, vuelve el aviso «Estamos preparando…».
+  checkoutUrl: 'https://mpago.la/26hxN33',
+  checkoutEnabled: true,
+};
+const premiumModal = document.getElementById('premiumModal');
+const premiumCtaNote = document.getElementById('premiumCtaNote');
+
+// Estado de suscripción: SOLO lo que responde Supabase con is_premium() para la sesión real.
+// Nunca se concede nada desde aquí: solo decide si se muestra la insignia «Premium».
+let premiumStatus = { userId:null, active:false, checkedAt:0 };
+let premiumStatusPromise = null;
+function isPremiumMember(){
+  return !!(currentAuthUser && premiumStatus.active && premiumStatus.userId === currentAuthUser.id);
+}
+function refreshPremiumStatus(){
+  const user = currentAuthUser;
+  if (!user || !supabaseClient) return Promise.resolve(false);
+  if (premiumStatus.userId === user.id && Date.now() - premiumStatus.checkedAt < 60000) return Promise.resolve(premiumStatus.active);
+  if (premiumStatusPromise) return premiumStatusPromise;
+  premiumStatusPromise = (async () => {
+    let active = false;
+    try {
+      const { data, error } = await supabaseClient.rpc('is_premium');
+      active = !error && data === true;
+    } catch(e){ active = false; }
+    premiumStatusPromise = null;
+    if (!currentAuthUser || currentAuthUser.id !== user.id) return false; // la sesión cambió mientras tanto
+    const changed = premiumStatus.userId !== user.id || premiumStatus.active !== active;
+    premiumStatus = { userId:user.id, active, checkedAt:Date.now() };
+    if (changed && profileMenu.classList.contains('visible')) renderProfileMenu();
+    return active;
+  })();
+  return premiumStatusPromise;
+}
+
+function openPremium(source){
+  closeProfileMenu();
+  premiumModal.dataset.source = source || '';
+  premiumModal.classList.toggle('is-member', isPremiumMember());
+  document.getElementById('premiumMember').hidden = !isPremiumMember();
+  premiumCtaNote.hidden = true;
+  const scroller = premiumModal.querySelector('.premium-scroll');
+  if (scroller) scroller.scrollTop = 0;
+  premiumModal.classList.add('visible');
+}
+function closePremium(){
+  premiumModal.classList.remove('visible');
+}
+function startPremiumCheckout(){
+  if (!PREMIUM_CONFIG.checkoutEnabled){
+    premiumCtaNote.hidden = false; // aviso honesto: todavía no se puede pagar
+    return;
+  }
+  // (Desactivado por ahora) La suscripción queda ligada a una cuenta: sin sesión, primero ingresar.
+  if (!currentAuthUser){ closePremium(); reopenAuthScreen('login'); return; }
+  // Abrir Mercado Pago NO activa Premium: eso solo lo confirma Supabase tras verificar el pago.
+   // Directo a la pasarela: en una pestaña nueva (la app queda abierta detrás). Si el navegador
+  // no permite abrir pestañas, se va a Mercado Pago en la misma pestaña.
+  const checkoutTab = window.open(PREMIUM_CONFIG.checkoutUrl, '_blank');
+  if (checkoutTab) checkoutTab.opener = null;
+  else window.location.href = PREMIUM_CONFIG.checkoutUrl;
+}
+document.getElementById('premiumSubscribeBtn').addEventListener('click', startPremiumCheckout);
+document.getElementById('premiumBackBtn').addEventListener('click', closePremium);
+document.getElementById('premiumModalClose').addEventListener('click', closePremium);
+premiumModal.addEventListener('click', (e) => { if (e.target === premiumModal) closePremium(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && premiumModal.classList.contains('visible')) closePremium(); });
+
+// Planificador inteligente: sin suscripción abre la tarjeta Premium. Con suscripción activa
+// (verificada en Supabase) mantiene el aviso honesto mientras el planificador no exista.
+function openPremiumPlanner(){
+  if (isPremiumMember()){
+    showAppNotice({ tone:'info', title:'Planificador inteligente', text:'Muy pronto disponible.', duration:3200 });
+    return;
+  }
+  openPremium('planner');
+}
 document.getElementById('premiumPlannerCard').addEventListener('click', openPremiumPlanner);
 
 const placesRail = document.getElementById('placesRail');
@@ -18278,7 +18539,8 @@ const PROFILE_ICONS = {
   info:     `<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/>`,
   logout:   `<path d="M15 4H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8"/><path d="M19 12H9M19 12l-3.5-3.5M19 12l-3.5 3.5"/>`,
   login:    `<path d="M9 4h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9"/><path d="M13 12H3M13 12l-3.5-3.5M13 12l-3.5 3.5"/>`,
-  register: `<circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c.9-4 3.6-6.2 6.5-6.2s5.6 2.2 6.5 6.2"/><path d="M18 8v5M15.5 10.5h5"/>`,
+    register: `<circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c.9-4 3.6-6.2 6.5-6.2s5.6 2.2 6.5 6.2"/><path d="M18 8v5M15.5 10.5h5"/>`,
+  premium:  `<path d="M12 2.5c.7 4 2.4 6.9 5.9 9.5-3.5 2.6-5.2 5.5-5.9 9.5-.7-4-2.4-6.9-5.9-9.5 3.5-2.6 5.2-5.5 5.9-9.5Z"/>`,
 };
 function profileIcon(key){
   return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${PROFILE_ICONS[key] || ''}</svg>`;
@@ -18309,6 +18571,11 @@ function requireAuth(onAuthenticated){
 function openAboutModal(){ closeProfileMenu(); aboutModal.classList.add('visible'); }
 function closeAboutModal(){ aboutModal.classList.remove('visible'); }
 
+// Acceso a Premium del menú de perfil: abre la MISMA tarjeta que el Planificador.
+function premiumMenuItem(){
+  const member = isPremiumMember();
+  return { icon:'premium', premium:true, label: member ? 'Premium' : 'Descubre Premium', badge: member ? 'Activa' : null, action: () => openPremium('profile') };
+}
 // Se recalcula en CADA apertura — currentAuthUser (mantenido al día por
 // onAuthStateChange, ya existente) es la única fuente de verdad de sesión,
 // así el menú nunca puede mostrar un estado desincronizado.
@@ -18319,7 +18586,8 @@ function renderProfileMenu(){
        // Nombre del perfil (nunca el correo como nombre); el correo queda como subtítulo.
     profileMenuName.textContent = getDisplayName(currentAuthUser) || 'Tu cuenta';
     profileMenuSub.textContent = currentAuthUser.email || 'Sesión iniciada';
-    items.push({ icon:'person', label:'Mi perfil', action: openProfileModal });
+       items.push({ icon:'person', label:'Mi perfil', action: openProfileModal });
+    items.push(premiumMenuItem());
        items.push({ icon:'info', label:'Acerca de Choapa Explore', action:openAboutModal });
     items.push({ divider:true });
     items.push({ icon:'logout', label:'Cerrar sesión', danger:true, action: async () => {
@@ -18332,13 +18600,15 @@ function renderProfileMenu(){
     profileMenuSub.textContent = 'Inicia sesión para guardar tus recuerdos';
     items.push({ icon:'login', label:'Ingresar', action:() => reopenAuthScreen('login') });
     items.push({ icon:'register', label:'Registrarse', action:() => reopenAuthScreen('register') });
-       items.push({ divider:true });
+             items.push({ divider:true });
+    items.push(premiumMenuItem());
     items.push({ icon:'info', label:'Acerca de Choapa Explore', action:openAboutModal });
   }
+  document.getElementById('profileMenuPremium').hidden = !isPremiumMember(); // solo con suscripción activa verificada
 
   profileMenuItems.innerHTML = items.map(it => it.divider
     ? `<div class="profile-menu-divider"></div>`
-    : `<button class="profile-menu-item${it.danger ? ' danger' : ''}">${profileIcon(it.icon)}<span>${it.label}</span></button>`
+       : `<button class="profile-menu-item${it.danger ? ' danger' : ''}${it.premium ? ' is-premium' : ''}">${profileIcon(it.icon)}<span>${it.label}</span>${it.badge ? `<span class="pm-menu-badge">${it.badge}</span>` : ''}</button>`
   ).join('');
 
   const buttons = profileMenuItems.querySelectorAll('.profile-menu-item');
@@ -18349,9 +18619,10 @@ function renderProfileMenu(){
 function openProfileMenu(){
     renderProfileMenu();
   setAvatarImage(profileMenu.querySelector('.profile-menu-avatar'));
-  if (currentAuthUser){
+    if (currentAuthUser){
     if (!currentProfile || currentProfile.error) loadCurrentProfile(); // reintento si la carga falló
     else refreshAvatarUrl(); // vuelve a firmar la foto solo si está por vencer
+    refreshPremiumStatus(); // insignia Premium: solo si Supabase confirma la suscripción (como máximo 1 consulta por minuto)
   }
   profileMenu.classList.add('visible');
   profileMenuBackdrop.classList.add('visible');
