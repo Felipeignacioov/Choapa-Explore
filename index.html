@@ -1167,6 +1167,11 @@ body.map-covered .tg-edge::after{animation-play-state:paused;}
   touch-action:none;
 }
 .sheet.expanded{height:93vh; height:93dvh;}
+/* Parpadeo al abrir «¿Qué hacer hoy?» (nov-2026): el panel se desliza en su propia capa de la
+   tarjeta gráfica, pero al terminar el deslizamiento el navegador la deshacía y volvía a pintar
+   todo el panel (y lo que queda bajo su sombra: la foto de perfil, la parte de arriba) en un solo
+   cuadro → parpadeo en Android. Con will-change la capa se mantiene siempre: no se repinta nada. */
+.sheet{will-change:translate;}
 .sheet.collapsed{
   translate:0 100%; opacity:0; box-shadow:none; border-top-color:transparent;
   pointer-events:none;
@@ -15731,6 +15736,10 @@ let dragStartY = 0, dragStartHeight = 0, dragging = false;
 
 var lastSheetOffsetValue = '';
 function updateChromeOffset(){
+  // Con el panel expandido no se escribe nada: el botón de ubicación está oculto y la ficha no se
+  // muestra, y cambiar la variable ahí obligaba a recalcular y repintar esos elementos justo
+  // cuando el panel termina de abrirse (parte del parpadeo). Al cerrar se mide de nuevo.
+  if (sheet.classList.contains('expanded')) return;
   const px = sheet.classList.contains('collapsed')
     ? document.querySelector('.bottom-nav').offsetHeight + 10 + sheetPill.offsetHeight + 10
     : sheet.getBoundingClientRect().height;
