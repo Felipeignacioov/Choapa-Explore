@@ -5823,7 +5823,7 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
       <div class="pc-thread" id="plannerChatThread" role="log" aria-live="polite" aria-relevant="additions">
         <div class="pc-msg is-bot">
           <div class="pc-who"><span class="pc-who-dot" aria-hidden="true"></span>Planificador</div>
-          <div class="pc-bubble">¡Vamos a encontrar un buen plan para ti! Cuéntame qué te gustaría hacer, cuánto tiempo tienes o cuánto quieres gastar. Yo te ayudo a descubrir opciones en el Choapa.</div>
+                   <div class="pc-bubble" id="plannerChatGreeting">¡Hola, explorador! Vamos a encontrar un buen plan para ti. Cuéntame qué te gustaría hacer, cuánto tiempo tienes o cuánto quieres gastar. Yo te ayudo a descubrir opciones en el Choapa.</div>
         </div>
         <div class="pc-suggest" id="plannerSuggest" role="group" aria-label="Ideas para empezar">
           <div class="pc-suggest-label">Para empezar</div>
@@ -15780,7 +15780,17 @@ const PLANNER_PREVIEW_REPLIES = [
   'Anotado. En esta vista previa aún no puedo responderte con un plan; muy pronto podrás conversarlo conmigo aquí.'
 ];
 
+// Saludo con el primer nombre del perfil (el que se usó al registrarse); sin sesión: «explorador».
+function refreshPlannerGreeting(){
+  const el = document.getElementById('plannerChatGreeting');
+  if (!el) return;
+  const full = currentAuthUser ? getDisplayName(currentAuthUser) : null;
+  let name = 'explorador';
+  if (full){ const first = full.split(' ')[0]; name = first.charAt(0).toUpperCase() + first.slice(1); }
+  el.textContent = `¡Hola, ${name}! Vamos a encontrar un buen plan para ti. Cuéntame qué te gustaría hacer, cuánto tiempo tienes o cuánto quieres gastar. Yo te ayudo a descubrir opciones en el Choapa.`;
+}
 function openPlannerChat(){
+  refreshPlannerGreeting();
   if (plannerChat.classList.contains('visible')) return;
   plannerChat.inert = false;
   plannerChat.setAttribute('aria-hidden', 'false');
@@ -15853,8 +15863,10 @@ function plannerPreviewReply(){
   return PLANNER_PREVIEW_REPLIES[i];
 }
 function sendPlannerMessage(){
-  const text = plannerChatInput.value.trim();
+   const text = plannerChatInput.value.trim();
   if (!text || plannerChatState.busy) return; // sin texto o esperando respuesta: no se duplica nada
+  // Sin cuenta: no se envía; se abre «Iniciar sesión» y lo escrito queda en el campo para enviarlo después.
+  if (!currentAuthUser){ reopenAuthScreen('login'); return; }
   plannerChatState.busy = true;
   addPlannerMessage('user', text);
   plannerChatInput.value = '';
@@ -18645,8 +18657,9 @@ function renderProfileIdentity(){
   const menu = document.getElementById('profileMenu');
   if (menu && menu.classList.contains('visible')) renderProfileMenu();
    setAvatarImage(menu && menu.querySelector('.profile-menu-avatar'));
-  setAvatarImage(document.getElementById('btnProfileHeader')); // la foto también en el botón del encabezado
+   setAvatarImage(document.getElementById('btnProfileHeader')); // la foto también en el botón del encabezado
   renderProfileModal();
+  refreshPlannerGreeting(); // el saludo del Planificador usa el mismo nombre del perfil
 }
 
 // Bienvenida: SOLO tras un inicio de sesión explícito o una recuperación completada
