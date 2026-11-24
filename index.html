@@ -3810,6 +3810,9 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
   color:var(--premium-gold);
 }
 .pm-eyebrow svg{flex-shrink:0;}
+/* Icono del Planificador inteligente (brújula con estrella, imagen en Supabase) */
+.planner-icon-img{display:block; width:24px; height:24px; object-fit:contain; flex-shrink:0; pointer-events:none; user-select:none; -webkit-user-drag:none;}
+.pe-icon .planner-icon-img{width:26px; height:26px;}
 /* Emblema dorado de Premium (imagen original, sin recolorear) */
 .premium-emblem{display:block; flex-shrink:0; object-fit:contain; pointer-events:none; user-select:none; -webkit-user-drag:none;}
 .pm-eyebrow{gap:8px;}
@@ -5298,7 +5301,7 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
              Vive FUERA de #todayFeatured y #experiencesRail porque renderTodayRail()
              vacía ambos contenedores en cada cambio de momento del día. -->
         <button class="premium-entry" id="premiumPlannerCard" type="button" aria-label="Planificador inteligente Premium: arma un plan a tu medida">
-                 <span class="pe-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 15.5C5.8 11.2 10.2 9.5 14.8 11.2C17.5 12.2 19.5 14 20.5 16.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M4.5 18.5C7.5 18.5 9.5 14.5 13 14.5C15.8 14.5 17.5 17.5 19.5 17.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="0.5 2.5"/><path d="M12 2.5L13.35 6.65L17.5 8L13.35 9.35L12 13.5L10.65 9.35L6.5 8L10.65 6.65L12 2.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><circle cx="5.5" cy="14" r="1.25" fill="currentColor"/><circle cx="19" cy="15.2" r="1.25" fill="currentColor"/><circle cx="12" cy="8" r="0.75" fill="currentColor"/></svg></span>
+                          <span class="pe-icon"><img class="planner-icon-img" src="https://gfsnhjxsqbsapnpfqpyy.supabase.co/storage/v1/object/public/Choapa%20explore%20Recursos/planificador-icono.png" alt="" aria-hidden="true" decoding="async"></span>
           <span class="pe-text">
             <span class="pe-title">Arma un plan a tu medida</span>
                        <span class="pe-desc">“Tengo $30.000 y 1 hora para hacer algo en Salamanca”.</span>
@@ -5797,8 +5800,8 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
     </svg>
 
     <header class="pc-header">
-      <span class="pc-mark" aria-hidden="true">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.2 8.8 13.2 13.2 8.8 15.2 10.8 10.8Z"/><path d="M12 3v1.6M12 19.4V21M3 12h1.6M19.4 12H21"/></svg>
+           <span class="pc-mark" aria-hidden="true">
+        <img class="planner-icon-img" src="https://gfsnhjxsqbsapnpfqpyy.supabase.co/storage/v1/object/public/Choapa%20explore%20Recursos/planificador-icono.png" alt="" aria-hidden="true" decoding="async">
       </span>
       <div class="pc-head-text">
         <div class="pc-title" id="plannerChatTitle">Planificador inteligente</div>
@@ -5857,7 +5860,7 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
 
         <div class="pm-benefits">
           <div class="pm-benefit is-featured">
-            <span class="pm-benefit-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 15.5C5.8 11.2 10.2 9.5 14.8 11.2C17.5 12.2 19.5 14 20.5 16.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M4.5 18.5C7.5 18.5 9.5 14.5 13 14.5C15.8 14.5 17.5 17.5 19.5 17.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="0.5 2.5"/><path d="M12 2.5L13.35 6.65L17.5 8L13.35 9.35L12 13.5L10.65 9.35L6.5 8L10.65 6.65L12 2.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><circle cx="5.5" cy="14" r="1.25" fill="currentColor"/><circle cx="19" cy="15.2" r="1.25" fill="currentColor"/><circle cx="12" cy="8" r="0.75" fill="currentColor"/></svg></span>
+                      <span class="pm-benefit-icon"><img class="planner-icon-img" src="https://gfsnhjxsqbsapnpfqpyy.supabase.co/storage/v1/object/public/Choapa%20explore%20Recursos/planificador-icono.png" alt="" aria-hidden="true" decoding="async"></span>
             <span class="pm-benefit-text">
                                     <span class="pm-benefit-title">Planificador inteligente</span>
                                                   <span class="pm-benefit-desc">Dinos cuánto tiempo tienes, tu presupuesto y qué te gustaría hacer. Te ayudamos a encontrar un plan para ti.</span>
