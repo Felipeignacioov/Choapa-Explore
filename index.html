@@ -3622,24 +3622,32 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
    «Acerca de» (.about-modal: fondo, aparición y cierre) y el botón principal de la app
    (.auth-btn-primary). El dorado es solo un acento: insignias y detalles finos. */
 :root{ --premium-gold:#D6B571; --premium-gold-soft:rgba(214,181,113,0.12); --premium-gold-line:rgba(214,181,113,0.38); }
+/* Menos margen alrededor solo en Premium: el card aprovecha más alto en celulares chicos */
+.about-modal.premium-modal{padding:12px 14px;}
 .premium-modal .premium-card{
   max-width:372px; padding:0; text-align:left; overflow:hidden;
   display:flex; flex-direction:column;
-  max-height:calc(100vh - 40px);
-  max-height:calc(100dvh - 40px - var(--safe-top) - var(--safe-bottom));
+  max-height:calc(100vh - 24px);
+  max-height:calc(100dvh - 24px - var(--safe-top) - var(--safe-bottom));
+  border-color:rgba(214,181,113,0.22);
   background:
-    radial-gradient(130% 60% at 50% 0%, rgba(214,181,113,0.09) 0%, rgba(214,181,113,0) 62%),
+    radial-gradient(130% 60% at 50% 0%, rgba(214,181,113,0.10) 0%, rgba(214,181,113,0) 62%),
     linear-gradient(180deg, #16314A 0%, var(--surface-elevated) 42%, #0F2236 100%);
 }
 /* Filo dorado muy fino en el borde superior */
 .premium-modal .premium-card::before{
-  content:''; position:absolute; top:0; left:18%; right:18%; height:1px; z-index:1;
-  background:linear-gradient(90deg, rgba(214,181,113,0), var(--premium-gold-line), rgba(214,181,113,0));
+  content:''; position:absolute; top:0; left:14%; right:14%; height:1px; z-index:1;
+  background:linear-gradient(90deg, rgba(214,181,113,0), rgba(214,181,113,0.65), rgba(214,181,113,0));
 }
-.premium-modal .about-modal-close{z-index:2;}
+.premium-modal .about-modal-close{z-index:2; top:12px; right:12px; width:32px; height:32px;}
+/* Zona que se desliza (presentación y beneficios). Precio y botón quedan fijos abajo,
+   así el botón de suscribirse se ve siempre, en cualquier tamaño de pantalla. */
 .premium-scroll{
+  flex:1 1 auto; min-height:0;
   overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
-  padding:26px 20px 18px;
+  padding:24px 20px 22px;
+  -webkit-mask-image:linear-gradient(180deg, #000 calc(100% - 22px), transparent 100%);
+          mask-image:linear-gradient(180deg, #000 calc(100% - 22px), transparent 100%);
 }
 .pm-eyebrow{
   display:inline-flex; align-items:center; gap:7px;
@@ -3648,60 +3656,67 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
 }
 .pm-eyebrow svg{flex-shrink:0;}
 .pm-title{
-  font-family:var(--font-display); font-size:22px; font-weight:800; line-height:1.18;
-  letter-spacing:-0.3px; color:var(--text-primary); margin:10px 0 8px; text-wrap:balance;
+  font-family:var(--font-display); font-size:23px; font-weight:800; line-height:1.15;
+  letter-spacing:-0.4px; color:var(--text-primary); margin:9px 0 7px; text-wrap:balance;
 }
 .pm-lead{font-size:13px; line-height:1.5; color:var(--text-secondary); text-wrap:pretty;}
-.pm-price{
-  display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;
-  margin:18px 0 18px; padding:14px 0;
-  border-top:1px solid var(--border-subtle); border-bottom:1px solid var(--border-subtle);
-}
-.pm-price-amount{font-family:var(--font-display); font-size:30px; font-weight:800; letter-spacing:-0.5px; color:var(--text-primary); line-height:1;}
-.pm-price-unit{font-size:13px; font-weight:600; color:var(--text-secondary);}
-.pm-price-note{flex-basis:100%; font-size:11px; color:var(--text-tertiary); margin-top:6px;}
-.pm-benefits{display:flex; flex-direction:column; gap:14px;}
-.pm-benefit{display:flex; gap:12px; align-items:flex-start;}
+.pm-benefits{display:flex; flex-direction:column; gap:12px; margin-top:18px;}
+.pm-benefit{display:flex; gap:12px; align-items:center;}
+/* Beneficios secundarios: filas compactas, con el icono alineado al del Planificador */
+.pm-benefit:not(.is-featured){padding:0 14px;}
 .pm-benefit-icon{
-  width:34px; height:34px; border-radius:11px; flex-shrink:0;
+  width:32px; height:32px; border-radius:10px; flex-shrink:0;
   display:flex; align-items:center; justify-content:center;
   background:rgba(95,225,232,0.08); border:1px solid var(--border-glass); color:var(--turquoise-bright);
 }
-.pm-benefit-text{min-width:0; display:flex; flex-direction:column; gap:3px;}
-.pm-benefit-title{font-family:var(--font-display); font-size:13.5px; font-weight:700; color:var(--text-primary);}
+.pm-benefit-text{min-width:0; display:flex; flex-direction:column; gap:2px;}
+.pm-benefit-title{font-family:var(--font-display); font-size:13px; font-weight:700; line-height:1.25; color:var(--text-primary);}
 .pm-benefit-desc{font-size:12px; line-height:1.45; color:var(--text-secondary); text-wrap:pretty;}
-/* Beneficio principal: el Planificador, con más presencia */
+/* Beneficio principal: el Planificador. Icono + título arriba; texto y chips a todo el ancho */
 .pm-benefit.is-featured{
+  display:grid; grid-template-columns:auto 1fr; gap:0 11px; align-items:center;
   padding:14px; border-radius:var(--radius-m);
-  background:linear-gradient(160deg, rgba(95,225,232,0.09) 0%, rgba(95,225,232,0.03) 100%);
+  background:linear-gradient(160deg, rgba(95,225,232,0.10) 0%, rgba(95,225,232,0.03) 100%);
   border:1px solid rgba(95,225,232,0.28);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.05);
 }
+.pm-benefit.is-featured .pm-benefit-text{display:contents;}
 .pm-benefit.is-featured .pm-benefit-icon{
-  width:42px; height:42px; border-radius:13px;
+  width:38px; height:38px; border-radius:12px;
   background:linear-gradient(160deg, rgba(95,225,232,0.18), rgba(95,225,232,0.06));
   border-color:rgba(95,225,232,0.35);
 }
-.pm-benefit.is-featured .pm-benefit-title{font-size:14.5px;}
-.pm-chips{display:flex; flex-wrap:wrap; gap:5px; margin-top:7px;}
+.pm-benefit.is-featured .pm-benefit-title{font-size:15px;}
+.pm-benefit.is-featured .pm-benefit-desc{grid-column:1 / -1; margin-top:10px;}
+.pm-chips{grid-column:1 / -1; display:flex; flex-wrap:wrap; gap:5px; margin-top:10px;}
 .pm-chips span{
   font-size:10.5px; font-weight:600; color:var(--text-secondary);
   padding:3px 8px; border-radius:var(--radius-pill);
   background:rgba(255,255,255,0.04); border:1px solid var(--border-subtle);
 }
-.pm-actions{margin-top:20px; display:flex; flex-direction:column; gap:6px;}
+/* Pie fijo: precio + botón siempre visibles */
+.pm-actions{
+  flex-shrink:0; display:flex; flex-direction:column; gap:8px;
+  padding:12px 20px 10px;
+  border-top:1px solid var(--border-subtle);
+  background:rgba(6,16,27,0.32);
+}
+.pm-price{display:flex; align-items:baseline; gap:6px; padding:0 2px;}
+.pm-price-amount{white-space:nowrap; font-family:var(--font-display); font-size:24px; font-weight:800; letter-spacing:-0.5px; color:var(--text-primary); line-height:1;}
+.pm-price-unit{font-size:12.5px; font-weight:600; color:var(--text-secondary); white-space:nowrap;}
+.pm-price-note{margin-left:auto; align-self:center; max-width:120px; text-align:right; font-size:10.5px; line-height:1.3; color:var(--text-secondary);}
 .pm-cta-note{
-  display:flex; gap:8px; align-items:flex-start; margin-top:4px; padding:10px 12px;
+  display:flex; gap:8px; align-items:flex-start; padding:10px 12px;
   border-radius:var(--radius-m); font-size:12px; line-height:1.45; color:var(--text-primary);
   background:rgba(95,225,232,0.07); border:1px solid rgba(95,225,232,0.26);
 }
 .pm-cta-note svg{color:var(--turquoise-bright); flex-shrink:0; margin-top:1px;}
 .pm-cta-note[hidden], .pm-member[hidden]{display:none;}
 .pm-secondary{
-  width:100%; min-height:44px; border-radius:var(--radius-m);
+  width:100%; min-height:40px; border-radius:var(--radius-m);
   font-size:13px; font-weight:600; color:var(--text-secondary);
 }
 .pm-secondary:active{background:rgba(255,255,255,0.05);}
-.pm-fineprint{text-align:center; font-size:10.5px; color:var(--text-tertiary); margin-top:2px;}
 /* Suscripción activa (solo con verificación real desde Supabase) */
 .pm-member{
   display:flex; gap:9px; align-items:center; padding:12px 14px; border-radius:var(--radius-m);
@@ -3709,9 +3724,9 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
   background:var(--premium-gold-soft); border:1px solid var(--premium-gold-line);
 }
 .pm-member svg{color:var(--premium-gold); flex-shrink:0;}
+.premium-modal.is-member .pm-price,
 .premium-modal.is-member .pm-subscribe,
-.premium-modal.is-member .pm-cta-note,
-.premium-modal.is-member .pm-fineprint{display:none;}
+.premium-modal.is-member .pm-cta-note{display:none;}
 
 /* Acceso en el menú de perfil */
 .profile-menu-item.is-premium{background:linear-gradient(90deg, rgba(214,181,113,0.09), rgba(214,181,113,0.02));}
@@ -5571,18 +5586,12 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
         <div class="pm-title" id="premiumModalTitle">El Choapa, a tu manera</div>
         <div class="pm-lead">Explora con más libertad, más información y planes pensados para ti.</div>
 
-        <div class="pm-price">
-          <span class="pm-price-amount">$2.990</span>
-          <span class="pm-price-unit">CLP / mes</span>
-          <span class="pm-price-note">Suscripción mensual · un solo plan</span>
-        </div>
-
         <div class="pm-benefits">
           <div class="pm-benefit is-featured">
             <span class="pm-benefit-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 15.5C5.8 11.2 10.2 9.5 14.8 11.2C17.5 12.2 19.5 14 20.5 16.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M4.5 18.5C7.5 18.5 9.5 14.5 13 14.5C15.8 14.5 17.5 17.5 19.5 17.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="0.5 2.5"/><path d="M12 2.5L13.35 6.65L17.5 8L13.35 9.35L12 13.5L10.65 9.35L6.5 8L10.65 6.65L12 2.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><circle cx="5.5" cy="14" r="1.25" fill="currentColor"/><circle cx="19" cy="15.2" r="1.25" fill="currentColor"/><circle cx="12" cy="8" r="0.75" fill="currentColor"/></svg></span>
             <span class="pm-benefit-text">
               <span class="pm-benefit-title">Planificador inteligente</span>
-              <span class="pm-benefit-desc">Cuéntanos cómo quieres vivir el día y te sugerimos un plan a tu medida, sin tener que elegir entre decenas de opciones.</span>
+                           <span class="pm-benefit-desc">Cuéntanos cómo quieres vivir el día y te armamos un plan a tu medida.</span>
               <span class="pm-chips"><span>Tu tiempo</span><span>Tu presupuesto</span><span>Tus gustos</span><span>Tipo de experiencia</span></span>
             </span>
           </div>
@@ -5590,26 +5599,31 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
             <span class="pm-benefit-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3.5 6v14L9 18l6 2 5.5-2V4L15 6 9 4Z"/><path d="M9 4v14M15 6v14"/></svg></span>
             <span class="pm-benefit-text">
               <span class="pm-benefit-title">Mapas sin conexión</span>
-              <span class="pm-benefit-desc">Consulta el mapa y tus lugares guardados aunque no tengas señal en el valle.</span>
+                      <span class="pm-benefit-desc">El mapa y tus guardados, aunque no tengas señal.</span>
             </span>
           </div>
           <div class="pm-benefit">
             <span class="pm-benefit-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7 8 6 8-6"/></svg></span>
             <span class="pm-benefit-text">
               <span class="pm-benefit-title">El Choapa en tu correo</span>
-              <span class="pm-benefit-desc">Una selección cuidada de experiencias, novedades y oportunidades del valle.</span>
+                           <span class="pm-benefit-desc">Experiencias, novedades y oportunidades del valle.</span>
             </span>
           </div>
         </div>
 
-        <div class="pm-actions">
+         </div>
+
+      <div class="pm-actions">
+        <div class="pm-price">
+          <span class="pm-price-amount">$2.990</span>
+          <span class="pm-price-unit">CLP / mes</span>
+          <span class="pm-price-note">Pago mensual con Mercado Pago</span>
+        </div>
           <div class="pm-member" id="premiumMember" hidden><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.3 2.4 2.4 4.6-4.9"/></svg>Tu suscripción Premium está activa.</div>
           <button class="auth-btn-primary pm-subscribe" id="premiumSubscribeBtn" type="button">Suscribirme a Premium</button>
           <div class="pm-cta-note" id="premiumCtaNote" role="status" hidden><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/></svg><span>Estamos preparando las suscripciones. Muy pronto podrás suscribirte desde aquí.</span></div>
-          <button class="pm-secondary" id="premiumBackBtn" type="button">Seguir explorando</button>
-          <div class="pm-fineprint">Pago mensual a través de Mercado Pago.</div>
+                    <button class="pm-secondary" id="premiumBackBtn" type="button">Seguir explorando</button>
         </div>
-      </div>
     </div>
   </div>
 
