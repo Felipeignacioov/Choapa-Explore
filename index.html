@@ -3773,6 +3773,75 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
   box-shadow:0 6px 16px rgba(22,184,196,0.32), inset 0 1px 0 rgba(255,255,255,0.4);
 }
 .pc-send:not(:disabled):active{transform:scale(0.92);}
+/* ---- Planificador: conversación persistente (fase 2) ---- */
+.pc-header{z-index:3;} /* su menú queda por encima de la conversación */
+/* Bienvenida + sugerencias: salen al empezar la conversación y vuelven al iniciar una nueva */
+.pc-welcome[hidden]{display:none;} /* gana a .pc-msg{display:flex} */
+.pc-welcome.pc-leaving{opacity:0; transform:translateY(-6px); transition:opacity .2s ease, transform .2s ease;}
+.pc-welcome.pc-entering{animation:pc-msg-in .28s cubic-bezier(.2,.9,.28,1) both;}
+.planner-chat.is-history-pending .pc-welcome{display:none;}
+/* Mensaje aún no confirmado por Supabase: más tenue hasta que se guarda */
+.pc-msg .pc-bubble{transition:opacity .2s ease;}
+.pc-msg.is-pending .pc-bubble{opacity:.62;}
+.pc-fail{display:flex; align-items:center; gap:8px; margin:6px 4px 0; font-size:11.5px; color:#E8A58C;}
+.pc-retry{
+  font-size:11.5px; font-weight:700; color:var(--turquoise-bright);
+  padding:4px 10px; border-radius:var(--radius-pill);
+  border:1px solid rgba(95,225,232,0.35); background:rgba(95,225,232,0.08);
+}
+.pc-status{
+  align-self:center; display:flex; align-items:center; gap:8px; margin-top:6px;
+  padding:8px 14px; border-radius:var(--radius-pill); font-size:12px; color:var(--text-secondary);
+  background:rgba(16,36,56,0.92); border:1px solid var(--border-subtle);
+}
+.pc-status .pc-typing{padding:0;}
+.pc-status.is-error{color:#E8A58C;}
+/* Opciones de la conversación (⋯) */
+.pc-more{
+  width:36px; height:36px; border-radius:50%; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  color:var(--text-secondary); background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.06);
+}
+.pc-more[hidden]{display:none;}
+.pc-more:active, .pc-more[aria-expanded="true"]{background:rgba(255,255,255,0.12); color:var(--text-primary);}
+.pc-menu{
+  position:absolute; top:calc(100% + 6px); right:12px; min-width:224px; padding:6px;
+  border-radius:16px; background:#12283C; border:1px solid var(--border-glass);
+  box-shadow:0 18px 40px rgba(2,8,15,0.5);
+  animation:pc-msg-in .16s ease both;
+}
+.pc-menu[hidden]{display:none;}
+.pc-menu-item{
+  display:flex; align-items:center; gap:10px; width:100%; padding:11px 12px; border-radius:11px;
+  font-size:14px; font-weight:600; color:var(--text-primary); text-align:left;
+}
+.pc-menu-item:active{background:rgba(255,255,255,0.06);}
+.pc-menu-item svg{flex-shrink:0; color:var(--text-secondary);}
+.pc-menu-item.is-danger, .pc-menu-item.is-danger svg{color:#E8A58C;}
+/* Confirmación antes de borrar */
+.pc-confirm{
+  position:absolute; inset:0; z-index:6; display:flex; align-items:flex-end; justify-content:center;
+  padding:16px 14px calc(16px + var(--safe-bottom)); background:rgba(3,9,16,0.62);
+}
+.pc-confirm[hidden]{display:none;}
+.pc-confirm-card{
+  width:100%; max-width:380px; padding:20px 18px 16px; border-radius:22px;
+  background:linear-gradient(180deg, #16314A 0%, #0F2236 100%); border:1px solid var(--border-glass);
+  box-shadow:0 24px 60px rgba(2,8,15,0.55); animation:pc-msg-in .22s ease both;
+}
+.pc-confirm-title{font-family:var(--font-display); font-size:17px; font-weight:700; color:var(--text-primary);}
+.pc-confirm-text{margin-top:6px; font-size:13px; line-height:1.5; color:var(--text-secondary);}
+.pc-confirm-error{margin-top:8px; font-size:12px; line-height:1.45; color:#E8A58C;}
+.pc-confirm-error[hidden]{display:none;}
+.pc-confirm-actions{display:flex; gap:10px; margin-top:16px;}
+.pc-confirm-actions button{flex:1; min-height:46px; border-radius:var(--radius-m); font-size:14px; font-weight:700;}
+.pc-confirm-cancel{color:var(--text-primary); background:rgba(255,255,255,0.06); border:1px solid var(--border-subtle);}
+.pc-confirm-delete{color:#2A0F08; background:#E8A58C;}
+.pc-confirm-delete:disabled{opacity:.6;}
+@media (prefers-reduced-motion: reduce){
+  .pc-welcome.pc-entering, .pc-menu, .pc-confirm-card{animation:none;}
+  .pc-welcome.pc-leaving{transition:none;}
+}
 @media (prefers-reduced-motion: reduce){
   .planner-chat, .planner-chat.visible{transition:none;}
   .pc-msg.is-new{animation:none;}
@@ -5814,11 +5883,29 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
         <div class="pc-title" id="plannerChatTitle">Planificador inteligente</div>
         <div class="pc-sub">Tu próxima experiencia en el Choapa empieza aquí</div>
       </div>
+          <button class="pc-more" id="plannerChatMore" type="button" aria-label="Opciones de la conversación" aria-haspopup="menu" aria-expanded="false" hidden>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5.5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="18.5" cy="12" r="1.7"/></svg>
+      </button>
+      <div class="pc-menu" id="plannerChatMenu" role="menu" hidden>
+        <button class="pc-menu-item" id="plannerNewChat" type="button" role="menuitem"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h8"/><path d="M15.5 4.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>Nueva conversación</button>
+        <button class="pc-menu-item is-danger" id="plannerDeleteChat" type="button" role="menuitem"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 12.5h9l1-12.5"/></svg>Eliminar conversación</button>
+      </div>
       <button class="pc-close" id="plannerChatClose" type="button" aria-label="Cerrar el planificador">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       </button>
     </header>
 
+     <div class="pc-confirm" id="plannerConfirm" hidden>
+      <div class="pc-confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="plannerConfirmTitle" aria-describedby="plannerConfirmText">
+        <div class="pc-confirm-title" id="plannerConfirmTitle">¿Eliminar esta conversación?</div>
+        <p class="pc-confirm-text" id="plannerConfirmText">Se borrarán todos sus mensajes. Esta acción no se puede deshacer.</p>
+        <p class="pc-confirm-error" id="plannerConfirmError" hidden>No pudimos eliminarla. Revisa tu conexión e inténtalo de nuevo.</p>
+        <div class="pc-confirm-actions">
+          <button class="pc-confirm-cancel" id="plannerConfirmCancel" type="button">Cancelar</button>
+          <button class="pc-confirm-delete" id="plannerConfirmDelete" type="button">Eliminar</button>
+        </div>
+      </div>
+    </div>
     <div class="pc-scroll" id="plannerChatScroll">
       <div class="pc-thread" id="plannerChatThread" role="log" aria-live="polite" aria-relevant="additions">
         <div class="pc-msg is-bot">
@@ -15773,7 +15860,17 @@ const plannerChatInput = document.getElementById('plannerChatInput');
 const plannerChatSend = document.getElementById('plannerChatSend');
 const plannerChatHint = document.getElementById('plannerChatHint');
 const plannerSuggest = document.getElementById('plannerSuggest');
-const plannerChatState = { busy:false, replies:0 };
+const plannerChatState = {
+  busy:false, replies:0,
+  started:false,              // estado explícito: la conversación empezó (bienvenida y sugerencias ocultas)
+  sessionUserId:undefined,    // dueño de lo que se ve en pantalla (undefined = aún sin sincronizar)
+  conversationId:null,        // conversación activa guardada en Supabase
+  pendingConversationId:null, // id ya generado para la conversación que se está creando (reintentar no duplica)
+  loaded:false, loading:false,
+  unsaved:false,              // hay un mensaje del usuario sin guardar: no se envía otro hasta reintentarlo
+  token:0                     // cambia con cada conversación o cuenta: descarta respuestas que llegan tarde
+};
+const PLANNER_HISTORY_LIMIT = 200; // mensajes más recientes que se muestran al abrir
 const PLANNER_PREVIEW_REPLIES = [
   '¡Buena idea! Esta es una vista previa del Planificador: todavía no armo planes, pero muy pronto te responderé aquí con opciones reales en el Choapa.',
   'Anotado. En esta vista previa aún no puedo responderte con un plan; muy pronto podrás conversarlo conmigo aquí.'
@@ -15787,18 +15884,22 @@ function refreshPlannerGreeting(){
   let name = 'explorador';
   if (full){ const first = full.split(' ')[0]; name = first.charAt(0).toUpperCase() + first.slice(1); }
   el.textContent = `¡Hola, ${name}! Vamos a encontrar un buen plan para ti. Cuéntame qué te gustaría hacer, cuánto tiempo tienes o cuánto quieres gastar. Yo te ayudo a descubrir opciones en el Choapa.`;
+  plannerSyncSession(); // se llama también al iniciar o cerrar sesión (renderProfileIdentity)
 }
 function openPlannerChat(){
   refreshPlannerGreeting();
   if (plannerChat.classList.contains('visible')) return;
   plannerChat.inert = false;
   plannerChat.setAttribute('aria-hidden', 'false');
-  plannerChat.classList.add('visible');
+   plannerChat.classList.add('visible');
   syncPlannerViewport();
+  if (currentAuthUser && !plannerChatState.loaded && !plannerChatState.loading) loadPlannerConversation();
 }
 function closePlannerChat(){
   if (!plannerChat.classList.contains('visible')) return;
-  plannerChatInput.blur();
+   plannerChatInput.blur();
+  closePlannerMenu();
+  closePlannerDeleteConfirm();
   plannerChat.classList.remove('visible');
   plannerChat.setAttribute('aria-hidden', 'true');
   plannerChat.inert = true;
@@ -15826,7 +15927,7 @@ function updatePlannerComposer(){
   plannerChatInput.style.height = 'auto';
   plannerChatInput.style.height = Math.min(plannerChatInput.scrollHeight, 120) + 'px';
   const hasText = plannerChatInput.value.trim().length > 0;
-  plannerChatSend.disabled = !hasText || plannerChatState.busy;
+  plannerChatSend.disabled = !hasText || plannerChatState.busy || plannerChatState.unsaved;
   if (!hasText){
     plannerChatHint.hidden = true;
     plannerSuggest.querySelectorAll('.pc-chip.is-picked').forEach(c => c.classList.remove('is-picked'));
@@ -15834,7 +15935,7 @@ function updatePlannerComposer(){
 }
 function addPlannerMessage(role, text, opts = {}){
   const row = document.createElement('div');
-  row.className = `pc-msg is-${role} is-new`;
+  row.className = `pc-msg is-${role}` + (opts.restored ? '' : ' is-new') + (opts.pending ? ' is-pending' : '');
   if (role === 'bot'){
     const who = document.createElement('div');
     who.className = 'pc-who';
@@ -15861,38 +15962,339 @@ function plannerPreviewReply(){
   plannerChatState.replies++;
   return PLANNER_PREVIEW_REPLIES[i];
 }
-function sendPlannerMessage(){
-   const text = plannerChatInput.value.trim();
-  if (!text || plannerChatState.busy) return; // sin texto o esperando respuesta: no se duplica nada
-  // Sin cuenta: no se envía; se abre «Iniciar sesión» y lo escrito queda en el campo para enviarlo después.
-  if (!currentAuthUser){ reopenAuthScreen('login'); return; }
-  plannerChatState.busy = true;
-  addPlannerMessage('user', text);
-  plannerChatInput.value = '';
+
+/* ---------- Conversación persistente (fase 2) ----------
+   Guarda en Supabase (chat_conversations + chat_messages) solo con sesión iniciada; las políticas
+   RLS hacen que cada persona vea y maneje únicamente lo suyo. Este bloque solo guarda y muestra el
+   historial: la futura IA elegirá por su cuenta qué contexto necesita (no se le envía todo). */
+const plannerChatMore = document.getElementById('plannerChatMore');
+const plannerChatMenu = document.getElementById('plannerChatMenu');
+const plannerConfirm = document.getElementById('plannerConfirm');
+const plannerConfirmDelete = document.getElementById('plannerConfirmDelete');
+const plannerConfirmError = document.getElementById('plannerConfirmError');
+
+function plannerUUID(){
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 3 | 8)).toString(16);
+  });
+}
+// Bienvenida + sugerencias («Para empezar»): se marcan una vez para poder ocultarlas y mostrarlas juntas.
+function plannerWelcomeEls(){
+  const greeting = document.getElementById('plannerChatGreeting');
+  return [greeting && greeting.closest('.pc-msg'), plannerSuggest].filter(Boolean);
+}
+plannerWelcomeEls().forEach(el => el.classList.add('pc-welcome'));
+
+function plannerIsNearEnd(){
+  return plannerChatScroll.scrollHeight - plannerChatScroll.clientHeight - plannerChatScroll.scrollTop < 140;
+}
+function plannerClearThread(){
+  plannerChatThread.querySelectorAll('.pc-msg:not(.pc-welcome), .pc-status').forEach(el => el.remove());
+}
+function plannerShowWelcome(){
+  plannerChatState.started = false;
+  plannerWelcomeEls().forEach(el => {
+    el.hidden = false;
+    el.classList.remove('pc-leaving', 'pc-entering');
+    void el.offsetWidth; // reinicia la animación de entrada
+    el.classList.add('pc-entering');
+  });
+  updatePlannerMenu();
+}
+// Empieza la conversación: la bienvenida y las sugerencias se desvanecen DESPUÉS de que el mensaje
+// ya está en el hilo, y los mensajes suben suavemente a ocupar el espacio liberado.
+function plannerHideWelcome(animate){
+  plannerChatState.started = true;
+  updatePlannerMenu();
+  const els = plannerWelcomeEls().filter(el => !el.hidden);
+  if (!els.length) return;
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!animate || reduce){
+    els.forEach(el => { el.hidden = true; el.classList.remove('pc-leaving', 'pc-entering'); });
+    return;
+  }
+  els.forEach(el => { el.classList.remove('pc-entering'); el.classList.add('pc-leaving'); });
+  setTimeout(() => {
+    if (!plannerChatState.started) return; // se inició otra conversación entretanto
+    const rows = [...plannerChatThread.querySelectorAll('.pc-msg:not(.pc-welcome), .pc-status')];
+    const before = rows.map(r => r.getBoundingClientRect().top);
+    els.forEach(el => { el.hidden = true; el.classList.remove('pc-leaving'); });
+    rows.forEach((r, i) => {
+      const dy = before[i] - r.getBoundingClientRect().top;
+      if (!dy) return;
+      r.classList.remove('is-new');
+      r.style.transition = 'none';
+      r.style.transform = `translateY(${dy}px)`;
+      void r.offsetWidth;
+      r.style.transition = 'transform .32s cubic-bezier(.2,.9,.28,1)';
+      r.style.transform = '';
+      r.addEventListener('transitionend', () => { r.style.transition = ''; }, { once:true });
+    });
+    scrollPlannerToEnd(false);
+  }, 200);
+}
+// Aviso discreto en el hilo: «Cargando tu conversación…» o error con «Reintentar».
+function plannerSetStatus(kind){
+  plannerChatThread.querySelectorAll('.pc-status').forEach(el => el.remove());
+  plannerChat.classList.toggle('is-history-pending', !!kind);
+  if (!kind) return;
+  const row = document.createElement('div');
+  row.className = 'pc-status' + (kind === 'error' ? ' is-error' : '');
+  if (kind === 'loading'){
+    row.innerHTML = '<span class="pc-typing" aria-hidden="true"><i></i><i></i><i></i></span><span>Cargando tu conversación…</span>';
+  } else {
+    row.innerHTML = '<span>No pudimos cargar tu conversación.</span>';
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'pc-retry';
+    retry.textContent = 'Reintentar';
+    retry.addEventListener('click', loadPlannerConversation);
+    row.appendChild(retry);
+  }
+  plannerChatThread.appendChild(row);
+}
+// Deja el chat en blanco (bienvenida) e invalida cualquier carga o respuesta en curso.
+function plannerResetConversation(){
+  plannerChatState.token++;
+  Object.assign(plannerChatState, { busy:false, replies:0, conversationId:null, pendingConversationId:null, unsaved:false, loading:false });
+  plannerSetStatus(null);
+  plannerClearThread();
+  plannerShowWelcome();
   updatePlannerComposer();
-  scrollPlannerToEnd(true);
+}
+// Otra cuenta (o se cerró la sesión): nada de la conversación anterior queda en pantalla.
+function plannerSyncSession(){
+  const uid = currentAuthUser ? currentAuthUser.id : null;
+  if (uid === plannerChatState.sessionUserId) return;
+  plannerChatState.sessionUserId = uid;
+  plannerResetConversation();
+  plannerChatState.loaded = !uid; // sin sesión no hay historial que recuperar
+  if (uid && plannerChat.classList.contains('visible')) loadPlannerConversation();
+}
+// Abre la conversación más reciente del usuario (o la bienvenida si no tiene ninguna).
+async function loadPlannerConversation(){
+  if (!supabaseClient || !currentAuthUser) return;
+  const token = ++plannerChatState.token;
+  plannerChatState.loading = true;
+  plannerChatState.loaded = false;
+  plannerSetStatus('loading');
+  updatePlannerComposer();
+  try {
+    const conv = await supabaseClient.from('chat_conversations')
+      .select('id').order('updated_at', { ascending:false }).limit(1);
+    if (conv.error) throw conv.error;
+    if (token !== plannerChatState.token) return;
+    const last = conv.data && conv.data[0];
+    let msgs = [];
+    if (last){
+      const res = await supabaseClient.from('chat_messages')
+        .select('role, content, metadata, created_at')
+        .eq('conversation_id', last.id)
+        .order('created_at', { ascending:false }).order('id', { ascending:false })
+        .limit(PLANNER_HISTORY_LIMIT);
+      if (res.error) throw res.error;
+      if (token !== plannerChatState.token) return;
+      msgs = (res.data || []).slice().reverse(); // del más antiguo al más reciente
+    }
+    plannerSetStatus(null);
+    plannerClearThread();
+    plannerChatState.conversationId = last ? last.id : null;
+    plannerChatState.replies = msgs.filter(m => m.role === 'assistant').length;
+    msgs.forEach(m => addPlannerMessage(m.role === 'assistant' ? 'bot' : 'user', m.content,
+      { preview: !!(m.metadata && m.metadata.preview), restored:true }));
+    if (msgs.length) plannerHideWelcome(false); else plannerShowWelcome();
+    plannerChatState.loaded = true;
+    requestAnimationFrame(() => scrollPlannerToEnd(false));
+  } catch (err){
+    if (token !== plannerChatState.token) return;
+    console.warn('[Planificador] No se pudo cargar el historial:', (err && err.message) || err);
+    plannerSetStatus('error'); // nada de lo visible se borra; se puede reintentar
+  } finally {
+    if (token === plannerChatState.token) plannerChatState.loading = false;
+    updatePlannerComposer();
+    updatePlannerMenu();
+  }
+}
+// Guarda un mensaje. La conversación se crea con el primer mensaje, con un id generado aquí:
+// si un envío se reintenta, ni la conversación ni el mensaje se duplican.
+async function plannerSaveMessage(save){
+  if (save.token !== plannerChatState.token) return false;
+  if (!plannerChatState.conversationId){
+    if (!plannerChatState.pendingConversationId) plannerChatState.pendingConversationId = plannerUUID();
+    const id = plannerChatState.pendingConversationId;
+    const c = await supabaseClient.from('chat_conversations')
+      .upsert({ id, title: save.text.slice(0, 120) }, { onConflict:'id', ignoreDuplicates:true });
+    if (c.error) throw c.error;
+    if (save.token !== plannerChatState.token) return false;
+    plannerChatState.conversationId = id;
+    plannerChatState.pendingConversationId = null;
+  }
+  const m = await supabaseClient.from('chat_messages').upsert({
+    conversation_id: plannerChatState.conversationId,
+    role: save.role, content: save.text, metadata: save.metadata, client_message_id: save.clientId,
+  }, { onConflict:'conversation_id,client_message_id', ignoreDuplicates:true });
+  if (m.error) throw m.error;
+  return save.token === plannerChatState.token;
+}
+// El mensaje se ve tenue hasta que Supabase confirma; si falla, queda con «No se guardó · Reintentar».
+async function plannerPersistRow(row){
+  const save = row._save;
+  row.classList.add('is-pending');
+  plannerSetRowFailed(row, false);
+  try {
+    const ok = await plannerSaveMessage(save);
+    if (ok) row.classList.remove('is-pending');
+    return ok;
+  } catch (err){
+    console.warn('[Planificador] No se pudo guardar el mensaje:', (err && err.message) || err);
+    if (save.token !== plannerChatState.token) return false;
+    row.classList.remove('is-pending');
+    plannerSetRowFailed(row, true);
+    return false;
+  }
+}
+function plannerSetRowFailed(row, failed){
+  row.classList.toggle('is-failed', failed);
+  let fail = row.querySelector('.pc-fail');
+  if (!failed){ if (fail) fail.remove(); return; }
+  if (fail) return;
+  fail = document.createElement('div');
+  fail.className = 'pc-fail';
+  fail.innerHTML = '<span>No se guardó</span>';
+  const retry = document.createElement('button');
+  retry.type = 'button';
+  retry.className = 'pc-retry';
+  retry.textContent = 'Reintentar';
+  retry.addEventListener('click', () => plannerRetryRow(row));
+  fail.appendChild(retry);
+  row.appendChild(fail);
+}
+async function plannerRetryRow(row){
+  if (row._retrying) return;
+  row._retrying = true;
+  const ok = await plannerPersistRow(row);
+  row._retrying = false;
+  if (ok && row._save.role === 'user'){
+    plannerChatState.unsaved = false;
+    if (row._awaitingReply){ row._awaitingReply = false; plannerReplyTo(row._save.token); }
+  }
+  updatePlannerComposer();
+}
+// Respuesta de vista previa (la IA real llegará en otra fase). Se descarta si mientras tanto
+// cambió la conversación, la cuenta o se borró: nunca aparece en una conversación distinta.
+function plannerReplyTo(token){
+  plannerChatState.busy = true;
+  updatePlannerComposer();
   const typing = addPlannerMessage('bot', '', { typing:true });
   scrollPlannerToEnd(true);
-  setTimeout(() => {
+  setTimeout(async () => {
     typing.remove();
-    addPlannerMessage('bot', plannerPreviewReply(), { preview:true });
+    if (token !== plannerChatState.token) return;
+    const wasNearEnd = plannerIsNearEnd();
+    const text = plannerPreviewReply();
+    const row = addPlannerMessage('bot', text, { preview:true, pending:true });
+    row._save = { role:'assistant', text, clientId: plannerUUID(), metadata:{ preview:true }, token };
+    if (wasNearEnd) scrollPlannerToEnd(true); // si estaba leyendo más arriba, no se le mueve la pantalla
     plannerChatState.busy = false;
     updatePlannerComposer();
-    scrollPlannerToEnd(true);
+    await plannerPersistRow(row);
   }, 900);
 }
-// Sugerencias: llevan su texto al campo para editarlo o enviarlo tal cual (no se envían solas).
+async function sendPlannerMessage(textOverride){
+  const fromSuggestion = typeof textOverride === 'string';
+  const text = (fromSuggestion ? textOverride : plannerChatInput.value).trim();
+  if (!text || plannerChatState.busy || plannerChatState.unsaved) return; // nada se duplica
+  const keepInField = () => { if (fromSuggestion){ plannerChatInput.value = text; updatePlannerComposer(); } };
+  // Sin cuenta: no se envía; se abre «Iniciar sesión» y el texto queda en el campo para enviarlo después.
+  if (!currentAuthUser){ keepInField(); reopenAuthScreen('login'); return; }
+  // Aún no llega el historial: se espera, para no mezclar conversaciones.
+  if (!plannerChatState.loaded){ keepInField(); if (!plannerChatState.loading) loadPlannerConversation(); return; }
+  const token = plannerChatState.token;
+  plannerChatState.busy = true;
+  const row = addPlannerMessage('user', text, { pending:true });
+  row._save = { role:'user', text, clientId: plannerUUID(), metadata:{}, token };
+  if (!fromSuggestion) plannerChatInput.value = '';
+  updatePlannerComposer();
+  if (!plannerChatState.started) plannerHideWelcome(true);
+  scrollPlannerToEnd(true);
+  const saved = await plannerPersistRow(row);
+  if (token !== plannerChatState.token) return;
+  if (!saved){
+    plannerChatState.busy = false;
+    plannerChatState.unsaved = true; // queda visible con «Reintentar»; al guardarse llega la respuesta
+    row._awaitingReply = true;
+    updatePlannerComposer();
+    return;
+  }
+  plannerReplyTo(token);
+}
+// Sugerencias: al tocarlas se envían como mensaje del usuario (y comienza la conversación).
 plannerSuggest.addEventListener('click', (e) => {
   const chip = e.target.closest('.pc-chip');
   if (!chip) return;
-  plannerSuggest.querySelectorAll('.pc-chip.is-picked').forEach(c => c.classList.remove('is-picked'));
-  chip.classList.add('is-picked');
-  plannerChatInput.value = chip.dataset.text;
-  plannerChatHint.hidden = false;
-  updatePlannerComposer();
-  plannerChatInput.focus({ preventScroll:true });
-  const end = plannerChatInput.value.length;
-  plannerChatInput.setSelectionRange(end, end);
+  sendPlannerMessage(chip.dataset.text);
+});
+
+// Menú «⋯»: solo con sesión y una conversación empezada.
+function updatePlannerMenu(){
+  const show = !!currentAuthUser && (plannerChatState.started || !!plannerChatState.conversationId);
+  plannerChatMore.hidden = !show;
+  if (!show) closePlannerMenu();
+}
+function closePlannerMenu(){
+  plannerChatMenu.hidden = true;
+  plannerChatMore.setAttribute('aria-expanded', 'false');
+}
+plannerChatMore.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const open = plannerChatMenu.hidden;
+  plannerChatMenu.hidden = !open;
+  plannerChatMore.setAttribute('aria-expanded', String(open));
+});
+plannerChat.addEventListener('click', (e) => {
+  if (!plannerChatMenu.hidden && !e.target.closest('#plannerChatMenu, #plannerChatMore')) closePlannerMenu();
+});
+// Nueva conversación: la anterior queda guardada tal cual; esta se crea al enviar el primer mensaje.
+function startNewPlannerConversation(){
+  plannerResetConversation();
+  plannerChatState.loaded = true;
+  plannerChatScroll.scrollTop = 0;
+}
+document.getElementById('plannerNewChat').addEventListener('click', () => { closePlannerMenu(); startNewPlannerConversation(); });
+document.getElementById('plannerDeleteChat').addEventListener('click', () => { closePlannerMenu(); openPlannerDeleteConfirm(); });
+// Eliminar: siempre con confirmación. Sus mensajes se borran con ella (en cascada, en Supabase).
+function openPlannerDeleteConfirm(){
+  if (!plannerChatState.conversationId){ startNewPlannerConversation(); return; } // aún no guardada: solo se limpia
+  plannerConfirmError.hidden = true;
+  plannerConfirmDelete.disabled = false;
+  plannerConfirmDelete.textContent = 'Eliminar';
+  plannerConfirm.hidden = false;
+  document.getElementById('plannerConfirmCancel').focus({ preventScroll:true });
+}
+function closePlannerDeleteConfirm(){ plannerConfirm.hidden = true; }
+document.getElementById('plannerConfirmCancel').addEventListener('click', closePlannerDeleteConfirm);
+plannerConfirm.addEventListener('click', (e) => { if (e.target === plannerConfirm) closePlannerDeleteConfirm(); });
+plannerConfirmDelete.addEventListener('click', async () => {
+  const id = plannerChatState.conversationId;
+  if (!id || plannerConfirmDelete.disabled){ closePlannerDeleteConfirm(); return; }
+  plannerConfirmDelete.disabled = true;
+  plannerConfirmDelete.textContent = 'Eliminando…';
+  plannerConfirmError.hidden = true;
+  try {
+    const { data, error } = await supabaseClient.from('chat_conversations').delete().eq('id', id).select('id');
+    if (error) throw error;
+    if (!data || !data.length) throw new Error('La conversación no se eliminó');
+    closePlannerDeleteConfirm();
+    plannerResetConversation();
+    loadPlannerConversation(); // abre la conversación más reciente que quede (o la bienvenida)
+  } catch (err){
+    console.warn('[Planificador] No se pudo eliminar la conversación:', (err && err.message) || err);
+    plannerConfirmError.hidden = false; // los mensajes siguen a la vista
+    plannerConfirmDelete.disabled = false;
+    plannerConfirmDelete.textContent = 'Eliminar';
+  }
 });
 plannerChatInput.addEventListener('input', updatePlannerComposer);
 plannerChatInput.addEventListener('keydown', (e) => {
@@ -15900,7 +16302,12 @@ plannerChatInput.addEventListener('keydown', (e) => {
 });
 plannerChatForm.addEventListener('submit', (e) => { e.preventDefault(); sendPlannerMessage(); });
 document.getElementById('plannerChatClose').addEventListener('click', closePlannerChat);
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && plannerChat.classList.contains('visible')) closePlannerChat(); });
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape' || !plannerChat.classList.contains('visible')) return;
+  if (!plannerConfirm.hidden){ closePlannerDeleteConfirm(); return; }
+  if (!plannerChatMenu.hidden){ closePlannerMenu(); return; }
+  closePlannerChat();
+});
 
 const placesRail = document.getElementById('placesRail');
 const placesEmpty = document.getElementById('placesEmpty');
