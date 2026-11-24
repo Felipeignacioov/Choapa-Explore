@@ -3655,6 +3655,11 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
   color:var(--premium-gold);
 }
 .pm-eyebrow svg{flex-shrink:0;}
+/* Emblema dorado de Premium (imagen original, sin recolorear) */
+.premium-emblem{display:block; flex-shrink:0; object-fit:contain; pointer-events:none; user-select:none; -webkit-user-drag:none;}
+.pm-eyebrow{gap:8px;}
+.pm-eyebrow .premium-emblem{width:28px; height:28px; margin:-6px -2px -6px -5px;}
+.profile-menu-item .premium-emblem{width:26px; height:26px; margin:0 -5px;}
 .pm-title{
   font-family:var(--font-display); font-size:23px; font-weight:800; line-height:1.15;
   letter-spacing:-0.4px; color:var(--text-primary); margin:9px 0 7px; text-wrap:balance;
@@ -3891,10 +3896,15 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
   background:
     radial-gradient(120% 140% at 0% 0%, rgba(95,225,232,0.10) 0%, rgba(95,225,232,0) 55%),
     linear-gradient(160deg, #15304A 0%, #0F2236 100%);
-  border:1px solid rgba(95,225,232,0.32);
-  box-shadow:0 14px 32px rgba(2,8,15,0.38), inset 0 1px 0 rgba(255,255,255,0.07);
+    border:1px solid rgba(226,194,127,0.55);
+  /* Halo dorado Premium sutil (estático: sin animación ni desenfoque de fondo, no reintroduce el parpadeo) */
+  box-shadow:
+    0 0 22px rgba(214,181,113,0.20),
+    0 14px 32px rgba(2,8,15,0.38),
+    inset 0 1px 0 rgba(255,232,190,0.14),
+    inset 0 0 20px rgba(214,181,113,0.06);
 }
-.premium-entry:active{transform:scale(0.985); border-color:rgba(95,225,232,0.5);}
+.premium-entry:active{transform:scale(0.985); border-color:rgba(226,194,127,0.75);}
 .premium-entry .pe-icon{
   width:44px; height:44px; border-radius:14px;
   background:linear-gradient(160deg, rgba(95,225,232,0.18), rgba(95,225,232,0.06));
@@ -5582,7 +5592,7 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       </button>
       <div class="premium-scroll">
-        <div class="pm-eyebrow"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2.5c.7 4 2.4 6.9 5.9 9.5-3.5 2.6-5.2 5.5-5.9 9.5-.7-4-2.4-6.9-5.9-9.5 3.5-2.6 5.2-5.5 5.9-9.5Z" fill="currentColor" stroke="none"/></svg>Choapa Explore Premium</div>
+              <div class="pm-eyebrow"><img class="premium-emblem" src="assets/emblema-premium.png" alt="" aria-hidden="true" decoding="async">Choapa Explore Premium</div>
         <div class="pm-title" id="premiumModalTitle">El Choapa, a tu manera</div>
         <div class="pm-lead">Explora con más libertad, más información y planes pensados para ti.</div>
 
@@ -18569,6 +18579,7 @@ const PROFILE_ICONS = {
   premium:  `<path d="M12 2.5c.7 4 2.4 6.9 5.9 9.5-3.5 2.6-5.2 5.5-5.9 9.5-.7-4-2.4-6.9-5.9-9.5 3.5-2.6 5.2-5.5 5.9-9.5Z"/>`,
 };
 function profileIcon(key){
+  if (key === 'premium') return `<img class="premium-emblem" src="assets/emblema-premium.png" alt="" aria-hidden="true" decoding="async">`;
   return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${PROFILE_ICONS[key] || ''}</svg>`;
 }
 
