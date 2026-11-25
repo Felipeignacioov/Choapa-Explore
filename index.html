@@ -3846,6 +3846,209 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
   .planner-chat, .planner-chat.visible{transition:none;}
   .pc-msg.is-new{animation:none;}
 }
+/* ================= PLANES DEL PLANIFICADOR (Fase 3) =================
+   Tarjeta del plan en el chat, detalle completo («Ver plan»), invitación Premium al guardar y la
+   sección «Planes» de Guardados. Misma familia visual del chat: superficies opacas azul noche,
+   turquesa para la acción principal y dorado solo para lo que es Premium (guardar). */
+.pc-msg.has-plan{width:100%; max-width:min(92%, 380px);}
+.pc-plan{
+  width:100%; margin-top:8px; border-radius:18px; overflow:hidden;
+  background:linear-gradient(180deg, #14293D 0%, #0F2234 100%);
+  border:1px solid rgba(95,225,232,0.22);
+  box-shadow:0 10px 26px rgba(2,8,15,0.34), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.pc-msg.is-new .pc-plan{animation:pc-msg-in .32s cubic-bezier(.2,.9,.28,1) .06s both;}
+.pc-plan-media{position:relative; height:108px; background-color:#10263A; background-size:cover; background-position:center;}
+.pc-plan-media::after{
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(180deg, rgba(8,19,31,0.08) 25%, rgba(15,34,52,0.96) 100%);
+}
+.pc-plan-media.is-empty, .pd-hero.is-empty, .pd-stop-photo.is-empty, .gd-photo.is-empty{
+  background:radial-gradient(120% 90% at 85% 10%, rgba(95,225,232,0.16) 0%, rgba(95,225,232,0) 60%),
+             linear-gradient(160deg, #17344C 0%, #0F2234 100%);
+}
+.plan-glyph{position:absolute; right:14px; top:12px; z-index:1; color:rgba(95,225,232,0.5);}
+.pc-plan-eyebrow, .pd-eyebrow{
+  display:inline-flex; align-items:center; gap:5px; padding:4px 9px; border-radius:var(--radius-pill);
+  font-size:10px; font-weight:700; letter-spacing:0.6px; text-transform:uppercase;
+  color:var(--premium-gold); background:rgba(8,19,31,0.78); border:1px solid var(--premium-gold-line);
+}
+.pc-plan-eyebrow{position:absolute; top:10px; left:10px; z-index:1;}
+.pc-plan-body{position:relative; z-index:1; margin-top:-26px; padding:0 14px 14px;}
+.pc-plan-title{font-family:var(--font-display); font-size:16px; font-weight:700; line-height:1.25; letter-spacing:-0.2px; color:var(--text-primary); text-wrap:balance;}
+.pc-plan-meta, .pd-zone{display:flex; flex-wrap:wrap; align-items:center; gap:3px 10px; margin-top:5px; font-size:11.5px; color:var(--text-secondary);}
+.pc-plan-meta > span, .pd-zone > span{display:inline-flex; align-items:center; gap:4px;}
+.pc-plan-meta svg{color:var(--turquoise-bright); flex-shrink:0;}
+.pc-plan-summary{
+  margin:8px 0 0; font-size:12.5px; line-height:1.45; color:var(--text-secondary);
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+.pc-plan-stops{list-style:none; margin:10px 0 0; padding:0; display:flex; flex-direction:column; gap:6px;}
+.pc-plan-stops li{display:flex; align-items:center; gap:9px; min-width:0; font-size:12.5px; font-weight:600; color:var(--text-primary);}
+.pc-plan-stops li.is-more{padding-left:29px; font-size:11.5px; color:var(--text-secondary);}
+.plan-num{
+  width:20px; height:20px; border-radius:50%; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  font-size:10.5px; font-weight:800; color:#04222A; background:var(--turquoise-bright);
+}
+.pc-plan-stop{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.pc-plan-actions{display:flex; gap:8px; margin-top:12px;}
+.pc-plan-btn{
+  flex:1; min-height:40px; border-radius:12px; padding:0 10px;
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  font-size:13px; font-weight:700; transition:transform .14s ease, background .18s ease, color .18s ease, border-color .18s ease;
+}
+.pc-plan-btn:active{transform:scale(0.97);}
+.pc-plan-btn.is-view{color:#04222A; background:linear-gradient(135deg, var(--turquoise-bright), var(--turquoise));}
+/* Botón «Guardar plan» (tarjeta y detalle): neutro; guardado en dorado (beneficio Premium) */
+.plan-save{color:var(--text-primary); background:rgba(255,255,255,0.06); border:1px solid var(--border-glass);}
+.plan-save svg{flex-shrink:0;}
+.plan-save[data-state="saving"]{opacity:0.7;}
+.plan-save[data-state="saved"]{color:var(--premium-gold); background:var(--premium-gold-soft); border-color:var(--premium-gold-line);}
+.plan-save[data-state="saved"] svg{fill:currentColor;}
+
+/* Detalle del plan: pantalla completa sobre el chat (64) y Guardados; bajo avisos (78) y Premium (80) */
+.plan-detail{
+  position:fixed; inset:0; z-index:70; display:flex; flex-direction:column; overflow:hidden;
+  background:linear-gradient(180deg, var(--bg-night) 0%, var(--bg-primary) 70%);
+  transform:translateY(100%); pointer-events:none; visibility:hidden;
+  transition:transform .36s cubic-bezier(.2,.9,.28,1.05), visibility 0s linear .36s;
+  will-change:transform;
+}
+.plan-detail.visible{transform:translateY(0); pointer-events:auto; visibility:visible; transition:transform .36s cubic-bezier(.2,.9,.28,1.05), visibility 0s;}
+.pd-header{
+  flex-shrink:0; display:flex; align-items:center; gap:10px;
+  padding:calc(10px + var(--safe-top)) 14px 10px;
+  background:rgba(11,23,38,0.98); border-bottom:1px solid var(--border-subtle);
+}
+.pd-back{
+  width:36px; height:36px; border-radius:50%; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  color:var(--text-primary); background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.06);
+}
+.pd-back:active{background:rgba(255,255,255,0.12);}
+.pd-bar-title{min-width:0; flex:1; font-family:var(--font-display); font-size:15px; font-weight:700; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.pd-scroll{flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;}
+.pd-inner{max-width:640px; margin:0 auto; padding:14px 16px 28px;}
+.pd-hero{
+  position:relative; min-height:176px; border-radius:var(--radius-l); overflow:hidden;
+  display:flex; align-items:flex-end; background-color:#10263A; background-size:cover; background-position:center;
+  border:1px solid var(--border-glass); box-shadow:var(--shadow-card);
+}
+.pd-hero::after{content:''; position:absolute; inset:0; background:linear-gradient(180deg, rgba(6,15,25,0) 30%, rgba(6,15,25,0.9) 100%);}
+.pd-hero-text{position:relative; z-index:1; padding:14px 16px 15px; min-width:0;}
+.pd-title{margin:8px 0 0; font-family:var(--font-display); font-size:21px; font-weight:800; line-height:1.2; letter-spacing:-0.3px; color:var(--text-primary); text-wrap:balance;}
+.pd-zone{margin-top:6px; color:rgba(236,244,250,0.86);}
+.pd-zone svg{color:var(--turquoise-bright);}
+.pd-facts{display:flex; flex-wrap:wrap; gap:7px; margin-top:12px;}
+.pd-fact{
+  display:inline-flex; align-items:center; gap:5px; padding:6px 10px; border-radius:var(--radius-pill);
+  font-size:12px; font-weight:600; color:var(--text-primary);
+  background:rgba(16,36,56,0.92); border:1px solid var(--border-subtle);
+}
+.pd-fact svg{color:var(--turquoise-bright); flex-shrink:0;}
+.pd-fact small{font-size:10.5px; font-weight:600; color:var(--text-secondary);}
+.pd-label{margin:20px 0 8px; font-size:10.5px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--text-secondary);}
+.pd-text{margin:0; font-size:14px; line-height:1.55; color:var(--text-primary); white-space:pre-line;}
+.pd-text.is-muted{color:var(--text-secondary); font-size:13.5px;}
+.pd-stops{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:12px;}
+.pd-stop{position:relative; display:flex; gap:10px;}
+.pd-rail{position:relative; flex-shrink:0; width:24px; display:flex; justify-content:center; padding-top:12px;}
+.pd-rail .plan-num{width:24px; height:24px; font-size:11.5px; position:relative; z-index:1; box-shadow:0 0 0 4px var(--bg-primary);}
+.pd-stop:not(:last-child) .pd-rail::after{
+  content:''; position:absolute; top:40px; bottom:-14px; left:50%; width:2px; margin-left:-1px;
+  background:repeating-linear-gradient(180deg, rgba(95,225,232,0.45) 0 4px, rgba(95,225,232,0) 4px 9px);
+}
+.pd-stop-card{
+  flex:1; min-width:0; border-radius:16px; overflow:hidden;
+  background:var(--surface); border:1px solid var(--border-glass);
+  box-shadow:var(--shadow-card), inset 0 1px 0 rgba(255,255,255,0.04);
+}
+.pd-stop-photo{position:relative; height:112px; background-color:#10263A; background-size:cover; background-position:center;}
+.pd-stop-body{padding:11px 13px 13px;}
+.pd-stop-name{font-family:var(--font-display); font-size:15.5px; font-weight:700; line-height:1.25; color:var(--text-primary);}
+.pd-stop-loc{display:flex; align-items:center; gap:4px; margin-top:3px; font-size:12px; color:var(--text-secondary);}
+.pd-stop-loc svg{flex-shrink:0; color:var(--text-tertiary);}
+.pd-stop-reason{margin:8px 0 0; font-size:13px; line-height:1.5; color:var(--text-primary);}
+.pd-stop-meta{display:flex; flex-wrap:wrap; gap:6px; margin-top:9px;}
+.pd-stop-meta span{
+  display:inline-flex; align-items:center; gap:4px; padding:3.5px 9px; border-radius:var(--radius-pill);
+  font-size:11px; font-weight:600; color:var(--text-secondary); background:rgba(255,255,255,0.05);
+}
+.pd-stop-note{margin:8px 0 0; padding:8px 10px; border-radius:10px; font-size:12px; line-height:1.45; color:var(--text-secondary); background:rgba(255,255,255,0.04); border-left:2px solid rgba(95,225,232,0.4);}
+.pd-stop-open{
+  display:inline-flex; align-items:center; gap:5px; margin-top:10px; padding:7px 12px; border-radius:var(--radius-pill);
+  font-size:12px; font-weight:700; color:var(--turquoise-bright);
+  background:rgba(95,225,232,0.08); border:1px solid rgba(95,225,232,0.32);
+}
+.pd-stop-open:active{transform:scale(0.97);}
+.pd-list{margin:0; padding:0 0 0 18px; font-size:13px; line-height:1.5; color:var(--text-secondary);}
+.pd-list li + li{margin-top:4px;}
+.pd-fine{margin:18px 0 0; font-size:11.5px; line-height:1.5; color:var(--text-secondary);}
+.pd-footer{
+  flex-shrink:0; padding:10px 16px calc(12px + var(--safe-bottom));
+  background:linear-gradient(180deg, rgba(7,19,31,0.94) 0%, rgba(7,19,31,0.99) 100%);
+  border-top:1px solid var(--border-subtle);
+}
+.pd-footer-inner{max-width:640px; margin:0 auto; display:flex; gap:10px; align-items:center;}
+.pd-footer .pc-plan-btn{min-height:48px; border-radius:var(--radius-m); font-size:14px;}
+.pd-footer .plan-save[data-state="idle"]{color:#04222A; border-color:transparent; background:linear-gradient(135deg, var(--turquoise-bright), var(--turquoise)); box-shadow:0 8px 22px rgba(22,184,196,0.28);}
+.pd-footer .pd-saved-at{flex:1; min-width:0; font-size:12px; color:var(--text-secondary);}
+.pd-remove{flex:0 0 auto !important; padding:0 16px !important; color:#E8A58C; background:rgba(232,165,140,0.08); border:1px solid rgba(232,165,140,0.3);}
+.pd-remove[data-confirm="1"]{color:#2A0F08; background:#E8A58C;}
+
+/* Invitación Premium al guardar un plan (reutiliza la capa de «Acerca de») */
+.plan-ask .about-modal-card{max-width:360px; padding:28px 22px 18px;}
+.plan-ask-mark{
+  width:52px; height:52px; border-radius:16px; margin:0 auto 14px;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--premium-gold-soft); border:1px solid var(--premium-gold-line);
+}
+.plan-ask-mark .premium-emblem{width:26px; height:26px;}
+.plan-ask .about-modal-title{font-size:18px; line-height:1.3; text-wrap:balance;}
+.plan-ask .about-modal-text{font-size:13px; margin-bottom:18px;}
+.plan-ask .auth-btn-primary{margin-bottom:6px;}
+
+/* Guardados › Experiencias | Planes */
+.gd-tabs{
+  flex-shrink:0; display:flex; gap:4px; margin:12px 18px 0; padding:4px; border-radius:var(--radius-pill);
+  background:rgba(16,36,56,0.7); border:1px solid var(--border-glass);
+}
+.gd-tab{
+  flex:1; min-height:36px; border-radius:var(--radius-pill);
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  font-size:13px; font-weight:700; color:var(--text-secondary);
+  transition:background .2s ease, color .2s ease;
+}
+.gd-tab.active{color:#04222A; background:var(--turquoise-bright);}
+.gd-tab-gold{width:6px; height:6px; border-radius:50%; background:var(--premium-gold);}
+.gd-tab.active .gd-tab-gold{background:#7A5B12;}
+.guardados-screen.is-plans .guardados-filters,
+.guardados-screen.is-plans .guardados-grid,
+.guardados-screen.is-plans #guardadosEmpty,
+.guardados-screen.is-plans .guardados-filter-btn{display:none !important;}
+.guardados-screen:not(.is-plans) .gd-plans{display:none;}
+.gd-plans{display:flex; flex-direction:column; gap:14px; padding-top:14px; width:100%; max-width:640px; margin:0 auto;}
+.gd-plan-card{width:100%; padding:0; text-align:left; font:inherit; color:inherit;}
+.gd-plan-card .sv-pill{color:var(--premium-gold);}
+.gd-plans-status{
+  align-self:center; display:flex; align-items:center; gap:8px; margin-top:40px;
+  padding:8px 14px; border-radius:var(--radius-pill); font-size:12px; color:var(--text-secondary);
+  background:rgba(16,36,56,0.92); border:1px solid var(--border-subtle);
+}
+.gd-plans-status .pc-typing{padding:0;}
+.gd-plans-mark{
+  width:58px; height:58px; border-radius:18px; margin-bottom:16px;
+  display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(160deg, rgba(95,225,232,0.18), rgba(95,225,232,0.05));
+  border:1px solid rgba(95,225,232,0.32);
+}
+.gd-plans-mark .planner-icon-img{width:30px; height:30px;}
+.gd-plans-link{margin-top:12px; padding:8px 14px; font-size:13px; font-weight:700; color:var(--turquoise-bright);}
+@media (prefers-reduced-motion: reduce){
+  .pc-msg.is-new .pc-plan{animation:none;}
+  .plan-detail, .plan-detail.visible{transition:none;}
+}
 /* Menos margen alrededor solo en Premium: el card aprovecha más alto en celulares chicos */
 .about-modal.premium-modal{padding:12px 14px;}
 .premium-modal .premium-card{
@@ -5412,11 +5615,15 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
     <div class="guardados-header">
       <div>
         <div class="guardados-title">Mis guardados <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4Z"/></svg></div>
-        <div class="guardados-subtitle">Experiencias que quieres vivir.</div>
+               <div class="guardados-subtitle" id="guardadosSubtitle">Experiencias que quieres vivir.</div>
       </div>
            <button class="guardados-filter-btn" id="guardadosFilterBtn" aria-label="Organizar guardados" aria-haspopup="dialog">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M7 12h10M10.5 18h3"/></svg>
       </button>
+    </div>
+        <div class="gd-tabs" role="tablist" aria-label="Tus guardados">
+      <button class="gd-tab active" id="gdTabExperiences" type="button" role="tab" aria-selected="true" aria-controls="guardadosGrid">Experiencias</button>
+      <button class="gd-tab" id="gdTabPlans" type="button" role="tab" aria-selected="false" aria-controls="guardadosPlans">Planes</button>
     </div>
     <div class="guardados-filters" id="guardadosFilters"></div>
     <div class="guardados-body">
@@ -5425,8 +5632,9 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
         <span class="ge-icon" id="guardadosEmptyIcon"></span>
         <div class="ge-title" id="guardadosEmptyTitle">Todavía no tienes experiencias guardadas</div>
         <div class="ge-sub" id="guardadosEmptySub">Explora el Choapa y guarda aquello que quieras vivir después.</div>
-              <button class="ge-btn" id="guardadosEmptyBtn">Explorar experiencias</button>
+                        <button class="ge-btn" id="guardadosEmptyBtn">Explorar experiencias</button>
       </div>
+      <div class="gd-plans" id="guardadosPlans" role="tabpanel" aria-labelledby="gdTabPlans"></div>
     </div>
     <div class="sv-backdrop" id="svBackdrop"></div>
         <div class="sv-layer">
@@ -5956,7 +6164,7 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
                       <span class="pm-benefit-icon"><img class="planner-icon-img" src="https://gfsnhjxsqbsapnpfqpyy.supabase.co/storage/v1/object/public/Choapa%20explore%20Recursos/planificador-icono.png" alt="" aria-hidden="true" decoding="async"></span>
             <span class="pm-benefit-text">
                                     <span class="pm-benefit-title">Planificador inteligente</span>
-                                                  <span class="pm-benefit-desc">Dinos cuánto tiempo tienes, tu presupuesto y qué te gustaría hacer. Te ayudamos a encontrar un plan para ti.</span>
+                                                  <span class="pm-benefit-desc">Arma planes a tu medida con tu tiempo, tu presupuesto y tus gustos, y guárdalos para volver a ellos cuando quieras.</span>
               <span class="pm-chips"><span>Tu tiempo</span><span>Tu presupuesto</span><span>Tus gustos</span><span>Tipo de experiencia</span></span>
             </span>
           </div>
@@ -5989,6 +6197,37 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
           <div class="pm-cta-note" id="premiumCtaNote" role="status" hidden><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/></svg><span>Estamos preparando las suscripciones. Muy pronto podrás suscribirte desde aquí.</span></div>
                     <button class="pm-secondary" id="premiumBackBtn" type="button">Seguir explorando</button>
         </div>
+    </div>
+  </div>
+
+  <!-- ================= PLAN DEL PLANIFICADOR — DETALLE (Fase 3) =================
+       «Ver plan» desde el chat o desde Guardados › Planes. Lo llena renderPlanDetail(); visible para todos. -->
+  <section class="plan-detail" id="planDetail" role="dialog" aria-modal="true" aria-labelledby="planDetailBarTitle" aria-hidden="true" inert>
+    <header class="pd-header">
+      <button class="pd-back" id="planDetailClose" type="button" aria-label="Volver">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <div class="pd-bar-title" id="planDetailBarTitle">Tu plan</div>
+    </header>
+    <div class="pd-scroll" id="planDetailScroll">
+      <div class="pd-inner" id="planDetailContent"></div>
+    </div>
+    <div class="pd-footer">
+      <div class="pd-footer-inner" id="planDetailFooter"></div>
+    </div>
+  </section>
+
+  <!-- Invitación Premium al tocar «Guardar plan» sin suscripción activa -->
+  <div class="about-modal plan-ask" id="planAsk" role="dialog" aria-modal="true" aria-labelledby="planAskTitle">
+    <div class="about-modal-card">
+      <button class="about-modal-close" id="planAskClose" type="button" aria-label="Cerrar">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <div class="plan-ask-mark"><img class="premium-emblem" src="https://gfsnhjxsqbsapnpfqpyy.supabase.co/storage/v1/object/public/Choapa%20explore%20Recursos/emblema-premium.png" alt="" aria-hidden="true" decoding="async"></div>
+      <div class="about-modal-title" id="planAskTitle">Guarda tus planes para vivirlos cuando quieras</div>
+      <p class="about-modal-text">Con Choapa Explore Premium puedes conservar tus planes personalizados, volver a consultarlos y organizar tus próximas escapadas.</p>
+      <button class="auth-btn-primary" id="planAskGo" type="button">Descubrir Premium</button>
+      <button class="pm-secondary" id="planAskLater" type="button">Ahora no</button>
     </div>
   </div>
 
@@ -14671,10 +14910,12 @@ function openGuardados(){
   // loadSavedPlaces() antes de renderizar. Sin sesión, el comportamiento es
   // idéntico a antes: requireAuth ya se encarga de abrir el login y no
   // ejecuta nada de lo de abajo.
-  return requireAuth(async () => {
+    return requireAuth(async () => {
     guardadosActiveFilter = 'todos';
     guardadosComuna = 'todas';
     closeGuardadosSheet(true);
+    setGuardadosTab(guardadosNextTab || 'experiencias', { silent:true }); // «Experiencias» salvo que se pida «Planes»
+    guardadosNextTab = null;
     nearbyScreen.classList.remove('visible');
     document.getElementById('albumScreen').classList.remove('visible');
     document.getElementById('guardadosEmptyIcon').innerHTML = icon('bookmark', 34);
@@ -15947,8 +16188,9 @@ function addPlannerMessage(role, text, opts = {}){
   bubble.className = 'pc-bubble';
   if (opts.typing) bubble.innerHTML = '<span class="pc-typing" aria-label="Escribiendo"><i></i><i></i><i></i></span>';
   else bubble.textContent = text; // siempre como texto: nunca se interpreta como HTML
-  if (opts.typing) bubble.style.padding = '0';
+    if (opts.typing) bubble.style.padding = '0';
   row.appendChild(bubble);
+  if (role === 'bot' && opts.plan) plannerAttachPlanCard(row, opts.plan, opts.planRef || {}); // solo planes listos y válidos
   plannerChatThread.appendChild(row);
   return row;
 }
@@ -16080,7 +16322,7 @@ async function loadPlannerConversation(){
     let msgs = [];
     if (last){
       const res = await supabaseClient.from('chat_messages')
-        .select('role, content, metadata, created_at')
+                .select('id, role, content, metadata, created_at')
         .eq('conversation_id', last.id)
         .order('created_at', { ascending:false }).order('id', { ascending:false })
         .limit(PLANNER_HISTORY_LIMIT);
@@ -16092,11 +16334,15 @@ async function loadPlannerConversation(){
     plannerClearThread();
     plannerChatState.conversationId = last ? last.id : null;
     plannerChatState.replies = msgs.filter(m => m.role === 'assistant').length;
-    msgs.forEach(m => addPlannerMessage(m.role === 'assistant' ? 'bot' : 'user', m.content,
-      { preview: !!(m.metadata && m.metadata.preview), restored:true }));
+       msgs.forEach(m => addPlannerMessage(m.role === 'assistant' ? 'bot' : 'user', m.content, {
+      preview: !!(m.metadata && m.metadata.preview), restored:true,
+      plan: m.role === 'assistant' && m.metadata ? m.metadata.plan : null,
+      planRef: { messageId: m.id, requestId: m.metadata && m.metadata.request_id, conversationId: last ? last.id : null }
+    }));
     if (msgs.length) plannerHideWelcome(false); else plannerShowWelcome();
-    plannerChatState.loaded = true;
+       plannerChatState.loaded = true;
     requestAnimationFrame(() => scrollPlannerToEnd(false));
+    plannerRefreshSavedMarks();
   } catch (err){
     if (token !== plannerChatState.token) return;
     console.warn('[Planificador] No se pudo cargar el historial:', (err && err.message) || err);
@@ -16183,7 +16429,7 @@ async function plannerReplyTo(token, save){
   plannerChatThread.querySelectorAll('.pc-reply-error').forEach(el => el.remove());
   const typing = addPlannerMessage('bot', '', { typing:true });
   scrollPlannerToEnd(true);
-  let reply = null;
+   let reply = null, replyPlan = null, replyId = null;
   let errorText = 'El Planificador no pudo responder ahora.';
   try {
     const { data } = await supabaseClient.auth.getSession();
@@ -16199,7 +16445,11 @@ async function plannerReplyTo(token, save){
     });
     clearTimeout(timer);
     const body = await res.json().catch(() => null);
-    if (res.ok && body && body.success && typeof body.message === 'string') reply = body.message;
+       if (res.ok && body && body.success && typeof body.message === 'string'){
+      reply = body.message;
+      replyPlan = body.plan || null;          // { type:'personalized_plan', status, plan } o null
+      replyId = body.message_id || null;      // id del mensaje guardado (para «Guardar plan»)
+    }
     else if (body && body.error && typeof body.error.message === 'string') errorText = body.error.message;
   } catch (err){
     console.warn('[Planificador] No se pudo obtener la respuesta:', (err && err.message) || err);
@@ -16207,7 +16457,7 @@ async function plannerReplyTo(token, save){
   typing.remove();
   if (token !== plannerChatState.token) return;
   const wasNearEnd = plannerIsNearEnd();
-  if (reply) addPlannerMessage('bot', reply);
+   if (reply) addPlannerMessage('bot', reply, { plan: replyPlan, planRef: { messageId: replyId, requestId: save.clientId, conversationId: plannerChatState.conversationId } });
   else plannerShowReplyError(errorText, token, save);
   if (wasNearEnd) scrollPlannerToEnd(true); // si estaba leyendo más arriba, no se le mueve la pantalla
   plannerChatState.busy = false;
@@ -16345,6 +16595,487 @@ document.addEventListener('keydown', (e) => {
   if (!plannerChatMenu.hidden){ closePlannerMenu(); return; }
   closePlannerChat();
 });
+
+/* ================= PLANES DEL PLANIFICADOR (Fase 3) =================
+   Todos pueden recibir y consultar planes; solo Premium puede guardarlos.
+   · La tarjeta y el detalle usan SOLO el plan estructurado que entrega n8n (respuesta.plan /
+     metadata.plan con type 'personalized_plan' y status 'ready'); nunca se lee el texto del chat.
+   · Guardar llama a la función save_planner_plan de Supabase: verifica Premium con is_premium(),
+     toma el plan del mensaje real del Planificador y arma cada parada con datos reales. Un mismo
+     plan se guarda una sola vez (doble toque o reintento no duplican).
+   · Leer saved_plans también exige Premium (RLS): sin suscripción activa no se recupera nada. */
+const planDetail = document.getElementById('planDetail');
+const planDetailScroll = document.getElementById('planDetailScroll');
+const planDetailContent = document.getElementById('planDetailContent');
+const planDetailFooter = document.getElementById('planDetailFooter');
+const planAsk = document.getElementById('planAsk');
+const guardadosPlans = document.getElementById('guardadosPlans');
+
+function planEsc(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+// Solo URLs https reales (las que vienen de Supabase); nunca se inventa una imagen.
+function planBg(url, width){
+  if (typeof url !== 'string' || !/^https:\/\//.test(url)) return '';
+  return `background-image:url("${thumbUrl(url, width).replace(/["'\\\n\r]/g, '')}")`;
+}
+function planReady(env){
+  return !!(env && env.type === 'personalized_plan' && env.status === 'ready' && env.plan && typeof env.plan === 'object'
+    && Array.isArray(env.plan.stops) && env.plan.stops.some(s => s && typeof s.experience_id === 'string'));
+}
+function planStops(p){
+  return (p.stops || []).filter(s => s && typeof s.experience_id === 'string')
+    .slice().sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
+}
+function planPlace(stop){ return DEMO_PLACES.find(pl => pl.id === stop.experience_id) || null; }
+function planStopTitle(stop){ const pl = planPlace(stop); return String(stop.title || (pl && pl.name) || 'Parada').trim(); }
+function planStopImage(stop){ const pl = planPlace(stop); return (typeof stop.image_url === 'string' && stop.image_url) || (pl && pl.image) || ''; }
+function planCover(p){ const s = planStops(p).find(planStopImage); return s ? planStopImage(s) : ''; }
+function planMinutes(m){
+  if (!Number.isFinite(m) || m <= 0) return '';
+  const h = Math.floor(m / 60), r = Math.round(m % 60);
+  return h ? (r ? `${h} h ${r} min` : `${h} h`) : `${r} min`;
+}
+function planZone(p){
+  const stops = planStops(p);
+  const comuna = p.commune_id ? LOCALITIES.find(l => l.id === p.commune_id) : null;
+  const commune = comuna ? comuna.name : [...new Set(stops.map(s => s.commune_name).filter(Boolean))].join(' · ');
+  const loc = p.locality_id ? ((stops.find(s => s.locality_id === p.locality_id) || {}).locality_name || '') : '';
+  return { commune, locality: loc && loc !== commune ? loc : '' };
+}
+function planStopsLabel(n){ return n === 1 ? '1 parada' : `${n} paradas`; }
+
+/* ---------- Estado de planes guardados (por cuenta: nunca se mezclan datos de otra sesión) ---------- */
+const savedPlansState = { userId:null, status:'idle', premium:null, items:[], byMsg:new Map(), loadedAt:0, token:0 };
+const planSaving = new Set();
+function savedPlansSyncUser(){
+  const uid = currentAuthUser ? currentAuthUser.id : null;
+  if (savedPlansState.userId !== uid){
+    savedPlansState.token++;
+    Object.assign(savedPlansState, { userId:uid, status:'idle', premium:null, items:[], byMsg:new Map(), loadedAt:0 });
+  }
+  return uid;
+}
+// is_premium() con la sesión real; null = no se pudo verificar (sin conexión): no se asume nada.
+async function checkPremiumNow(){
+  const user = currentAuthUser;
+  if (!user || !supabaseClient) return false;
+  try {
+    const { data, error } = await supabaseClient.rpc('is_premium');
+    if (error) return null;
+    const active = data === true;
+    if (currentAuthUser && currentAuthUser.id === user.id) premiumStatus = { userId:user.id, active, checkedAt:Date.now() };
+    return active;
+  } catch (e){ return null; }
+}
+function planKey(ctx){ return ctx.ref.savedId ? 'saved:' + ctx.ref.savedId : (ctx.ref.messageId || 'req:' + (ctx.ref.requestId || '')); }
+function planSaveState(ctx){
+  if (planSaving.has(planKey(ctx))) return 'saving';
+  const uid = currentAuthUser ? currentAuthUser.id : null;
+  return ctx.ref.messageId && uid && savedPlansState.userId === uid && savedPlansState.byMsg.has(ctx.ref.messageId) ? 'saved' : 'idle';
+}
+function applyPlanSaveState(btn){
+  if (!btn._ctx) return;
+  const st = planSaveState(btn._ctx);
+  btn.dataset.state = st;
+  btn.disabled = st === 'saving';
+  btn.setAttribute('aria-pressed', String(st === 'saved'));
+  btn.querySelector('span').textContent = st === 'saving' ? 'Guardando…' : st === 'saved' ? 'Guardado' : 'Guardar plan';
+}
+function syncPlanSaveButtons(){ document.querySelectorAll('.js-plan-save').forEach(applyPlanSaveState); }
+function makePlanSaveButton(ctx, extraClass){
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'pc-plan-btn plan-save js-plan-save' + (extraClass ? ' ' + extraClass : '');
+  btn.innerHTML = `${icon('bookmark', 15)}<span>Guardar plan</span>`;
+  btn._ctx = ctx;
+  btn.addEventListener('click', () => savePlannerPlan(ctx));
+  applyPlanSaveState(btn);
+  return btn;
+}
+
+/* ---------- Tarjeta del plan en el chat ---------- */
+function plannerAttachPlanCard(row, env, ref){
+  if (!planReady(env)) return; // saludos, aclaraciones, sin resultados o errores: sin tarjeta
+  const p = env.plan;
+  const stops = planStops(p);
+  const zone = planZone(p);
+  const dur = planMinutes(p.estimated_duration_minutes);
+  const cover = planCover(p);
+  const ctx = { env, ref: Object.assign({}, ref), source:'chat' };
+  const card = document.createElement('div');
+  card.className = 'pc-plan';
+  card.setAttribute('role', 'group');
+  card.setAttribute('aria-label', 'Plan: ' + (p.title || 'Tu plan en el Choapa'));
+  const shown = stops.slice(0, 3);
+  card.innerHTML = `
+    <div class="pc-plan-media${cover ? '' : ' is-empty'}" style='${cover ? planBg(cover, 720) : ''}'>
+      <span class="pc-plan-eyebrow">${icon('sparkle', 11)}Plan para ti</span>
+      ${cover ? '' : `<span class="plan-glyph">${icon('mountain', 30)}</span>`}
+    </div>
+    <div class="pc-plan-body">
+      <div class="pc-plan-title">${planEsc(p.title || 'Tu plan en el Choapa')}</div>
+      <div class="pc-plan-meta">
+        ${zone.commune ? `<span>${icon('pin', 12)}${planEsc(zone.commune)}</span>` : ''}
+        <span>${planStopsLabel(stops.length)}</span>
+        ${dur ? `<span title="Duración estimada">${icon('clock', 12)}≈ ${dur}</span>` : ''}
+      </div>
+      ${p.summary ? `<p class="pc-plan-summary">${planEsc(p.summary)}</p>` : ''}
+      <ol class="pc-plan-stops">
+        ${shown.map((s, i) => `<li><span class="plan-num">${i + 1}</span><span class="pc-plan-stop">${planEsc(planStopTitle(s))}</span></li>`).join('')}
+        ${stops.length > shown.length ? `<li class="is-more">+${stops.length - shown.length} más</li>` : ''}
+      </ol>
+      <div class="pc-plan-actions"><button type="button" class="pc-plan-btn is-view">Ver plan</button></div>
+    </div>`;
+  card.querySelector('.is-view').addEventListener('click', () => openPlanDetail(ctx));
+  card.querySelector('.pc-plan-actions').appendChild(makePlanSaveButton(ctx));
+  row.classList.add('has-plan');
+  row.appendChild(card);
+}
+// Marca «Guardado» en las tarjetas del historial (con RLS, sin Premium la consulta vuelve vacía).
+async function plannerRefreshSavedMarks(){
+  const uid = savedPlansSyncUser();
+  if (!uid || !supabaseClient) return;
+  const ids = [...new Set([...plannerChatThread.querySelectorAll('.js-plan-save')].map(b => b._ctx && b._ctx.ref.messageId).filter(Boolean))];
+  if (!ids.length) return;
+  try {
+    const { data, error } = await supabaseClient.from('saved_plans').select('id, source_message_id').in('source_message_id', ids);
+    if (error || savedPlansState.userId !== uid) return;
+    (data || []).forEach(r => { if (r.source_message_id) savedPlansState.byMsg.set(r.source_message_id, r.id); });
+    syncPlanSaveButtons();
+  } catch (e){ /* sin marca: el guardado igual es idempotente */ }
+}
+
+/* ---------- Guardar (gratuito → invitación Premium; Premium → guardado real) ---------- */
+async function planResolveMessageId(ctx){
+  // Respaldo poco frecuente: si la respuesta llegó sin message_id, se busca el mensaje por su request_id.
+  if (!ctx.ref.requestId || !ctx.ref.conversationId) return null;
+  const { data, error } = await supabaseClient.from('chat_messages').select('id')
+    .eq('conversation_id', ctx.ref.conversationId).eq('role', 'assistant')
+    .eq('metadata->>request_id', ctx.ref.requestId).limit(1);
+  return !error && data && data[0] ? data[0].id : null;
+}
+async function savePlannerPlan(ctx){
+  if (!currentAuthUser){ reopenAuthScreen('login'); return; }
+  const uid = savedPlansSyncUser();
+  const key = planKey(ctx);
+  if (planSaving.has(key)) return; // doble toque: una sola petición
+  if (planSaveState(ctx) === 'saved'){
+    showAppNotice({ tone:'info', text:'Este plan ya está en Guardados › Planes.', action:{ label:'Ver', onClick: openSavedPlans } });
+    return;
+  }
+  planSaving.add(key);
+  syncPlanSaveButtons();
+  try {
+    const messageId = ctx.ref.messageId || await planResolveMessageId(ctx);
+    if (!messageId) throw new Error('sin id del mensaje del plan');
+    ctx.ref.messageId = messageId;
+    const { data, error } = await supabaseClient.rpc('save_planner_plan', { p_message_id: messageId });
+    if (savedPlansState.userId !== uid) return; // cambió la cuenta mientras tanto
+    if (error){
+      const code = String(error.message || '');
+      if (code.includes('premium_required')){
+        if (premiumStatus.userId === uid) premiumStatus = { userId:uid, active:false, checkedAt:Date.now() };
+        openPlanAsk(); // no se guarda nada; el plan sigue en la conversación
+        return;
+      }
+      if (code.includes('not_authenticated')){ reopenAuthScreen('login'); return; }
+      if (code.includes('plan_references_invalid')){
+        showAppNotice({ text:'Este plan incluye un lugar que ya no está disponible, así que no se puede guardar. Pide al Planificador una versión actualizada.', duration:6500 });
+        return;
+      }
+      throw error;
+    }
+    savedPlansState.byMsg.set(messageId, data && data.id);
+    if (savedPlansState.status === 'ready') savedPlansState.status = 'stale'; // la lista se actualiza al abrir Planes
+    showAppNotice({ tone:'success', text: data && data.created === false ? 'Este plan ya estaba en tus guardados.' : 'Plan guardado en Guardados › Planes.', action:{ label:'Ver', onClick: openSavedPlans } });
+  } catch (err){
+    console.warn('[Planes] No se pudo guardar el plan:', (err && err.message) || err);
+    showAppNotice({ text: navigator.onLine ? 'No pudimos guardar el plan. Inténtalo de nuevo.' : 'Sin conexión: no pudimos guardar el plan.',
+      action:{ label:'Reintentar', onClick: () => savePlannerPlan(ctx) } });
+  } finally {
+    planSaving.delete(key);
+    syncPlanSaveButtons();
+  }
+}
+function openPlanAsk(){ planAsk.classList.add('visible'); document.getElementById('planAskGo').focus({ preventScroll:true }); }
+function closePlanAsk(){ planAsk.classList.remove('visible'); }
+document.getElementById('planAskGo').addEventListener('click', () => { closePlanAsk(); openPremium('save-plan'); }); // tarjeta y pago reales de siempre
+document.getElementById('planAskLater').addEventListener('click', closePlanAsk);
+document.getElementById('planAskClose').addEventListener('click', closePlanAsk);
+planAsk.addEventListener('click', (e) => { if (e.target === planAsk) closePlanAsk(); });
+
+/* ---------- Detalle del plan («Ver plan»): visible para todos ---------- */
+let planDetailCtx = null;
+function renderPlanDetail(ctx){
+  const p = ctx.env.plan;
+  const stops = planStops(p);
+  const zone = planZone(p);
+  const cover = planCover(p);
+  const dur = planMinutes(p.estimated_duration_minutes);
+  const list = (arr) => Array.isArray(arr) ? arr.filter(x => typeof x === 'string' && x.trim()) : [];
+  const section = (label, items) => items.length ? `<div class="pd-label">${label}</div><ul class="pd-list">${items.map(t => `<li>${planEsc(t)}</li>`).join('')}</ul>` : '';
+  document.getElementById('planDetailBarTitle').textContent = p.title || 'Tu plan';
+  planDetailContent.innerHTML = `
+    <div class="pd-hero${cover ? '' : ' is-empty'}" style='${cover ? planBg(cover, 1200) : ''}'>
+      ${cover ? '' : `<span class="plan-glyph">${icon('mountain', 40)}</span>`}
+      <div class="pd-hero-text">
+        <span class="pd-eyebrow">${icon('sparkle', 11)}Plan personalizado</span>
+        <h2 class="pd-title">${planEsc(p.title || 'Tu plan en el Choapa')}</h2>
+        ${zone.commune || zone.locality ? `<div class="pd-zone"><span>${icon('pin', 12)}${planEsc([zone.locality, zone.commune].filter(Boolean).join(' · '))}</span></div>` : ''}
+      </div>
+    </div>
+    <div class="pd-facts">
+      <span class="pd-fact">${icon('pin', 13)}${planStopsLabel(stops.length)}</span>
+      ${dur ? `<span class="pd-fact">${icon('clock', 13)}≈ ${dur}<small>estimado</small></span>` : ''}
+      ${p.date ? `<span class="pd-fact">${icon('tfWeekend', 13)}${planEsc(p.date)}</span>` : ''}
+      ${p.time_window ? `<span class="pd-fact">${icon('todaySun', 13)}${planEsc(p.time_window)}<small>deseado</small></span>` : ''}
+    </div>
+    ${p.objective ? `<div class="pd-label">Objetivo</div><p class="pd-text">${planEsc(p.objective)}</p>` : ''}
+    ${p.summary ? `<div class="pd-label">Resumen</div><p class="pd-text">${planEsc(p.summary)}</p>` : ''}
+    <div class="pd-label">Itinerario</div>
+    <ol class="pd-stops">
+      ${stops.map((s, i) => {
+        const img = planStopImage(s);
+        const pl = planPlace(s);
+        const where = [s.locality_name || (pl && pl.locality), s.commune_name].filter(Boolean)
+          .filter((v, k, a) => a.indexOf(v) === k).join(' · ');
+        const mins = planMinutes(s.suggested_duration_minutes);
+        return `<li class="pd-stop">
+          <div class="pd-rail"><span class="plan-num">${i + 1}</span></div>
+          <div class="pd-stop-card">
+            <div class="pd-stop-photo${img ? '' : ' is-empty'}" style='${img ? planBg(img, 900) : ''}'>${img ? '' : `<span class="plan-glyph">${icon('mountain', 24)}</span>`}</div>
+            <div class="pd-stop-body">
+              <div class="pd-stop-name">${planEsc(planStopTitle(s))}</div>
+              ${where ? `<div class="pd-stop-loc">${icon('pin', 12)}<span>${planEsc(where)}</span></div>` : ''}
+              ${s.reason ? `<p class="pd-stop-reason">${planEsc(s.reason)}</p>` : ''}
+              ${mins ? `<div class="pd-stop-meta"><span>${icon('clock', 11)}≈ ${mins} · sugerido</span></div>` : ''}
+              ${s.notes ? `<p class="pd-stop-note">${planEsc(s.notes)}</p>` : ''}
+              ${pl ? `<button type="button" class="pd-stop-open" data-exp="${planEsc(pl.id)}">Ver experiencia${icon('navArrow', 12, 'style="transform:rotate(90deg)"')}</button>` : ''}
+            </div>
+          </div>
+        </li>`;
+      }).join('')}
+    </ol>
+    ${section('Para moverte', list(p.travel_notes))}
+    ${section('Supuestos del plan', list(p.assumptions))}
+    ${section('A tener en cuenta', list(p.limitations))}
+    <p class="pd-fine">Las duraciones y horarios son sugerencias estimadas, no horarios confirmados de los lugares. Los tiempos de traslado entre paradas no están calculados.</p>`;
+  planDetailContent.querySelectorAll('.pd-stop-open').forEach(b => b.addEventListener('click', () => openPlanStopExperience(b.dataset.exp)));
+  renderPlanDetailFooter(ctx);
+}
+function renderPlanDetailFooter(ctx){
+  planDetailFooter.innerHTML = '';
+  if (ctx.source === 'saved'){
+    const when = document.createElement('div');
+    when.className = 'pd-saved-at';
+    const d = ctx.ref.savedAt ? new Date(ctx.ref.savedAt) : null;
+    when.textContent = d && !isNaN(d) ? `Guardado el ${d.toLocaleDateString('es-CL', { day:'numeric', month:'long' })}` : 'En tus planes guardados';
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'pc-plan-btn pd-remove';
+    remove.textContent = 'Quitar de mis planes';
+    remove.addEventListener('click', () => removeSavedPlan(ctx, remove));
+    planDetailFooter.append(when, remove);
+    return;
+  }
+  planDetailFooter.appendChild(makePlanSaveButton(ctx));
+}
+function openPlanDetail(ctx){
+  planDetailCtx = ctx;
+  renderPlanDetail(ctx);
+  planDetailScroll.scrollTop = 0;
+  planDetail.inert = false;
+  planDetail.setAttribute('aria-hidden', 'false');
+  planDetail.classList.add('visible');
+  document.getElementById('planDetailClose').focus({ preventScroll:true });
+}
+function closePlanDetail(){
+  if (!planDetail.classList.contains('visible')) return;
+  planDetail.classList.remove('visible');
+  planDetail.setAttribute('aria-hidden', 'true');
+  planDetail.inert = true;
+  planDetailCtx = null;
+}
+document.getElementById('planDetailClose').addEventListener('click', closePlanDetail);
+// «Ver experiencia»: la ficha de siempre, en el mapa.
+function openPlanStopExperience(id){
+  closePlanDetail();
+  closePlannerChat();
+  if (guardadosScreen.classList.contains('visible')) closeGuardados();
+  if (!sheet.classList.contains('collapsed')) collapseSheet();
+  selectPlaceById(id);
+}
+async function removeSavedPlan(ctx, btn){
+  if (btn.dataset.confirm !== '1'){
+    btn.dataset.confirm = '1';
+    btn.textContent = 'Toca otra vez para quitar';
+    clearTimeout(btn._t);
+    btn._t = setTimeout(() => { btn.dataset.confirm = ''; btn.textContent = 'Quitar de mis planes'; }, 3500);
+    return;
+  }
+  clearTimeout(btn._t);
+  btn.disabled = true;
+  btn.textContent = 'Quitando…';
+  try {
+    const { data, error } = await supabaseClient.from('saved_plans').delete().eq('id', ctx.ref.savedId).select('id');
+    if (error) throw error;
+    if (!data || !data.length) throw new Error('El plan no se quitó');
+    savedPlansState.items = savedPlansState.items.filter(r => r.id !== ctx.ref.savedId);
+    if (ctx.ref.messageId) savedPlansState.byMsg.delete(ctx.ref.messageId);
+    closePlanDetail();
+    renderGuardadosPlans();
+    syncPlanSaveButtons();
+    showAppNotice({ tone:'info', text:'Quitaste el plan de tus guardados.' });
+  } catch (err){
+    console.warn('[Planes] No se pudo quitar el plan:', (err && err.message) || err);
+    btn.disabled = false;
+    btn.dataset.confirm = '';
+    btn.textContent = 'Quitar de mis planes';
+    showAppNotice({ text:'No pudimos quitar el plan. Inténtalo de nuevo.' });
+  }
+}
+// Escape (escritorio): cierra primero lo que está encima, sin cerrar también el chat de abajo.
+window.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  const stop = () => { e.stopImmediatePropagation(); e.stopPropagation(); };
+  if (premiumModal.classList.contains('visible') && (planDetail.classList.contains('visible') || plannerChat.classList.contains('visible'))){ closePremium(); stop(); return; }
+  if (planAsk.classList.contains('visible')){ closePlanAsk(); stop(); return; }
+  if (planDetail.classList.contains('visible')){ closePlanDetail(); stop(); }
+}, true);
+
+/* ---------- Guardados › Planes (visible para todos) ---------- */
+let guardadosTab = 'experiencias';
+let guardadosNextTab = null;
+function setGuardadosTab(tab, opts = {}){
+  guardadosTab = tab === 'planes' ? 'planes' : 'experiencias';
+  const plans = guardadosTab === 'planes';
+  guardadosScreen.classList.toggle('is-plans', plans);
+  document.getElementById('gdTabExperiences').classList.toggle('active', !plans);
+  document.getElementById('gdTabExperiences').setAttribute('aria-selected', String(!plans));
+  document.getElementById('gdTabPlans').classList.toggle('active', plans);
+  document.getElementById('gdTabPlans').setAttribute('aria-selected', String(plans));
+  document.getElementById('guardadosSubtitle').textContent = plans ? 'Planes que quieres vivir.' : 'Experiencias que quieres vivir.';
+  guardadosScreen.querySelector('.guardados-body').scrollTop = 0;
+  if (!plans){ if (!opts.silent) renderGuardados(); return; }
+  closeGuardadosSheet(true);
+  const fresh = savedPlansState.userId === (currentAuthUser ? currentAuthUser.id : null)
+    && ['ready', 'free'].includes(savedPlansState.status) && Date.now() - savedPlansState.loadedAt < 60000;
+  if (fresh) renderGuardadosPlans();
+  else loadSavedPlansList();
+}
+document.getElementById('gdTabExperiences').addEventListener('click', () => setGuardadosTab('experiencias'));
+document.getElementById('gdTabPlans').addEventListener('click', () => setGuardadosTab('planes'));
+async function loadSavedPlansList(){
+  const uid = savedPlansSyncUser();
+  if (!uid || !supabaseClient) return;
+  const token = ++savedPlansState.token;
+  const hadList = savedPlansState.status === 'ready' || savedPlansState.status === 'stale';
+  if (!hadList){ savedPlansState.status = 'loading'; renderGuardadosPlans(); }
+  const premium = await checkPremiumNow();
+  if (token !== savedPlansState.token) return;
+  if (premium === null){ savedPlansState.status = 'error'; renderGuardadosPlans(); return; }
+  savedPlansState.premium = premium;
+  if (!premium){
+    Object.assign(savedPlansState, { status:'free', items:[], loadedAt:Date.now() });
+    renderGuardadosPlans();
+    return;
+  }
+  try {
+    const { data, error } = await supabaseClient.from('saved_plans')
+      .select('id, title, plan, source_message_id, created_at')
+      .order('created_at', { ascending:false }).limit(100);
+    if (token !== savedPlansState.token) return;
+    if (error) throw error;
+    const items = (data || []).filter(r => planReady(r.plan));
+    items.forEach(r => { if (r.source_message_id) savedPlansState.byMsg.set(r.source_message_id, r.id); });
+    Object.assign(savedPlansState, { status:'ready', items, loadedAt:Date.now() });
+  } catch (err){
+    if (token !== savedPlansState.token) return;
+    console.warn('[Planes] No se pudieron cargar los planes guardados:', (err && err.message) || err);
+    savedPlansState.status = 'error';
+  }
+  renderGuardadosPlans();
+  syncPlanSaveButtons();
+}
+function renderGuardadosPlans(){
+  if (!guardadosPlans) return;
+  const uid = currentAuthUser ? currentAuthUser.id : null;
+  if (savedPlansState.userId !== uid){ guardadosPlans.innerHTML = ''; return; } // nunca datos de otra cuenta
+  const st = savedPlansState.status;
+  if (st === 'idle' || st === 'loading'){
+    guardadosPlans.innerHTML = '<div class="gd-plans-status" role="status"><span class="pc-typing" aria-hidden="true"><i></i><i></i><i></i></span><span>Cargando tus planes…</span></div>';
+    return;
+  }
+  if (st === 'error'){
+    guardadosPlans.innerHTML = `<div class="guardados-empty"><span class="ge-icon">${icon('bookmark', 34)}</span>
+      <div class="ge-title">No pudimos cargar tus planes</div>
+      <div class="ge-sub">${navigator.onLine ? 'Inténtalo de nuevo en unos momentos.' : 'Revisa tu conexión a internet e inténtalo de nuevo.'}</div>
+      <button class="ge-btn" type="button" data-act="retry">Reintentar</button></div>`;
+    guardadosPlans.querySelector('[data-act="retry"]').addEventListener('click', loadSavedPlansList);
+    return;
+  }
+  if (st === 'free' || (st !== 'stale' && !savedPlansState.items.length)){
+    const free = st === 'free';
+    guardadosPlans.innerHTML = `<div class="guardados-empty">
+      <span class="gd-plans-mark"><img class="planner-icon-img" src="https://gfsnhjxsqbsapnpfqpyy.supabase.co/storage/v1/object/public/Choapa%20explore%20Recursos/planificador-icono.png" alt="" aria-hidden="true" decoding="async"></span>
+      <div class="ge-title">${free ? 'Tus próximas escapadas empiezan aquí' : 'Todavía no tienes planes guardados'}</div>
+      <div class="ge-sub">${free ? 'Crea planes personalizados con el Planificador Inteligente y guárdalos con Premium para volver a ellos cuando quieras.' : 'Pide un plan al Planificador inteligente y toca «Guardar plan» para tenerlo siempre aquí.'}</div>
+      ${free ? `<button class="ge-btn" type="button" data-act="premium">Descubrir Premium</button>
+        <button class="gd-plans-link" type="button" data-act="plan">Crear un plan</button>`
+        : '<button class="ge-btn" type="button" data-act="plan">Crear un plan</button>'}
+    </div>`;
+    const prem = guardadosPlans.querySelector('[data-act="premium"]');
+    if (prem) prem.addEventListener('click', () => openPremium('saved-plans'));
+    guardadosPlans.querySelector('[data-act="plan"]').addEventListener('click', () => { closeGuardados(); openPremiumPlanner(); });
+    return;
+  }
+  if (st === 'stale'){
+    loadSavedPlansList(); // se guardó algo nuevo: se actualiza en silencio
+    if (!savedPlansState.items.length){
+      guardadosPlans.innerHTML = '<div class="gd-plans-status" role="status"><span class="pc-typing" aria-hidden="true"><i></i><i></i><i></i></span><span>Cargando tus planes…</span></div>';
+      return;
+    }
+  }
+  guardadosPlans.innerHTML = '';
+  savedPlansState.items.forEach(r => guardadosPlans.appendChild(buildSavedPlanCard(r)));
+}
+function buildSavedPlanCard(r){
+  const p = r.plan.plan;
+  const stops = planStops(p);
+  const zone = planZone(p);
+  const cover = planCover(p);
+  const dur = planMinutes(p.estimated_duration_minutes);
+  const d = new Date(r.created_at);
+  const card = document.createElement('button');
+  card.type = 'button';
+  card.className = 'gd-card nb-card sv-card gd-plan-card';
+  card.innerHTML = `
+    <div class="gd-photo${cover ? '' : ' is-empty'}" style='${cover ? planBg(cover, 960) : ''}'>
+      <div class="sv-badges"><span class="sv-pill">${icon('sparkle', 11)}Plan</span></div>
+      ${cover ? '' : `<span class="plan-glyph">${icon('mountain', 30)}</span>`}
+      <div class="nb-overlay">
+        <div class="gd-name">${planEsc(r.title || p.title || 'Tu plan en el Choapa')}</div>
+        ${zone.commune ? `<div class="gd-loc">${icon('pin', 12)}<span>${planEsc([zone.locality, zone.commune].filter(Boolean).join(' · '))}</span></div>` : ''}
+      </div>
+    </div>
+    <div class="sv-meta">
+      <span class="gd-meta-item">${planStopsLabel(stops.length)}</span>
+      ${dur ? `<span class="gd-meta-item">${icon('clock', 11)}≈ ${dur}</span>` : ''}
+      ${!isNaN(d) ? `<span class="gd-meta-item">Guardado el ${d.toLocaleDateString('es-CL', { day:'numeric', month:'short' })}</span>` : ''}
+    </div>`;
+  card.addEventListener('click', () => openPlanDetail({ env:r.plan, source:'saved', ref:{ savedId:r.id, messageId:r.source_message_id || null, savedAt:r.created_at } }));
+  return card;
+}
+// Ir a Guardados › Planes desde cualquier lugar (aviso «Plan guardado · Ver»).
+function openSavedPlans(){
+  closePlanAsk();
+  closePlanDetail();
+  closePlannerChat();
+  if (guardadosScreen.classList.contains('visible')){ setGuardadosTab('planes'); return; }
+  guardadosNextTab = 'planes';
+  openGuardados();
+}
 
 const placesRail = document.getElementById('placesRail');
 const placesEmpty = document.getElementById('placesEmpty');
@@ -17145,7 +17876,7 @@ map.on('click', () => {
 // propagación, así nunca se queda "sordo" a un tap externo.
 document.addEventListener('click', (e) => {
   if (sheet.classList.contains('collapsed')) return;
-   if (e.target.closest('#sheet') || e.target.closest('#sheetPill') || e.target.closest('#plannerChat')) return; // el chat del Planificador se abre desde el panel: tocarlo no lo cierra
+   if (e.target.closest('#sheet') || e.target.closest('#sheetPill') || e.target.closest('#plannerChat') || e.target.closest('#planDetail') || e.target.closest('#planAsk')) return; // el chat del Planificador se abre desde el panel: tocarlo no lo cierra
   collapseSheet();
 }, true);
 sheetHandle.addEventListener('click', () => {
