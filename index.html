@@ -15848,10 +15848,9 @@ function openPremiumPlanner(){
 }
 document.getElementById('premiumPlannerCard').addEventListener('click', openPremiumPlanner);
 
-/* ================= PLANIFICADOR INTELIGENTE — CHAT (Fase 1: solo interfaz) =================
-   Todo es local: no hay IA, ni Supabase, ni búsquedas. El mensaje del usuario aparece en el hilo y
-   llega una respuesta marcada como «Vista previa». Para conectar el agente real en la próxima fase,
-   basta con reemplazar plannerPreviewReply() por la llamada al agente: el resto ya queda listo. */
+/* ================= PLANIFICADOR INTELIGENTE — CHAT =================
+   La app guarda los mensajes del usuario en Supabase y pide la respuesta al agente (workflow de n8n
+   «Choapa Explore — Planificador inteligente»), que es quien guarda la respuesta. */
 const plannerChat = document.getElementById('plannerChat');
 const plannerChatScroll = document.getElementById('plannerChatScroll');
 const plannerChatThread = document.getElementById('plannerChatThread');
@@ -15871,10 +15870,6 @@ const plannerChatState = {
   token:0                     // cambia con cada conversación o cuenta: descarta respuestas que llegan tarde
 };
 const PLANNER_HISTORY_LIMIT = 200; // mensajes más recientes que se muestran al abrir
-const PLANNER_PREVIEW_REPLIES = [
-  '¡Buena idea! Esta es una vista previa del Planificador: todavía no armo planes, pero muy pronto te responderé aquí con opciones reales en el Choapa.',
-  'Anotado. En esta vista previa aún no puedo responderte con un plan; muy pronto podrás conversarlo conmigo aquí.'
-];
 
 // Saludo con el primer nombre del perfil (el que se usó al registrarse); sin sesión: «explorador».
 function refreshPlannerGreeting(){
@@ -15956,11 +15951,6 @@ function addPlannerMessage(role, text, opts = {}){
   row.appendChild(bubble);
   plannerChatThread.appendChild(row);
   return row;
-}
-function plannerPreviewReply(){
-  const i = Math.min(plannerChatState.replies, PLANNER_PREVIEW_REPLIES.length - 1);
-  plannerChatState.replies++;
-  return PLANNER_PREVIEW_REPLIES[i];
 }
 
 /* ---------- Conversación persistente (fase 2) ----------
@@ -16178,29 +16168,65 @@ async function plannerRetryRow(row){
   row._retrying = false;
   if (ok && row._save.role === 'user'){
     plannerChatState.unsaved = false;
-    if (row._awaitingReply){ row._awaitingReply = false; plannerReplyTo(row._save.token); }
+    if (row._awaitingReply){ row._awaitingReply = false; plannerReplyTo(row._save.token, row._save); }
   }
   updatePlannerComposer();
 }
-// Respuesta de vista previa (la IA real llegará en otra fase). Se descarta si mientras tanto
-// cambió la conversación, la cuenta o se borró: nunca aparece en una conversación distinta.
-function plannerReplyTo(token){
+// Respuesta real del Planificador (agente en n8n). Se envía el token de la sesión de Supabase:
+// n8n confirma con Supabase quién es el usuario y guarda la respuesta (la app ya no la guarda).
+// Se descarta si mientras tanto cambió la conversación, la cuenta o se borró.
+const PLANNER_AGENT_URL = 'https://ignaccio-n8n.upiwc4.easypanel.host/webhook/choapa-planner';
+async function plannerReplyTo(token, save){
+  if (token !== plannerChatState.token) return;
   plannerChatState.busy = true;
   updatePlannerComposer();
+  plannerChatThread.querySelectorAll('.pc-reply-error').forEach(el => el.remove());
   const typing = addPlannerMessage('bot', '', { typing:true });
   scrollPlannerToEnd(true);
-  setTimeout(async () => {
-    typing.remove();
-    if (token !== plannerChatState.token) return;
-    const wasNearEnd = plannerIsNearEnd();
-    const text = plannerPreviewReply();
-    const row = addPlannerMessage('bot', text, { preview:true, pending:true });
-    row._save = { role:'assistant', text, clientId: plannerUUID(), metadata:{ preview:true }, token };
-    if (wasNearEnd) scrollPlannerToEnd(true); // si estaba leyendo más arriba, no se le mueve la pantalla
-    plannerChatState.busy = false;
-    updatePlannerComposer();
-    await plannerPersistRow(row);
-  }, 900);
+  let reply = null;
+  let errorText = 'El Planificador no pudo responder ahora.';
+  try {
+    const { data } = await supabaseClient.auth.getSession();
+    const accessToken = data && data.session ? data.session.access_token : null;
+    if (!accessToken) throw new Error('sin sesión');
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 60000);
+    const res = await fetch(PLANNER_AGENT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + accessToken },
+      body: JSON.stringify({ message: save.text, conversation_id: plannerChatState.conversationId, request_id: save.clientId }),
+      signal: ctrl.signal
+    });
+    clearTimeout(timer);
+    const body = await res.json().catch(() => null);
+    if (res.ok && body && body.success && typeof body.message === 'string') reply = body.message;
+    else if (body && body.error && typeof body.error.message === 'string') errorText = body.error.message;
+  } catch (err){
+    console.warn('[Planificador] No se pudo obtener la respuesta:', (err && err.message) || err);
+  }
+  typing.remove();
+  if (token !== plannerChatState.token) return;
+  const wasNearEnd = plannerIsNearEnd();
+  if (reply) addPlannerMessage('bot', reply);
+  else plannerShowReplyError(errorText, token, save);
+  if (wasNearEnd) scrollPlannerToEnd(true); // si estaba leyendo más arriba, no se le mueve la pantalla
+  plannerChatState.busy = false;
+  updatePlannerComposer();
+}
+// Si el agente falla: aviso discreto con «Reintentar» (repite la misma petición, sin duplicar nada).
+function plannerShowReplyError(text, token, save){
+  const row = document.createElement('div');
+  row.className = 'pc-status is-error pc-reply-error';
+  const span = document.createElement('span');
+  span.textContent = text;
+  row.appendChild(span);
+  const retry = document.createElement('button');
+  retry.type = 'button';
+  retry.className = 'pc-retry';
+  retry.textContent = 'Reintentar';
+  retry.addEventListener('click', () => { if (!plannerChatState.busy) plannerReplyTo(token, save); });
+  row.appendChild(retry);
+  plannerChatThread.appendChild(row);
 }
 async function sendPlannerMessage(textOverride){
   const fromSuggestion = typeof textOverride === 'string';
@@ -16224,11 +16250,11 @@ async function sendPlannerMessage(textOverride){
   if (!saved){
     plannerChatState.busy = false;
     plannerChatState.unsaved = true; // queda visible con «Reintentar»; al guardarse llega la respuesta
-    row._awaitingReply = true;
+       row._awaitingReply = true;
     updatePlannerComposer();
     return;
   }
-  plannerReplyTo(token);
+  plannerReplyTo(token, row._save);
 }
 // Sugerencias: al tocarlas se envían como mensaje del usuario (y comienza la conversación).
 plannerSuggest.addEventListener('click', (e) => {
