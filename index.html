@@ -4079,30 +4079,33 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
   display:flex; flex-direction:column;
   max-height:calc(100vh - 24px);
   max-height:calc(100dvh - 24px - var(--safe-top) - var(--safe-bottom));
-  border-color:rgba(214,181,113,0.22);
+   /* Premium sobrio (nov-2026): carbono profundo con brillo dorado tenue arriba a la derecha,
+     mismo lenguaje del card «Arma un plan a tu medida» */
+  border:1px solid rgba(255,255,255,0.08);
   background:
-    radial-gradient(130% 60% at 50% 0%, rgba(214,181,113,0.10) 0%, rgba(214,181,113,0) 62%),
-    linear-gradient(180deg, #16314A 0%, var(--surface-elevated) 42%, #0F2236 100%);
+    radial-gradient(90% 45% at 100% 0%, rgba(214,181,113,0.12) 0%, rgba(214,181,113,0) 62%),
+    linear-gradient(170deg, #122538 0%, #0D1C2B 48%, #0A1622 100%);
+  box-shadow:0 28px 60px rgba(1,6,12,0.62), inset 0 1px 0 rgba(255,255,255,0.05);
 }
 /* Filo dorado muy fino en el borde superior */
 .premium-modal .premium-card::before{
-  content:''; position:absolute; top:0; left:14%; right:14%; height:1px; z-index:1;
-  background:linear-gradient(90deg, rgba(214,181,113,0), rgba(214,181,113,0.65), rgba(214,181,113,0));
+  content:''; position:absolute; top:0; left:18px; right:18px; height:1px; z-index:1;
+  background:linear-gradient(90deg, rgba(226,194,127,0) 0%, rgba(226,194,127,0.75) 50%, rgba(226,194,127,0) 100%);
 }
-.premium-modal .about-modal-close{z-index:2; top:12px; right:12px; width:32px; height:32px;}
+.premium-modal .about-modal-close{z-index:2; top:12px; right:12px; width:32px; height:32px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08);}
 /* Zona que se desliza (presentación y beneficios). Precio y botón quedan fijos abajo,
    así el botón de suscribirse se ve siempre, en cualquier tamaño de pantalla. */
 .premium-scroll{
   flex:1 1 auto; min-height:0;
   overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
-  padding:24px 20px 22px;
+  padding:26px 20px 20px;
   -webkit-mask-image:linear-gradient(180deg, #000 calc(100% - 22px), transparent 100%);
           mask-image:linear-gradient(180deg, #000 calc(100% - 22px), transparent 100%);
 }
 .pm-eyebrow{
   display:inline-flex; align-items:center; gap:7px;
-  font-size:10px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase;
-  color:var(--premium-gold);
+   font-size:10px; font-weight:700; letter-spacing:1.6px; text-transform:uppercase;
+  color:rgba(226,198,140,0.95);
 }
 .pm-eyebrow svg{flex-shrink:0;}
 /* Icono del Planificador inteligente (brújula con estrella, imagen en Supabase) */
@@ -4114,55 +4117,66 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
 .pm-eyebrow .premium-emblem{width:15px; height:15px; margin:-2px 0;}
 .profile-menu-item .premium-emblem{width:17px; height:17px; margin:0 -0.5px;}
 .pm-title{
-  font-family:var(--font-display); font-size:23px; font-weight:800; line-height:1.15;
-  letter-spacing:-0.4px; color:var(--text-primary); margin:9px 0 7px; text-wrap:balance;
+   font-family:var(--font-display); font-size:25px; font-weight:800; line-height:1.15;
+  letter-spacing:-0.5px; color:var(--text-primary); margin:10px 0 6px; text-wrap:balance;
 }
-.pm-lead{font-size:13px; line-height:1.5; color:var(--text-secondary); text-wrap:pretty;}
-.pm-benefits{display:flex; flex-direction:column; gap:12px; margin-top:18px;}
+/* «Tu suscripción incluye»: rótulo dorado que presenta la lista de beneficios */
+.pm-lead{font-size:12px; font-weight:600; letter-spacing:1.2px; text-transform:uppercase; line-height:1.5; color:rgba(226,198,140,0.72); text-wrap:pretty;}
+.pm-benefits{display:flex; flex-direction:column; gap:0; margin-top:14px;}
 .pm-benefit{display:flex; gap:12px; align-items:center;}
-/* Beneficios secundarios: filas compactas, con el icono alineado al del Planificador */
-.pm-benefit:not(.is-featured){padding:0 14px;}
+/* Beneficios secundarios: filas limpias separadas por una línea fina */
+.pm-benefit:not(.is-featured){padding:12px 4px; border-top:1px solid rgba(255,255,255,0.06);}
+.pm-benefit.is-featured + .pm-benefit{border-top:0;}
+.pm-benefit:not(.is-featured) .pm-benefit-title{font-size:13.5px;}
 .pm-benefit-icon{
   width:32px; height:32px; border-radius:10px; flex-shrink:0;
   display:flex; align-items:center; justify-content:center;
-  background:rgba(95,225,232,0.08); border:1px solid var(--border-glass); color:var(--turquoise-bright);
+  background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.09); color:#E2C68C;
 }
 .pm-benefit-text{min-width:0; display:flex; flex-direction:column; gap:2px;}
 .pm-benefit-title{font-family:var(--font-display); font-size:13px; font-weight:700; line-height:1.25; color:var(--text-primary);}
 .pm-benefit-desc{font-size:12px; line-height:1.45; color:var(--text-secondary); text-wrap:pretty;}
 /* Beneficio principal: el Planificador. Icono + título arriba; texto y chips a todo el ancho */
 .pm-benefit.is-featured{
+  position:relative; overflow:hidden;
   display:grid; grid-template-columns:auto 1fr; gap:0 11px; align-items:center;
-  padding:14px; border-radius:var(--radius-m);
-  background:linear-gradient(160deg, rgba(95,225,232,0.10) 0%, rgba(95,225,232,0.03) 100%);
-  border:1px solid rgba(95,225,232,0.28);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,0.05);
+  margin-bottom:6px; padding:16px; border-radius:var(--radius-m);
+  background:
+    radial-gradient(90% 120% at 100% 0%, rgba(214,181,113,0.09) 0%, rgba(214,181,113,0) 60%),
+    linear-gradient(160deg, #142A3F 0%, #0E1E2F 100%);
+  border:1px solid rgba(255,255,255,0.08);
+  box-shadow:0 12px 26px rgba(2,8,15,0.34), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+/* Filo dorado superior del Planificador (mismo del card del panel) */
+.pm-benefit.is-featured::before{
+  content:''; position:absolute; left:16px; right:16px; top:0; height:1px; pointer-events:none;
+  background:linear-gradient(90deg, rgba(226,194,127,0) 0%, rgba(226,194,127,0.6) 50%, rgba(226,194,127,0) 100%);
 }
 .pm-benefit.is-featured .pm-benefit-text{display:contents;}
 .pm-benefit.is-featured .pm-benefit-icon{
-  width:38px; height:38px; border-radius:12px;
-  background:linear-gradient(160deg, rgba(95,225,232,0.18), rgba(95,225,232,0.06));
-  border-color:rgba(95,225,232,0.35);
+  width:40px; height:40px; border-radius:13px;
+  background:rgba(214,181,113,0.07); border:1px solid rgba(226,194,127,0.30);
 }
-.pm-benefit.is-featured .pm-benefit-title{font-size:15px;}
-.pm-benefit.is-featured .pm-benefit-desc{grid-column:1 / -1; margin-top:10px;}
-.pm-chips{grid-column:1 / -1; display:flex; flex-wrap:wrap; gap:5px; margin-top:10px;}
+.pm-benefit.is-featured .pm-benefit-title{font-size:16px; letter-spacing:-0.2px;}
+.pm-benefit.is-featured .pm-benefit-desc{grid-column:1 / -1; margin-top:9px; font-size:12.5px; line-height:1.5;}
      
-.pm-chips span{
-  font-size:10.5px; font-weight:600; color:var(--text-secondary);
-  padding:3px 8px; border-radius:var(--radius-pill);
-  background:rgba(255,255,255,0.04); border:1px solid var(--border-subtle);
-}
 /* Pie fijo: precio + botón siempre visibles */
 .pm-actions{
   flex-shrink:0; display:flex; flex-direction:column; gap:8px;
-  padding:12px 20px 10px;
-  border-top:1px solid var(--border-subtle);
-  background:rgba(6,16,27,0.32);
+  padding:14px 20px 10px;
+  border-top:1px solid rgba(255,255,255,0.06);
+  background:rgba(4,11,19,0.45);
 }
 .pm-price{display:flex; align-items:baseline; gap:6px; padding:0 2px;}
-.pm-price-amount{white-space:nowrap; font-family:var(--font-display); font-size:24px; font-weight:800; letter-spacing:-0.5px; color:var(--text-primary); line-height:1;}
-.pm-price-unit{font-size:12.5px; font-weight:600; color:var(--text-secondary); white-space:nowrap;}
+.pm-price-amount{white-space:nowrap; font-family:var(--font-display); font-size:26px; font-weight:800; letter-spacing:-0.5px; color:var(--text-primary); line-height:1;}
+.pm-price-unit{font-size:12.5px; font-weight:600; color:rgba(226,198,140,0.85); white-space:nowrap;}
+/* «Suscribirme a Premium»: dorado champagne, solo en esta tarjeta (el resto de la app sigue en turquesa) */
+.pm-subscribe{
+  background:linear-gradient(135deg, #EED9A6 0%, #D6B571 55%, #BE9A57 100%);
+  color:#1C1408;
+  box-shadow:0 10px 24px rgba(190,154,87,0.22), inset 0 1px 0 rgba(255,250,235,0.55);
+}
+.pm-subscribe:active{box-shadow:0 5px 14px rgba(190,154,87,0.20), inset 0 1px 0 rgba(255,250,235,0.55);}
 .pm-price-note{margin-left:auto; align-self:center; max-width:120px; text-align:right; font-size:10.5px; line-height:1.3; color:var(--text-secondary);}
 .pm-cta-note{
   display:flex; gap:8px; align-items:flex-start; padding:10px 12px;
@@ -6185,29 +6199,29 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
       <div class="premium-scroll">
                           <div class="pm-eyebrow"><img class="premium-emblem" src="https://gfsnhjxsqbsapnpfqpyy.supabase.co/storage/v1/object/public/Choapa%20explore%20Recursos/emblema-premium.png" alt="" aria-hidden="true" decoding="async">Choapa Explore Premium</div>
         <div class="pm-title" id="premiumModalTitle">El Choapa, a tu manera</div>
-               <div class="pm-lead">Encuentra panoramas, explora sin conexión y descubre más el Valle.</div>
+               <div class="pm-lead">Tu suscripción incluye</div>
 
         <div class="pm-benefits">
           <div class="pm-benefit is-featured">
                       <span class="pm-benefit-icon"><img class="planner-icon-img" src="https://gfsnhjxsqbsapnpfqpyy.supabase.co/storage/v1/object/public/Choapa%20explore%20Recursos/planificador-icono.png" alt="" aria-hidden="true" decoding="async"></span>
             <span class="pm-benefit-text">
                                     <span class="pm-benefit-title">Planificador inteligente</span>
-                                                  <span class="pm-benefit-desc">Arma planes a tu medida con tu tiempo, tu presupuesto y tus gustos, y guárdalos para volver a ellos cuando quieras.</span>
-              <span class="pm-chips"><span>Tu tiempo</span><span>Tu presupuesto</span><span>Tus gustos</span><span>Tipo de experiencia</span></span>
+                                                <span class="pm-benefit-desc">Planes a tu medida según tu tiempo, presupuesto y gustos. Guárdalos y vuelve a ellos cuando quieras.</span>
+     
             </span>
           </div>
           <div class="pm-benefit">
             <span class="pm-benefit-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3.5 6v14L9 18l6 2 5.5-2V4L15 6 9 4Z"/><path d="M9 4v14M15 6v14"/></svg></span>
             <span class="pm-benefit-text">
                             <span class="pm-benefit-title">Mapas sin conexión</span>
-                                      <span class="pm-benefit-desc">Consulta el mapa y tus lugares guardados incluso sin conexión.</span>
+                                     <span class="pm-benefit-desc">El mapa y tus guardados, aunque no tengas señal.</span>
             </span>
           </div>
           <div class="pm-benefit">
             <span class="pm-benefit-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7 8 6 8-6"/></svg></span>
             <span class="pm-benefit-text">
-                              <span class="pm-benefit-title">El Choapa tiene novedades</span>
-                                <span class="pm-benefit-desc">Entérate de nuevas experiencias, recomendaciones y oportunidades para descubrir el territorio.</span>
+                             <span class="pm-benefit-title">Novedades del Valle</span>
+                               <span class="pm-benefit-desc">Nuevas experiencias y recomendaciones actuales.</span>
             </span>
           </div>
         </div>
