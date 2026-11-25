@@ -16282,20 +16282,30 @@ plannerChatMore.addEventListener('click', (e) => {
 plannerChat.addEventListener('click', (e) => {
   if (!plannerChatMenu.hidden && !e.target.closest('#plannerChatMenu, #plannerChatMore')) closePlannerMenu();
 });
-// Nueva conversación: la anterior queda guardada tal cual; esta se crea al enviar el primer mensaje.
+// Nueva conversación: la actual se elimina (con confirmación) para que no queden conversaciones guardadas
+// que el usuario ya no puede ver ni borrar. La nueva se crea al enviar el primer mensaje.
 function startNewPlannerConversation(){
   plannerResetConversation();
   plannerChatState.loaded = true;
   plannerChatScroll.scrollTop = 0;
 }
-document.getElementById('plannerNewChat').addEventListener('click', () => { closePlannerMenu(); startNewPlannerConversation(); });
-document.getElementById('plannerDeleteChat').addEventListener('click', () => { closePlannerMenu(); openPlannerDeleteConfirm(); });
-// Eliminar: siempre con confirmación. Sus mensajes se borran con ella (en cascada, en Supabase).
-function openPlannerDeleteConfirm(){
+document.getElementById('plannerNewChat').addEventListener('click', () => { closePlannerMenu(); openPlannerDeleteConfirm('new'); });
+document.getElementById('plannerDeleteChat').addEventListener('click', () => { closePlannerMenu(); openPlannerDeleteConfirm('delete'); });
+// Eliminar o empezar de nuevo: siempre con confirmación. Los mensajes se borran con la conversación (en cascada, en Supabase).
+const PLANNER_CONFIRM_COPY = {
+  delete: { title:'¿Eliminar esta conversación?', text:'Se borrarán todos sus mensajes. Esta acción no se puede deshacer.', action:'Eliminar' },
+  new:    { title:'¿Empezar una nueva conversación?', text:'La conversación actual se eliminará con todos sus mensajes. Esta acción no se puede deshacer.', action:'Empezar nueva' }
+};
+let plannerConfirmMode = 'delete';
+function openPlannerDeleteConfirm(mode){
   if (!plannerChatState.conversationId){ startNewPlannerConversation(); return; } // aún no guardada: solo se limpia
+  plannerConfirmMode = mode === 'new' ? 'new' : 'delete';
+  const copy = PLANNER_CONFIRM_COPY[plannerConfirmMode];
+  document.getElementById('plannerConfirmTitle').textContent = copy.title;
+  document.getElementById('plannerConfirmText').textContent = copy.text;
   plannerConfirmError.hidden = true;
   plannerConfirmDelete.disabled = false;
-  plannerConfirmDelete.textContent = 'Eliminar';
+  plannerConfirmDelete.textContent = copy.action;
   plannerConfirm.hidden = false;
   document.getElementById('plannerConfirmCancel').focus({ preventScroll:true });
 }
@@ -16312,14 +16322,15 @@ plannerConfirmDelete.addEventListener('click', async () => {
     const { data, error } = await supabaseClient.from('chat_conversations').delete().eq('id', id).select('id');
     if (error) throw error;
     if (!data || !data.length) throw new Error('La conversación no se eliminó');
-    closePlannerDeleteConfirm();
+       closePlannerDeleteConfirm();
+    if (plannerConfirmMode === 'new'){ startNewPlannerConversation(); return; } // chat en blanco para empezar
     plannerResetConversation();
     loadPlannerConversation(); // abre la conversación más reciente que quede (o la bienvenida)
   } catch (err){
     console.warn('[Planificador] No se pudo eliminar la conversación:', (err && err.message) || err);
     plannerConfirmError.hidden = false; // los mensajes siguen a la vista
     plannerConfirmDelete.disabled = false;
-    plannerConfirmDelete.textContent = 'Eliminar';
+    plannerConfirmDelete.textContent = PLANNER_CONFIRM_COPY[plannerConfirmMode].action;
   }
 });
 plannerChatInput.addEventListener('input', updatePlannerComposer);
