@@ -3621,8 +3621,10 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
 .planner-chat{
   position:fixed; top:0; left:0; right:0; height:100%; z-index:64;
   display:flex; flex-direction:column; overflow:hidden;
+   /* Resplandor dorado Premium muy tenue arriba, sobre el turquesa de siempre */
   background:
-    radial-gradient(120% 55% at 50% 0%, rgba(95,225,232,0.07) 0%, rgba(95,225,232,0) 60%),
+    radial-gradient(90% 34% at 50% 0%, rgba(214,181,113,0.10) 0%, rgba(214,181,113,0) 70%),
+    radial-gradient(120% 55% at 50% 0%, rgba(95,225,232,0.06) 0%, rgba(95,225,232,0) 60%),
     linear-gradient(180deg, var(--bg-night) 0%, var(--bg-primary) 70%);
   transform:translateY(100%); pointer-events:none; visibility:hidden;
   transition:transform .38s cubic-bezier(.2,.9,.28,1.05), visibility 0s linear .38s;
@@ -3637,6 +3639,26 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
   position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none;
   opacity:0.11; transform:translateZ(0);
 }
+/* Estrellas que se encienden de vez en cuando: una capa encima del dibujo, con una estrella dorada
+   exactamente sobre cada estrella dibujada (las ubica setupPlannerGlints). Solo opacidad y movimiento,
+   sin desenfoque (no reintroduce parpadeos); en pausa con el chat cerrado. */
+.pc-glints{position:absolute; inset:0; z-index:0; pointer-events:none; overflow:hidden;}
+.pc-glint{
+  position:absolute; width:var(--sz); height:var(--sz); margin:calc(var(--sz) / -2) 0 0 calc(var(--sz) / -2);
+  opacity:0; animation:pc-glint var(--dur) ease-in-out var(--delay) infinite;
+}
+.pc-glint::before{
+  content:''; position:absolute; inset:-120%; border-radius:50%;
+  background:radial-gradient(circle, rgba(232,201,135,0.45) 0%, rgba(232,201,135,0) 62%);
+}
+.pc-glint svg{position:relative; display:block; width:100%; height:100%; fill:#E8CB8C;}
+@keyframes pc-glint{
+  0%, 74%, 100%{opacity:0; transform:scale(0.7) rotate(0deg);}
+  80%{opacity:0.61; transform:scale(1.15) rotate(12deg);}
+  88%{opacity:0; transform:scale(0.8) rotate(20deg);}
+}
+.planner-chat:not(.visible) .pc-glint{animation-play-state:paused;}
+@media (prefers-reduced-motion: reduce){ .pc-glint{animation:none; opacity:0;} }
 .pc-header,
 .pc-scroll,
 .pc-compose-wrap{position:relative; z-index:1;}
@@ -3645,23 +3667,30 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
 .pc-header{
   flex-shrink:0; display:flex; align-items:center; gap:12px;
   padding:calc(12px + var(--safe-top)) 14px 12px 16px;
-  background:linear-gradient(180deg, rgba(11,23,38,0.98) 0%, rgba(11,23,38,0.94) 100%);
-  border-bottom:1px solid var(--border-subtle);
+  background:
+    radial-gradient(70% 160% at 50% 0%, rgba(214,181,113,0.13) 0%, rgba(214,181,113,0) 70%),
+    linear-gradient(180deg, #0E1D2C 0%, #0B1826 100%);
+  border-bottom:1px solid rgba(255,255,255,0.06);
+}
+/* Filo dorado bajo la cabecera, que se desvanece hacia los lados (mismo del card Premium) */
+.pc-header::after{
+  content:''; position:absolute; left:18px; right:18px; bottom:-1px; height:1px; pointer-events:none;
+  background:linear-gradient(90deg, rgba(226,194,127,0) 0%, rgba(226,194,127,0.6) 50%, rgba(226,194,127,0) 100%);
 }
 .pc-mark{
   width:40px; height:40px; border-radius:13px; flex-shrink:0;
   display:flex; align-items:center; justify-content:center; color:var(--turquoise-bright);
-  background:linear-gradient(160deg, rgba(95,225,232,0.18), rgba(95,225,232,0.05));
-  border:1px solid rgba(95,225,232,0.32);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,0.06);
+  background:rgba(214,181,113,0.07);
+  border:1px solid rgba(226,194,127,0.30);
+  box-shadow:inset 0 1px 0 rgba(255,236,200,0.08);
 }
 .pc-head-text{min-width:0; flex:1;}
 .pc-title{font-family:var(--font-display); font-size:16px; font-weight:700; letter-spacing:-0.2px; color:var(--text-primary); line-height:1.2;}
-.pc-sub{font-size:12px; line-height:1.35; color:var(--text-secondary); margin-top:2px; text-wrap:balance;}
+.pc-sub{font-size:12px; line-height:1.35; color:rgba(226,198,140,0.80); margin-top:2px; text-wrap:balance;}
 .pc-close{
   width:36px; height:36px; border-radius:50%; flex-shrink:0;
   display:flex; align-items:center; justify-content:center;
-  color:var(--text-secondary); background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.06);
+  color:var(--text-secondary); background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08);
 }
 .pc-close:active{background:rgba(255,255,255,0.12); color:var(--text-primary);}
 
@@ -3678,7 +3707,7 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
   display:flex; align-items:center; gap:6px; margin:0 0 5px 4px;
   font-size:11px; font-weight:600; letter-spacing:0.2px; color:var(--text-secondary);
 }
-.pc-who-dot{width:6px; height:6px; border-radius:50%; background:var(--turquoise-bright); box-shadow:0 0 0 3px rgba(95,225,232,0.14);}
+.pc-who-dot{width:6px; height:6px; border-radius:50%; background:var(--premium-gold); box-shadow:0 0 0 3px rgba(214,181,113,0.14);}
 .pc-preview-tag{
   font-size:9px; font-weight:700; letter-spacing:0.7px; text-transform:uppercase;
   color:var(--premium-gold); padding:2px 6px; border-radius:var(--radius-pill);
@@ -3690,14 +3719,15 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
 }
 .pc-msg.is-bot .pc-bubble{
   border-radius:6px 18px 18px 18px;
-  background:rgba(20,43,61,0.96); border:1px solid rgba(180,200,220,0.14);
-  box-shadow:0 6px 18px rgba(2,8,15,0.28);
+  background:linear-gradient(180deg, rgba(22,45,64,0.97) 0%, rgba(17,37,54,0.97) 100%);
+  border:1px solid rgba(255,255,255,0.08);
+  box-shadow:0 8px 22px rgba(2,8,15,0.32), inset 0 1px 0 rgba(255,255,255,0.05);
 }
 .pc-msg.is-user .pc-bubble{
   border-radius:18px 18px 6px 18px;
   background:linear-gradient(160deg, #1B4A5A 0%, #163C4E 100%);
   border:1px solid rgba(95,225,232,0.30);
-  box-shadow:0 6px 18px rgba(2,8,15,0.28);
+  box-shadow:0 8px 22px rgba(2,8,15,0.32), inset 0 1px 0 rgba(255,255,255,0.07);
 }
 .pc-msg.is-new{animation:pc-msg-in .26s cubic-bezier(.2,.9,.28,1) both;}
 @keyframes pc-msg-in{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;} }
@@ -3711,8 +3741,8 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
 /* Sugerencias para empezar */
 .pc-suggest{margin:2px 0 4px;}
 .pc-suggest-label{
-  margin:0 0 8px 4px; font-size:10px; font-weight:700; letter-spacing:1.1px; text-transform:uppercase;
-  color:var(--text-tertiary);
+   margin:0 0 8px 4px; font-size:10px; font-weight:700; letter-spacing:1.1px; text-transform:uppercase;
+  color:rgba(226,198,140,0.72);
 }
 .pc-chips{display:flex; flex-wrap:wrap; gap:7px;}
 .pc-chip{
@@ -3733,8 +3763,8 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
 /* Campo para escribir */
 .pc-compose-wrap{
   flex-shrink:0; padding:8px 12px calc(10px + var(--safe-bottom));
-  background:linear-gradient(180deg, rgba(7,19,31,0.92) 0%, rgba(7,19,31,0.98) 100%);
-  border-top:1px solid var(--border-subtle);
+    background:linear-gradient(180deg, rgba(8,18,29,0.94) 0%, rgba(7,16,26,0.99) 100%);
+  border-top:1px solid rgba(255,255,255,0.06);
 }
 .pc-hint{
   display:flex; align-items:center; gap:6px; margin:0 0 7px 6px;
@@ -3743,8 +3773,9 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
 .pc-hint[hidden]{display:none;}
 .pc-composer{
   display:flex; align-items:flex-end; gap:8px;
-  padding:5px 5px 5px 16px; border-radius:24px;
-  background:var(--surface); border:1px solid var(--border-glass);
+    padding:5px 5px 5px 16px; border-radius:24px;
+  background:linear-gradient(180deg, #12263A 0%, #0F2033 100%); border:1px solid rgba(255,255,255,0.09);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.04);
   transition:border-color .18s ease, box-shadow .18s ease;
 }
 .pc-composer:focus-within{border-color:rgba(95,225,232,0.5); box-shadow:0 0 0 3px rgba(95,225,232,0.08);}
@@ -3792,7 +3823,7 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
 .pc-more{
   width:36px; height:36px; border-radius:50%; flex-shrink:0;
   display:flex; align-items:center; justify-content:center;
-  color:var(--text-secondary); background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.06);
+  color:var(--text-secondary); background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08);
 }
 .pc-more[hidden]{display:none;}
 .pc-more:active, .pc-more[aria-expanded="true"]{background:rgba(255,255,255,0.12); color:var(--text-primary);}
@@ -6076,8 +6107,9 @@ html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
           </g>
         </pattern>
       </defs>
-      <rect width="100%" height="100%" fill="url(#pcPattern)"/>
+          <rect width="100%" height="100%" fill="url(#pcPattern)"/>
     </svg>
+    <div class="pc-glints" id="plannerGlints" aria-hidden="true"></div>
 
     <header class="pc-header">
            <span class="pc-mark" aria-hidden="true">
@@ -16107,6 +16139,33 @@ const plannerChatState = {
   token:0                     // cambia con cada conversación o cuenta: descarta respuestas que llegan tarde
 };
 const PLANNER_HISTORY_LIMIT = 200; // mensajes más recientes que se muestran al abrir
+
+// Estrellas que se encienden de vez en cuando sobre el dibujo de fondo (#pcPattern).
+// El dibujo es una baldosa de 340 × 400 px que se repite desde la esquina superior izquierda;
+// estas son sus 3 estrellas grandes (x, y, escala). Si se mueven en el dibujo, hay que moverlas aquí.
+// Cada estrella tiene su propio ritmo (9 a 14 s), así nunca se encienden todas juntas.
+function setupPlannerGlints(){
+  const layer = document.getElementById('plannerGlints');
+  if (!layer) return;
+  const STARS = [[118, 132, 0.62], [320, 168, 0.42], [186, 278, 0.5]];
+  const SVG = '<svg viewBox="-14 -14 28 28" aria-hidden="true"><path d="M0 -14C1 -5 5 -1 14 0 5 1 1 5 0 14-1 5-5 1-14 0-5-1-1-5 0-14Z"/></svg>';
+  const build = () => {
+    const W = plannerChat.clientWidth, H = plannerChat.clientHeight;
+    if (!W || !H) return;
+    let html = '', n = 0;
+    for (let ty = 0; ty * 400 < H; ty++) for (let tx = 0; tx * 340 < W; tx++) STARS.forEach(([x, y, k]) => {
+      const px = x + tx * 340, py = y + ty * 400;
+      if (px > W || py > H) return;
+      html += `<i class="pc-glint" style="left:${px}px;top:${py}px;--sz:${(28 * k).toFixed(1)}px;--dur:${9 + (n * 7) % 6}s;--delay:-${((n * 3.7) % 11).toFixed(1)}s">${SVG}</i>`;
+      n++;
+    });
+    layer.innerHTML = html;
+  };
+  build();
+  let t = null;
+  window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(build, 150); });
+}
+setupPlannerGlints();
 
 // Saludo con el primer nombre del perfil (el que se usó al registrarse); sin sesión: «explorador».
 function refreshPlannerGreeting(){
