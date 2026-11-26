@@ -7960,7 +7960,10 @@ function enableDemParentFallback(){
     const orig = sc._updateRetainedTiles;
     sc._updateRetainedTiles = function(idealTileIDs, zoom){
       try {
-        const minZ = Math.max(zoom - 4, this._source.minzoom);
+              const minZ = Math.max(zoom - 4, this._source.minzoom);
+        // Fluidez: un padre guardado que nunca llegó a dibujarse necesita "prepararse" en la tarjeta
+        // gráfica antes de verse. Esos se reactivan como máximo 2 por cuadro; los ya preparados, sin límite.
+        let coldBudget = 2;
         for (const id of idealTileIDs){
           const t = this._tiles[id.key];
           if (t && t.hasData()) continue;
@@ -7968,7 +7971,11 @@ function enableDemParentFallback(){
             const pid = id.scaledTo(z);
             const act = this._tiles[pid.key];
             if (act){ if (act.hasData()) break; continue; }
-            if (this._cache.getByKey(pid.wrapped().key)){ this._addTile(pid); break; }
+            const cached = this._cache.getByKey(pid.wrapped().key);
+            if (cached){
+              const ready = !cached.needsHillshadePrepare && cached.fbo;
+              if (ready || coldBudget > 0){ if (!ready) coldBudget--; this._addTile(pid); break; }
+            }
           }
         }
       } catch (e){}
@@ -7976,6 +7983,57 @@ function enableDemParentFallback(){
     };
     sc.__parentFallback = true;
   } catch (e){}
+}
+
+// Fluidez del relieve: las baldosas del relieve se siguen descargando igual de rápido, pero mientras el
+// mapa se mueve (entrar o salir de comuna o localidad, arrastrar, hacer zoom) esperan antes de
+// procesarse. Cada una cuesta trabajo de la tarjeta gráfica (subirla y sombrearla, más rehacer el
+// borde de sus vecinas), y al llegar en plena animación le quitaban fluidez. Mientras tanto se ve el
+// respaldo (enableDemParentFallback). Al detenerse el mapa entran de a 2 por cuadro (~0,5 s una
+// comuna completa). Si el arrastre dura más de 1,5 s, entra 1 por cuadro para que igual se vaya
+// definiendo. Medido: el trabajo del relieve durante las animaciones bajó de ~140 a ~6 operaciones.
+// Si el navegador no permite el método, el relieve se carga como antes (ver renderTerrainDepth).
+const demLoadQueue = { items: [], raf: 0, moving: false, moveStart: 0 };
+function pumpDemLoadQueue(){
+  if (demLoadQueue.raf || !demLoadQueue.items.length) return;
+  demLoadQueue.raf = requestAnimationFrame(() => {
+    demLoadQueue.raf = 0;
+    const q = demLoadQueue.items;
+    // Las que MapLibre ya canceló (zonas que dejaron de verse) salen de inmediato y liberan su lugar.
+    for (let i = q.length - 1; i >= 0; i--){
+      if (q[i].signal.aborted){ q[i].reject(new Error('AbortError')); q.splice(i, 1); }
+    }
+    let budget = 2;
+    if (demLoadQueue.moving) budget = (performance.now() - demLoadQueue.moveStart > 1500) ? 1 : 0;
+    while (budget-- > 0 && q.length) q.shift().resolve();
+    pumpDemLoadQueue();
+  });
+}
+function enableDemLoadQueue(){
+  if (enableDemLoadQueue.ok !== undefined) return enableDemLoadQueue.ok;
+  enableDemLoadQueue.ok = false;
+  try {
+    if (typeof maplibregl.addProtocol !== 'function' || typeof requestAnimationFrame !== 'function') return false;
+    maplibregl.addProtocol('choapadem', async (params, abortController) => {
+      try {
+        const res = await fetch(params.url.replace('choapadem://', 'https://'), { signal: abortController.signal });
+        if (!res.ok) throw new Error('DEM HTTP ' + res.status);
+        const data = await res.arrayBuffer();
+        await new Promise((resolve, reject) => {
+          demLoadQueue.items.push({ resolve, reject, signal: abortController.signal });
+          pumpDemLoadQueue();
+        });
+        return { data };
+      } catch (e){
+        if (abortController.signal.aborted) throw new Error('AbortError'); // MapLibre lo reconoce como cancelación normal
+        throw e;
+      }
+    });
+    map.on('movestart', () => { demLoadQueue.moving = true; demLoadQueue.moveStart = performance.now(); });
+    map.on('moveend', () => { demLoadQueue.moving = false; pumpDemLoadQueue(); });
+    enableDemLoadQueue.ok = true;
+  } catch (e){}
+  return enableDemLoadQueue.ok;
 }
 
 // Profundidad del territorio: relieve muy tenue + glow ambiental en las 4 comunas
@@ -8007,9 +8065,12 @@ function renderTerrainDepth(){
     'https://s3.us-east-1.amazonaws.com/elevation-tiles-prod',
     'https://elevation-tiles-prod.s3.us-east-1.amazonaws.com',
   ];
+   // Fluidez: con la cola del relieve activa las baldosas se piden como choapadem:// (ver enableDemLoadQueue);
+  // si no se pudo activar, se piden directo por https:// como antes.
+  const DEM_SCHEME = enableDemLoadQueue() ? 'choapadem://' : 'https://';
   map.addSource('terrain-dem', {
     type:'raster-dem',
-    tiles: DEM_HOSTS.map(h => h + '/terrarium/{z}/{x}/{y}.png'),
+    tiles: DEM_HOSTS.map(h => h.replace('https://', DEM_SCHEME) + '/terrarium/{z}/{x}/{y}.png'),
         tileSize:DEM_TILE_SIZE, encoding:'terrarium', maxzoom:13, // adaptativo (ver arriba). Con 256 se veía pixelado y saltaba la calidad justo antes de entrar a una comuna
   });
   enableDemParentFallback();
