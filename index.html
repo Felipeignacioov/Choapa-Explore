@@ -13876,7 +13876,8 @@ async function fetchRoute(mode, from, to){
   // Límite de espera: sin esto, con mala señal «Calculando ruta…» podía quedarse para siempre.
   const routeAbort = typeof AbortController === 'function' ? new AbortController() : null;
   if (routeAbort) setTimeout(() => routeAbort.abort(), 15000);
-  const res = await fetch(`https://api.openrouteservice.org/v2/directions/${mode}/geojson`, {
+   // api.openrouteservice.org fue dado de baja (nov-2026): mismo servicio, nueva dirección.
+  const res = await fetch(`https://api.heigit.org/openrouteservice/v2/directions/${mode}/geojson`, {
     signal: routeAbort ? routeAbort.signal : undefined,
     method:'POST',
     headers:{ 'Authorization': ORS_API_KEY, 'Content-Type':'application/json' },
