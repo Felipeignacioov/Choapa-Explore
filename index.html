@@ -6851,10 +6851,9 @@ const CHOAPA_MAX_BOUNDS = [
   [-69.965, -30.425], // noreste + margen
 ];
 
-// Navegación real — OpenRouteService. Key gratuita, visible client-side por
-// ahora (aceptado explícitamente para esta etapa). Se usa recién en la Fase 2
-// (cálculo de ruta); en la Fase 1 solo queda declarada.
-const ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjQ2NjI1YzU3ZjJhYzQyYWFiOTk0NDI0YjNkMGMyMzJmIiwiaCI6Im11cm11cjY0In0=';
+// Navegación real — OpenRouteService a través de n8n (workflow «Choapa Explore — Rutas»).
+// La llave de ORS vive solo en n8n; la app nunca la ve.
+const ROUTE_PROXY_URL = 'https://ignaccio-n8n.upiwc4.easypanel.host/webhook/choapa-route';
 
 // Umbrales que dividen el sistema de exploración continuo en 3 niveles:
 // CHOAPA (comunas) → LOCALIDAD (zona de influencia) → EXPERIENCIAS (POIs individuales)
@@ -13875,19 +13874,16 @@ async function fetchRoute(mode, from, to){
   const myToken = ++state.nav.requestToken;
   // Límite de espera: sin esto, con mala señal «Calculando ruta…» podía quedarse para siempre.
   const routeAbort = typeof AbortController === 'function' ? new AbortController() : null;
-  if (routeAbort) setTimeout(() => routeAbort.abort(), 15000);
-   // api.openrouteservice.org fue dado de baja (nov-2026): mismo servicio, nueva dirección.
-  const res = await fetch(`https://api.heigit.org/openrouteservice/v2/directions/${mode}/geojson`, {
+  // Rutas vía n8n (workflow «Choapa Explore — Rutas»): n8n guarda la llave de OpenRouteService,
+  // valida la petición y responde exactamente lo mismo que ORS. Si ORS cambia de dirección,
+  // se ajusta solo en n8n, sin actualizar la app.
+  const res = await fetch(ROUTE_PROXY_URL, {
     signal: routeAbort ? routeAbort.signal : undefined,
     method:'POST',
-    headers:{ 'Authorization': ORS_API_KEY, 'Content-Type':'application/json' },
-    // language:'es' — mismo endpoint de siempre, solo se pide el idioma
-    // correcto para que "instruction" venga en español, coherente con el
-    // resto de la app.
-      // radiuses: muchos lugares del Choapa están lejos de cualquier calle (cerros, quebradas,
-    // playas). Por defecto ORS busca un camino a 350 m del destino y, si no lo hay, no entrega
-    // ruta. Con 5000 m la ruta llega al punto con camino más cercano; el resto se hace a pie.
-    body: JSON.stringify({ coordinates:[[from.lng, from.lat], [to.lng, to.lat]], radiuses:[350, 5000], language:'es' }),
+    headers:{ 'Content-Type':'application/json' },
+    // n8n pide la ruta en español (language:'es') y con radiuses [350, 5000]: muchos lugares del
+    // Choapa están lejos de cualquier calle; así la ruta llega al punto con camino más cercano.
+    body: JSON.stringify({ mode, from:{ lat:from.lat, lng:from.lng }, to:{ lat:to.lat, lng:to.lng } }),
   });
   if (myToken !== state.nav.requestToken) return null; // hay una petición más nueva en curso — se descarta esta respuesta
 if (!res.ok){
