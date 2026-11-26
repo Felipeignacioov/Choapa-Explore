@@ -218,6 +218,23 @@ img{-webkit-user-drag:none; user-select:none;}
 .profile-btn .profile-avatar-img{
   inset:2px; width:calc(100% - 4px); height:calc(100% - 4px);
 }
+/* Botón de perfil — aro siempre visible (nov-2026). Con o sin sesión, con o sin foto: aro turquesa.
+   Sin foto, el ícono queda sobre una luz turquesa suave. Premium (is-premium, solo si Supabase lo
+   confirma): aro dorado. Durante la navegación se conserva la sombra que ya tenía (body.nav-live). */
+#btnProfileHeader{ border-color:rgba(95,225,232,0.6); }
+body:not(.nav-live) #btnProfileHeader{
+  box-shadow:var(--shadow-float), 0 0 0 3px rgba(95,225,232,0.12), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+#btnProfileHeader:not(:has(.profile-avatar-img)){
+  background:radial-gradient(circle at 50% 30%, rgba(95,225,232,0.16), rgba(13,29,45,0.9) 72%);
+}
+#btnProfileHeader.is-premium{ border-color:rgba(226,194,127,0.8); color:#E2C27F; }
+body:not(.nav-live) #btnProfileHeader.is-premium{
+  box-shadow:var(--shadow-float), 0 0 0 3px rgba(214,181,113,0.14), 0 0 14px rgba(214,181,113,0.18), inset 0 1px 0 rgba(255,240,210,0.12);
+}
+#btnProfileHeader.is-premium:not(:has(.profile-avatar-img)){
+  background:radial-gradient(circle at 50% 30%, rgba(226,194,127,0.18), rgba(13,29,45,0.9) 72%);
+}
 
 .search-wrap{position:relative;}
 /* Al entrar/salir de una comuna el buscador ya no desaparece de golpe (los chips saltaban 48 px
@@ -16205,6 +16222,11 @@ let premiumStatusPromise = null;
 function isPremiumMember(){
   return !!(currentAuthUser && premiumStatus.active && premiumStatus.userId === currentAuthUser.id);
 }
+// Aro dorado del botón de perfil: refleja isPremiumMember() (lo que ya confirmó Supabase). Solo visual.
+function syncProfileBtnPremium(){
+  const btn = document.getElementById('btnProfileHeader');
+  if (btn) btn.classList.toggle('is-premium', isPremiumMember());
+}
 function refreshPremiumStatus(){
   const user = currentAuthUser;
   if (!user || !supabaseClient) return Promise.resolve(false);
@@ -16219,7 +16241,8 @@ function refreshPremiumStatus(){
     premiumStatusPromise = null;
     if (!currentAuthUser || currentAuthUser.id !== user.id) return false; // la sesión cambió mientras tanto
     const changed = premiumStatus.userId !== user.id || premiumStatus.active !== active;
-    premiumStatus = { userId:user.id, active, checkedAt:Date.now() };
+       premiumStatus = { userId:user.id, active, checkedAt:Date.now() };
+    syncProfileBtnPremium();
     if (changed && profileMenu.classList.contains('visible')) renderProfileMenu();
     return active;
   })();
@@ -16877,7 +16900,8 @@ async function checkPremiumNow(){
     const { data, error } = await supabaseClient.rpc('is_premium');
     if (error) return null;
     const active = data === true;
-    if (currentAuthUser && currentAuthUser.id === user.id) premiumStatus = { userId:user.id, active, checkedAt:Date.now() };
+      if (currentAuthUser && currentAuthUser.id === user.id) premiumStatus = { userId:user.id, active, checkedAt:Date.now() };
+    syncProfileBtnPremium();
     return active;
   } catch (e){ return null; }
 }
@@ -16988,7 +17012,8 @@ async function savePlannerPlan(ctx){
     if (error){
       const code = String(error.message || '');
       if (code.includes('premium_required')){
-        if (premiumStatus.userId === uid) premiumStatus = { userId:uid, active:false, checkedAt:Date.now() };
+               if (premiumStatus.userId === uid) premiumStatus = { userId:uid, active:false, checkedAt:Date.now() };
+        syncProfileBtnPremium();
         openPlanAsk(); // no se guarda nada; el plan sigue en la conversación
         return;
       }
@@ -20044,7 +20069,9 @@ function renderProfileIdentity(){
   const menu = document.getElementById('profileMenu');
   if (menu && menu.classList.contains('visible')) renderProfileMenu();
    setAvatarImage(menu && menu.querySelector('.profile-menu-avatar'));
-   setAvatarImage(document.getElementById('btnProfileHeader')); // la foto también en el botón del encabezado
+     setAvatarImage(document.getElementById('btnProfileHeader')); // la foto también en el botón del encabezado
+  syncProfileBtnPremium(); // al cerrar sesión el aro vuelve a turquesa
+  if (currentAuthUser) refreshPremiumStatus(); // aro dorado al iniciar sesión (máx. 1 consulta por minuto)
   renderProfileModal();
   refreshPlannerGreeting(); // el saludo del Planificador usa el mismo nombre del perfil
 }
