@@ -597,10 +597,10 @@ button.smart-card:focus-visible{outline:2px solid rgba(95,225,232,0.45); outline
 }
 /* ---------------- MAP CONTROLS ---------------- */
 .map-controls{
-  position:absolute; right:16px; z-index:9;
+  position:absolute; right:17px; z-index:9;
   display:flex; flex-direction:column; gap:1px;
   background:rgba(16,36,56,0.66); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
-  border:1px solid var(--border-glass); border-radius:var(--radius-s);
+  border:1px solid var(--border-glass); border-radius:16px;
   /* Elevación reforzada, misma filosofía de capas que .comuna-panel (sombra
      ancha/difusa + una más ceñida), en dosis proporcional a un control chico
      — no se toca --shadow-float (variable compartida por buscador/chips/etc.),
@@ -609,11 +609,13 @@ button.smart-card:focus-visible{outline:2px solid rgba(95,225,232,0.45); outline
   overflow:hidden;
 }
 .map-controls button{
-  width:34px; height:34px; display:flex; align-items:center; justify-content:center;
+  width:30px; height:32px; display:flex; align-items:center; justify-content:center;
   color:var(--text-secondary); transition:background .16s ease, color .16s ease, transform .16s cubic-bezier(.34,1.56,.64,1);
 }
 .map-controls button:active{background:rgba(95,225,232,0.14); color:var(--turquoise-bright); transform:scale(0.9);}
-.map-controls .divider{height:1px; background:var(--border-subtle); margin:0 7px;}
+.map-controls .divider{height:1px; background:var(--border-subtle); margin:0 8px;}
+/* Zoom compacto (nov-2026): cápsula delgada con íconos más finos, centrada con los botones redondos de abajo */
+.map-controls button svg{ width:13px; height:13px; }
 
 .locate-btn{
   position:absolute; z-index:9; right:16px;
@@ -3125,7 +3127,7 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
   .sheet, .bottom-nav{max-width:640px; left:50%; transform:translateX(-50%);}
   .poi-card{max-width:640px; left:50%; transform:translateX(-50%) translateY(28px) scale(0.97);}
   .poi-card.visible{transform:translateX(-50%) translateY(0) scale(1);}
-  .map-controls{right:calc(50% - 320px + 16px);}
+  .map-controls{right:calc(50% - 320px + 17px);}
   .locate-btn{right:calc(50% - 320px + 16px);}
   .compass-btn{right:calc(50% - 320px + 16px);}
 }
