@@ -6,6 +6,11 @@
 <title>Choapa Explore — Descubre el Choapa</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Relieve (terrain-dem): las 4 direcciones de S3 desde las que se reparten las descargas. Abrir la conexión desde el arranque ahorra el saludo inicial de cada una. -->
+<link rel="preconnect" href="https://s3.amazonaws.com" crossorigin>
+<link rel="preconnect" href="https://elevation-tiles-prod.s3.amazonaws.com" crossorigin>
+<link rel="preconnect" href="https://s3.us-east-1.amazonaws.com" crossorigin>
+<link rel="preconnect" href="https://elevation-tiles-prod.s3.us-east-1.amazonaws.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 <!-- Arranque sin destellos: desde el primer cuadro el documento ya tiene el fondo del splash
@@ -7942,6 +7947,37 @@ startAmbientTicks();
   });
 })();
 
+// Respaldo del relieve mientras carga. MapLibre 4.7.1 solo usa como respaldo las baldosas que están
+// en pantalla: las que guardó en memoria (por ejemplo, las del spawn) las ignora hasta que la baldosa
+// nueva termina de llegar, y por eso al salir de una comuna o al desplazarse el mapa quedaba plano.
+// Aquí, por cada baldosa que todavía no llega, se reactiva su "padre" guardado en memoria (hasta 4
+// niveles arriba, sin volver a descargarlo): se ve relieve suave primero y nítido apenas llega.
+// Usa una parte interna de MapLibre (fijo en 4.7.1): si algún día no existe, no hace nada.
+function enableDemParentFallback(){
+  try {
+    const sc = map.style && map.style.sourceCaches && map.style.sourceCaches['terrain-dem'];
+    if (!sc || sc.__parentFallback || typeof sc._updateRetainedTiles !== 'function' || !sc._cache || typeof sc._cache.getByKey !== 'function') return;
+    const orig = sc._updateRetainedTiles;
+    sc._updateRetainedTiles = function(idealTileIDs, zoom){
+      try {
+        const minZ = Math.max(zoom - 4, this._source.minzoom);
+        for (const id of idealTileIDs){
+          const t = this._tiles[id.key];
+          if (t && t.hasData()) continue;
+          for (let z = id.overscaledZ - 1; z >= minZ; z--){
+            const pid = id.scaledTo(z);
+            const act = this._tiles[pid.key];
+            if (act){ if (act.hasData()) break; continue; }
+            if (this._cache.getByKey(pid.wrapped().key)){ this._addTile(pid); break; }
+          }
+        }
+      } catch (e){}
+      return orig.call(this, idealTileIDs, zoom);
+    };
+    sc.__parentFallback = true;
+  } catch (e){}
+}
+
 // Profundidad del territorio: relieve muy tenue + glow ambiental en las 4 comunas
 // + protagonismo sutil del Río Choapa. Todo por debajo de los POIs (que son
 // marcadores HTML, siempre por encima de cualquier capa del mapa) y sin tocar
@@ -7959,11 +7995,24 @@ function renderTerrainDepth(){
   // ≥2× (iPhone y la mayoría de los Android) → 96 (validado) · 1.5–2× → 128 · <1.5× → 192.
   const dpr = window.devicePixelRatio || 1;
    const DEM_TILE_SIZE = CHOAPA_LITE ? 192 : (dpr >= 2 ? 96 : (dpr >= 1.5 ? 128 : 192)); // gama baja: ver CHOAPA_LITE
+   // Mismos archivos del mismo bucket, servidos desde 4 direcciones oficiales de S3: S3 solo permite
+  // 6 descargas a la vez por dirección, así que repartirlas hace que el relieve llegue ~2,5 veces más
+  // rápido (medido). El relieve es idéntico píxel a píxel. MapLibre asigna siempre la misma dirección
+  // a cada baldosa, así que la caché del navegador sigue sirviendo.
+  // maxzoom 13: en Chile el dato real es de ~30 m (SRTM); los niveles 14–15 eran el mismo dato
+  // ampliado (4 a 16 veces más descargas sin detalle nuevo). Idéntico hasta zoom ~11,1.
+  const DEM_HOSTS = [
+    'https://s3.amazonaws.com/elevation-tiles-prod',
+    'https://elevation-tiles-prod.s3.amazonaws.com',
+    'https://s3.us-east-1.amazonaws.com/elevation-tiles-prod',
+    'https://elevation-tiles-prod.s3.us-east-1.amazonaws.com',
+  ];
   map.addSource('terrain-dem', {
     type:'raster-dem',
-    tiles:['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
-        tileSize:DEM_TILE_SIZE, encoding:'terrarium', maxzoom:15, // adaptativo (ver arriba). Con 256 se veía pixelado y saltaba la calidad justo antes de entrar a una comuna
+    tiles: DEM_HOSTS.map(h => h + '/terrarium/{z}/{x}/{y}.png'),
+        tileSize:DEM_TILE_SIZE, encoding:'terrarium', maxzoom:13, // adaptativo (ver arriba). Con 256 se veía pixelado y saltaba la calidad justo antes de entrar a una comuna
   });
+  enableDemParentFallback();
   const bgIndex = layers.findIndex(l => l.type === 'background');
   const hillshadeBeforeId = (bgIndex >= 0 && layers[bgIndex + 1]) ? layers[bgIndex + 1].id : layers[0].id;
      map.addLayer({
