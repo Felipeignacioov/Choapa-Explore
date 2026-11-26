@@ -4800,6 +4800,52 @@ body.nav-live :is(.profile-btn, .compass-btn, .bottom-nav){
   width:22px; height:22px;
   background:var(--choapa-today-symbol) center/contain no-repeat;
 }
+/* Píldora «¿Qué hacer hoy?» — Halo suave del momento.
+   La luz (línea superior, halo y aro del símbolo) toma el tono del mapa en cada momento:
+   mediodía turquesa claro · mañana/fin de tarde turquesa suave · atardecer durazno · noche luz de luna.
+   De día la píldora es más clara. data-today-light lo pone syncTodaySymbol(). No toca transform. */
+#sheetPill{
+  --pl:150,238,236; --pl-a:.55; --pl-speed:7s; --pl-halo:.16; --pl-min:.35;
+  background:linear-gradient(180deg, rgba(20,42,62,.95) 0%, rgba(9,22,35,.97) 100%);
+  border-color:rgba(180,200,220,.14);
+  box-shadow:0 10px 26px rgba(2,8,15,.42), 0 2px 5px rgba(2,8,15,.35), inset 0 1px 0 rgba(255,255,255,.07);
+  overflow:hidden;
+}
+:root[data-today-light="dusk"] #sheetPill{ --pl:255,190,158; --pl-a:.42; --pl-speed:10s; }
+:root[data-today-light="night"] #sheetPill{ --pl:196,212,255; --pl-a:.34; --pl-speed:12s; }
+:root[data-today-light="midday"] #sheetPill,
+:root[data-today-light="day"] #sheetPill{
+  background:linear-gradient(180deg, rgba(32,62,84,.94) 0%, rgba(19,42,60,.96) 100%);
+  border-color:rgba(200,226,236,.18);
+  box-shadow:0 10px 26px rgba(2,8,15,.30), 0 2px 5px rgba(2,8,15,.25), inset 0 1px 0 rgba(255,255,255,.09);
+  --pl-a:.60; --pl-halo:.24; --pl-min:.5;
+}
+:root[data-today-light="day"] #sheetPill{
+  --pl:120,226,234; --pl-speed:8s;
+  background:linear-gradient(180deg, rgba(27,54,75,.95) 0%, rgba(15,35,52,.97) 100%);
+}
+#sheetPill::before{
+  content:''; position:absolute; left:14%; right:14%; top:0; height:1px; pointer-events:none;
+  background:linear-gradient(90deg, rgba(var(--pl),0), rgba(var(--pl),var(--pl-a)) 50%, rgba(var(--pl),0));
+}
+#sheetPill::after{
+  content:''; position:absolute; left:20%; right:20%; top:-60%; height:120%; pointer-events:none;
+  background:radial-gradient(ellipse at 50% 0%, rgba(var(--pl),var(--pl-halo)), rgba(var(--pl),0) 70%);
+  animation:choapaPillBreath calc(var(--pl-speed) * .8) ease-in-out infinite;
+}
+@keyframes choapaPillBreath{ 0%,100%{ opacity:var(--pl-min); } 50%{ opacity:1; } }
+@media (prefers-reduced-motion:reduce){ #sheetPill::after{ animation:none; } }
+#sheetPill .pill-text{ letter-spacing:.15px; }
+#sheetPill .pill-text::before{
+  width:30px; height:30px; border-radius:50%;
+  background:var(--choapa-today-symbol) center/18px 18px no-repeat,
+             radial-gradient(circle at 35% 30%, rgba(var(--pl),.18), rgba(var(--pl),.04) 70%);
+  box-shadow:inset 0 0 0 1px rgba(var(--pl),.28), 0 0 14px rgba(var(--pl),.13);
+}
+#sheetPill .pill-chevron{
+  width:26px; height:26px; padding:6px; box-sizing:border-box; border-radius:50%;
+  background:rgba(95,225,232,.10); box-shadow:inset 0 0 0 1px rgba(95,225,232,.22);
+}
 
 /* ================= SPLASH «EL VALLE SE DIBUJA» — v2 =================
    Todo se anima solo con transform y opacity: lo mueve la tarjeta gráfica, así que
@@ -12509,6 +12555,7 @@ function syncTodaySymbol(){
   const v = p === 'day' ? 'day' : (p === 'dusk' || p === 'night') ? 'night' : null;
   if (v) document.documentElement.dataset.todaySymbol = v;
   else delete document.documentElement.dataset.todaySymbol;
+  document.documentElement.dataset.todayLight = p || 'midday'; // luz de la píldora «¿Qué hacer hoy?»
 }
 function updateDayPeriod(){
   const period = getDayPeriod();
