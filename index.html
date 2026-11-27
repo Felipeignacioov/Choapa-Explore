@@ -4832,8 +4832,9 @@ body:has(#activeNavHud.visible) :is(.sheet-pill, .comuna-panel, .comuna-panel-pi
 .nav-item:not(.main).active::after{ opacity:1; transform:scale(1); }
 .nav-item.main .icon-wrap,
 .nav-item.main.active .icon-wrap{
-  background:radial-gradient(120% 120% at 32% 18%, #9AF2F5 0%, #3FD3DC 42%, #14A9B5 100%);
-  box-shadow:0 8px 22px rgba(22,184,196,.36), 0 0 0 1px rgba(95,225,232,.32), inset 0 1px 0 rgba(255,255,255,.5), inset 0 -3px 7px rgba(3,45,52,.32);
+   /* Satinado (validado por consola, nov-2026): mismo acabado limpio, con el brillo metálico a la mitad. */
+  background:radial-gradient(140% 140% at 38% 22%, #72E2E9 0%, #38CBD5 50%, #1EADB8 100%);
+  box-shadow:0 6px 18px rgba(22,184,196,.28), 0 0 0 1px rgba(95,225,232,.22), inset 0 1px 0 rgba(255,255,255,.24), inset 0 -2px 5px rgba(3,45,52,.16);
 }
 /* Navegación en curso: se mantiene como estaba. */
 body.nav-live :is(.profile-btn, .compass-btn, .bottom-nav){
@@ -12192,7 +12193,7 @@ const TIME_ATMOSPHERE = {
   // acotado a las mismas 4 capas de terreno que ya toca applyDayLightLift()
   // — el chrome de la interfaz (header, buscador, chips, sheet) no se toca
   // en este cambio.
-  midday:{ bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.42, bgLift:0.30, bgLiftTint:'#728C7D', liftTint:'#2482A9', layerTints:{ vegetation:'#387F62', residential:'#596165', building:'#808580' }, hillshadeShadow:'#0B1519', hillshadeAccent:'#123326', hillshadeBoost:1.3, hillshadeLocalityDamp:0.78, hillshadeHighlightRGB:'196,228,186', hillshadeHighlight:0.20, vignette:{ top:0.66, bottom:0.54, edge:0.33 }, reliefSecond:1, waterLife:1, coastShelf:1 },
+  midday:{ bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.42, bgLift:0.42, bgLiftTint:'#728C7D', liftTint:'#2482A9', layerTints:{ vegetation:'#387F62', residential:'#596165', building:'#808580' }, hillshadeShadow:'#0B1519', hillshadeAccent:'#123326', hillshadeBoost:1.3, hillshadeLocalityDamp:0.78, hillshadeHighlightRGB:'196,228,186', hillshadeHighlight:0.23, vignette:{ top:0.56, bottom:0.44, edge:0.28 }, reliefSecond:1, waterLife:1, coastShelf:1 },
   dusk:  { bgTint:'#AE707F', bgAmount:0.08, glowAmount:0.22, glowOpacity:0.055, illum:292, dayLift:0, hillshadeHighlight:0.175, hillshadeHighlightRGB:'255,190,158', hillshadeShadow:'#0A0918', hillshadeAccent:'#1A1024', hillshadeBoost:1.2, hillshadeLocalityDamp:0.85, vignette:{ top:0.78, bottom:0.66, edge:0.40 }, waterTint:'#1A2A46', waterLift:0.40, waterLife:0.3, coastShelf:0.60, coastShelfHue:178, coastShelfSat:-0.20, coastShelfBright:0.95, shorelineColor:'#F6D6C0', shorelineOp:0.36, sunWash:1, moodYield:0.7 },
   night: { bgTint:'#88558D', bgAmount:0.13, glowAmount:0.15, glowOpacity:0.07, illum:300, dayLift:0.16, layerTints:{ vegetation:'#12241D', residential:'#C8913F', building:'#C8913F' }, vignette:{ top:0.88, bottom:0.74, edge:0.48 }, roadLight:0.12, moonWash:1, hillshadeHighlight:0.13, hillshadeHighlightRGB:'206,220,255', hillshadeShadow:'#04060F', hillshadeAccent:'#0B0E24', hillshadeBoost:1.12, hillshadeLocalityDamp:0.9, waterTint:'#0C2538', waterLift:0.5,coastGlow:1, waterShimmer:0.07, waterLife:0.35, coastShelf:0.45, coastShelfHue:40, coastShelfSat:-0.50, coastShelfBright:0.65,warmGlow:1, shorelineColor:'#C9CBE8', shorelineOp:0.26 },
 };
