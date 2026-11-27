@@ -4878,7 +4878,7 @@ body.nav-live :is(.profile-btn, .compass-btn, .bottom-nav){
 .map-vignette::before{
   content:''; position:absolute; inset:0; pointer-events:none;
   background:
-   radial-gradient(120% 90% at 18% 8%, rgba(214,208,240, calc(0.045 * var(--moon-wash))) 0%, rgba(214,208,240,0) 60%),
+    radial-gradient(120% 90% at 18% 8%, rgba(214,206,250, calc(0.06 * var(--moon-wash))) 0%, rgba(214,206,250,0) 60%), /* noche «Violeta suave» (nov-2026) */
     radial-gradient(90% 70% at 50% 55%, rgba(95,225,232, calc(0.018 * var(--moon-wash))) 0%, rgba(95,225,232,0) 70%),
      radial-gradient(80% 120% at var(--sun-wash-x, -15%) 58%, rgba(190,40,52, calc(0.14 * var(--sun-wash))) 0%, rgba(190,40,52, calc(0.05 * var(--sun-wash))) 40%, rgba(190,40,52,0) 64%); /* atardecer «Vino y obsidiana» (nov-2026) */
 }
@@ -12200,7 +12200,7 @@ const TIME_ATMOSPHERE = {
   // en este cambio.
   midday:{ bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.42, bgLift:0.42, bgLiftTint:'#728C7D', liftTint:'#2482A9', layerTints:{ vegetation:'#387F62', residential:'#596165', building:'#808580' }, hillshadeShadow:'#0B1519', hillshadeAccent:'#123326', hillshadeBoost:1.3, hillshadeLocalityDamp:0.78, hillshadeHighlightRGB:'196,228,186', hillshadeHighlight:0.23, vignette:{ top:0.56, bottom:0.44, edge:0.28 }, reliefSecond:1, waterLife:1, coastShelf:1 },
  dusk:  { bgTint:'#2E0F17', bgAmount:0.16, glowAmount:0.12, glowOpacity:0.055, illum:292, dayLift:0, hillshadeHighlight:0.16, hillshadeHighlightRGB:'214,92,88', hillshadeShadow:'#040306', hillshadeAccent:'#260810', hillshadeBoost:1.2, hillshadeLocalityDamp:0.85, vignette:{ top:0.88, bottom:0.76, edge:0.50 }, waterTint:'#1A2A46', waterLift:0.40, waterLife:0.3, coastShelf:0.60, coastShelfHue:178, coastShelfSat:-0.20, coastShelfBright:0.95, shorelineColor:'#F6D6C0', shorelineOp:0.36, sunWash:1, moodYield:0.7 },
-  night: { bgTint:'#88558D', bgAmount:0.13, glowAmount:0.15, glowOpacity:0.07, illum:300, dayLift:0.16, layerTints:{ vegetation:'#12241D', residential:'#C8913F', building:'#C8913F' }, vignette:{ top:0.88, bottom:0.74, edge:0.48 }, roadLight:0.12, moonWash:1, hillshadeHighlight:0.13, hillshadeHighlightRGB:'206,220,255', hillshadeShadow:'#04060F', hillshadeAccent:'#0B0E24', hillshadeBoost:1.12, hillshadeLocalityDamp:0.9, waterTint:'#0C2538', waterLift:0.5,coastGlow:1, waterShimmer:0.07, waterLife:0.35, coastShelf:0.45, coastShelfHue:40, coastShelfSat:-0.50, coastShelfBright:0.65,warmGlow:1, shorelineColor:'#C9CBE8', shorelineOp:0.26 },
+ night: { bgTint:'#7A4A9A', bgAmount:0.16, glowAmount:0.18, glowOpacity:0.07, illum:300, dayLift:0.16, layerTints:{ vegetation:'#12241D', residential:'#C8913F', building:'#C8913F' }, vignette:{ top:0.90, bottom:0.76, edge:0.50 }, roadLight:0.12, moonWash:1, hillshadeHighlight:0.13, hillshadeHighlightRGB:'200,196,255', hillshadeShadow:'#04060F', hillshadeAccent:'#120B2A', hillshadeBoost:1.12, hillshadeLocalityDamp:0.9, waterTint:'#0C2538', waterLift:0.5,coastGlow:1, waterShimmer:0.07, waterLife:0.35, coastShelf:0.45, coastShelfHue:40, coastShelfSat:-0.50, coastShelfBright:0.65,warmGlow:1, shorelineColor:'#C9CBE8', shorelineOp:0.26 },
 };
 let currentDayPeriod = null;
 // Legibilidad al sol: con luz de día (day y midday) se activa .sun-legible en <html>.
