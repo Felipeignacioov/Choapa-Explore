@@ -4967,6 +4967,33 @@ body.nav-live :is(.profile-btn, .compass-btn, .bottom-nav){
   width:26px; height:26px; padding:6px; box-sizing:border-box; border-radius:50%;
   background:rgba(95,225,232,.10); box-shadow:inset 0 0 0 1px rgba(95,225,232,.22);
 }
+/* Píldora «¿Qué hacer hoy?» con fotos (nov-2026): mosaico fundido de 4 experiencias de fondo,
+   velo «Profunda». Las fotos quedan quietas (sin costo de fluidez) y aparecen con un fundido
+   cuando están cargadas. Al atardecer y de noche el velo se oscurece un poco (--pp-a). */
+#sheetPill .pill-photos{
+  position:absolute; inset:0; z-index:0; pointer-events:none; border-radius:inherit; overflow:hidden;
+  opacity:0; transition:opacity .7s ease; --pp-a:1;
+}
+#sheetPill .pill-photos.ready{ opacity:1; }
+:root[data-today-light="dusk"] #sheetPill .pill-photos{ --pp-a:1.06; }
+:root[data-today-light="night"] #sheetPill .pill-photos{ --pp-a:1.14; }
+#sheetPill.has-photos{ backdrop-filter:none; -webkit-backdrop-filter:none; }
+#sheetPill::before, #sheetPill::after{ z-index:1; }
+#sheetPill .pill-text, #sheetPill .pill-chevron{ position:relative; z-index:2; }
+#sheetPill.has-photos .pill-text{ text-shadow:0 1px 10px rgba(2,8,15,.8), 0 0 2px rgba(2,8,15,.6); }
+#sheetPill .pp-img{
+  position:absolute; top:0; bottom:0; width:34%; background-size:cover; background-position:center;
+  -webkit-mask-image:linear-gradient(90deg, transparent 0%, #000 22%, #000 78%, transparent 100%);
+          mask-image:linear-gradient(90deg, transparent 0%, #000 22%, #000 78%, transparent 100%);
+}
+#sheetPill .pp-img:first-child{ -webkit-mask-image:linear-gradient(90deg, #000 78%, transparent 100%); mask-image:linear-gradient(90deg, #000 78%, transparent 100%); }
+#sheetPill .pp-img:nth-last-child(2){ -webkit-mask-image:linear-gradient(90deg, transparent 0%, #000 22%); mask-image:linear-gradient(90deg, transparent 0%, #000 22%); }
+#sheetPill .pp-veil{
+  position:absolute; inset:0;
+  background:linear-gradient(90deg,
+    rgba(9,22,35,calc(.44*var(--pp-a))) 0%, rgba(9,22,35,calc(.72*var(--pp-a))) 28%,
+    rgba(9,22,35,calc(.75*var(--pp-a))) 72%, rgba(9,22,35,calc(.44*var(--pp-a))) 100%);
+}
 
 /* ================= SPLASH «EL VALLE SE DIBUJA» — v2 =================
    Todo se anima solo con transform y opacity: lo mueve la tarjeta gráfica, así que
@@ -16409,7 +16436,36 @@ function todayDistanceText(place){
   return (km < 10 ? km.toFixed(1).replace('.', ',') : String(Math.round(km))) + ' km';
 }
 
+// Píldora «¿Qué hacer hoy?»: 4 fotos de experiencias de fondo (mosaico fundido, velo «Profunda»).
+// Usa las mismas experiencias que abre la píldora (primero las destacadas del momento) y el mismo
+// tamaño de foto (480) que el panel: comparten caché, así que no hay descargas extra.
+let todayPillPhotosKey = '';
+function renderTodayPillPhotos(){
+  const pill = document.getElementById('sheetPill');
+  if (!pill) return;
+  const seen = new Set(), urls = [];
+  [...curateTodayExperiences(), ...DEMO_PLACES].forEach(p => {
+    if (!p || !p.image || seen.has(p.id) || /^prueba/i.test(p.name || '')) return;
+    seen.add(p.id); urls.push(thumbUrl(p.image, 480));
+  });
+  const picks = urls.slice(0, 4);
+  const key = picks.join('|');
+  if (key === todayPillPhotosKey) return; // mismas fotos: no se vuelve a pintar (sin parpadeo)
+  todayPillPhotosKey = key;
+  pill.querySelector('.pill-photos')?.remove();
+  pill.classList.toggle('has-photos', picks.length > 0);
+  if (!picks.length) return;
+  const step = (100 - 34) / (picks.length - 1 || 1);
+  const layer = document.createElement('div');
+  layer.className = 'pill-photos';
+  layer.setAttribute('aria-hidden', 'true');
+  layer.innerHTML = picks.map((u, i) => `<div class="pp-img" style="background-image:url('${u.replace(/'/g, '%27')}'); left:${(i * step).toFixed(2)}%"></div>`).join('') + '<div class="pp-veil"></div>';
+  pill.prepend(layer);
+  Promise.race([Promise.all(picks.map(preloadMomentImage)), new Promise(r => setTimeout(r, 1500))])
+    .then(() => requestAnimationFrame(() => layer.classList.add('ready')));
+}
 function renderTodayRail(){
+  try { renderTodayPillPhotos(); } catch(e){} // si algo falla, la píldora queda como antes
   experiencesRail.innerHTML = '';
   todayFeatured.innerHTML = '';
   // Cuadrícula de 4 destacadas: primero la selección curada del momento; si trae menos de 4,
