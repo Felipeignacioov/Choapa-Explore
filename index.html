@@ -5164,6 +5164,14 @@ html.atmo-ui-fade :is(.nav-item, .chips-row .chip, .map-controls, .map-controls 
 .pd-footer .actions-row{ margin-top:0; }
 .poi-card .btn-save{ flex:0 0 auto; padding:12px 16px; white-space:nowrap; }
 .poi-card .btn-directions{ flex:1; white-space:nowrap; }
+/* Pantallas angostas (≤ 360 px, ej. iPhone SE): los tres botones de la ficha no cabían y el de «recuerdo»
+   quedaba cortado fuera de la tarjeta. «Guardar» pasa a ser solo el corazón (mismo tamaño que el de
+   recuerdo) y «Cómo llegar» ocupa el resto. Desde 361 px no cambia nada. */
+@media (max-width:360px){
+  .poi-card .actions-row .btn-save{ font-size:0; gap:0; width:44px; padding-left:0; padding-right:0; justify-content:center; }
+  .poi-card .actions-row .btn-directions{ min-width:0; }
+  .bottom-nav .nav-item{ white-space:nowrap; letter-spacing:0; padding-left:2px; padding-right:2px; } /* «Cerca de mí» ya no se parte en dos líneas */
+}
 .pd-discover-row{ margin-bottom:6px; }
 
 /* ================= DESBLOQUEO — «EL LUGAR SE REVELA» + COMPARTIR LOGRO =================
@@ -20463,6 +20471,7 @@ function syncRegisterSubmit(){
 }
 document.getElementById('authName').addEventListener('input', syncRegisterSubmit);
 function closeAuthScreen(){
+  authOpenedFromApp = false;
   authScreen.classList.add('dismissed');
 setTimeout(() => { authScreen.style.display = 'none'; flushPendingAppNotice(); }, 420); // tras el fade — libera el DOM de interacción y muestra un aviso pendiente
 }
@@ -20470,7 +20479,12 @@ setTimeout(() => { authScreen.style.display = 'none'; flushPendingAppNotice(); }
 document.getElementById('authRegisterBtn').addEventListener('click', () => showAuthForm('register'));
 document.getElementById('authLoginBtn').addEventListener('click', () => showAuthForm('login'));
 document.getElementById('authGuestBtn').addEventListener('click', closeAuthScreen);
-document.getElementById('authFormBack').addEventListener('click', showAuthWelcome);
+// Si el ingreso se abrió desde dentro de la app (Guardar, Guardados, Álbum, Planificador, menú), «Volver»
+// cierra la pantalla y deja al invitado exactamente donde estaba, en vez de mandarlo a la bienvenida.
+document.getElementById('authFormBack').addEventListener('click', () => {
+  if (authOpenedFromApp){ closeAuthScreen(); return; }
+  showAuthWelcome();
+});
 document.getElementById('authFormSwitch').addEventListener('click', () => showAuthForm(authFormMode === 'register' ? 'login' : 'register'));
 
 // Ojito de contraseña: alterna entre type="password" y type="text".
@@ -20660,7 +20674,9 @@ function profileIcon(key){
 
 // Reabre la pantalla de auth YA construida — reutiliza showAuthForm()/
 // showAuthWelcome() existentes, nunca reconstruye nada.
+let authOpenedFromApp = false; // ver el botón «Volver» del formulario de ingreso
 function reopenAuthScreen(mode){
+  authOpenedFromApp = !!mode;
   closeProfileMenu();
   authScreen.style.display = '';
   authScreen.classList.remove('dismissed');
