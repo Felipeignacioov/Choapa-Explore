@@ -179,6 +179,24 @@ img{-webkit-user-drag:none; user-select:none;}
   35%{ opacity:0.42; }
   100%{ opacity:0; }
 }
+/* ---------- Flechita del aura (nov-2026) ----------
+   Círculo de vidrio con una flecha luminosa al centro del borde activo, apuntando hacia ese borde.
+   Entra desde el centro, da dos «empujoncitos» hacia el borde y se va junto con el aura.
+   Mismo morado de las localidades; nunca intercepta un toque (pointer-events:none). */
+.tg-hint{ position:absolute; z-index:8; left:0; top:0; pointer-events:none; opacity:0;
+  transition:opacity .35s ease; --dx:0px; --dy:0px; --nx:0px; --ny:0px; }
+.tg-hint.on{ opacity:1; }
+.tg-hint .tgh-in{ transform:translate(var(--dx), var(--dy)); transition:transform .55s cubic-bezier(.2,.8,.2,1); }
+.tg-hint.on .tgh-in{ transform:translate(0,0); }
+.tg-hint.on .tgh-nudge{ animation:tg-hint-nudge 1.25s ease-in-out .6s 2; }
+@keyframes tg-hint-nudge{ 0%,100%{ transform:translate(0,0); } 50%{ transform:translate(var(--nx), var(--ny)); } }
+.tg-hint .tgh-arrow{
+  width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#CFC7FF;
+  background:rgba(12,20,34,.78); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
+  border:1px solid rgba(139,124,255,.5);
+  box-shadow:0 8px 22px rgba(2,8,15,.45), 0 0 18px rgba(139,124,255,.28), inset 0 1px 0 rgba(255,255,255,.06);
+}
+.tg-hint .tgh-arrow svg{ filter:drop-shadow(0 0 4px rgba(139,124,255,.8)); }
 /* ---------------- HEADER ---------------- */
 .top-ui{
   position:absolute; top:0; left:0; right:0; z-index:10;
@@ -5553,8 +5571,10 @@ html.atmo-ui-fade :is(.nav-item, .chips-row .chip, .map-controls, .map-controls 
     <div class="tg-edge tg-left" id="tgLeft"></div>
     <div class="tg-edge tg-right" id="tgRight"></div>
     <div class="tg-edge tg-top" id="tgTop"></div>
-    <div class="tg-edge tg-bottom" id="tgBottom"></div>
+       <div class="tg-edge tg-bottom" id="tgBottom"></div>
   </div>
+  <!-- Flechita premium junto al aura: apunta hacia donde hay más localidades (ver showTerritoryGlowHint). -->
+  <div class="tg-hint" id="tgHint" aria-hidden="true"></div>
 
   <div class="map-loading" id="mapLoading">
         <div class="loading-mark">
@@ -11474,7 +11494,54 @@ function hideTerritoryGlow(){
   territoryGlowPointerId = null;
   territoryGlowPointerStartX = null;
   territoryGlowPointerStartY = null;
-  document.querySelectorAll('.tg-edge').forEach(el => el.classList.remove('tg-active', 'tg-confirm'));
+   document.querySelectorAll('.tg-edge').forEach(el => el.classList.remove('tg-active', 'tg-confirm'));
+  hideTerritoryGlowHint();
+}
+
+// Flechita del aura — al centro del borde activo (a media altura de la zona visible entre el header y
+// el panel en los bordes laterales; al centro horizontal arriba o abajo), apuntando hacia ese borde.
+// Si justo ahí hay una localidad, se corre lo mínimo (hasta ~96 px) para taparla lo menos posible.
+const TERRITORY_GLOW_HINT_ROT = { right:0, bottom:90, left:180, top:270 };
+function showTerritoryGlowHint(edgeKey){
+  const hint = document.getElementById('tgHint');
+  if (!hint) return;
+  const hdr = document.querySelector('.top-ui').getBoundingClientRect().bottom;
+  const crumb = document.querySelector('.breadcrumb-pill.visible');
+  const top = Math.max(hdr, crumb ? crumb.getBoundingClientRect().bottom : 0) + 8;
+  const cp = document.getElementById('comunaPanel'); const cpr = cp.getBoundingClientRect();
+  const bottom = (!cp.classList.contains('hidden') && cpr.height > 0 ? cpr.top : document.querySelector('.bottom-nav').getBoundingClientRect().top) - 8;
+  const W = window.innerWidth, size = 36;
+  const vertical = edgeKey === 'left' || edgeKey === 'right';
+  let x = vertical ? (edgeKey === 'left' ? 12 : W - size - 12) : (W - size) / 2;
+  let y = vertical ? (top + bottom) / 2 - size / 2 : (edgeKey === 'top' ? top + 6 : bottom - size - 6);
+  const taken = [...document.querySelectorAll('.locality-marker')].filter(m => {
+    const cs = getComputedStyle(m);
+    return m.offsetParent && cs.visibility !== 'hidden' && +cs.opacity > 0.1 && !m.classList.contains('hidden-level');
+  }).map(m => m.getBoundingClientRect()).filter(r => r.width > 0);
+  const overlap = (xx, yy) => taken.reduce((a, r) => a
+    + Math.max(0, Math.min(xx + size, r.right + 4) - Math.max(xx, r.left - 4))
+    * Math.max(0, Math.min(yy + size, r.bottom + 4) - Math.max(yy, r.top - 4)), 0);
+  let best = { x, y, sc: overlap(x, y) };
+  for (let d = 12; d <= 96 && best.sc > 0; d += 12){
+    for (const sg of [1, -1]){
+      const nx = vertical ? x : Math.min(W - size - 12, Math.max(12, x + sg * d));
+      const ny = vertical ? Math.min(bottom - size - 6, Math.max(top + 6, y + sg * d)) : y;
+      const sc = overlap(nx, ny);
+      if (sc < best.sc - 1) best = { x: nx, y: ny, sc };
+    }
+  }
+  const ux = edgeKey === 'left' ? -1 : edgeKey === 'right' ? 1 : 0;
+  const uy = edgeKey === 'top' ? -1 : edgeKey === 'bottom' ? 1 : 0;
+  hint.innerHTML = `<div class="tgh-in"><div class="tgh-nudge"><div class="tgh-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="transform:rotate(${TERRITORY_GLOW_HINT_ROT[edgeKey]}deg)"><path d="M5 12h13M13 6.5 18.5 12 13 17.5" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div></div>`;
+  hint.style.left = best.x + 'px';
+  hint.style.top = best.y + 'px';
+  hint.style.setProperty('--dx', (-ux * 10) + 'px'); hint.style.setProperty('--dy', (-uy * 10) + 'px'); // entra desde el centro
+  hint.style.setProperty('--nx', (ux * 4) + 'px'); hint.style.setProperty('--ny', (uy * 4) + 'px');   // empujoncito hacia el borde
+  hint.classList.remove('on'); void hint.offsetWidth; hint.classList.add('on');
+}
+function hideTerritoryGlowHint(){
+  const hint = document.getElementById('tgHint');
+  if (hint) hint.classList.remove('on');
 }
 
 const TERRITORY_GLOW_EDGE_IDS = { left:'tgLeft', right:'tgRight', top:'tgTop', bottom:'tgBottom' };
@@ -11485,8 +11552,8 @@ const TERRITORY_GLOW_EDGE_IDS = { left:'tgLeft', right:'tgRight', top:'tgTop', b
 // con un piso de 1100ms por paso para que cada dirección alcance a leerse
 // antes de ceder paso a la siguiente (si hay 3+ direcciones, el total real
 // puede superar levemente el objetivo para respetar ese piso de legibilidad).
-const TERRITORY_GLOW_TOTAL_MS = 2500;
-const TERRITORY_GLOW_MIN_STEP_MS = 1100;
+const TERRITORY_GLOW_TOTAL_MS = 4200;     // nov-2026: antes 2500 — con la flechita, cada dirección alcanza a leerse
+const TERRITORY_GLOW_MIN_STEP_MS = 2100;  // antes 1100
 
 // Enciende un único borde de la secuencia. Si ya había uno activo, se apaga
 // en el MISMO instante en que se enciende el nuevo — al compartir ambos la
@@ -11497,7 +11564,8 @@ function activateTerritoryGlowStep(){
   document.querySelectorAll('.tg-edge').forEach(el => el.classList.remove('tg-active'));
   const edgeKey = territoryGlowSequence[territoryGlowStepIndex];
   if (!edgeKey){ hideTerritoryGlow(); return; }
-  document.getElementById(TERRITORY_GLOW_EDGE_IDS[edgeKey]).classList.add('tg-active');
+   document.getElementById(TERRITORY_GLOW_EDGE_IDS[edgeKey]).classList.add('tg-active');
+  showTerritoryGlowHint(edgeKey);
 
   const isLast = territoryGlowStepIndex === territoryGlowSequence.length - 1;
   const stepMs = Math.max(TERRITORY_GLOW_MIN_STEP_MS, TERRITORY_GLOW_TOTAL_MS / territoryGlowSequence.length);
