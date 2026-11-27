@@ -6904,7 +6904,10 @@ const COMMUNE_LABEL_SIZE_NAV = 11.5;
 // el nivel de comuna y los zooms más cercanos (14+) no cambian en nada —
 // solo se realza el tramo intermedio de localidad, de forma progresiva
 // (sube y vuelve a bajar suave, sin ningún salto).
-const HILLSHADE_EXAGGERATION_NORMAL = ['interpolate', ['linear'], ['zoom'], 8, 0.37, 10, 0.39, 12.5, 0.39, 14, 0.31, 16, 0.20, 17.5, 0.14];
+// Calidad percibida (nov-2026, opción C validada por consola): el relieve se ve más definido en la vista
+// general (zoom 8: ×1,14) y más limpio de cerca, donde el dato de altura ya no da más detalle (desde
+// zoom 12,5: ×0,82). El rango de comuna (zoom 10) queda igual.
+const HILLSHADE_EXAGGERATION_NORMAL = ['interpolate', ['linear'], ['zoom'], 8, 0.422, 10, 0.39, 12.5, 0.32, 14, 0.254, 16, 0.164, 17.5, 0.115];
 const HILLSHADE_EXAGGERATION_NAV    = ['interpolate', ['linear'], ['zoom'], 8, 0.46, 12, 0.42, 13.5, 0.52, 15, 0.46, 16.5, 0.30, 17.5, 0.18];
 // Caminos menores y senderos: un escalón más visibles SOLO durante el flujo de ruta.
 // [capa, propiedad, multiplicador] — se guarda el valor real antes de tocarlo y se devuelve tal cual al terminar.
@@ -7790,8 +7793,9 @@ const MAP_REFERENCE_TEXT_COLOR = blendHex(roadColor(0.3), '#5FE1E8', 0.38);
         NAV_COMMUNE_LABEL_LAYER_IDS.push(l.id); // registrado para el refuerzo de modo navegación
         map.setPaintProperty(l.id, 'text-opacity', COMMUNE_LABEL_OPACITY_NORMAL);
         map.setPaintProperty(l.id, 'text-color', '#6C8AA3');
-        map.setPaintProperty(l.id, 'text-halo-color', 'rgba(11,23,38,0.65)');
+               map.setPaintProperty(l.id, 'text-halo-color', 'rgba(11,23,38,0.65)');
         map.setPaintProperty(l.id, 'text-halo-width', 1);
+        map.setPaintProperty(l.id, 'text-halo-blur', 0.35); // calidad percibida: borde del nombre nítido (antes difuminado en 1)
         map.setLayoutProperty(l.id, 'text-size', COMMUNE_LABEL_SIZE_NORMAL);
       }
       // 2) Aldeas/caseríos/barrios — no aportan nada en la vista general (saturarían
@@ -7831,8 +7835,9 @@ const MAP_REFERENCE_TEXT_COLOR = blendHex(roadColor(0.3), '#5FE1E8', 0.38);
           16, 0.55,
         ]);
         map.setPaintProperty(l.id, 'text-color', MAP_REFERENCE_TEXT_COLOR);
-        map.setPaintProperty(l.id, 'text-halo-color', 'rgba(11,23,38,0.6)');
+               map.setPaintProperty(l.id, 'text-halo-color', 'rgba(11,23,38,0.6)');
         map.setPaintProperty(l.id, 'text-halo-width', 0.9);
+        map.setPaintProperty(l.id, 'text-halo-blur', 0.35); // calidad percibida: borde del nombre nítido (antes difuminado en 1)
         map.setLayoutProperty(l.id, 'text-size', 9.2);
         map.setLayoutProperty(l.id, 'text-font', MAP_REFERENCE_TEXT_FONT);
         // Estas etiquetas llegan crudas de OSM en MAYÚSCULA SOSTENIDA (ej.
