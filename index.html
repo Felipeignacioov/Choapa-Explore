@@ -4967,6 +4967,19 @@ body.nav-live :is(.profile-btn, .compass-btn, .bottom-nav){
   width:26px; height:26px; padding:6px; box-sizing:border-box; border-radius:50%;
   background:rgba(95,225,232,.10); box-shadow:inset 0 0 0 1px rgba(95,225,232,.22);
 }
+/* Píldora «¿Qué hacer hoy?» — Curvas de nivel (nov-2026): líneas topográficas finas de fondo,
+   con una curva maestra más marcada. Toman la luz del momento (--pl) y se atenúan detrás del
+   texto. Dibujo quieto: sin costo de fluidez. */
+#sheetPill .pill-text, #sheetPill .pill-chevron{ position:relative; z-index:2; }
+#sheetPill::before, #sheetPill::after{ z-index:1; }
+#sheetPill .pill-contours{
+  position:absolute; inset:0; z-index:0; pointer-events:none; border-radius:inherit; overflow:hidden;
+  -webkit-mask-image:radial-gradient(ellipse 40% 70% at 50% 50%, rgba(0,0,0,.25) 0%, #000 100%);
+          mask-image:radial-gradient(ellipse 40% 70% at 50% 50%, rgba(0,0,0,.25) 0%, #000 100%);
+}
+#sheetPill .pill-contours svg{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+#sheetPill .pill-contours path{ fill:none; stroke:rgba(var(--pl),.13); stroke-width:1; vector-effect:non-scaling-stroke; }
+#sheetPill .pill-contours path.index{ stroke:rgba(var(--pl),.26); }
 
 /* ================= SPLASH «EL VALLE SE DIBUJA» — v2 =================
    Todo se anima solo con transform y opacity: lo mueve la tarjeta gráfica, así que
@@ -5761,6 +5774,7 @@ html.atmo-ui-fade :is(.nav-item, .chips-row .chip, .map-controls, .map-controls 
 
     <!-- PÍLDORA "¿QUÉ HACER HOY?" — estado por defecto -->
   <button class="sheet-pill" id="sheetPill">
+    <span class="pill-contours" aria-hidden="true"><svg viewBox="0 0 400 50" preserveAspectRatio="none"><path d="M-10 9 C60 1 120 17 200 8 S330 -1 410 11"/><path d="M-10 18 C70 10 130 27 205 17 S335 8 410 20"/><path class="index" d="M-10 27 C60 19 140 36 210 26 S340 17 410 29"/><path d="M-10 36 C70 28 135 44 215 35 S345 27 410 38"/><path d="M-10 45 C60 37 140 52 220 43 S350 36 410 47"/></svg></span>
      <span class="pill-text"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true" style="flex-shrink:0;">
   <!-- Valle del Choapa: el sol de hoy, la cordillera y el río -->
   <circle cx="7" cy="6" r="2" fill="#5FE1E8"/>
