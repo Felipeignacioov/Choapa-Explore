@@ -7881,12 +7881,65 @@ const MAP_REFERENCE_TEXT_COLOR = blendHex(roadColor(0.3), '#5FE1E8', 0.38);
    por completo cuando la pestaña queda oculta (visibilitychange), algo que
    ningún setInterval individual hacía. Ningún valor visual cambia. */
 const AMBIENT_TICK_MS = 240;
+let comunaGlowFadeUntil = 1;   // respiración del glow de comunas (ver comuna-glow-layer)
+let comunaGlowLastMult = '';
+let waterBreathLayer = null;   // respiración del agua (ver "El Pacífico respira")
+let waterBreathColor = '';
 const ambientTickCallbacks = [];
 function registerAmbientTick(fn){ ambientTickCallbacks.push(fn); }
 let ambientTickTimer = null;
+// Fluidez y temperatura (nov-2026): cada pulso cambia el mapa apenas (respiración del agua, de las comunas
+// y de los POIs) y debería costar 1 o 2 dibujos. Pero MapLibre, después de cualquier cambio, revisa la
+// posición de las etiquetas durante 0,3 s más, y como los pulsos llegan cada 0,24 s el mapa terminaba
+// dibujándose ~60 veces por segundo sin que nadie lo tocara (medido: 60 dibujos/s en reposo, el celular
+// se calienta y después todo se siente pesado). Ahora, si no hay ninguna etiqueta apareciendo o
+// desapareciendo en ese momento, el pulso se dibuja sin esa revisión extra: queda exactamente igual
+// (no hay nada que fundir) y el mapa vuelve a descansar. Con el mapa en movimiento, o si alguna etiqueta
+// está a mitad de su fundido, todo sigue como siempre. Usa una parte interna de MapLibre (fija en 4.7.1):
+// si algún día no existe, los pulsos funcionan como antes.
+const AMBIENT_QUIET_AFTER_FADE_MS = 450; // margen sobre el fundido de etiquetas (300 ms)
+let ambientFadeBase = null;
+let ambientQuietOpen = false;
+let ambientSkyQuiet = false;
+function quietAmbientSkyTransitions(){
+  // El cielo del mapa no se usa ni se anima en la app, pero MapLibre le reiniciaba un fundido de 0,3 s
+  // en cada cambio de estilo: solo eso ya mantenía el mapa dibujándose. Sin efecto visual.
+  if (ambientSkyQuiet) return;
+  ambientSkyQuiet = true;
+  try {
+    const tr = map.style && map.style.sky && map.style.sky._transitionable;
+    if (!tr || typeof tr.setTransition !== 'function' || !tr._values){ ambientSkyQuiet = false; return; }
+    Object.keys(tr._values).forEach(p => tr.setTransition(p, { duration:0, delay:0 }));
+  } catch (e){}
+}
+function runAmbientTicks(){
+  quietAmbientSkyTransitions();
+  const placement = map.style && map.style.placement;
+  if (ambientFadeBase === null && typeof map._fadeDuration === 'number') ambientFadeBase = map._fadeDuration;
+  const quiet = !ambientQuietOpen && ambientFadeBase > 0 && map._fadeDuration === ambientFadeBase && !map._frameRequest
+    && placement && typeof placement.lastPlacementChangeTime === 'number' && !map.isMoving()
+    && performance.now() - placement.lastPlacementChangeTime > AMBIENT_QUIET_AFTER_FADE_MS;
+  ambientTickCallbacks.forEach(fn => fn());
+  if (!quiet || !map._frameRequest) return; // en movimiento, con fundidos en curso o sin nada que dibujar: como siempre
+  ambientQuietOpen = true;
+  map._fadeDuration = 0;
+  let renders = 0, timer = null;
+  const restore = () => {
+    if (!ambientQuietOpen) return;
+    ambientQuietOpen = false;
+    map.off('render', onRender);
+    map.off('movestart', restore);
+    clearTimeout(timer);
+    map._fadeDuration = ambientFadeBase;
+  };
+  const onRender = () => { if (++renders >= 2) restore(); }; // el pulso y su confirmación
+  map.on('render', onRender);
+  map.on('movestart', restore);
+  timer = setTimeout(restore, 200);
+}
 function startAmbientTicks(){
   if (ambientTickTimer) return;
-  ambientTickTimer = setInterval(() => { ambientTickCallbacks.forEach(fn => fn()); }, AMBIENT_TICK_MS);
+  ambientTickTimer = setInterval(runAmbientTicks, AMBIENT_TICK_MS);
 }
 function stopAmbientTicks(){
   if (ambientTickTimer){ clearInterval(ambientTickTimer); ambientTickTimer = null; }
@@ -8003,7 +8056,9 @@ function enableDemParentFallback(){
 // comuna completa). Si el arrastre dura más de 1,5 s, entra 1 por cuadro para que igual se vaya
 // definiendo. Medido: el trabajo del relieve durante las animaciones bajó de ~140 a ~6 operaciones.
 // Si el navegador no permite el método, el relieve se carga como antes (ver renderTerrainDepth).
-const demLoadQueue = { items: [], raf: 0, moving: false, moveStart: 0 };
+const demLoadQueue = { items: [], raf: 0, moving: false, moveStart: 0, moveEnd: 0, lastPump: 0, skip: false };
+const DEM_ARRIVAL_MS = 700;      // llegada: localidades en cascada + panel → 1 baldosa por cuadro
+const DEM_SLOW_FRAME_MS = 28;    // si el cuadro anterior tardó más (celular exigido), 1 cada 2 cuadros
 function pumpDemLoadQueue(){
   if (demLoadQueue.raf || !demLoadQueue.items.length) return;
   demLoadQueue.raf = requestAnimationFrame(() => {
@@ -8013,8 +8068,19 @@ function pumpDemLoadQueue(){
     for (let i = q.length - 1; i >= 0; i--){
       if (q[i].signal.aborted){ q[i].reject(new Error('AbortError')); q.splice(i, 1); }
     }
+    const now = performance.now();
     let budget = 2;
-    if (demLoadQueue.moving) budget = (performance.now() - demLoadQueue.moveStart > 1500) ? 1 : 0;
+    if (demLoadQueue.moving) budget = (now - demLoadQueue.moveStart > 1500) ? 1 : 0;
+    else {
+      // Fluidez al llegar (nov-2026): justo al detenerse la cámara entran las localidades en cascada y el
+      // panel; ahí el relieve entra de a 1 por cuadro (cada baldosa obliga a rehacer el borde de sus
+      // vecinas). Y si el cuadro anterior fue lento (celular exigido o caliente), entra 1 cada 2 cuadros.
+      // Mientras tanto se ve el respaldo del relieve; solo cambia el ritmo, no el resultado.
+      if (now - demLoadQueue.moveEnd < DEM_ARRIVAL_MS) budget = 1;
+      const gap = now - demLoadQueue.lastPump;
+      if (gap > DEM_SLOW_FRAME_MS && gap < 120){ demLoadQueue.skip = !demLoadQueue.skip; if (demLoadQueue.skip) budget = 0; else budget = Math.min(budget, 1); }
+    }
+    demLoadQueue.lastPump = now;
     while (budget-- > 0 && q.length) q.shift().resolve();
     pumpDemLoadQueue();
   });
@@ -8040,7 +8106,7 @@ function enableDemLoadQueue(){
       }
     });
     map.on('movestart', () => { demLoadQueue.moving = true; demLoadQueue.moveStart = performance.now(); });
-    map.on('moveend', () => { demLoadQueue.moving = false; pumpDemLoadQueue(); });
+      map.on('moveend', () => { demLoadQueue.moving = false; demLoadQueue.moveEnd = performance.now(); pumpDemLoadQueue(); });
     enableDemLoadQueue.ok = true;
   } catch (e){}
   return enableDemLoadQueue.ok;
@@ -8173,14 +8239,27 @@ function renderTerrainDepth(){
       // 0,1 px. Con la transición por defecto (300 ms, más larga que el ciclo) el mapa nunca terminaba
       // una transición y se redibujaba completo en CADA cuadro aunque nadie lo tocara. Sin transición
       // propia (igual que el agua) se dibuja una sola vez por ciclo: mismo brillo, misma respiración.
-      'circle-radius-transition':{ duration:0 },
+           'circle-radius-transition':{ duration:0 },
+      'circle-blur-transition':{ duration:0 }, // fluidez: el desenfoque nunca cambia; su fundido por defecto se reiniciaba en cada pulso
     },
   });
   // Variación mínima (±2.5%) del radio — la comuna "respira" sin que se note
   // como una animación explícita.
        registerAmbientTick(() => {
     if (!map.getLayer('comuna-glow-layer')) return;
+    // Fluidez: el cambio de color al elegir una categoría conserva su fundido de 0,6 s (ver
+    // applyCategoryAtmosphere). Pasado ese momento, el color y la intensidad quedan sin fundido: cada
+    // pulso del radio reiniciaba ese fundido de 0,6 s y el mapa no paraba de dibujarse. Se ve igual.
+    if (comunaGlowFadeUntil && performance.now() > comunaGlowFadeUntil){
+      comunaGlowFadeUntil = 0;
+      map.setPaintProperty('comuna-glow-layer', 'circle-color-transition', { duration:0 });
+      map.setPaintProperty('comuna-glow-layer', 'circle-opacity-transition', { duration:0 });
+    }
     const mult = 1 + Math.sin(performance.now() / 5200) * 0.025;
+    // Solo se escribe si el radio cambió de verdad (en los extremos del ciclo pasa varios pulsos igual).
+    const multKey = mult.toFixed(4);
+    if (multKey === comunaGlowLastMult) return;
+    comunaGlowLastMult = multKey;
     // Mismo stop extra en zoom 8 que la curva inicial — la respiración debe
     // mantener la misma forma, solo escalada por `mult`.
     map.setPaintProperty('comuna-glow-layer', 'circle-radius', [
@@ -8258,8 +8337,20 @@ function renderTerrainDepth(){
       const wobble = (wave + 1) / 2 * ((currentResolvedAtmosphere && currentResolvedAtmosphere.waterShimmer) || 0.03);                                      // 0 → 3%
       // Brilla hacia luz teal (no hacia blanco, que agrisa) y sin fundido propio: la variación
       // por pulso es mínima, así no se reinicia una transición cada 240 ms (causa del titileo).
-      map.setPaintProperty('water', 'fill-color-transition', { duration:0 });
-      map.setPaintProperty('water', 'fill-color', blendHex(currentWaterBase, '#5FE1E8', wobble));
+          // Fluidez: solo se escribe cuando el color cambia de verdad (antes, cada 240 ms aunque fuera idéntico),
+      // y el contorno del agua tampoco tiene fundido: cada pulso le reiniciaba uno de 0,3 s y el mapa no
+      // paraba de dibujarse. El agua se ve exactamente igual.
+      const waterLayer = map.getLayer('water');
+      if (waterBreathLayer !== waterLayer){
+        waterBreathLayer = waterLayer;
+        waterBreathColor = '';
+        map.setPaintProperty('water', 'fill-color-transition', { duration:0 });
+        map.setPaintProperty('water', 'fill-outline-color-transition', { duration:0 });
+      }
+      const waterColor = blendHex(currentWaterBase, '#5FE1E8', wobble);
+      if (waterColor === waterBreathColor) return;
+      waterBreathColor = waterColor;
+      map.setPaintProperty('water', 'fill-color', waterColor);
     });
 
     // 2) Textura costera — una segunda línea, más fina y difusa que coast-glow,
@@ -9564,6 +9655,7 @@ const POI_HALO_BASE_RADIUS = 8; // auditoría nov-2026: antes 7.2, acompaña el 
 const POI_BREATHE_OPACITY_AMPLITUDE = 0.05; // amplitud de la respiración, ahora vía opacidad en vez de tamaño
 const POI_BREATHE_NO_TRANSITION = { duration:0, delay:0 }; // ver startPOIBreathingAnimation (fluidez)
 const POI_HALO_FADE_TRANSITION = { duration:300, delay:0 }; // fundido de la sombra al aparecer (el de siempre)
+const poiHaloQuietLayers = new WeakSet(); // fluidez: capas de sombra a las que ya se les quitó el fundido que no se usa
 function startPOIBreathingAnimation(){
   registerAmbientTick(() => {
                     if (!map.getLayer('poi-bg-layer')) return;
@@ -9620,7 +9712,14 @@ function startPOIBreathingAnimation(){
       ['poi-ambient-halo-layer', 'poi-photo-ambient-halo-layer'].forEach(id => {
         if (!map.getLayer(id)) return;
         const cur = map.getPaintProperty(id, 'circle-opacity');
-        const fade = typeof cur !== 'number' || Math.abs(cur - haloOpacity) > 0.05;
+               const fade = typeof cur !== 'number' || Math.abs(cur - haloOpacity) > 0.05;
+        // Fluidez: color, desenfoque y desplazamiento de la sombra nunca cambian, pero cada pulso les
+        // reiniciaba su fundido por defecto de 0,3 s y el mapa no paraba de dibujarse. Se fija una vez.
+        const haloLayer = map.getLayer(id);
+        if (!poiHaloQuietLayers.has(haloLayer)){
+          poiHaloQuietLayers.add(haloLayer);
+          ['circle-color', 'circle-blur', 'circle-translate'].forEach(p => map.setPaintProperty(id, p + '-transition', POI_BREATHE_NO_TRANSITION));
+        }
         map.setPaintProperty(id, 'circle-radius-transition', POI_BREATHE_NO_TRANSITION);
         map.setPaintProperty(id, 'circle-opacity-transition', fade ? POI_HALO_FADE_TRANSITION : POI_BREATHE_NO_TRANSITION);
         map.setPaintProperty(id, 'circle-radius', haloRadius);
@@ -12632,6 +12731,7 @@ const glowTimeBase = res.glowColor;
   // comunas se sienten más "dormidas" — sin tocar la animación de respiración
   // del radio que ya existe (esa sigue funcionando exactamente igual, aparte).
    if (map.getLayer('comuna-glow-layer')){
+       comunaGlowFadeUntil = performance.now() + 700; // fluidez: el fundido de 0,6 s vale para este cambio (ver la respiración del glow)
     map.setPaintProperty('comuna-glow-layer', 'circle-color-transition', { duration:600 });
     map.setPaintProperty('comuna-glow-layer', 'circle-opacity-transition', { duration:600 });
     map.setPaintProperty('comuna-glow-layer', 'circle-color', blendHex(glowTimeBase, tint, active ? 0.35 : 0));
