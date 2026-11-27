@@ -5105,6 +5105,11 @@ html.sun-legible .map-controls button:not(:active){ color:#C3D1DE; }
 html.sun-legible .comuna-mini-card .cmc-tag{ color:rgba(255,255,255,0.92); }
 html.sun-legible .searchbar:not(:focus-within){ background-color:rgba(13,29,45,0.86); }
 html.sun-legible .profile-btn:not(:active){ background:rgba(13,29,45,0.88); }
+/* Cambio de luz suave (nov-2026): al pasar de día a atardecer (y al amanecer) la interfaz se funde en 1,2 s. */
+@property --text-secondary{ syntax:'<color>'; inherits:true; initial-value:#91A4B8; }
+@property --text-tertiary{ syntax:'<color>'; inherits:true; initial-value:#5D7185; }
+html.atmo-ui-fade{ transition:--text-secondary 1.2s ease, --text-tertiary 1.2s ease; }
+html.atmo-ui-fade :is(.nav-item, .chips-row .chip, .map-controls, .map-controls button, .comuna-mini-card .cmc-tag, .searchbar, .profile-btn){ transition:color 1.2s ease, background-color 1.2s ease !important; }
 
 /* ================= FICHA DE EXPERIENCIA — REFINAMIENTO (validado por consola) =================
    Foto encuadrada al paisaje, descripción de 4 líneas con "Ver más", títulos de sección con una
@@ -12200,7 +12205,7 @@ const TIME_ATMOSPHERE = {
   // en este cambio.
   midday:{ bgTint:null,      bgAmount:0,    glowAmount:0,    glowOpacity:0.05,  illum:315, dayLift:0.42, bgLift:0.42, bgLiftTint:'#728C7D', liftTint:'#2482A9', layerTints:{ vegetation:'#387F62', residential:'#596165', building:'#808580' }, hillshadeShadow:'#0B1519', hillshadeAccent:'#123326', hillshadeBoost:1.3, hillshadeLocalityDamp:0.78, hillshadeHighlightRGB:'196,228,186', hillshadeHighlight:0.23, vignette:{ top:0.56, bottom:0.44, edge:0.28 }, reliefSecond:1, waterLife:1, coastShelf:1 },
  dusk:  { bgTint:'#2E0F17', bgAmount:0.16, glowAmount:0.12, glowOpacity:0.055, illum:292, dayLift:0, hillshadeHighlight:0.16, hillshadeHighlightRGB:'214,92,88', hillshadeShadow:'#040306', hillshadeAccent:'#260810', hillshadeBoost:1.2, hillshadeLocalityDamp:0.85, vignette:{ top:0.88, bottom:0.76, edge:0.50 }, waterTint:'#1A2A46', waterLift:0.40, waterLife:0.3, coastShelf:0.60, coastShelfHue:178, coastShelfSat:-0.20, coastShelfBright:0.95, shorelineColor:'#F6D6C0', shorelineOp:0.36, sunWash:1, moodYield:0.7 },
- night: { bgTint:'#7A4A9A', bgAmount:0.16, glowAmount:0.18, glowOpacity:0.07, illum:300, dayLift:0.16, layerTints:{ vegetation:'#12241D', residential:'#C8913F', building:'#C8913F' }, vignette:{ top:0.90, bottom:0.76, edge:0.50 }, roadLight:0.12, moonWash:1, hillshadeHighlight:0.13, hillshadeHighlightRGB:'200,196,255', hillshadeShadow:'#04060F', hillshadeAccent:'#120B2A', hillshadeBoost:1.12, hillshadeLocalityDamp:0.9, waterTint:'#0C2538', waterLift:0.5,coastGlow:1, waterShimmer:0.07, waterLife:0.35, coastShelf:0.45, coastShelfHue:40, coastShelfSat:-0.50, coastShelfBright:0.65,warmGlow:1, shorelineColor:'#C9CBE8', shorelineOp:0.26 },
+night: { bgTint:'#4A2C6A', bgAmount:0.22, glowAmount:0.18, glowOpacity:0.07, illum:300, dayLift:0.16, layerTints:{ vegetation:'#12241D', residential:'#C8913F', building:'#C8913F' }, vignette:{ top:0.90, bottom:0.76, edge:0.50 }, roadLight:0.12, moonWash:1, hillshadeHighlight:0.13, hillshadeHighlightRGB:'200,196,255', hillshadeShadow:'#04060F', hillshadeAccent:'#120B2A', hillshadeBoost:1.12, hillshadeLocalityDamp:0.9, waterTint:'#0C2538', waterLift:0.5,coastGlow:1, waterShimmer:0.07, waterLife:0.35, coastShelf:0.45, coastShelfHue:40, coastShelfSat:-0.50, coastShelfBright:0.65,warmGlow:1, shorelineColor:'#C9CBE8', shorelineOp:0.26 },
 };
 let currentDayPeriod = null;
 // Legibilidad al sol: con luz de día (day y midday) se activa .sun-legible en <html>.
@@ -12208,10 +12213,22 @@ let currentDayPeriod = null;
 // manda el sensor: se activa con luz fuerte (≥ 8000 lux) y se apaga en interiores (≤ 3000 lux).
 const SUN_LUX_ON = 8000, SUN_LUX_OFF = 3000;
 let sunSensorActive = false;
+let sunLegibilityStarted = false;
 function updateSunLegibility(){
   if (sunSensorActive) return;
   const p = getDayPeriod(atmosphereNow());
-  document.documentElement.classList.toggle('sun-legible', p === 'day' || p === 'midday');
+  const want = p === 'day' || p === 'midday';
+  const html = document.documentElement;
+  // Al abrir la app se aplica directo. Después, el cambio de día ↔ atardecer se funde en 1,2 s
+  // (html.atmo-ui-fade, ver «LEGIBILIDAD AL SOL») en vez de saltar de golpe mientras el mapa cambia suave.
+  if (!sunLegibilityStarted){ sunLegibilityStarted = true; html.classList.toggle('sun-legible', want); return; }
+  if (html.classList.contains('sun-legible') === want) return;
+  html.classList.add('atmo-ui-fade');
+  requestAnimationFrame(() => {
+    html.classList.toggle('sun-legible', want);
+    clearTimeout(updateSunLegibility.fadeTimer);
+    updateSunLegibility.fadeTimer = setTimeout(() => html.classList.remove('atmo-ui-fade'), 1400);
+  });
 }
 updateSunLegibility();
 setInterval(updateSunLegibility, 60000);
@@ -12508,7 +12525,12 @@ function resolveAtmosphere(periodCfg){
    de estado (según getDayPeriod), se mezclan los valores FINALES resueltos del estado
    actual y del siguiente con curva smoothstep. Cálculo a 1 Hz solo dentro de la
    ventana; fuera de ella, comprobación cada 60 s. Se escribe solo lo que cambió. */
-const ATMO_TRANSITION_MS = 10 * 60 * 1000;   // duración de la transición
+const ATMO_TRANSITION_MS = 10 * 60 * 1000;   // duración de la transición (la que usan los cambios sin duración propia)
+// Duración de cada transición según el tamaño del cambio (nov-2026): el paso Mediodía ↔ Día es el cambio
+// de luz más grande del día y en 10 min se notaba brusco; el crepúsculo hacia la noche también es más lento.
+const ATMO_TRANSITION_BY_CHANGE = { 'midday>day':25, 'day>midday':25, 'day>dusk':15, 'dusk>day':15, 'dusk>night':20, 'night>dusk':20 }; // minutos
+const ATMO_TRANSITION_MAX_MS = 25 * 60 * 1000;
+function atmoTransitionMs(from, to){ return (ATMO_TRANSITION_BY_CHANGE[from + '>' + to] || 10) * 60 * 1000; }
 const ATMO_TICK_MS = 1000;                   // cálculo a 1 Hz dentro de la ventana
 const ATMO_IDLE_CHECK_MS = 60 * 1000;        // comprobación fuera de la ventana
 let atmosphereTimer = null;
@@ -12591,9 +12613,11 @@ shorelineOp: atmoLerp(a.shorelineOp, b.shorelineOp, p, 0.01),
 // Atmósfera vigente para un instante dado (función pura del tiempo real).
 function computeAtmosphereAt(nowMs){
   const current = resolveAtmosphere(TIME_ATMOSPHERE[getDayPeriod(nowMs)]);
-  const b = findUpcomingBoundary(nowMs, ATMO_TRANSITION_MS);
+   const b = findUpcomingBoundary(nowMs, ATMO_TRANSITION_MAX_MS);
   if (!b) return current;
-  const t = Math.min(Math.max(1 - (b.at - nowMs) / ATMO_TRANSITION_MS, 0), 1);
+  const dur = atmoTransitionMs(b.from, b.to);
+  if (b.at - nowMs > dur) return current;
+  const t = Math.min(Math.max(1 - (b.at - nowMs) / dur, 0), 1);
   const p = t * t * (3 - 2 * t); // smoothstep
   return blendAtmosphere(current, resolveAtmosphere(TIME_ATMOSPHERE[b.to]), p);
 }
@@ -12662,10 +12686,10 @@ function runAtmosphereClock(){
   }
   // Fuera de la ventana: cada 60 s, o exactamente al inicio de la ventana si cae antes.
   // Dentro: 1 Hz, con una última ejecución justo después del límite (estado final exacto).
-  const upcoming = findUpcomingBoundary(now, ATMO_TRANSITION_MS + ATMO_IDLE_CHECK_MS);
+  const upcoming = findUpcomingBoundary(now, ATMO_TRANSITION_MAX_MS + ATMO_IDLE_CHECK_MS);
   let delay = ATMO_IDLE_CHECK_MS;
   if (upcoming){
-    const windowStart = upcoming.at - ATMO_TRANSITION_MS;
+    const windowStart = upcoming.at - atmoTransitionMs(upcoming.from, upcoming.to);
     delay = now < windowStart
       ? windowStart - now
       : Math.min(ATMO_TICK_MS, Math.max(20, upcoming.at - now + 20));
